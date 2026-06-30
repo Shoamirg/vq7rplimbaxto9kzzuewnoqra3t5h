@@ -1,0 +1,8 @@
+{
+  "name": "garageos",
+  "private": true,
+  "workspaces": [
+    "admin-dashboard",
+    "packages/*"
+  ]
+}

@@ -1,0 +1,81 @@
+from __future__ import annotations
+import uuid
+from datetime import date, datetime, timezone, timedelta
+from typing import Sequence
+from sqlalchemy import select, func, and_
+from app.models.appointment_slot import AppointmentSlot, AppointmentSlotStatus
+from app.repositories.base import BaseRepository
+
+
+class AppointmentSlotRepository(BaseRepository[AppointmentSlot]):
+    def __init__(self, session):
+        super().__init__(AppointmentSlot, session)
+
+    async def find_available(
+        self,
+        service_center_id: uuid.UUID,
+        slot_date: date,
+    ) -> Sequence[AppointmentSlot]:
+        stmt = select(AppointmentSlot).where(
+            AppointmentSlot.service_center_id == service_center_id,
+            AppointmentSlot.slot_date >= datetime.combine(slot_date, datetime.min.time()),
+            AppointmentSlot.slot_date < datetime.combine(slot_date, datetime.max.time()),
+            AppointmentSlot.status == AppointmentSlotStatus.AVAILABLE,
+        ).order_by(AppointmentSlot.start_time)
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def find_by_date(
+        self,
+        service_center_id: uuid.UUID,
+        slot_date: date,
+    ) -> Sequence[AppointmentSlot]:
+        stmt = select(AppointmentSlot).where(
+            AppointmentSlot.service_center_id == service_center_id,
+            AppointmentSlot.slot_date >= datetime.combine(slot_date, datetime.min.time()),
+            AppointmentSlot.slot_date < datetime.combine(slot_date, datetime.max.time()),
+        ).order_by(AppointmentSlot.start_time)
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def release_expired(self) -> int:
+        """Release slots where the temporary reservation has expired."""
+        now = datetime.now(timezone.utc)
+        stmt = select(AppointmentSlot).where(
+            AppointmentSlot.status == AppointmentSlotStatus.RESERVED,
+            AppointmentSlot.reserved_until < now,
+        )
+        result = await self.session.execute(stmt)
+        expired = result.scalars().all()
+
+        for slot in expired:
+            slot.status = AppointmentSlotStatus.AVAILABLE
+            slot.reserved_until = None
+            slot.appointment_id = None
+
+        await self.session.flush()
+        return len(expired)
+
+    async def count_by_status(
+        self,
+        service_center_id: uuid.UUID,
+        slot_date: date,
+    ) -> dict:
+        """Get counts of slots by status for a given date."""
+        statuses = [
+            AppointmentSlotStatus.AVAILABLE,
+            AppointmentSlotStatus.RESERVED,
+            AppointmentSlotStatus.BOOKED,
+            AppointmentSlotStatus.BLOCKED,
+        ]
+        counts = {}
+        for status in statuses:
+            stmt = select(func.count()).select_from(AppointmentSlot).where(
+                AppointmentSlot.service_center_id == service_center_id,
+                AppointmentSlot.slot_date >= datetime.combine(slot_date, datetime.min.time()),
+                AppointmentSlot.slot_date < datetime.combine(slot_date, datetime.max.time()),
+                AppointmentSlot.status == status,
+            )
+            count = await self.session.scalar(stmt)
+            counts[status] = count or 0
+        return counts

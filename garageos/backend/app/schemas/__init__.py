@@ -1,0 +1,76 @@
+from app.schemas.common import PaginationParams, PaginatedResponse, ErrorResponse, TimestampMixin
+from app.schemas.auth import (
+    LoginRequest,
+    TokenResponse,
+    RefreshTokenRequest,
+    RegisterAdminRequest,
+    RegisterAdminResponse,
+    CurrentUserResponse,
+)
+from app.schemas.customer import (
+    CustomerCreate,
+    CustomerUpdate,
+    CustomerResponse,
+    CustomerListResponse,
+)
+from app.schemas.vehicle import (
+    VehicleCreate,
+    VehicleUpdate,
+    MileageUpdate,
+    VehicleResponse,
+    VehicleListResponse,
+)
+from app.schemas.maintenance import (
+    MaintenanceRuleCreate,
+    MaintenanceRuleUpdate,
+    MaintenanceRuleResponse,
+    DueServiceItem,
+    VehicleHealthScore,
+    MaintenanceRuleListResponse,
+)
+from app.schemas.appointment import (
+    AppointmentCreate,
+    AppointmentUpdate,
+    AppointmentStatusUpdate,
+    AppointmentResponse,
+    AppointmentListResponse,
+    TimeSlot,
+    AvailableSlotsResponse,
+    AppointmentStats,
+)
+
+__all__ = [
+    "PaginationParams",
+    "PaginatedResponse",
+    "ErrorResponse",
+    "TimestampMixin",
+    "LoginRequest",
+    "TokenResponse",
+    "RefreshTokenRequest",
+    "RegisterAdminRequest",
+    "RegisterAdminResponse",
+    "CurrentUserResponse",
+    "CustomerCreate",
+    "CustomerUpdate",
+    "CustomerResponse",
+    "CustomerListResponse",
+    "VehicleCreate",
+    "VehicleUpdate",
+    "MileageUpdate",
+    "VehicleResponse",
+    "VehicleListResponse",
+    "MaintenanceRuleCreate",
+    "MaintenanceRuleUpdate",
+    "MaintenanceRuleResponse",
+    "DueServiceItem",
+    "VehicleHealthScore",
+    "MaintenanceRuleListResponse",
+    "AppointmentCreate",
+    "AppointmentUpdate",
+    "AppointmentStatusUpdate",
+    "AppointmentResponse",
+    "AppointmentListResponse",
+    "TimeSlot",
+    "AvailableSlotsResponse",
+    "AppointmentStats",
+]

@@ -1,0 +1,24 @@
+from sqlalchemy import BigInteger, String, ForeignKey, Text
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from app.core.database import Base
+from app.models.base import BaseModelMixin, ServiceCenterMixin
+
+
+class Customer(BaseModelMixin, ServiceCenterMixin, Base):
+    __tablename__ = "customers"
+
+    telegram_id: Mapped[int | None] = mapped_column(BigInteger, unique=True, nullable=True, index=True)
+    telegram_username: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    full_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    address: Mapped[str | None] = mapped_column(Text, nullable=True)
+    loyalty_points: Mapped[int] = mapped_column(default=0)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Relationships
+    vehicles = relationship("Vehicle", back_populates="customer", lazy="selectin",
+                            cascade="all, delete-orphan")
+    appointments = relationship("Appointment", back_populates="customer", lazy="selectin")
+    service_center = relationship("ServiceCenter", back_populates="customers")

@@ -1,0 +1,100 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-garage_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-garage_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-garage_platform}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-garage_user} -d ${POSTGRES_DB:-garage_platform}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-garage_user}:${POSTGRES_PASSWORD:-garage_pass}@postgres:5432/${POSTGRES_DB:-garage_platform}
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  telegram-bot:
+    build:
+      context: ./telegram-bot
+      dockerfile: ../docker/Dockerfile.bot
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-garage_user}:${POSTGRES_PASSWORD:-garage_pass}@postgres:5432/${POSTGRES_DB:-garage_platform}
+      - REDIS_URL=redis://redis:6379/0
+      - API_BASE_URL=http://backend:8000/api/v1
+    depends_on:
+      backend:
+        condition: service_started
+    volumes:
+      - ./telegram-bot:/app
+    command: python bot.py
+
+  admin-dashboard:
+    build:
+      context: ./admin-dashboard
+      dockerfile: ../docker/Dockerfile.dashboard
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-change-this-nextauth-secret}
+      - NEXTAUTH_URL=http://localhost:3000
+    depends_on:
+      - backend
+    volumes:
+      - ./admin-dashboard:/app
+      - /app/node_modules
+      - /app/.next
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - backend
+      - admin-dashboard
+
+volumes:
+  postgres_data:
+  redis_data:
