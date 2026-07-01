@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   Search,
   Bell,
@@ -16,6 +17,19 @@ import {
 import { cn, Avatar, Badge, Button, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from "@garageos/design-system";
 import { useTheme } from "../providers/theme-provider";
 
+type ShellUser = { name: string; email: string; role: string | null };
+
+function initials(name?: string): string {
+  return (
+    (name ?? "")
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0]!.toUpperCase())
+      .join("") || "?"
+  );
+}
+
 // ─── Breadcrumbs ──────────────────────────────────────────────
 function Breadcrumbs() {
   // In a real app, this would derive from the route or a context
@@ -29,10 +43,17 @@ function Breadcrumbs() {
 }
 
 // ─── TopBar ───────────────────────────────────────────────────
-export function TopBar() {
+export function TopBar({ user }: { user?: ShellUser }) {
   const { resolvedTheme, toggleTheme } = useTheme();
+  const router = useRouter();
   const [searchFocused, setSearchFocused] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  const handleSignOut = useCallback(async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.replace("/login");
+    router.refresh();
+  }, [router]);
 
   const handleSearch = useCallback(
     (e: React.FormEvent) => {
@@ -113,16 +134,16 @@ export function TopBar() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-lg hover:bg-muted transition-colors" aria-label="User menu">
-              <Avatar size="sm" fallback="JD" />
-              <span className="hidden md:inline text-sm font-medium text-foreground">John Doe</span>
+              <Avatar size="sm" fallback={initials(user?.name)} />
+              <span className="hidden md:inline text-sm font-medium text-foreground">{user?.name ?? "Account"}</span>
               <ChevronDown className="size-3.5 text-muted-foreground hidden md:inline" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col">
-                <span className="text-sm font-medium text-foreground">John Doe</span>
-                <span className="text-xs text-muted-foreground font-normal">john@garageos.com</span>
+                <span className="text-sm font-medium text-foreground">{user?.name ?? "Signed in"}</span>
+                <span className="text-xs text-muted-foreground font-normal">{user?.email ?? ""}</span>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
@@ -140,7 +161,7 @@ export function TopBar() {
               Help & Support
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem icon={<LogOut className="size-4" />} destructive>
+            <DropdownMenuItem icon={<LogOut className="size-4" />} destructive onClick={handleSignOut}>
               Sign Out
             </DropdownMenuItem>
           </DropdownMenuContent>

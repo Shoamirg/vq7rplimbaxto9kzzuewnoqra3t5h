@@ -8,6 +8,7 @@ import type {
   Appointment,
   AppointmentStats,
   CurrentUser,
+  FleetHealth,
   VehicleHealth,
   VehicleList,
   VehicleTimeline,
@@ -50,5 +51,7 @@ export const getTodayAppointments = () => apiFetch<Appointment[]>("/appointments
 export const getCurrentUser = () => apiFetch<CurrentUser>("/auth/me");
 
 export const getVehicles = () => apiFetch<VehicleList>("/vehicles");
+// Bounded for dashboard responsiveness (fleet health is O(N) over vehicles).
+export const getFleetHealth = (limit = 60) => apiFetch<FleetHealth>(`/fleet/health?limit=${limit}`);
 export const getVehicleHealth = (id: string) => apiFetch<VehicleHealth>(`/vehicles/${id}/health`);
 export const getVehicleTimeline = (id: string) => apiFetch<VehicleTimeline>(`/vehicles/${id}/timeline`);

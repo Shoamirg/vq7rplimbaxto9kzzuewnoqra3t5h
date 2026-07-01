@@ -116,3 +116,11 @@ export interface VehicleList {
   items: VehicleListItem[];
   count: number;
 }
+
+export interface FleetHealth {
+  evaluated_count: number;
+  average_score: number;
+  band: HealthBand;
+  distribution: { excellent: number; good: number; fair: number; poor: number };
+  needs_attention: { vehicle_id: string; summary: string; score: number; urgent_count: number }[];
+}

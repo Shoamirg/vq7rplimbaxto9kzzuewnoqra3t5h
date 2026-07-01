@@ -36,13 +36,40 @@ import {
   Area,
 } from "recharts";
 
-import type { Appointment, AppointmentStats } from "@/lib/api/types";
+import Link from "next/link";
+
+import type { Appointment, AppointmentStats, FleetHealth, HealthBand } from "@/lib/api/types";
+import { HealthGauge } from "@/components/vehicles/health-gauge";
 
 type Props = {
   userName: string;
   stats: AppointmentStats;
   today: Appointment[];
+  fleet: FleetHealth;
 };
+
+const FLEET_BAND_TEXT: Record<HealthBand, string> = {
+  excellent: "text-emerald-600 dark:text-emerald-400",
+  good: "text-green-600 dark:text-green-400",
+  fair: "text-amber-600 dark:text-amber-400",
+  poor: "text-red-600 dark:text-red-400",
+};
+const FLEET_BAND_LABEL: Record<HealthBand, string> = {
+  excellent: "Excellent", good: "Good", fair: "Fair", poor: "Poor",
+};
+
+function FleetBar({ label, count, total, color }: { label: string; count: number; total: number; color: string }) {
+  const pct = total ? Math.round((count / total) * 100) : 0;
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-muted-foreground w-16">{label}</span>
+      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+        <div className={cn("h-full rounded-full transition-all duration-500", color)} style={{ width: `${pct}%` }} />
+      </div>
+      <span className="text-xs font-medium text-foreground w-6 text-right tabular-nums">{count}</span>
+    </div>
+  );
+}
 
 // ─── Demo-only data (endpoints pending: revenue reporting, vehicle health,
 //     audit log). Marked in the UI so it's never mistaken for live data. ─────
@@ -116,7 +143,7 @@ function StatCard({
   );
 }
 
-export function DashboardClient({ userName, stats, today }: Props) {
+export function DashboardClient({ userName, stats, today, fleet }: Props) {
   const router = useRouter();
   const activeCount = stats.pending_count + stats.confirmed_count;
 
@@ -157,31 +184,29 @@ export function DashboardClient({ userName, stats, today }: Props) {
         <Card variant="elevated" className="lg:col-span-1 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent" />
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Fleet Health</CardTitle>
-                <CardDescription>Overall vehicle health score</CardDescription>
-              </div>
-              <DemoBadge />
-            </div>
+            <CardTitle>Fleet Health</CardTitle>
+            <CardDescription>Average across {fleet.evaluated_count} vehicles</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col items-center py-4">
-              <div className="relative size-40 mb-4">
-                <svg className="size-full" viewBox="0 0 120 120">
-                  <circle cx="60" cy="60" r="54" fill="none" stroke="hsl(var(--muted))" strokeWidth="8" />
-                  <circle cx="60" cy="60" r="54" fill="none" stroke="#10b981" strokeWidth="8" strokeLinecap="round" strokeDasharray={`${76 * 3.39} ${100 * 3.39}`} transform="rotate(-90 60 60)" />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-3xl font-bold text-foreground">76</span>
-                  <span className="text-xs font-medium text-success">/100</span>
-                </div>
+            <div className="flex flex-col items-center py-2">
+              <HealthGauge score={fleet.average_score} band={fleet.band} size={148} />
+              <p className={cn("mt-2 text-sm font-semibold", FLEET_BAND_TEXT[fleet.band])}>
+                {FLEET_BAND_LABEL[fleet.band]}
+              </p>
+              <div className="w-full mt-4 space-y-2">
+                <FleetBar label="Excellent" count={fleet.distribution.excellent} total={fleet.evaluated_count} color="bg-emerald-500" />
+                <FleetBar label="Good" count={fleet.distribution.good} total={fleet.evaluated_count} color="bg-green-500" />
+                <FleetBar label="Fair" count={fleet.distribution.fair} total={fleet.evaluated_count} color="bg-amber-500" />
+                <FleetBar label="Poor" count={fleet.distribution.poor} total={fleet.evaluated_count} color="bg-red-500" />
               </div>
-              <p className="text-xs text-muted-foreground text-center">Live fleet health lands with the Vehicle Health API.</p>
             </div>
           </CardContent>
           <CardFooter>
-            <Button variant="ghost" size="sm" fullWidth leftIcon={<TrendingUp className="size-4" />}>View Detailed Report</Button>
+            <Link href="/vehicles" className="w-full">
+              <Button variant="ghost" size="sm" fullWidth leftIcon={<TrendingUp className="size-4" />}>
+                {fleet.needs_attention.length} need attention
+              </Button>
+            </Link>
           </CardFooter>
         </Card>
 

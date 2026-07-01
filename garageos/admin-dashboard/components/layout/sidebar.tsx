@@ -46,8 +46,21 @@ const bottomNav: NavItem[] = [
   { label: "Help & Support", href: "/support", icon: <HelpCircle className="size-5" /> },
 ];
 
+type ShellUser = { name: string; email: string; role: string | null };
+
+function initials(name?: string): string {
+  return (
+    (name ?? "")
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0]!.toUpperCase())
+      .join("") || "?"
+  );
+}
+
 // ─── Sidebar Component ────────────────────────────────────────
-export function Sidebar() {
+export function Sidebar({ user }: { user?: ShellUser }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -204,11 +217,11 @@ export function Sidebar() {
         {!collapsed && (
           <div className="border-t border-sidebar-muted p-3 flex items-center gap-3">
             <div className="size-9 rounded-full bg-sidebar-muted flex items-center justify-center text-sm font-medium text-sidebar-foreground shrink-0">
-              JD
+              {initials(user?.name)}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-sidebar-foreground truncate">John Doe</p>
-              <p className="text-xs text-sidebar-foreground/50 truncate">john@garageos.com</p>
+              <p className="text-sm font-medium text-sidebar-foreground truncate">{user?.name ?? "Signed in"}</p>
+              <p className="text-xs text-sidebar-foreground/50 truncate">{user?.email ?? ""}</p>
             </div>
           </div>
         )}
