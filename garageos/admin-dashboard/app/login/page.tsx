@@ -1,0 +1,97 @@
+"use client";
+
+import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Wrench, LogIn } from "lucide-react";
+import { Button } from "@garageos/design-system";
+
+export default function LoginPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState("admin@demo.garageos.app");
+  const [password, setPassword] = useState("demo1234");
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? "Login failed");
+        return;
+      }
+      router.replace("/dashboard");
+      router.refresh();
+    } catch {
+      setError("Could not reach the server. Is the backend running?");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  return (
+    <main className="min-h-screen grid place-items-center bg-gradient-to-br from-primary/5 via-background to-background p-4">
+      <div className="w-full max-w-sm">
+        <div className="flex items-center gap-2 mb-6 justify-center">
+          <div className="p-2 rounded-xl bg-primary/10 text-primary">
+            <Wrench className="size-6" />
+          </div>
+          <span className="text-xl font-bold tracking-tight text-foreground">GarageOS</span>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card shadow-lg p-6 space-y-5">
+          <div>
+            <h1 className="text-lg font-semibold text-foreground">Sign in</h1>
+            <p className="text-sm text-muted-foreground">Access your garage dashboard</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <label htmlFor="email" className="text-sm font-medium text-foreground">Email</label>
+              <input
+                id="email"
+                type="email"
+                autoComplete="username"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/40"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="password" className="text-sm font-medium text-foreground">Password</label>
+              <input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/40"
+              />
+            </div>
+
+            {error && (
+              <p className="text-sm text-danger" role="alert">{error}</p>
+            )}
+
+            <Button type="submit" fullWidth loading={isLoading} leftIcon={<LogIn className="size-4" />}>
+              Sign in
+            </Button>
+          </form>
+
+          <p className="text-xs text-muted-foreground text-center">
+            Demo: <span className="font-mono">admin@demo.garageos.app</span> / <span className="font-mono">demo1234</span>
+          </p>
+        </div>
+      </div>
+    </main>
+  );
+}
