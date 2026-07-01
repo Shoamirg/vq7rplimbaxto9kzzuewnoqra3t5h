@@ -21,6 +21,7 @@ const STATIC_SHOTS = [
   { name: "dashboard", path: "/dashboard" },
   { name: "calendar", path: "/calendar" },
   { name: "vehicles", path: "/vehicles" },
+  { name: "showcase", path: "/showcase" },
 ];
 
 async function settle(page) {
