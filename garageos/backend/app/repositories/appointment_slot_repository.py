@@ -25,6 +25,24 @@ class AppointmentSlotRepository(TenantScopedRepository[AppointmentSlot]):
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
+    async def list_in_range(
+        self,
+        start: datetime,
+        end: datetime,
+        statuses: Sequence[str] | None = None,
+    ) -> Sequence[AppointmentSlot]:
+        stmt = self._scope(
+            select(AppointmentSlot).where(
+                AppointmentSlot.slot_date >= start,
+                AppointmentSlot.slot_date < end,
+            )
+        )
+        if statuses:
+            stmt = stmt.where(AppointmentSlot.status.in_(list(statuses)))
+        stmt = stmt.order_by(AppointmentSlot.slot_date, AppointmentSlot.start_time)
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
     async def find_by_date(
         self,
         service_center_id: uuid.UUID,

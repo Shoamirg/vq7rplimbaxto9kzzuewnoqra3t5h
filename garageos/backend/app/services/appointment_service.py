@@ -8,10 +8,11 @@ from app.repositories.appointment_slot_repository import AppointmentSlotReposito
 from app.repositories.vehicle_repository import VehicleRepository
 from app.repositories.customer_repository import CustomerRepository
 from app.repositories.service_record_repository import ServiceRecordRepository
+from app.repositories.user_repository import UserRepository
 from app.repositories.unit_of_work import UnitOfWork
 from app.services.maintenance_service import MaintenanceService
 from app.models.appointment import AppointmentStatus
-from app.models.appointment_slot import AppointmentSlotStatus
+from app.models.appointment_slot import AppointmentSlot, AppointmentSlotStatus
 from app.core.events import AppointmentCreated, AppointmentConfirmed, \
     AppointmentCompleted, AppointmentCancelled, MileageUpdated
 from app.exceptions import (
@@ -424,3 +425,143 @@ class AppointmentService:
     async def get_today(self) -> List[dict]:
         items, _ = await self.appointment_repo.list_detailed(on_date=date.today(), limit=200)
         return [serialize_appointment(a) for a in items]
+
+    # --- Slot generation ----------------------------------------------------
+    async def generate_slots_range(
+        self,
+        *,
+        start_date: date,
+        days: int = 30,
+        start_hour: int = 9,
+        end_hour: int = 18,
+        slot_minutes: int = 30,
+        mechanic_names: Optional[List[str]] = None,
+    ) -> dict:
+        """Bulk-generate available slots for ``days`` from ``start_date``.
+
+        Idempotent: slots already present (same day/time/mechanic) are skipped,
+        so re-running to extend the horizon never duplicates.
+        """
+        sc = self.uow.service_center_id
+        mechanics = mechanic_names or [None]
+        start_dt = datetime.combine(start_date, datetime.min.time(), tzinfo=timezone.utc)
+        end_dt = datetime.combine(
+            start_date + timedelta(days=days), datetime.min.time(), tzinfo=timezone.utc
+        )
+
+        existing = await self.slot_repo.list_in_range(start_dt, end_dt)
+        seen = {(s.slot_date.date(), s.start_time, s.mechanic_name) for s in existing}
+
+        new_slots: List[AppointmentSlot] = []
+        created = skipped = 0
+        for offset in range(days):
+            day = start_date + timedelta(days=offset)
+            for mechanic in mechanics:
+                cursor = datetime.combine(
+                    day, datetime.min.time().replace(hour=start_hour), tzinfo=timezone.utc
+                )
+                day_end = datetime.combine(
+                    day, datetime.min.time().replace(hour=end_hour), tzinfo=timezone.utc
+                )
+                while cursor + timedelta(minutes=slot_minutes) <= day_end:
+                    start_str = cursor.strftime("%H:%M")
+                    key = (day, start_str, mechanic)
+                    if key in seen:
+                        skipped += 1
+                    else:
+                        new_slots.append(AppointmentSlot(
+                            service_center_id=sc,
+                            mechanic_name=mechanic,
+                            slot_date=cursor,
+                            start_time=start_str,
+                            end_time=(cursor + timedelta(minutes=slot_minutes)).strftime("%H:%M"),
+                            duration_minutes=slot_minutes,
+                            status=AppointmentSlotStatus.AVAILABLE,
+                        ))
+                        seen.add(key)
+                        created += 1
+                    cursor += timedelta(minutes=slot_minutes)
+
+        if new_slots:
+            self.uow.session.add_all(new_slots)
+            await self.uow.flush()
+        return {"created": created, "skipped": skipped}
+
+    # --- Calendar aggregation ----------------------------------------------
+    async def get_calendar(self, start: date, end: date) -> dict:
+        """One-request calendar payload: mechanics, slots, appointments, blocked."""
+        start_dt = datetime.combine(start, datetime.min.time(), tzinfo=timezone.utc)
+        end_dt = datetime.combine(end, datetime.min.time(), tzinfo=timezone.utc)
+
+        appointments = await self.appointment_repo.list_in_range(start_dt, end_dt)
+        slots = await self.slot_repo.list_in_range(start_dt, end_dt)
+        mechanics = await self._mechanics()
+
+        def slot_dict(s: AppointmentSlot) -> dict:
+            return {
+                "id": str(s.id),
+                "date": s.slot_date.isoformat(),
+                "start_time": s.start_time,
+                "end_time": s.end_time,
+                "mechanic": s.mechanic_name,
+                "status": s.status,
+                "duration": s.duration_minutes,
+                "appointment_id": str(s.appointment_id) if s.appointment_id else None,
+            }
+
+        return {
+            "start": start.isoformat(),
+            "end": end.isoformat(),
+            "mechanics": mechanics,
+            "appointments": [serialize_appointment(a) for a in appointments],
+            "slots": [slot_dict(s) for s in slots if s.status != AppointmentSlotStatus.BLOCKED],
+            "blocked": [slot_dict(s) for s in slots if s.status == AppointmentSlotStatus.BLOCKED],
+        }
+
+    async def _mechanics(self) -> List[dict]:
+        users = await UserRepository(self.uow.session).find_by_service_center(
+            self.uow.service_center_id
+        )
+        return [
+            {"id": str(u.id), "name": u.full_name, "role": u.role.name if u.role else None}
+            for u in users
+            if u.role and u.role.name == "mechanic"
+        ]
+
+    # --- Calendar drag/drop -------------------------------------------------
+    async def move_appointment(self, appointment_id: uuid.UUID, new_slot_id: uuid.UUID) -> dict:
+        appointment = await self.appointment_repo.get_with_slot(appointment_id)
+        if not appointment:
+            raise AppointmentNotFound()
+        if appointment.status in (AppointmentStatus.COMPLETED, AppointmentStatus.CANCELLED):
+            raise AppointmentStateError(
+                f"Cannot move an appointment in status '{appointment.status}'"
+            )
+        new_slot = await self.slot_repo.get_by_id(new_slot_id)
+        if not new_slot or new_slot.status != AppointmentSlotStatus.AVAILABLE:
+            raise SlotUnavailable()
+
+        # Free the old slot, book the new one.
+        if appointment.slot:
+            appointment.slot.status = AppointmentSlotStatus.AVAILABLE
+            appointment.slot.appointment_id = None
+            appointment.slot.reserved_until = None
+        new_slot.status = AppointmentSlotStatus.BOOKED
+        new_slot.appointment_id = appointment.id
+
+        appointment.appointment_date = new_slot.slot_date
+        appointment.appointment_time = new_slot.start_time
+        appointment.mechanic_name = new_slot.mechanic_name
+        appointment.estimated_duration_minutes = new_slot.duration_minutes
+        await self.uow.flush()
+        return await self.get_appointment(appointment_id)
+
+    async def assign_mechanic(self, appointment_id: uuid.UUID, mechanic_name: str) -> dict:
+        appointment = await self.appointment_repo.get_with_slot(appointment_id)
+        if not appointment:
+            raise AppointmentNotFound()
+        appointment.mechanic_name = mechanic_name
+        if appointment.slot:
+            appointment.slot.mechanic_name = mechanic_name
+        await self.uow.flush()
+        return await self.get_appointment(appointment_id)

@@ -111,3 +111,20 @@ class AppointmentCompleteRequest(BaseModel):
     odometer_km: int | None = Field(default=None, ge=0)
     total_cost: float | None = Field(default=None, ge=0)
     notes: str | None = None
+
+
+class SlotGenerateRequest(BaseModel):
+    start_date: date
+    days: int = Field(default=30, ge=1, le=120)
+    start_hour: int = Field(default=9, ge=0, le=23)
+    end_hour: int = Field(default=18, ge=1, le=24)
+    slot_minutes: int = Field(default=30, ge=15, le=240)
+    mechanic_names: list[str] | None = None
+
+
+class MoveAppointmentRequest(BaseModel):
+    slot_id: UUID
+
+
+class AssignMechanicRequest(BaseModel):
+    mechanic_name: str = Field(min_length=1, max_length=255)

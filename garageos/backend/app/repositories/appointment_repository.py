@@ -73,6 +73,21 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
         result = await self.session.execute(stmt)
         return result.scalars().all(), total or 0
 
+    async def list_in_range(self, start: datetime, end: datetime) -> Sequence[Appointment]:
+        """Non-cancelled appointments in [start, end), detailed — for the calendar."""
+        stmt = self._scope(
+            select(Appointment).where(
+                Appointment.is_active == True,
+                Appointment.appointment_date >= start,
+                Appointment.appointment_date < end,
+                Appointment.status != AppointmentStatus.CANCELLED,
+            )
+        ).options(*self._DETAIL_OPTIONS).order_by(
+            Appointment.appointment_date, Appointment.appointment_time
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
     async def find_by_date(self, service_center_id: uuid.UUID, appointment_date: date) -> Sequence[Appointment]:
         stmt = select(Appointment).where(
             Appointment.service_center_id == service_center_id,
