@@ -132,6 +132,16 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
+    async def find_by_vehicle(self, vehicle_id: uuid.UUID) -> Sequence[Appointment]:
+        stmt = self._scope(
+            select(Appointment).where(
+                Appointment.vehicle_id == vehicle_id,
+                Appointment.is_active == True,
+            )
+        ).order_by(Appointment.appointment_date.desc())
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
     async def find_conflicting(
         self,
         service_center_id: uuid.UUID,
