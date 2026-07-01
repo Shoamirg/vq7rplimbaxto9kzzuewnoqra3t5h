@@ -124,3 +124,36 @@ export interface FleetHealth {
   distribution: { excellent: number; good: number; fair: number; poor: number };
   needs_attention: { vehicle_id: string; summary: string; score: number; urgent_count: number }[];
 }
+
+// ─── Calendar ────────────────────────────────────────────────
+export interface CalendarMechanic {
+  id: string;
+  name: string;
+  role: string | null;
+}
+
+export interface CalendarSlot {
+  id: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  mechanic: string | null;
+  status: string;
+  duration: number;
+  appointment_id: string | null;
+}
+
+export interface CalendarPayload {
+  start: string;
+  end: string;
+  mechanics: CalendarMechanic[];
+  appointments: Appointment[];
+  slots: CalendarSlot[];
+  blocked: CalendarSlot[];
+}
+
+export interface DueServices {
+  vehicle_id: string;
+  due_count: number;
+  services: HealthService[];
+}

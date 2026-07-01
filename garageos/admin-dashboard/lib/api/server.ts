@@ -7,6 +7,7 @@ import { AUTH_COOKIE } from "./constants";
 import type {
   Appointment,
   AppointmentStats,
+  CalendarPayload,
   CurrentUser,
   FleetHealth,
   VehicleHealth,
@@ -55,3 +56,6 @@ export const getVehicles = () => apiFetch<VehicleList>("/vehicles");
 export const getFleetHealth = (limit = 60) => apiFetch<FleetHealth>(`/fleet/health?limit=${limit}`);
 export const getVehicleHealth = (id: string) => apiFetch<VehicleHealth>(`/vehicles/${id}/health`);
 export const getVehicleTimeline = (id: string) => apiFetch<VehicleTimeline>(`/vehicles/${id}/timeline`);
+
+export const getCalendar = (start: string, end: string) =>
+  apiFetch<CalendarPayload>(`/calendar?start=${start}&end=${end}`);

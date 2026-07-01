@@ -30,6 +30,6 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Run on everything except Next internals, the auth API, and static assets.
-  matcher: ["/((?!api/auth|_next/static|_next/image|favicon.ico).*)"],
+  // Run on everything except Next internals, the API routes, and static assets.
+  matcher: ["/((?!api/auth|api/proxy|_next/static|_next/image|favicon.ico).*)"],
 };
