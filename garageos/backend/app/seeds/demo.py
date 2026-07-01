@@ -37,6 +37,7 @@ from app.seeds.models import seed_vehicle_models
 from app.seeds.roles import seed_roles
 from app.seeds.service_centers import seed_service_center
 from app.seeds.service_records import generate_service_records
+from app.seeds.showcase import generate_showcase_vehicles
 from app.seeds.vehicles import generate_vehicles
 
 logger = logging.getLogger("seeds.demo")
@@ -121,13 +122,22 @@ async def _seed_tenant(
     customers = await generate_customers(
         session, center, volume["customers"], telegram_id_start=telegram_base
     )
-    vehicles = await generate_vehicles(session, center, customers, models, volume["vehicles"])
+    # Showcase vehicles with engineered health (Excellent/Good/Fair) so the demo
+    # spans every band; bulk random vehicles fill the rest (Poor).
+    showcase = await generate_showcase_vehicles(session, center, customers, models, rules)
+    bulk_count = max(0, volume["vehicles"] - len(showcase))
+    bulk = await generate_vehicles(session, center, customers, models, bulk_count)
+    vehicles = list(showcase) + list(bulk)
+
     await generate_appointments(
         session, center, vehicles, staff["mechanics"], rules, volume["appointments"]
     )
-    await generate_service_records(session, center, vehicles, volume["service_records"])
+    # Random service records only on bulk vehicles — never overwrite the
+    # engineered histories that give showcase vehicles their target scores.
+    await generate_service_records(session, center, bulk, volume["service_records"])
     logger.info(
-        "Seeded %s: %d customers, %d vehicles", center.name, len(customers), len(vehicles)
+        "Seeded %s: %d customers, %d vehicles (%d showcase)",
+        center.name, len(customers), len(vehicles), len(showcase),
     )
     return center
 

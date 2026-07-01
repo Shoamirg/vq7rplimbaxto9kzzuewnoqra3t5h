@@ -21,9 +21,11 @@ _PRIORITY_RANK = {"high": 0, "medium": 1, "low": 2}
 
 
 def _band(score: float) -> str:
-    if score >= 80:
+    if score >= 90:
+        return "excellent"
+    if score >= 70:
         return "good"
-    if score >= 50:
+    if score >= 40:
         return "fair"
     return "poor"
 

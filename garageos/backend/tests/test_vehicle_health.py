@@ -72,7 +72,7 @@ async def test_get_health_returns_full_report(session):
     health = await svc.get_health(ctx.vehicle.id)
 
     assert isinstance(health["overall_score"], (int, float))
-    assert health["band"] in {"good", "fair", "poor"}
+    assert health["band"] in {"excellent", "good", "fair", "poor"}
     assert health["vehicle"]["license_plate"] == "ABC123"
     assert len(health["services"]) == 2
     assert {c["name"] for c in health["categories"]} == {"Engine & Fluids", "Brakes"}
