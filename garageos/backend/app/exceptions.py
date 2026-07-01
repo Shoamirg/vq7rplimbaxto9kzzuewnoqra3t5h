@@ -68,6 +68,15 @@ class AppointmentConflict(ConflictError):
     detail = "Time slot is already booked"
 
 
+class AppointmentStateError(ConflictError):
+    detail = "Appointment is not in a valid state for this action"
+    code = "INVALID_APPOINTMENT_STATE"
+
+    def __init__(self, detail: str | None = None):
+        if detail:
+            self.detail = detail
+
+
 class SlotUnavailable(ConflictError):
     detail = "Requested time slot is not available"
 

@@ -7,13 +7,15 @@ from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.appointment_slot_repository import AppointmentSlotRepository
 from app.repositories.vehicle_repository import VehicleRepository
 from app.repositories.customer_repository import CustomerRepository
+from app.repositories.service_record_repository import ServiceRecordRepository
 from app.repositories.unit_of_work import UnitOfWork
+from app.services.maintenance_service import MaintenanceService
 from app.models.appointment import AppointmentStatus
 from app.models.appointment_slot import AppointmentSlotStatus
 from app.core.events import AppointmentCreated, AppointmentConfirmed, \
-    AppointmentCompleted, AppointmentCancelled
+    AppointmentCompleted, AppointmentCancelled, MileageUpdated
 from app.exceptions import (
-    AppointmentNotFound, SlotUnavailable, AppointmentConflict,
+    AppointmentNotFound, SlotUnavailable, AppointmentConflict, AppointmentStateError,
     VehicleNotFound, CustomerNotFound,
 )
 
@@ -38,9 +40,10 @@ def serialize_appointment(a) -> dict:
         "appointment_time": a.appointment_time,
         "mechanic_name": a.mechanic_name,
         "status": a.status,
-        # Appointment has no service_type column; it will be derived from the
-        # linked maintenance rule once that relation is wired (Phase 2).
-        "service_type": None,
+        # service_type is derived from the linked maintenance rule (canonical
+        # source) — Appointment has no service_type column of its own.
+        "maintenance_rule_id": str(a.maintenance_rule_id) if a.maintenance_rule_id else None,
+        "service_type": a.maintenance_rule.service_type if a.maintenance_rule else None,
         "estimated_duration_minutes": a.estimated_duration_minutes,
         "total_cost": a.total_cost,
     }
@@ -56,6 +59,7 @@ class AppointmentService:
         self.slot_repo = AppointmentSlotRepository(uow.session, sc)
         self.vehicle_repo = VehicleRepository(uow.session, sc)
         self.customer_repo = CustomerRepository(uow.session, sc)
+        self.service_record_repo = ServiceRecordRepository(uow.session, sc)
 
     async def generate_slots(
         self,
@@ -116,44 +120,51 @@ class AppointmentService:
 
     async def create_appointment(
         self,
+        *,
         customer_id: uuid.UUID,
         vehicle_id: uuid.UUID,
-        service_center_id: uuid.UUID,
         slot_id: uuid.UUID,
-        service_type: Optional[str] = None,
+        maintenance_rule_id: Optional[uuid.UUID] = None,
         customer_notes: Optional[str] = None,
     ) -> dict:
-        vehicle = await self.vehicle_repo.get_by_id(vehicle_id)
-        if not vehicle:
-            raise VehicleNotFound(vehicle_id)
+        """Book an appointment against an available slot. Thin: all rules here.
 
-        customer = await self.customer_repo.get_by_id(customer_id)
-        if not customer:
+        Tenant is taken from the UoW; every repo lookup is tenant-scoped, so a
+        customer/vehicle/slot id from another tenant simply won't be found.
+        """
+        sc = self.uow.service_center_id
+
+        if not await self.customer_repo.get_by_id(customer_id):
             raise CustomerNotFound()
+        if not await self.vehicle_repo.get_by_id(vehicle_id):
+            raise VehicleNotFound(vehicle_id)
 
         slot = await self.slot_repo.get_by_id(slot_id)
         if not slot or slot.status != AppointmentSlotStatus.AVAILABLE:
             raise SlotUnavailable()
 
-        # Reserve the slot
+        # Conflict detection: the mechanic/time must not already be taken.
+        conflicts = await self.appointment_repo.find_conflicting(
+            sc, slot.slot_date, slot.start_time, slot.duration_minutes
+        )
+        if conflicts:
+            raise AppointmentConflict()
+
+        # Reserve then book the slot.
         slot.status = AppointmentSlotStatus.RESERVED
         slot.reserved_until = datetime.now(timezone.utc) + timedelta(minutes=30)
 
         appointment = await self.appointment_repo.create(
             customer_id=customer_id,
             vehicle_id=vehicle_id,
-            service_center_id=service_center_id,
-            maintenance_rule_id=None,
+            maintenance_rule_id=maintenance_rule_id,
             mechanic_name=slot.mechanic_name,
             appointment_date=slot.slot_date,
             appointment_time=slot.start_time,
             estimated_duration_minutes=slot.duration_minutes,
             status=AppointmentStatus.PENDING,
-            service_type=service_type,
             customer_notes=customer_notes,
         )
-
-        # Link slot to appointment
         slot.appointment_id = appointment.id
         slot.status = AppointmentSlotStatus.BOOKED
 
@@ -162,99 +173,136 @@ class AppointmentService:
             customer_id=customer_id,
             vehicle_id=vehicle_id,
             appointment_id=appointment.id,
-            service_center_id=service_center_id,
+            service_center_id=sc,
         ))
-
         await self.uow.flush()
-        await self.uow.session.refresh(appointment)
-
-        return {
-            "id": str(appointment.id),
-            "customer_id": str(customer_id),
-            "vehicle_id": str(vehicle_id),
-            "date": appointment.appointment_date.isoformat(),
-            "time": appointment.appointment_time,
-            "mechanic": appointment.mechanic_name,
-            "status": appointment.status,
-        }
+        return await self.get_appointment(appointment.id)
 
     async def confirm_appointment(self, appointment_id: uuid.UUID) -> dict:
-        appointment = await self.appointment_repo.update_status(
-            appointment_id, AppointmentStatus.CONFIRMED
-        )
+        appointment = await self.appointment_repo.get_by_id(appointment_id)
         if not appointment:
             raise AppointmentNotFound()
-
+        if appointment.status != AppointmentStatus.PENDING:
+            raise AppointmentStateError(
+                f"Cannot confirm an appointment in status '{appointment.status}'"
+            )
+        appointment.status = AppointmentStatus.CONFIRMED
         self.uow.add_event(AppointmentConfirmed(
             aggregate_id=appointment_id,
             appointment_id=appointment_id,
             customer_id=appointment.customer_id,
             vehicle_id=appointment.vehicle_id,
         ))
-
-        return {"id": str(appointment_id), "status": AppointmentStatus.CONFIRMED}
+        await self.uow.flush()
+        return await self.get_appointment(appointment_id)
 
     async def complete_appointment(
         self,
         appointment_id: uuid.UUID,
-        notes: Optional[str] = None,
+        *,
+        odometer_km: Optional[int] = None,
         total_cost: Optional[float] = None,
+        notes: Optional[str] = None,
     ) -> dict:
-        appointment = await self.appointment_repo.update(
-            appointment_id,
-            status=AppointmentStatus.COMPLETED,
-            notes=notes,
-            total_cost=total_cost,
-        )
+        """Complete an appointment and drive the core value chain.
+
+        The state changes that MUST be atomic with completion happen in this one
+        transaction: mark completed, create the ServiceRecord, advance mileage,
+        recalculate vehicle health. Side effects that can be eventually
+        consistent (customer notifications) are emitted as domain events and
+        handled after commit — that is where Telegram/email hook in.
+        """
+        appointment = await self.appointment_repo.get_detailed(appointment_id)
         if not appointment:
             raise AppointmentNotFound()
+        if appointment.status == AppointmentStatus.COMPLETED:
+            raise AppointmentStateError("Appointment is already completed")
+
+        appointment.status = AppointmentStatus.COMPLETED
+        appointment.total_cost = total_cost
+        if notes:
+            appointment.notes = notes
+
+        vehicle = appointment.vehicle
+        rule = appointment.maintenance_rule
+        service_type = rule.service_type if rule else "General Service"
+        performed_km = (
+            odometer_km if odometer_km is not None
+            else (vehicle.current_km if vehicle else 0)
+        )
+
+        # Advance the odometer if a higher reading was supplied.
+        if vehicle and odometer_km is not None and odometer_km > (vehicle.current_km or 0):
+            previous = vehicle.current_km or 0
+            vehicle.current_km = odometer_km
+            self.uow.add_event(MileageUpdated(
+                aggregate_id=vehicle.id, vehicle_id=vehicle.id,
+                previous_km=previous, new_km=odometer_km,
+            ))
+
+        # ServiceRecord is atomic with completion — a completed job always has one.
+        record = await self.service_record_repo.create(
+            vehicle_id=appointment.vehicle_id,
+            appointment_id=appointment.id,
+            service_type=service_type,
+            description=rule.description if rule else None,
+            performed_km=performed_km,
+            performed_date=datetime.now(timezone.utc),
+            cost=total_cost,
+        )
+        await self.uow.flush()
+
+        # Recalculate vehicle health; surface any maintenance-due events.
+        health_score = None
+        if vehicle:
+            maintenance = MaintenanceService(self.uow.session, self.uow.service_center_id)
+            report = await maintenance.calculate_due_services(vehicle.id)
+            health_score = report.overall_score
+            for event in maintenance.get_due_events(report):
+                self.uow.add_event(event)
 
         self.uow.add_event(AppointmentCompleted(
-            aggregate_id=appointment_id,
-            appointment_id=appointment_id,
+            aggregate_id=appointment.id,
+            appointment_id=appointment.id,
+            service_record_id=record.id,
         ))
+        await self.uow.flush()
 
-        return {
-            "id": str(appointment_id),
-            "status": AppointmentStatus.COMPLETED,
-            "total_cost": total_cost,
-        }
+        result = serialize_appointment(appointment)
+        result["service_record_id"] = str(record.id)
+        result["vehicle_health_score"] = health_score
+        return result
 
     async def cancel_appointment(
         self,
         appointment_id: uuid.UUID,
         reason: Optional[str] = None,
     ) -> dict:
-        # Load appointment with slot relationship
-        from sqlalchemy.orm import selectinload
-        from sqlalchemy import select as sa_select
-        from app.models.appointment import Appointment
-
-        stmt = sa_select(Appointment).options(
-            selectinload(Appointment.slot)
-        ).where(Appointment.id == appointment_id)
-        result = await self.uow.session.execute(stmt)
-        appointment = result.scalar_one_or_none()
-
+        appointment = await self.appointment_repo.get_with_slot(appointment_id)
         if not appointment:
             raise AppointmentNotFound()
+        if appointment.status in (AppointmentStatus.CANCELLED, AppointmentStatus.COMPLETED):
+            raise AppointmentStateError(
+                f"Cannot cancel an appointment in status '{appointment.status}'"
+            )
 
-        # Release the slot if linked
+        # Free the linked slot so it can be booked again.
         if appointment.slot:
             appointment.slot.status = AppointmentSlotStatus.AVAILABLE
             appointment.slot.appointment_id = None
             appointment.slot.reserved_until = None
 
         appointment.status = AppointmentStatus.CANCELLED
-        appointment.notes = reason
+        if reason:
+            appointment.notes = reason
 
         self.uow.add_event(AppointmentCancelled(
             aggregate_id=appointment_id,
             appointment_id=appointment_id,
             reason=reason,
         ))
-
-        return {"id": str(appointment_id), "status": AppointmentStatus.CANCELLED}
+        await self.uow.flush()
+        return await self.get_appointment(appointment_id)
 
     async def reschedule_appointment(
         self,

@@ -1,6 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from datetime import datetime, date
 from typing import Optional
+from uuid import UUID
 
 
 class AppointmentCreate(BaseModel):
@@ -89,3 +90,24 @@ class AppointmentStats(BaseModel):
     confirmed_count: int
     completed_count: int
     cancelled_count: int
+
+
+# --- Booking lifecycle request bodies (Sprint 3 Phase 2) --------------------
+
+class AppointmentBookRequest(BaseModel):
+    """Book an appointment against a pre-generated available slot."""
+    customer_id: UUID
+    vehicle_id: UUID
+    slot_id: UUID
+    maintenance_rule_id: UUID | None = None
+    customer_notes: str | None = None
+
+
+class AppointmentCancelRequest(BaseModel):
+    reason: str | None = None
+
+
+class AppointmentCompleteRequest(BaseModel):
+    odometer_km: int | None = Field(default=None, ge=0)
+    total_cost: float | None = Field(default=None, ge=0)
+    notes: str | None = None

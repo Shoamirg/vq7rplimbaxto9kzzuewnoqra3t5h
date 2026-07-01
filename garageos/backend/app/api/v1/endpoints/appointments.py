@@ -9,11 +9,18 @@ from __future__ import annotations
 import uuid
 from math import ceil
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Body, Depends, Header, Query, status
 
 from app.api.deps import get_tenant_uow
+from app.core.idempotency import idempotency_store
+from app.exceptions import AppointmentStateError
 from app.repositories.unit_of_work import UnitOfWork
-from app.schemas.appointment import AppointmentStats
+from app.schemas.appointment import (
+    AppointmentBookRequest,
+    AppointmentCancelRequest,
+    AppointmentCompleteRequest,
+    AppointmentStats,
+)
 from app.services.appointment_service import AppointmentService
 
 router = APIRouter()
@@ -66,3 +73,73 @@ async def get_appointment(
     uow: UnitOfWork = Depends(get_tenant_uow),
 ) -> dict:
     return await AppointmentService(uow).get_appointment(appointment_id)
+
+
+# --- Booking lifecycle (write) ------------------------------------------------
+
+@router.post("", status_code=status.HTTP_201_CREATED, summary="Book an appointment")
+async def book_appointment(
+    body: AppointmentBookRequest,
+    uow: UnitOfWork = Depends(get_tenant_uow),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+) -> dict:
+    service = AppointmentService(uow)
+
+    async def _create() -> dict:
+        return await service.create_appointment(
+            customer_id=body.customer_id,
+            vehicle_id=body.vehicle_id,
+            slot_id=body.slot_id,
+            maintenance_rule_id=body.maintenance_rule_id,
+            customer_notes=body.customer_notes,
+        )
+
+    if not idempotency_key:
+        return await _create()
+
+    # Namespace the key by tenant so keys can't collide across service centers.
+    key = f"idem:appt:{uow.service_center_id}:{idempotency_key}"
+    state, existing = await idempotency_store.reserve(key)
+    if state == "done":
+        return await service.get_appointment(uuid.UUID(existing))
+    if state == "in_progress":
+        raise AppointmentStateError("A booking with this Idempotency-Key is already in progress")
+    try:
+        result = await _create()
+    except Exception:
+        await idempotency_store.release(key)
+        raise
+    await idempotency_store.store(key, result["id"])
+    return result
+
+
+@router.patch("/{appointment_id}/confirm", summary="Confirm a pending appointment")
+async def confirm_appointment(
+    appointment_id: uuid.UUID,
+    uow: UnitOfWork = Depends(get_tenant_uow),
+) -> dict:
+    return await AppointmentService(uow).confirm_appointment(appointment_id)
+
+
+@router.patch("/{appointment_id}/cancel", summary="Cancel an appointment (frees its slot)")
+async def cancel_appointment(
+    appointment_id: uuid.UUID,
+    uow: UnitOfWork = Depends(get_tenant_uow),
+    body: AppointmentCancelRequest | None = Body(default=None),
+) -> dict:
+    reason = body.reason if body else None
+    return await AppointmentService(uow).cancel_appointment(appointment_id, reason=reason)
+
+
+@router.patch("/{appointment_id}/complete", summary="Complete an appointment (value chain)")
+async def complete_appointment(
+    appointment_id: uuid.UUID,
+    body: AppointmentCompleteRequest,
+    uow: UnitOfWork = Depends(get_tenant_uow),
+) -> dict:
+    return await AppointmentService(uow).complete_appointment(
+        appointment_id,
+        odometer_km=body.odometer_km,
+        total_cost=body.total_cost,
+        notes=body.notes,
+    )

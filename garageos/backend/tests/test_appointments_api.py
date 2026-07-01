@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import httpx
 import pytest_asyncio
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.core.database import async_session_factory, engine
 from app.main import app
@@ -61,12 +61,25 @@ async def test_unauthenticated_is_401(client):
 
 async def test_list_is_scoped_to_tenant(client):
     token = await _login(client, *PRIMARY_ADMIN)
+    # Derive the expected count from the DB so the test isn't tied to exact seed
+    # volume, and assert the tenant is a strict subset of all appointments.
+    async with async_session_factory() as s:
+        a_center = (await s.execute(
+            select(ServiceCenter).where(ServiceCenter.email == PRIMARY_EMAIL)
+        )).scalar_one()
+        a_count = (await s.execute(
+            select(func.count()).select_from(Appointment)
+            .where(Appointment.service_center_id == a_center.id, Appointment.is_active == True)
+        )).scalar_one()
+        global_count = (await s.execute(
+            select(func.count()).select_from(Appointment).where(Appointment.is_active == True)
+        )).scalar_one()
+
     resp = await client.get("/api/v1/appointments?page_size=100", headers=_auth(token))
     assert resp.status_code == 200
     body = resp.json()
-    # Primary tenant is seeded with 40 appointments; tenant B has 6. Scoping => 40.
-    assert body["total"] == 40
-    assert len(body["items"]) == 40
+    assert body["total"] == a_count
+    assert 0 < a_count < global_count  # scoping: strict subset of all tenants' data
 
 
 async def test_stats_shape(client):

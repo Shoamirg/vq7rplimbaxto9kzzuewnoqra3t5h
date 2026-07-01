@@ -17,10 +17,22 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
     # --- Read helpers with relations eagerly loaded (async-safe) ------------
     _DETAIL_OPTIONS = (
         selectinload(Appointment.customer),
+        selectinload(Appointment.maintenance_rule),
         selectinload(Appointment.vehicle)
         .selectinload(Vehicle.vehicle_model)
         .selectinload(VehicleModel.brand),
     )
+
+    async def get_with_slot(self, appointment_id: uuid.UUID) -> Optional[Appointment]:
+        """Tenant-scoped fetch with the linked slot loaded (for cancel/reschedule)."""
+        stmt = self._scope(
+            select(Appointment).where(
+                Appointment.id == appointment_id,
+                Appointment.is_active == True,
+            )
+        ).options(selectinload(Appointment.slot))
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def get_detailed(self, appointment_id: uuid.UUID) -> Optional[Appointment]:
         """Tenant-scoped fetch by id with customer + vehicle relations loaded."""
