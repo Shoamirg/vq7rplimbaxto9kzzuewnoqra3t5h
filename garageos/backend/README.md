@@ -76,7 +76,7 @@ Seeded volumes (primary tenant): 7 users, 200 customers, 350 vehicles, 40 appoin
 150 service records, 132 maintenance rules.
 
 Default demo credentials (all tenants): password `demo1234`,
-admin email `admin@<tenant-slug>.garageos.local` (e.g. `admin@demo.garageos.local`).
+admin email `admin@<tenant-slug>.garageos.app` (e.g. `admin@demo.garageos.app`).
 
 ## Multi-tenant isolation — important
 

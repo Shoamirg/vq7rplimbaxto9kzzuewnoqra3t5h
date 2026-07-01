@@ -26,7 +26,7 @@ async def seed_staff(
     *,
     tenant_slug: str,
     mechanic_count: int = 6,
-    email_domain: str = "garageos.local",
+    email_domain: str = "garageos.app",
 ) -> dict[str, list[User]]:
     """Create one admin plus ``mechanic_count`` mechanics for this tenant.
 

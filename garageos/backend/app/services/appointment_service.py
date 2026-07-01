@@ -18,6 +18,34 @@ from app.exceptions import (
 )
 
 
+def serialize_appointment(a) -> dict:
+    """Flatten an Appointment ORM row (with customer + vehicle eagerly loaded)
+    into a JSON-friendly dict for API responses."""
+    vm = a.vehicle.vehicle_model if a.vehicle else None
+    brand = vm.brand.name if vm and getattr(vm, "brand", None) else ""
+    model = vm.name if vm else ""
+    plate = a.vehicle.license_plate if a.vehicle else None
+    vehicle_summary = f"{brand} {model}".strip()
+    if plate:
+        vehicle_summary = f"{vehicle_summary} ({plate})".strip()
+    return {
+        "id": str(a.id),
+        "customer_id": str(a.customer_id),
+        "customer_name": a.customer.full_name if a.customer else "",
+        "vehicle_id": str(a.vehicle_id),
+        "vehicle_summary": vehicle_summary,
+        "appointment_date": a.appointment_date.isoformat(),
+        "appointment_time": a.appointment_time,
+        "mechanic_name": a.mechanic_name,
+        "status": a.status,
+        # Appointment has no service_type column; it will be derived from the
+        # linked maintenance rule once that relation is wired (Phase 2).
+        "service_type": None,
+        "estimated_duration_minutes": a.estimated_duration_minutes,
+        "total_cost": a.total_cost,
+    }
+
+
 class AppointmentService:
     """Manages appointment lifecycle: slot generation → reservation → confirm → complete."""
 
@@ -323,3 +351,28 @@ class AppointmentService:
 
     async def get_stats(self, service_center_id: uuid.UUID) -> dict:
         return await self.appointment_repo.get_stats(service_center_id)
+
+    # --- Read API (tenant-scoped, relations eagerly loaded) -----------------
+    async def get_appointment(self, appointment_id: uuid.UUID) -> dict:
+        """Fetch one appointment. Raises AppointmentNotFound (-> 404) if it does
+        not exist in the caller's tenant — never reveals other tenants' rows."""
+        appointment = await self.appointment_repo.get_detailed(appointment_id)
+        if not appointment:
+            raise AppointmentNotFound()
+        return serialize_appointment(appointment)
+
+    async def list_appointments(
+        self,
+        *,
+        status: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 50,
+    ) -> dict:
+        items, total = await self.appointment_repo.list_detailed(
+            status=status, skip=skip, limit=limit
+        )
+        return {"items": [serialize_appointment(a) for a in items], "total": total}
+
+    async def get_today(self) -> List[dict]:
+        items, _ = await self.appointment_repo.list_detailed(on_date=date.today(), limit=200)
+        return [serialize_appointment(a) for a in items]

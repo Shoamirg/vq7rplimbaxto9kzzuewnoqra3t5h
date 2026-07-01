@@ -44,14 +44,14 @@ logger = logging.getLogger("seeds.demo")
 # --- Demo tenant definitions -------------------------------------------------
 PRIMARY = {
     "name": "GarageOS Demo Workshop",
-    "email": "demo@garageos.local",
+    "email": "demo@garageos.app",
     "phone": "+15550100100",
     "address": "100 Main Street, Springfield",
     "timezone": "UTC",
 }
 SECOND = {
     "name": "Northside Auto (Tenant B)",
-    "email": "northside@garageos.local",
+    "email": "northside@garageos.app",
     "phone": "+15550200200",
     "address": "42 North Avenue, Rivertown",
     "timezone": "UTC",

@@ -3,13 +3,63 @@ import uuid
 from datetime import date, datetime
 from typing import Optional, Sequence
 from sqlalchemy import select, func, and_
+from sqlalchemy.orm import selectinload
 from app.models.appointment import Appointment, AppointmentStatus
+from app.models.vehicle import Vehicle
+from app.models.vehicle_model import VehicleModel
 from app.repositories.base import TenantScopedRepository
 
 
 class AppointmentRepository(TenantScopedRepository[Appointment]):
     def __init__(self, session, service_center_id: uuid.UUID):
         super().__init__(Appointment, session, service_center_id)
+
+    # --- Read helpers with relations eagerly loaded (async-safe) ------------
+    _DETAIL_OPTIONS = (
+        selectinload(Appointment.customer),
+        selectinload(Appointment.vehicle)
+        .selectinload(Vehicle.vehicle_model)
+        .selectinload(VehicleModel.brand),
+    )
+
+    async def get_detailed(self, appointment_id: uuid.UUID) -> Optional[Appointment]:
+        """Tenant-scoped fetch by id with customer + vehicle relations loaded."""
+        stmt = self._scope(
+            select(Appointment).where(
+                Appointment.id == appointment_id,
+                Appointment.is_active == True,
+            )
+        ).options(*self._DETAIL_OPTIONS)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def list_detailed(
+        self,
+        *,
+        status: Optional[str] = None,
+        on_date: Optional[date] = None,
+        skip: int = 0,
+        limit: int = 50,
+    ) -> tuple[Sequence[Appointment], int]:
+        base = self._scope(select(Appointment).where(Appointment.is_active == True))
+        if status:
+            base = base.where(Appointment.status == status)
+        if on_date:
+            base = base.where(
+                Appointment.appointment_date >= datetime.combine(on_date, datetime.min.time()),
+                Appointment.appointment_date < datetime.combine(on_date, datetime.max.time()),
+            )
+
+        total = await self.session.scalar(select(func.count()).select_from(base.subquery()))
+
+        stmt = (
+            base.order_by(Appointment.appointment_date.desc(), Appointment.appointment_time)
+            .offset(skip)
+            .limit(limit)
+            .options(*self._DETAIL_OPTIONS)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().all(), total or 0
 
     async def find_by_date(self, service_center_id: uuid.UUID, appointment_date: date) -> Sequence[Appointment]:
         stmt = select(Appointment).where(
