@@ -20,6 +20,7 @@ from app.schemas.appointment import (
     AppointmentCancelRequest,
     AppointmentCompleteRequest,
     AppointmentStats,
+    AppointmentUpdate,
     AssignMechanicRequest,
     MoveAppointmentRequest,
 )
@@ -143,6 +144,22 @@ async def complete_appointment(
         appointment_id,
         odometer_km=body.odometer_km,
         total_cost=body.total_cost,
+        notes=body.notes,
+    )
+
+
+@router.patch("/{appointment_id}", summary="Update an appointment (drag-move / resize)")
+async def update_appointment(
+    appointment_id: uuid.UUID,
+    body: AppointmentUpdate,
+    uow: UnitOfWork = Depends(get_tenant_uow),
+) -> dict:
+    return await AppointmentService(uow).update_appointment(
+        appointment_id,
+        appointment_date=body.appointment_date,
+        appointment_time=body.appointment_time,
+        mechanic_name=body.mechanic_name,
+        estimated_duration_minutes=body.estimated_duration_minutes,
         notes=body.notes,
     )
 

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { ToastProvider } from "@garageos/design-system";
 
 import { CommandPaletteContent } from "@/components/layout/command-palette-content";
 import { Sidebar } from "@/components/layout/sidebar";
@@ -21,13 +22,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const shellUser = { name: user.full_name, email: user.email, role: user.role };
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar user={shellUser} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <TopBar user={shellUser} />
-        <main className="flex-1 overflow-y-auto bg-muted/30">{children}</main>
+    <ToastProvider position="bottom-right">
+      <div className="flex h-screen overflow-hidden">
+        <Sidebar user={shellUser} />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <TopBar user={shellUser} />
+          <main className="flex-1 overflow-y-auto bg-muted/30">{children}</main>
+        </div>
+        <CommandPaletteContent />
       </div>
-      <CommandPaletteContent />
-    </div>
+    </ToastProvider>
   );
 }

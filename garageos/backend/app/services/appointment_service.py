@@ -556,6 +556,33 @@ class AppointmentService:
         await self.uow.flush()
         return await self.get_appointment(appointment_id)
 
+    async def update_appointment(
+        self,
+        appointment_id: uuid.UUID,
+        *,
+        appointment_date=None,
+        appointment_time: Optional[str] = None,
+        mechanic_name: Optional[str] = None,
+        estimated_duration_minutes: Optional[int] = None,
+        notes: Optional[str] = None,
+    ) -> dict:
+        """Partial update used by the calendar board (drag-to-move, resize)."""
+        appointment = await self.appointment_repo.get_by_id(appointment_id)
+        if not appointment:
+            raise AppointmentNotFound()
+        if appointment_date is not None:
+            appointment.appointment_date = appointment_date
+        if appointment_time is not None:
+            appointment.appointment_time = appointment_time
+        if mechanic_name is not None:
+            appointment.mechanic_name = mechanic_name
+        if estimated_duration_minutes is not None:
+            appointment.estimated_duration_minutes = estimated_duration_minutes
+        if notes is not None:
+            appointment.notes = notes
+        await self.uow.flush()
+        return await self.get_appointment(appointment_id)
+
     async def assign_mechanic(self, appointment_id: uuid.UUID, mechanic_name: str) -> dict:
         appointment = await self.appointment_repo.get_with_slot(appointment_id)
         if not appointment:
