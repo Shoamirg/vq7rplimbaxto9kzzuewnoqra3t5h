@@ -36,9 +36,7 @@ from app.seeds.mechanics import seed_staff
 from app.seeds.models import seed_vehicle_models
 from app.seeds.roles import seed_roles
 from app.seeds.service_centers import seed_service_center
-from app.seeds.service_records import generate_service_records
-from app.seeds.showcase import generate_showcase_vehicles
-from app.seeds.vehicles import generate_vehicles
+from app.seeds.fleet import generate_fleet_vehicles
 
 logger = logging.getLogger("seeds.demo")
 
@@ -58,14 +56,10 @@ SECOND = {
     "timezone": "UTC",
 }
 
-PRIMARY_VOLUME = {
-    "mechanics": 6,
-    "customers": 200,
-    "vehicles": 350,
-    "appointments": 40,
-    "service_records": 150,
-}
-SECOND_VOLUME = {"mechanics": 2, "customers": 15, "vehicles": 20, "appointments": 6, "service_records": 10}
+# Service histories are generated per-vehicle by the fleet generator (they set
+# each vehicle's health), so there's no separate service-record volume knob.
+PRIMARY_VOLUME = {"mechanics": 6, "customers": 200, "vehicles": 350, "appointments": 40}
+SECOND_VOLUME = {"mechanics": 2, "customers": 15, "vehicles": 20, "appointments": 6}
 
 # Tenant-scoped tables, in safe deletion order (children before parents).
 _TENANT_TABLES = [ServiceRecord, AppointmentSlot, Appointment, Vehicle, Customer, MaintenanceRule, User]
@@ -122,22 +116,19 @@ async def _seed_tenant(
     customers = await generate_customers(
         session, center, volume["customers"], telegram_id_start=telegram_base
     )
-    # Showcase vehicles with engineered health (Excellent/Good/Fair) so the demo
-    # spans every band; bulk random vehicles fill the rest (Poor).
-    showcase = await generate_showcase_vehicles(session, center, customers, models, rules)
-    bulk_count = max(0, volume["vehicles"] - len(showcase))
-    bulk = await generate_vehicles(session, center, customers, models, bulk_count)
-    vehicles = list(showcase) + list(bulk)
+    # The whole fleet is generated with engineered service histories so health
+    # spans a realistic, healthy-leaning distribution (mostly excellent/good, a
+    # small poor tail). This is what makes Demo Mode a polished, known state.
+    vehicles = await generate_fleet_vehicles(
+        session, center, customers, models, rules, volume["vehicles"]
+    )
 
     await generate_appointments(
         session, center, vehicles, staff["mechanics"], rules, volume["appointments"]
     )
-    # Random service records only on bulk vehicles — never overwrite the
-    # engineered histories that give showcase vehicles their target scores.
-    await generate_service_records(session, center, bulk, volume["service_records"])
     logger.info(
-        "Seeded %s: %d customers, %d vehicles (%d showcase)",
-        center.name, len(customers), len(vehicles), len(showcase),
+        "Seeded %s: %d customers, %d vehicles",
+        center.name, len(customers), len(vehicles),
     )
     return center
 

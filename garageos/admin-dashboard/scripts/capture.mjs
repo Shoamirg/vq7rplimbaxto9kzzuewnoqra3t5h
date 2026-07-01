@@ -45,14 +45,23 @@ async function main() {
 
   const shots = [...STATIC_SHOTS];
 
-  // Resolve a real vehicle id for the health-detail shot.
+  // Pick the healthiest vehicle for the flagship health shot — the fleet is
+  // shuffled, so the first vehicle is a random band; sample a batch and take
+  // the top score so the marketing screenshot always opens on a hero.
   try {
-    const res = await page.request.get(`${BASE_URL}/api/proxy/vehicles?limit=1`);
+    const res = await page.request.get(`${BASE_URL}/api/proxy/vehicles?limit=24`);
     const body = await res.json();
-    const first = Array.isArray(body) ? body[0] : body?.items?.[0];
-    if (first?.id) shots.push({ name: "vehicle-health", path: `/vehicles/${first.id}` });
+    const list = Array.isArray(body) ? body : body?.items ?? [];
+    let best = null;
+    for (const v of list.slice(0, 24)) {
+      const h = await page.request.get(`${BASE_URL}/api/proxy/vehicles/${v.id}/health`);
+      if (!h.ok()) continue;
+      const score = (await h.json())?.overall_score ?? 0;
+      if (!best || score > best.score) best = { id: v.id, score };
+    }
+    if (best) shots.push({ name: "vehicle-health", path: `/vehicles/${best.id}` });
   } catch {
-    /* non-fatal — skip the detail shot if the list call fails */
+    /* non-fatal — skip the detail shot if the sampling fails */
   }
 
   for (const shot of shots) {
