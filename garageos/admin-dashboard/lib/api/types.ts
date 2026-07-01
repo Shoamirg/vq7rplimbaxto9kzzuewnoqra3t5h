@@ -40,3 +40,79 @@ export interface CurrentUser {
   service_center_id: string;
   is_super_admin: boolean;
 }
+
+// ─── Vehicle Health ──────────────────────────────────────────
+export type HealthBand = "excellent" | "good" | "fair" | "poor";
+
+export interface HealthCategory {
+  name: string;
+  score: number;
+}
+
+export interface HealthService {
+  service_type: string;
+  description: string | null;
+  status: string;
+  priority: string;
+  is_due: boolean;
+  health_score: number;
+  remaining_km: number | null;
+  remaining_days: number | null;
+  interval_km: number | null;
+  interval_months: number | null;
+  last_performed_km: number | null;
+  last_performed_date: string | null;
+  estimated_cost: number | null;
+}
+
+export interface VehicleHealthVehicle {
+  id: string;
+  brand: string;
+  model: string;
+  year: number;
+  license_plate: string | null;
+  vin: string | null;
+  current_km: number;
+  customer_id: string;
+  customer_name: string | null;
+}
+
+export interface VehicleHealth {
+  vehicle: VehicleHealthVehicle;
+  overall_score: number;
+  band: HealthBand;
+  urgent_count: number;
+  due_soon_count: number;
+  categories: HealthCategory[];
+  services: HealthService[];
+  generated_at: string;
+}
+
+export interface TimelineEvent {
+  type: string;
+  title: string;
+  date: string;
+  detail: string | null;
+  km?: number;
+  cost?: number | null;
+  id: string;
+}
+
+export interface VehicleTimeline {
+  vehicle_id: string;
+  events: TimelineEvent[];
+}
+
+export interface VehicleListItem {
+  id: string;
+  brand: string;
+  model: string;
+  year: number;
+  license_plate: string | null;
+  current_km: number;
+}
+
+export interface VehicleList {
+  items: VehicleListItem[];
+  count: number;
+}

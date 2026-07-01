@@ -98,6 +98,25 @@ class VehicleHealthService:
         self.appointment_repo = AppointmentRepository(uow.session, sc)
         self.maintenance = MaintenanceService(uow.session, sc)
 
+    async def list_vehicles(self, limit: int = 200) -> dict:
+        """Lightweight vehicle list for navigation (no per-vehicle health calc)."""
+        vehicles = await self.vehicle_repo.list_active(limit=limit)
+        return {
+            "items": [
+                {
+                    "id": str(v.id),
+                    "brand": v.vehicle_model.brand.name
+                    if v.vehicle_model and getattr(v.vehicle_model, "brand", None) else "",
+                    "model": v.vehicle_model.name if v.vehicle_model else "",
+                    "year": v.year,
+                    "license_plate": v.license_plate,
+                    "current_km": v.current_km,
+                }
+                for v in vehicles
+            ],
+            "count": len(vehicles),
+        }
+
     async def _vehicle_or_404(self, vehicle_id: uuid.UUID):
         vehicle = await self.vehicle_repo.get_with_model(vehicle_id)
         if not vehicle:

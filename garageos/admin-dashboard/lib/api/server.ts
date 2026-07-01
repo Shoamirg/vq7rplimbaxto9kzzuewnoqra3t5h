@@ -4,7 +4,14 @@
 import { cookies } from "next/headers";
 
 import { AUTH_COOKIE } from "./constants";
-import type { Appointment, AppointmentStats, CurrentUser } from "./types";
+import type {
+  Appointment,
+  AppointmentStats,
+  CurrentUser,
+  VehicleHealth,
+  VehicleList,
+  VehicleTimeline,
+} from "./types";
 
 export { AUTH_COOKIE };
 
@@ -41,3 +48,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 export const getStats = () => apiFetch<AppointmentStats>("/appointments/stats");
 export const getTodayAppointments = () => apiFetch<Appointment[]>("/appointments/today");
 export const getCurrentUser = () => apiFetch<CurrentUser>("/auth/me");
+
+export const getVehicles = () => apiFetch<VehicleList>("/vehicles");
+export const getVehicleHealth = (id: string) => apiFetch<VehicleHealth>(`/vehicles/${id}/health`);
+export const getVehicleTimeline = (id: string) => apiFetch<VehicleTimeline>(`/vehicles/${id}/timeline`);
