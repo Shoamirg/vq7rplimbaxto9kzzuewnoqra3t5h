@@ -60,10 +60,11 @@ class MaintenanceService:
     Does NOT publish events directly — the caller is responsible for that.
     """
 
-    def __init__(self, session):
-        self.maintenance_repo = MaintenanceRepository(session)
-        self.vehicle_repo = VehicleRepository(session)
-        self.service_record_repo = ServiceRecordRepository(session)
+    def __init__(self, session, service_center_id):
+        self.service_center_id = service_center_id
+        self.maintenance_repo = MaintenanceRepository(session, service_center_id)
+        self.vehicle_repo = VehicleRepository(session, service_center_id)
+        self.service_record_repo = ServiceRecordRepository(session, service_center_id)
 
     async def calculate_due_services(self, vehicle_id: uuid.UUID) -> VehicleHealthReport:
         vehicle = await self._get_vehicle_with_relations(vehicle_id)
@@ -108,7 +109,11 @@ class MaintenanceService:
         from sqlalchemy import select as sa_select
         stmt = sa_select(Vehicle).options(
             selectinload(Vehicle.vehicle_model).selectinload(VehicleModel.brand)
-        ).where(Vehicle.id == vehicle_id, Vehicle.is_active == True)
+        ).where(
+            Vehicle.id == vehicle_id,
+            Vehicle.service_center_id == self.service_center_id,  # tenant-scoped
+            Vehicle.is_active == True,
+        )
         result = await self.vehicle_repo.session.execute(stmt)
         return result.scalar_one_or_none()
 

@@ -23,10 +23,11 @@ class AppointmentService:
 
     def __init__(self, uow: UnitOfWork):
         self.uow = uow
-        self.appointment_repo = AppointmentRepository(uow.session)
-        self.slot_repo = AppointmentSlotRepository(uow.session)
-        self.vehicle_repo = VehicleRepository(uow.session)
-        self.customer_repo = CustomerRepository(uow.session)
+        sc = uow.service_center_id
+        self.appointment_repo = AppointmentRepository(uow.session, sc)
+        self.slot_repo = AppointmentSlotRepository(uow.session, sc)
+        self.vehicle_repo = VehicleRepository(uow.session, sc)
+        self.customer_repo = CustomerRepository(uow.session, sc)
 
     async def generate_slots(
         self,

@@ -4,12 +4,12 @@ from datetime import date, datetime
 from typing import Optional, Sequence
 from sqlalchemy import select, func, and_
 from app.models.appointment import Appointment, AppointmentStatus
-from app.repositories.base import BaseRepository
+from app.repositories.base import TenantScopedRepository
 
 
-class AppointmentRepository(BaseRepository[Appointment]):
-    def __init__(self, session):
-        super().__init__(Appointment, session)
+class AppointmentRepository(TenantScopedRepository[Appointment]):
+    def __init__(self, session, service_center_id: uuid.UUID):
+        super().__init__(Appointment, session, service_center_id)
 
     async def find_by_date(self, service_center_id: uuid.UUID, appointment_date: date) -> Sequence[Appointment]:
         stmt = select(Appointment).where(
@@ -46,9 +46,11 @@ class AppointmentRepository(BaseRepository[Appointment]):
         return result.scalars().all()
 
     async def find_by_customer(self, customer_id: uuid.UUID) -> Sequence[Appointment]:
-        stmt = select(Appointment).where(
-            Appointment.customer_id == customer_id,
-            Appointment.is_active == True,
+        stmt = self._scope(
+            select(Appointment).where(
+                Appointment.customer_id == customer_id,
+                Appointment.is_active == True,
+            )
         ).order_by(Appointment.appointment_date.desc())
         result = await self.session.execute(stmt)
         return result.scalars().all()

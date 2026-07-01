@@ -15,10 +15,11 @@ class CustomerService:
 
     def __init__(self, uow: UnitOfWork):
         self.uow = uow
-        self.customer_repo = CustomerRepository(uow.session)
-        self.vehicle_repo = VehicleRepository(uow.session)
-        self.appointment_repo = AppointmentRepository(uow.session)
-        self.service_record_repo = ServiceRecordRepository(uow.session)
+        sc = uow.service_center_id
+        self.customer_repo = CustomerRepository(uow.session, sc)
+        self.vehicle_repo = VehicleRepository(uow.session, sc)
+        self.appointment_repo = AppointmentRepository(uow.session, sc)
+        self.service_record_repo = ServiceRecordRepository(uow.session, sc)
 
     async def create_customer(
         self,
@@ -171,10 +172,9 @@ class CustomerService:
 
     async def search_customers(
         self,
-        service_center_id: uuid.UUID,
         query: str,
     ) -> Sequence:
-        customers = await self.customer_repo.search(service_center_id, query)
+        customers = await self.customer_repo.search(query)
         return [
             {
                 "id": str(c.id),
@@ -187,7 +187,8 @@ class CustomerService:
         ]
 
     async def find_by_telegram(self, telegram_id: int) -> Optional[dict]:
-        customer = await self.customer_repo.find_by_telegram_id(telegram_id)
+        # Global identity lookup — establishes which tenant the customer is in.
+        customer = await CustomerRepository.find_by_telegram_id(self.uow.session, telegram_id)
         if not customer:
             return None
         return {

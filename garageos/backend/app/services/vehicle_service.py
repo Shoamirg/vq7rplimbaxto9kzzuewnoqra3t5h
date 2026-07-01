@@ -16,10 +16,11 @@ class VehicleService:
 
     def __init__(self, uow: UnitOfWork):
         self.uow = uow
-        self.vehicle_repo = VehicleRepository(uow.session)
-        self.brand_repo = BrandRepository(uow.session)
-        self.model_repo = VehicleModelRepository(uow.session)
-        self.maintenance_service = MaintenanceService(uow.session)
+        sc = uow.service_center_id
+        self.vehicle_repo = VehicleRepository(uow.session, sc)
+        self.brand_repo = BrandRepository(uow.session)          # global reference
+        self.model_repo = VehicleModelRepository(uow.session)   # global reference
+        self.maintenance_service = MaintenanceService(uow.session, sc)
 
     async def add_vehicle(self, customer_id: uuid.UUID, data: dict) -> dict:
         vehicle = await self.vehicle_repo.create(

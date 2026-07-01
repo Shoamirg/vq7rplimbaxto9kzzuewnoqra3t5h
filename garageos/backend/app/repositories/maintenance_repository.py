@@ -5,12 +5,12 @@ from sqlalchemy import select, and_
 from app.models.maintenance_rule import MaintenanceRule
 from app.models.brand import Brand
 from app.models.vehicle_model import VehicleModel
-from app.repositories.base import BaseRepository
+from app.repositories.base import TenantScopedRepository
 
 
-class MaintenanceRepository(BaseRepository[MaintenanceRule]):
-    def __init__(self, session):
-        super().__init__(MaintenanceRule, session)
+class MaintenanceRepository(TenantScopedRepository[MaintenanceRule]):
+    def __init__(self, session, service_center_id: uuid.UUID):
+        super().__init__(MaintenanceRule, session, service_center_id)
 
     async def rules_for_brand(self, brand_id: uuid.UUID, service_center_id: uuid.UUID) -> Sequence[MaintenanceRule]:
         stmt = select(MaintenanceRule).where(

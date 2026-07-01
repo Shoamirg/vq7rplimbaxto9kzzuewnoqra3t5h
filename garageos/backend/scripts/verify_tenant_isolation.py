@@ -106,40 +106,35 @@ async def main() -> int:
         )
         ok &= _line(PASS if rec_veh == 0 else FAIL, f"service_record.vehicle same center  violations={rec_veh}")
 
-        # --- Check 3: repository filter (positive) -----------------------------
-        print("\nCheck 3 — CustomerRepository.list(service_center_id=A) returns only A")
-        repo = CustomerRepository(session)
-        items, total = await repo.list(service_center_id=a.id, limit=1000)
+        # --- Check 3: tenant-scoped repository returns only its tenant --------
+        print("\nCheck 3 — CustomerRepository(tenant=A).list() returns only A")
+        repo_a = CustomerRepository(session, a.id)
+        items, total = await repo_a.list(limit=1000)
         leaked = [c.id for c in items if c.service_center_id != a.id]
         ok &= _line(
             PASS if not leaked else FAIL,
             f"returned {len(items)} rows (reported total={total}), foreign-tenant rows={len(leaked)}",
         )
 
-        # --- Check 4: repository leakage (negative / documented) ---------------
-        print("\nCheck 4 — get_by_id() is NOT tenant-scoped (enforcement is caller's job)")
+        # --- Check 4: get_by_id() can no longer cross tenants (IDOR closed) ----
+        print("\nCheck 4 — get_by_id() cannot cross tenants (IDOR closed)")
         b_customer = (
             await session.execute(
                 select(Customer).where(Customer.service_center_id == b.id).limit(1)
             )
         ).scalar_one()
-        fetched = await repo.get_by_id(b_customer.id)
-        crossed = fetched is not None and fetched.service_center_id == b.id
-        # This is expected with the current base repository. Surface as WARN so
-        # it's a known, tracked gap for the API/service layer to close.
-        _line(
-            WARN if crossed else PASS,
-            (
-                "get_by_id(B_customer_id) fetched a Tenant-B row from an A-scoped "
-                "call — service/API layer MUST verify service_center_id (IDOR risk)"
-                if crossed
-                else "get_by_id did not cross tenants"
-            ),
+        fetched = await repo_a.get_by_id(b_customer.id)
+        ok &= _line(
+            PASS if fetched is None else FAIL,
+            f"A-scoped get_by_id(B_customer_id) -> {'None (blocked)' if fetched is None else 'LEAKED B ROW'}",
         )
-        # And the safe pattern proves isolation when the filter IS applied:
-        safe_items, _ = await repo.list(service_center_id=a.id, limit=1000)
-        safe = b_customer.id not in {c.id for c in safe_items}
-        ok &= _line(PASS if safe else FAIL, "tenant-A list() correctly excludes the Tenant-B customer id")
+        a_customer_id = (
+            await session.execute(
+                select(Customer.id).where(Customer.service_center_id == a.id).limit(1)
+            )
+        ).scalar_one()
+        own = await repo_a.get_by_id(a_customer_id)
+        ok &= _line(PASS if own is not None else FAIL, "A-scoped get_by_id(A_customer_id) still works")
 
     await engine.dispose()
     print(f"\n=== Isolation verification: {'ALL DATA CHECKS PASSED' if ok else 'FAILURES PRESENT'} ===\n")

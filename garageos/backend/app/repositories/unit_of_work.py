@@ -1,6 +1,7 @@
 from __future__ import annotations
 import logging
-from typing import List
+import uuid
+from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import async_session_factory
@@ -13,16 +14,20 @@ class UnitOfWork:
     """
     Unit of Work pattern providing atomic transactions.
 
+    Carries the authenticated tenant (``service_center_id``) so services can
+    build tenant-scoped repositories from a single trusted source rather than
+    threading the id through every call.
+
     Usage:
-        async with UnitOfWork() as uow:
-            customer = await uow.customers.get_by_id(id)
-            await uow.vehicles.create(...)
+        async with UnitOfWork(service_center_id=current_user.service_center_id) as uow:
+            svc = AppointmentService(uow)   # repos auto-scoped to the tenant
             uow.add_event(VehicleAdded(...))
             # Auto-commits on success, rolls back on exception
     """
 
-    def __init__(self):
+    def __init__(self, service_center_id: Optional[uuid.UUID] = None):
         self.session: AsyncSession | None = None
+        self.service_center_id = service_center_id
         self._events: List[DomainEvent] = []
         # Repositories will be lazy-initialized once session is available
         self._repos = {}

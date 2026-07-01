@@ -4,12 +4,12 @@ from datetime import date, datetime, timezone, timedelta
 from typing import Sequence
 from sqlalchemy import select, func, and_
 from app.models.appointment_slot import AppointmentSlot, AppointmentSlotStatus
-from app.repositories.base import BaseRepository
+from app.repositories.base import TenantScopedRepository
 
 
-class AppointmentSlotRepository(BaseRepository[AppointmentSlot]):
-    def __init__(self, session):
-        super().__init__(AppointmentSlot, session)
+class AppointmentSlotRepository(TenantScopedRepository[AppointmentSlot]):
+    def __init__(self, session, service_center_id: uuid.UUID):
+        super().__init__(AppointmentSlot, session, service_center_id)
 
     async def find_available(
         self,
@@ -39,11 +39,16 @@ class AppointmentSlotRepository(BaseRepository[AppointmentSlot]):
         return result.scalars().all()
 
     async def release_expired(self) -> int:
-        """Release slots where the temporary reservation has expired."""
+        """Release slots where the temporary reservation has expired.
+
+        Scoped to this tenant — a release sweep must never touch other tenants.
+        """
         now = datetime.now(timezone.utc)
-        stmt = select(AppointmentSlot).where(
-            AppointmentSlot.status == AppointmentSlotStatus.RESERVED,
-            AppointmentSlot.reserved_until < now,
+        stmt = self._scope(
+            select(AppointmentSlot).where(
+                AppointmentSlot.status == AppointmentSlotStatus.RESERVED,
+                AppointmentSlot.reserved_until < now,
+            )
         )
         result = await self.session.execute(stmt)
         expired = result.scalars().all()
