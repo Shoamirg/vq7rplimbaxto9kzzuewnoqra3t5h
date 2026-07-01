@@ -1,0 +1,53 @@
+[
+  { "brand": "Toyota", "name": "Corolla", "year_start": 2012, "year_end": null, "engine_options": "1.6L, 1.8L, Hybrid" },
+  { "brand": "Toyota", "name": "Camry", "year_start": 2012, "year_end": null, "engine_options": "2.5L, 3.5L V6, Hybrid" },
+  { "brand": "Toyota", "name": "RAV4", "year_start": 2013, "year_end": null, "engine_options": "2.0L, 2.5L, Hybrid" },
+  { "brand": "Toyota", "name": "Hilux", "year_start": 2010, "year_end": null, "engine_options": "2.4L D, 2.8L D" },
+
+  { "brand": "Honda", "name": "Civic", "year_start": 2012, "year_end": null, "engine_options": "1.5L Turbo, 2.0L" },
+  { "brand": "Honda", "name": "Accord", "year_start": 2013, "year_end": null, "engine_options": "1.5L Turbo, 2.0L Hybrid" },
+  { "brand": "Honda", "name": "CR-V", "year_start": 2012, "year_end": null, "engine_options": "1.5L Turbo, 2.0L Hybrid" },
+
+  { "brand": "Ford", "name": "Focus", "year_start": 2011, "year_end": 2018, "engine_options": "1.0L EcoBoost, 1.6L, 2.0L" },
+  { "brand": "Ford", "name": "Fiesta", "year_start": 2011, "year_end": 2019, "engine_options": "1.0L EcoBoost, 1.4L" },
+  { "brand": "Ford", "name": "Kuga", "year_start": 2013, "year_end": null, "engine_options": "1.5L EcoBoost, 2.0L D" },
+  { "brand": "Ford", "name": "Ranger", "year_start": 2012, "year_end": null, "engine_options": "2.2L D, 3.2L D" },
+
+  { "brand": "Volkswagen", "name": "Golf", "year_start": 2012, "year_end": null, "engine_options": "1.4 TSI, 2.0 TDI, GTI" },
+  { "brand": "Volkswagen", "name": "Passat", "year_start": 2011, "year_end": null, "engine_options": "1.8 TSI, 2.0 TDI" },
+  { "brand": "Volkswagen", "name": "Tiguan", "year_start": 2012, "year_end": null, "engine_options": "1.4 TSI, 2.0 TDI" },
+  { "brand": "Volkswagen", "name": "Polo", "year_start": 2011, "year_end": null, "engine_options": "1.0 TSI, 1.6 TDI" },
+
+  { "brand": "BMW", "name": "3 Series", "year_start": 2012, "year_end": null, "engine_options": "320i, 330i, 320d" },
+  { "brand": "BMW", "name": "5 Series", "year_start": 2011, "year_end": null, "engine_options": "520i, 530i, 520d" },
+  { "brand": "BMW", "name": "X3", "year_start": 2011, "year_end": null, "engine_options": "xDrive20i, xDrive30d" },
+  { "brand": "BMW", "name": "X5", "year_start": 2013, "year_end": null, "engine_options": "xDrive30d, xDrive40i" },
+
+  { "brand": "Mercedes-Benz", "name": "C-Class", "year_start": 2014, "year_end": null, "engine_options": "C200, C220d, C300" },
+  { "brand": "Mercedes-Benz", "name": "E-Class", "year_start": 2013, "year_end": null, "engine_options": "E200, E220d, E350" },
+  { "brand": "Mercedes-Benz", "name": "GLC", "year_start": 2015, "year_end": null, "engine_options": "GLC200, GLC220d" },
+
+  { "brand": "Audi", "name": "A3", "year_start": 2012, "year_end": null, "engine_options": "1.4 TFSI, 2.0 TDI" },
+  { "brand": "Audi", "name": "A4", "year_start": 2012, "year_end": null, "engine_options": "1.8 TFSI, 2.0 TDI" },
+  { "brand": "Audi", "name": "Q5", "year_start": 2013, "year_end": null, "engine_options": "2.0 TFSI, 2.0 TDI" },
+
+  { "brand": "Hyundai", "name": "Elantra", "year_start": 2012, "year_end": null, "engine_options": "1.6L, 2.0L" },
+  { "brand": "Hyundai", "name": "Tucson", "year_start": 2013, "year_end": null, "engine_options": "1.6 T-GDI, 2.0 CRDi" },
+  { "brand": "Hyundai", "name": "Santa Fe", "year_start": 2012, "year_end": null, "engine_options": "2.2 CRDi, 2.4L" },
+
+  { "brand": "Kia", "name": "Cerato", "year_start": 2013, "year_end": null, "engine_options": "1.6L, 2.0L" },
+  { "brand": "Kia", "name": "Sportage", "year_start": 2012, "year_end": null, "engine_options": "1.6 T-GDI, 2.0 CRDi" },
+  { "brand": "Kia", "name": "Sorento", "year_start": 2013, "year_end": null, "engine_options": "2.2 CRDi, 2.4L" },
+
+  { "brand": "Nissan", "name": "Qashqai", "year_start": 2013, "year_end": null, "engine_options": "1.3 DIG-T, 1.5 dCi" },
+  { "brand": "Nissan", "name": "X-Trail", "year_start": 2014, "year_end": null, "engine_options": "1.6 dCi, 2.0L" },
+  { "brand": "Nissan", "name": "Altima", "year_start": 2013, "year_end": null, "engine_options": "2.5L, 3.5L V6" },
+
+  { "brand": "Mazda", "name": "Mazda3", "year_start": 2013, "year_end": null, "engine_options": "1.5L, 2.0L SkyActiv" },
+  { "brand": "Mazda", "name": "CX-5", "year_start": 2012, "year_end": null, "engine_options": "2.0L, 2.2L D SkyActiv" },
+  { "brand": "Mazda", "name": "Mazda6", "year_start": 2013, "year_end": null, "engine_options": "2.0L, 2.5L SkyActiv" },
+
+  { "brand": "Chevrolet", "name": "Cruze", "year_start": 2011, "year_end": 2019, "engine_options": "1.4L Turbo, 1.8L" },
+  { "brand": "Chevrolet", "name": "Malibu", "year_start": 2013, "year_end": null, "engine_options": "1.5L Turbo, 2.0L Turbo" },
+  { "brand": "Chevrolet", "name": "Captiva", "year_start": 2011, "year_end": 2018, "engine_options": "2.4L, 2.2L D" }
+]

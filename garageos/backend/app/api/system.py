@@ -22,6 +22,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["system"])
 
+# Bound dependency probes so a readiness check never hangs.
+_CONNECT_TIMEOUT_SECONDS = 2
+
 
 @router.get("/health", summary="Liveness probe")
 async def health() -> dict:
@@ -54,10 +57,15 @@ async def _check_database() -> tuple[bool, str | None]:
 
 
 async def _check_redis() -> tuple[bool, str | None]:
+    # Bound the connect with socket_connect_timeout. Note: connect to an IPv4
+    # host (127.0.0.1 or a service name), not 'localhost' — redis-py's connect
+    # timeout misbehaves with IPv6 'localhost' (::1) resolution on Windows.
     try:
         import redis.asyncio as redis  # local import keeps redis optional at import time
 
-        client = redis.from_url(settings.REDIS_URL, socket_connect_timeout=2)
+        client = redis.from_url(
+            settings.REDIS_URL, socket_connect_timeout=_CONNECT_TIMEOUT_SECONDS
+        )
         try:
             await client.ping()
         finally:

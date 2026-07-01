@@ -1,6 +1,13 @@
-from pydantic import field_validator
+from pathlib import Path
 from pydantic_settings import BaseSettings
 from typing import List, Optional
+
+# The .env lives at the garageos/ root (next to docker-compose.yml), while host
+# tooling (uvicorn, alembic, seeds) runs from garageos/backend/. Resolve it by
+# absolute path so CWD doesn't matter. In Docker the file is absent and
+# container env vars take precedence — both paths work.
+# config.py -> core -> app -> backend -> garageos
+_ENV_FILE = Path(__file__).resolve().parents[3] / ".env"
 
 
 class Settings(BaseSettings):
@@ -11,8 +18,10 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     LOG_LEVEL: str = "INFO"
 
-    # CORS — comma-separated list of allowed origins (env overrides)
-    CORS_ORIGINS: List[str] = ["http://localhost:3000"]
+    # CORS — comma-separated allowed origins. Kept as a raw string to avoid
+    # pydantic-settings' JSON decoding of complex types from .env; use the
+    # cors_origins_list property to get the parsed list.
+    CORS_ORIGINS: str = "http://localhost:3000"
 
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://garage_user:garage_pass@localhost:5432/garage_platform"
@@ -38,15 +47,12 @@ class Settings(BaseSettings):
     # API
     API_V1_PREFIX: str = "/api/v1"
 
-    model_config = {"env_file": ".env", "case_sensitive": True}
+    model_config = {"env_file": str(_ENV_FILE), "case_sensitive": True, "extra": "ignore"}
 
-    @field_validator("CORS_ORIGINS", mode="before")
-    @classmethod
-    def _split_cors_origins(cls, value):
-        """Accept either a JSON list or a comma-separated string from the env."""
-        if isinstance(value, str) and not value.strip().startswith("["):
-            return [origin.strip() for origin in value.split(",") if origin.strip()]
-        return value
+    @property
+    def cors_origins_list(self) -> List[str]:
+        """Parse CORS_ORIGINS (comma-separated) into a list of origins."""
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
 
 
 settings = Settings()

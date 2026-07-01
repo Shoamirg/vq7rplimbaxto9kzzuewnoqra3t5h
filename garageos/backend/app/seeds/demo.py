@@ -1,0 +1,188 @@
+"""Orchestrate a full, realistic demo database.
+
+    python -m app.seeds.demo            # idempotent: safe to run repeatedly
+    python -m app.seeds.demo --fresh    # wipe tenant demo data first, then reseed
+
+Global reference data (roles, brands, models) is always upserted. Bulk tenant
+data (customers, vehicles, appointments, service records) is generated only when
+the demo tenant is empty, unless --fresh is passed.
+"""
+from __future__ import annotations
+
+import argparse
+import asyncio
+import logging
+
+from sqlalchemy import delete, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.database import async_session_factory, engine
+from app.core.logging import setup_logging
+from app.models import (
+    Appointment,
+    AppointmentSlot,
+    Customer,
+    MaintenanceRule,
+    ServiceCenter,
+    ServiceRecord,
+    User,
+    Vehicle,
+)
+from app.seeds.appointments import generate_appointments
+from app.seeds.brands import seed_brands
+from app.seeds.customers import generate_customers
+from app.seeds.maintenance_rules import seed_maintenance_rules
+from app.seeds.mechanics import seed_staff
+from app.seeds.models import seed_vehicle_models
+from app.seeds.roles import seed_roles
+from app.seeds.service_centers import seed_service_center
+from app.seeds.service_records import generate_service_records
+from app.seeds.vehicles import generate_vehicles
+
+logger = logging.getLogger("seeds.demo")
+
+# --- Demo tenant definitions -------------------------------------------------
+PRIMARY = {
+    "name": "GarageOS Demo Workshop",
+    "email": "demo@garageos.local",
+    "phone": "+15550100100",
+    "address": "100 Main Street, Springfield",
+    "timezone": "UTC",
+}
+SECOND = {
+    "name": "Northside Auto (Tenant B)",
+    "email": "northside@garageos.local",
+    "phone": "+15550200200",
+    "address": "42 North Avenue, Rivertown",
+    "timezone": "UTC",
+}
+
+PRIMARY_VOLUME = {
+    "mechanics": 6,
+    "customers": 200,
+    "vehicles": 350,
+    "appointments": 40,
+    "service_records": 150,
+}
+SECOND_VOLUME = {"mechanics": 2, "customers": 15, "vehicles": 20, "appointments": 6, "service_records": 10}
+
+# Tenant-scoped tables, in safe deletion order (children before parents).
+_TENANT_TABLES = [ServiceRecord, AppointmentSlot, Appointment, Vehicle, Customer, MaintenanceRule, User]
+
+
+async def _wipe_tenant(session: AsyncSession, center: ServiceCenter) -> None:
+    for model in _TENANT_TABLES:
+        await session.execute(
+            delete(model).where(model.service_center_id == center.id)
+        )
+    logger.info("Wiped tenant data for %s", center.name)
+
+
+async def _count(session: AsyncSession, model, center: ServiceCenter) -> int:
+    result = await session.execute(
+        select(func.count()).select_from(model).where(model.service_center_id == center.id)
+    )
+    return int(result.scalar_one())
+
+
+async def _seed_tenant(
+    session: AsyncSession,
+    spec: dict,
+    volume: dict,
+    roles: dict,
+    brands: dict,
+    models: list,
+    *,
+    fresh: bool,
+    telegram_base: int,
+) -> ServiceCenter:
+    center = await seed_service_center(session, **spec)
+
+    if fresh:
+        await _wipe_tenant(session, center)
+
+    # Per-tenant slug from the center email local-part (e.g. demo, northside),
+    # used to namespace staff emails so tenants never share accounts.
+    tenant_slug = spec["email"].split("@", 1)[0]
+    staff = await seed_staff(
+        session, center, roles,
+        tenant_slug=tenant_slug, mechanic_count=volume["mechanics"],
+    )
+    rules = await seed_maintenance_rules(session, center, brands)
+
+    existing = await _count(session, Customer, center)
+    if existing and not fresh:
+        logger.info(
+            "%s already has %d customers; skipping bulk generation (use --fresh to reseed)",
+            center.name, existing,
+        )
+        return center
+
+    customers = await generate_customers(
+        session, center, volume["customers"], telegram_id_start=telegram_base
+    )
+    vehicles = await generate_vehicles(session, center, customers, models, volume["vehicles"])
+    await generate_appointments(
+        session, center, vehicles, staff["mechanics"], rules, volume["appointments"]
+    )
+    await generate_service_records(session, center, vehicles, volume["service_records"])
+    logger.info(
+        "Seeded %s: %d customers, %d vehicles", center.name, len(customers), len(vehicles)
+    )
+    return center
+
+
+async def run(fresh: bool = False) -> None:
+    setup_logging()
+    async with async_session_factory() as session:
+        # Global reference data.
+        roles = await seed_roles(session)
+        brands = await seed_brands(session)
+        models = await seed_vehicle_models(session, brands)
+        logger.info("Reference data: %d roles, %d brands, %d models",
+                    len(roles), len(brands), len(models))
+
+        # Distinct telegram-id bases per tenant — telegram_id is globally unique.
+        primary = await _seed_tenant(
+            session, PRIMARY, PRIMARY_VOLUME, roles, brands, models,
+            fresh=fresh, telegram_base=100_000_000,
+        )
+        second = await _seed_tenant(
+            session, SECOND, SECOND_VOLUME, roles, brands, models,
+            fresh=fresh, telegram_base=200_000_000,
+        )
+
+        await session.commit()
+        await _print_summary(session, [primary, second])
+
+    await engine.dispose()
+
+
+async def _print_summary(session: AsyncSession, centers: list[ServiceCenter]) -> None:
+    print("\n=== Seed summary ===")
+    for center in centers:
+        counts = {
+            "users": await _count(session, User, center),
+            "customers": await _count(session, Customer, center),
+            "vehicles": await _count(session, Vehicle, center),
+            "appointments": await _count(session, Appointment, center),
+            "service_records": await _count(session, ServiceRecord, center),
+            "maintenance_rules": await _count(session, MaintenanceRule, center),
+        }
+        print(f"\n  {center.name}  [{center.id}]")
+        for key, value in counts.items():
+            print(f"    {key:18} {value}")
+    print()
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Seed the GarageOS demo database.")
+    parser.add_argument(
+        "--fresh", action="store_true", help="Wipe tenant demo data before reseeding."
+    )
+    args = parser.parse_args()
+    asyncio.run(run(fresh=args.fresh))
+
+
+if __name__ == "__main__":
+    main()

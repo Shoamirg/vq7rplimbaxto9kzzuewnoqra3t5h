@@ -9,7 +9,7 @@ from uuid import UUID
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(kw_only=True)
 class DomainEvent:
     """Base class for all domain events."""
     event_id: str = field(default_factory=lambda: str(_uuid.uuid4()))
@@ -17,7 +17,7 @@ class DomainEvent:
     aggregate_id: UUID | None = None
 
 
-@dataclass
+@dataclass(kw_only=True)
 class AppointmentCreated(DomainEvent):
     customer_id: UUID
     vehicle_id: UUID
@@ -25,26 +25,26 @@ class AppointmentCreated(DomainEvent):
     service_center_id: UUID
 
 
-@dataclass
+@dataclass(kw_only=True)
 class AppointmentConfirmed(DomainEvent):
     appointment_id: UUID
     customer_id: UUID
     vehicle_id: UUID
 
 
-@dataclass
+@dataclass(kw_only=True)
 class AppointmentCompleted(DomainEvent):
     appointment_id: UUID
     service_record_id: UUID | None = None
 
 
-@dataclass
+@dataclass(kw_only=True)
 class AppointmentCancelled(DomainEvent):
     appointment_id: UUID
     reason: str | None = None
 
 
-@dataclass
+@dataclass(kw_only=True)
 class VehicleAdded(DomainEvent):
     vehicle_id: UUID
     customer_id: UUID
@@ -52,14 +52,14 @@ class VehicleAdded(DomainEvent):
     model: str
 
 
-@dataclass
+@dataclass(kw_only=True)
 class MileageUpdated(DomainEvent):
     vehicle_id: UUID
     previous_km: int
     new_km: int
 
 
-@dataclass
+@dataclass(kw_only=True)
 class MaintenanceDue(DomainEvent):
     vehicle_id: UUID
     customer_id: UUID

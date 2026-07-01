@@ -1,0 +1,112 @@
+[
+  {
+    "service_type": "Oil & Filter Change",
+    "description": "Engine oil and oil filter replacement",
+    "interval_km": 10000,
+    "interval_months": 12,
+    "estimated_duration_minutes": 45,
+    "estimated_cost": 80.0,
+    "is_required": true,
+    "sort_order": 10
+  },
+  {
+    "service_type": "Tire Rotation",
+    "description": "Rotate tires to ensure even wear",
+    "interval_km": 10000,
+    "interval_months": 6,
+    "estimated_duration_minutes": 30,
+    "estimated_cost": 25.0,
+    "is_required": false,
+    "sort_order": 20
+  },
+  {
+    "service_type": "Brake Inspection",
+    "description": "Inspect brake pads, discs and fluid",
+    "interval_km": 20000,
+    "interval_months": 12,
+    "estimated_duration_minutes": 40,
+    "estimated_cost": 35.0,
+    "is_required": true,
+    "sort_order": 30
+  },
+  {
+    "service_type": "Brake Pad Replacement",
+    "description": "Replace front/rear brake pads",
+    "interval_km": 40000,
+    "interval_months": 36,
+    "estimated_duration_minutes": 90,
+    "estimated_cost": 180.0,
+    "is_required": true,
+    "sort_order": 35
+  },
+  {
+    "service_type": "Air Filter Replacement",
+    "description": "Replace engine air filter",
+    "interval_km": 30000,
+    "interval_months": 24,
+    "estimated_duration_minutes": 20,
+    "estimated_cost": 30.0,
+    "is_required": false,
+    "sort_order": 40
+  },
+  {
+    "service_type": "Cabin Filter Replacement",
+    "description": "Replace cabin/pollen filter",
+    "interval_km": 30000,
+    "interval_months": 24,
+    "estimated_duration_minutes": 20,
+    "estimated_cost": 28.0,
+    "is_required": false,
+    "sort_order": 45
+  },
+  {
+    "service_type": "Spark Plug Replacement",
+    "description": "Replace spark plugs (petrol engines)",
+    "interval_km": 60000,
+    "interval_months": 48,
+    "estimated_duration_minutes": 60,
+    "estimated_cost": 120.0,
+    "is_required": true,
+    "sort_order": 50
+  },
+  {
+    "service_type": "Timing Belt Replacement",
+    "description": "Replace timing belt and tensioner",
+    "interval_km": 100000,
+    "interval_months": 72,
+    "estimated_duration_minutes": 240,
+    "estimated_cost": 550.0,
+    "is_required": true,
+    "sort_order": 60
+  },
+  {
+    "service_type": "Coolant Flush",
+    "description": "Drain and replace engine coolant",
+    "interval_km": 60000,
+    "interval_months": 48,
+    "estimated_duration_minutes": 60,
+    "estimated_cost": 90.0,
+    "is_required": false,
+    "sort_order": 70
+  },
+  {
+    "service_type": "Transmission Service",
+    "description": "Replace transmission fluid and filter",
+    "interval_km": 80000,
+    "interval_months": 60,
+    "estimated_duration_minutes": 90,
+    "estimated_cost": 220.0,
+    "is_required": false,
+    "sort_order": 80
+  },
+  {
+    "service_type": "Major Service",
+    "description": "Comprehensive multi-point inspection and service",
+    "interval_km": 40000,
+    "interval_months": 24,
+    "estimated_duration_minutes": 180,
+    "estimated_cost": 400.0,
+    "is_required": true,
+    "sort_order": 90
+  }
+]
