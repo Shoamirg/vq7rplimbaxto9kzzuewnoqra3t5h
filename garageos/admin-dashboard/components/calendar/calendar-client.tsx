@@ -13,6 +13,7 @@ import {
   Phone,
   Plus,
   Send,
+  Users,
   Wrench,
   X,
   XCircle,
@@ -20,6 +21,7 @@ import {
 import { Badge, Button, cn, useToast } from "@garageos/design-system";
 
 import { clientFetch } from "@/lib/api/client";
+import { EmptyState } from "@/components/states/empty-state";
 import type { Appointment, CalendarPayload, DueServices, VehicleHealth } from "@/lib/api/types";
 import { HealthGauge } from "@/components/vehicles/health-gauge";
 
@@ -373,7 +375,13 @@ export function CalendarClient({ initial, initialDate }: Props) {
       {view !== "Day" ? (
         <PlaceholderView view={view} />
       ) : lanes.length === 0 ? (
-        <div className="flex-1 grid place-items-center p-10 text-sm text-muted-foreground">No mechanics configured for this garage.</div>
+        <div className="flex-1">
+          <EmptyState
+            icon={Users}
+            title="No mechanics to schedule yet"
+            description="The board is organised into a lane per mechanic. Add your team, then appointments can be assigned and dragged between them."
+          />
+        </div>
       ) : (
         <div className="flex-1 overflow-auto">
           <div className="min-w-max">

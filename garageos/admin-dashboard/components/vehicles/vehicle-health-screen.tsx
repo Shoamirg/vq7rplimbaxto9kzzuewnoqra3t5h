@@ -14,12 +14,14 @@ import {
   Download,
   FileText,
   Gauge,
+  History,
   Printer,
   QrCode,
   Share2,
   Sparkles,
   Wrench,
 } from "lucide-react";
+import { EmptyState } from "@/components/states/empty-state";
 import {
   Area,
   AreaChart,
@@ -440,7 +442,15 @@ function OverviewTab({
 
 function TimelineList({ events }: { events: VehicleTimeline["events"] }) {
   if (events.length === 0) {
-    return <div className="px-4 py-8 text-center text-sm text-muted-foreground">No history yet.</div>;
+    return (
+      <EmptyState
+        compact
+        icon={History}
+        title="No service history yet"
+        description="This vehicle hasn't been serviced here. Once you complete an appointment, every service and inspection appears here automatically — building the digital passport."
+        action={{ label: "Book first service", href: "/calendar" }}
+      />
+    );
   }
   return (
     <div className="divide-y divide-border">

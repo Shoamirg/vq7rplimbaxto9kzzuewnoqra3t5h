@@ -16,7 +16,9 @@ import {
   ArrowDownRight,
   FileText,
   LogOut,
+  CalendarCheck,
 } from "lucide-react";
+import { EmptyState } from "@/components/states/empty-state";
 import {
   Card,
   CardHeader,
@@ -256,9 +258,14 @@ export function DashboardClient({ userName, stats, today, fleet }: Props) {
           </CardHeader>
           <CardContent padding="none">
             {today.length === 0 ? (
-              <div className="px-4 py-10 text-center text-sm text-muted-foreground">
-                No appointments scheduled for today.
-              </div>
+              <EmptyState
+                compact
+                icon={CalendarCheck}
+                title="A clear day ahead"
+                description="No appointments are scheduled for today. Book one, or open the calendar to plan the week."
+                action={{ label: "New appointment", href: "/calendar" }}
+                secondary={{ label: "Open calendar", href: "/calendar" }}
+              />
             ) : (
               <div className="divide-y divide-border">
                 {today.map((apt) => (
