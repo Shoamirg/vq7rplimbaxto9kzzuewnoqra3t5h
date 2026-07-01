@@ -16,7 +16,12 @@ else
   PY="$ROOT/backend/.venv/bin/python"
 fi
 
-BACKEND_PORT="${BACKEND_PORT:-8000}"
+# Auto-dodge a busy backend port (host :8000 is often taken by another project).
+port_busy() { curl -s -o /dev/null --max-time 1 "http://127.0.0.1:$1/" 2>/dev/null; [ $? -ne 7 ]; }
+if [ -z "${BACKEND_PORT:-}" ]; then
+  BACKEND_PORT=8000
+  if port_busy 8000; then BACKEND_PORT=8001; echo ">> :8000 busy — using backend port $BACKEND_PORT"; fi
+fi
 FRONTEND_PORT="${FRONTEND_PORT:-3000}"
 # 127.0.0.1 (not localhost) so Node's server-side fetch doesn't hit IPv6 ::1.
 export NEXT_PUBLIC_API_URL="http://127.0.0.1:${BACKEND_PORT}/api/v1"

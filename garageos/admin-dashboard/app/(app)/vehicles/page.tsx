@@ -39,7 +39,7 @@ export default async function VehiclesPage() {
               {v.brand} {v.model}
             </p>
             <p className="text-xs text-muted-foreground">
-              {v.year} · {v.current_km.toLocaleString()} km
+              {v.year} · {v.current_km.toLocaleString("en-US")} km
             </p>
             <div className="mt-2 flex items-center justify-between">
               {v.license_plate ? (

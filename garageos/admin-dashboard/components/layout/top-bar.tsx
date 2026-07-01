@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import {
   Search,
   Bell,
@@ -31,13 +31,32 @@ function initials(name?: string): string {
 }
 
 // ─── Breadcrumbs ──────────────────────────────────────────────
+// Human labels for the top-level segment. Deeper segments (ids) fall back to
+// a title-cased slug so a detail route still reads sensibly.
+const SEGMENT_LABELS: Record<string, string> = {
+  dashboard: "Dashboard",
+  calendar: "Calendar",
+  appointments: "Appointments",
+  vehicles: "Vehicles",
+  customers: "Customers",
+  inventory: "Inventory",
+  reports: "Reports",
+  settings: "Settings",
+};
+
+function labelFor(segment: string): string {
+  return SEGMENT_LABELS[segment] ?? segment.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 function Breadcrumbs() {
-  // In a real app, this would derive from the route or a context
+  const pathname = usePathname() ?? "/dashboard";
+  // Only show the first segment — ids/sub-pages own their own in-page header.
+  const first = pathname.split("/").filter(Boolean)[0] ?? "dashboard";
   return (
     <nav aria-label="Breadcrumb" className="hidden md:flex items-center gap-1.5 text-sm">
       <span className="text-muted-foreground">GarageOS</span>
       <ChevronDown className="size-3 -rotate-90 text-muted-foreground/50" />
-      <span className="text-foreground font-medium">Dashboard</span>
+      <span className="text-foreground font-medium">{labelFor(first)}</span>
     </nav>
   );
 }

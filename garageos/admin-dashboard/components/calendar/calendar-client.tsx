@@ -56,7 +56,7 @@ const isoDay = (d: Date): string => d.toISOString().slice(0, 10);
 const addDays = (iso: string, days: number): string =>
   isoDay(new Date(new Date(iso + "T00:00:00Z").getTime() + days * 86_400_000));
 const labelDate = (iso: string): string =>
-  new Date(iso + "T00:00:00Z").toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+  new Date(iso + "T00:00:00Z").toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long" });
 
 type DragSession = {
   apptId: string;
@@ -620,7 +620,7 @@ function InspectorDrawer({ appointment, onClose, onChanged }: { appointment: App
             <Field label="Customer" value={appointment.customer_name} />
             <Field label="Mechanic" value={appointment.mechanic_name ?? "Unassigned"} />
             <Field label="Time" value={`${appointment.appointment_time} · ${appointment.estimated_duration_minutes}m`} />
-            <Field label="Cost" value={appointment.total_cost != null ? `$${appointment.total_cost.toLocaleString()}` : "—"} />
+            <Field label="Cost" value={appointment.total_cost != null ? `$${appointment.total_cost.toLocaleString("en-US")}` : "—"} />
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" leftIcon={<Phone className="size-4" />} className="flex-1">Call</Button>

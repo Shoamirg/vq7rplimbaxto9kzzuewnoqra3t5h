@@ -83,11 +83,11 @@ const BAND_DESC: Record<HealthBand, string> = {
 };
 
 function km(n: number | null | undefined): string {
-  return n == null ? "—" : `${n.toLocaleString()} km`;
+  return n == null ? "—" : `${n.toLocaleString("en-US")} km`;
 }
 
 function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  return new Date(iso).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
 }
 
 function dueLabel(s: HealthService): { text: string; variant: string } {
@@ -100,8 +100,8 @@ function dueLabel(s: HealthService): { text: string; variant: string } {
 
 function remainingText(s: HealthService): string {
   if (s.remaining_km == null) return "";
-  if (s.remaining_km < 0) return `${Math.abs(s.remaining_km).toLocaleString()} km overdue`;
-  return `in ${s.remaining_km.toLocaleString()} km`;
+  if (s.remaining_km < 0) return `${Math.abs(s.remaining_km).toLocaleString("en-US")} km overdue`;
+  return `in ${s.remaining_km.toLocaleString("en-US")} km`;
 }
 
 // ── Small deterministic QR-style placeholder (real QR generation is a follow-up)
@@ -226,7 +226,7 @@ export function VehicleHealthScreen({ health, timeline }: Props) {
                     <span className="inline-block mt-1 text-xs font-mono px-2 py-0.5 rounded bg-muted text-muted-foreground">{v.license_plate}</span>
                   )}
                   <p className="text-sm text-muted-foreground mt-1.5">
-                    {v.year} · {v.current_km.toLocaleString()} km
+                    {v.year} · {v.current_km.toLocaleString("en-US")} km
                     {v.customer_name ? ` · ${v.customer_name}` : ""}
                     {lastServiceDate ? ` · Last service ${fmtDate(lastServiceDate)}` : ""}
                   </p>
@@ -352,7 +352,7 @@ function OverviewTab({
             <StatItem icon={Wrench} value={String(stats.servicesCompleted)} label="Services completed" tone="bg-primary/10 text-primary" />
             <StatItem icon={AlertTriangle} value={String(health.urgent_count)} label="Services overdue" tone="bg-danger/10 text-danger" />
             <StatItem icon={Clock} value={String(health.due_soon_count)} label="Due soon" tone="bg-warning/10 text-warning" />
-            <StatItem icon={DollarSign} value={`$${stats.totalSpent.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} label="Total spent" tone="bg-success/10 text-success" />
+            <StatItem icon={DollarSign} value={`$${stats.totalSpent.toLocaleString("en-US", { maximumFractionDigits: 0 })}`} label="Total spent" tone="bg-success/10 text-success" />
             <StatItem icon={Activity} value={km(stats.kmSinceService)} label="Since last service" tone="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" />
           </CardContent>
         </Card>
@@ -454,7 +454,7 @@ function TimelineList({ events }: { events: VehicleTimeline["events"] }) {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground truncate">{e.title}</p>
               <p className="text-xs text-muted-foreground">
-                {fmtDate(e.date)}{e.km != null ? ` · ${e.km.toLocaleString()} km` : ""}{e.cost != null ? ` · $${e.cost.toLocaleString()}` : ""}
+                {fmtDate(e.date)}{e.km != null ? ` · ${e.km.toLocaleString("en-US")} km` : ""}{e.cost != null ? ` · $${e.cost.toLocaleString("en-US")}` : ""}
               </p>
             </div>
           </div>
@@ -487,8 +487,8 @@ function ServicesTab({ health }: { health: VehicleHealth }) {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-foreground truncate">{s.service_type}</p>
                   <p className="text-xs text-muted-foreground truncate">
-                    {s.interval_km ? `Every ${s.interval_km.toLocaleString()} km` : ""}
-                    {s.last_performed_km != null ? ` · last at ${s.last_performed_km.toLocaleString()} km` : ""}
+                    {s.interval_km ? `Every ${s.interval_km.toLocaleString("en-US")} km` : ""}
+                    {s.last_performed_km != null ? ` · last at ${s.last_performed_km.toLocaleString("en-US")} km` : ""}
                   </p>
                 </div>
                 <div className="text-right">
