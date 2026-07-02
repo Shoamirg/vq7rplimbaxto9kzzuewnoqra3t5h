@@ -1,13 +1,37 @@
 from __future__ import annotations
 import uuid
-from typing import Optional, Sequence
+from datetime import datetime, timezone
+from typing import List, Optional, Sequence
 
+from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
+
+from app.models.appointment import Appointment
+from app.models.service_record import ServiceRecord
+from app.models.vehicle import Vehicle
+from app.models.vehicle_model import VehicleModel
 from app.repositories.customer_repository import CustomerRepository
 from app.repositories.vehicle_repository import VehicleRepository
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.service_record_repository import ServiceRecordRepository
 from app.repositories.unit_of_work import UnitOfWork
 from app.exceptions import CustomerNotFound
+from app.services.maintenance_service import MaintenanceService
+from app.services.vehicle_health_service import _band, _passport_code, _vehicle_label
+
+# Lifetime-spend tiers — honest, derived from real service-record totals.
+_TIERS = [(8000, "Platinum", 5), (4000, "Gold", 4), (1500, "Silver", 3), (0, "Standard", 0)]
+
+
+def _tier(lifetime_value: float) -> dict:
+    for threshold, label, stars in _TIERS:
+        if lifetime_value >= threshold:
+            return {"label": label, "stars": stars}
+    return {"label": "Standard", "stars": 0}
+
+
+def _as_utc(dt: datetime) -> datetime:
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
 class CustomerService:
@@ -16,10 +40,13 @@ class CustomerService:
     def __init__(self, uow: UnitOfWork):
         self.uow = uow
         sc = uow.service_center_id
+        self.sc = sc
+        self.session = uow.session
         self.customer_repo = CustomerRepository(uow.session, sc)
         self.vehicle_repo = VehicleRepository(uow.session, sc)
         self.appointment_repo = AppointmentRepository(uow.session, sc)
         self.service_record_repo = ServiceRecordRepository(uow.session, sc)
+        self.maintenance = MaintenanceService(uow.session, sc)
 
     async def create_customer(
         self,
@@ -198,3 +225,197 @@ class CustomerService:
             "service_center_id": str(customer.service_center_id),
             "loyalty_points": customer.loyalty_points,
         }
+
+    # ── Customer 360 ──────────────────────────────────────────
+    async def list_360(self, query: str = "", limit: int = 50) -> dict:
+        """List customers with the summary the CRM list needs (value-sorted)."""
+        customers = await self.customer_repo.search(query or "", limit=limit)
+        ids = [c.id for c in customers]
+        spend = await self._spend_by_customer(ids)
+        counts = await self._vehicle_counts(ids)
+        last = await self._last_visit(ids)
+        items = [
+            {
+                "id": str(c.id),
+                "full_name": c.full_name,
+                "phone": c.phone,
+                "email": c.email,
+                "vehicle_count": counts.get(c.id, 0),
+                "lifetime_value": round(spend.get(c.id, 0.0), 2),
+                "tier": _tier(spend.get(c.id, 0.0))["label"],
+                "last_visit": last.get(c.id).isoformat() if last.get(c.id) else None,
+            }
+            for c in customers
+        ]
+        items.sort(key=lambda x: x["lifetime_value"], reverse=True)
+        return {"items": items, "count": len(items)}
+
+    async def get_360(self, customer_id: uuid.UUID) -> dict:
+        """The command center for one customer."""
+        customer = await self.customer_repo.find_with_vehicles(customer_id)
+        if not customer:
+            raise CustomerNotFound()
+        center_name = await self._center_name()
+        vehicles = await self._vehicles_with_models([v.id for v in (customer.vehicles or [])])
+
+        vehicle_out: List[dict] = []
+        scores: List[float] = []
+        for v in vehicles:
+            report = await self.maintenance.calculate_due_services(v.id)
+            scores.append(report.overall_score)
+            vehicle_out.append({
+                "id": str(v.id),
+                "label": _vehicle_label(v),
+                "brand": v.vehicle_model.brand.name if v.vehicle_model and getattr(v.vehicle_model, "brand", None) else "",
+                "model": v.vehicle_model.name if v.vehicle_model else "",
+                "year": v.year,
+                "license_plate": v.license_plate,
+                "current_km": v.current_km,
+                "score": report.overall_score,
+                "band": _band(report.overall_score),
+                "passport_code": _passport_code(center_name, v.id),
+            })
+
+        appointments = await self.appointment_repo.find_by_customer(customer_id)
+        records = await self.service_record_repo.find_by_customer(customer_id)
+        lifetime_value = round(sum(r.cost or 0 for r in records), 2)
+
+        now = datetime.now(timezone.utc)
+        future = [a for a in appointments
+                  if _as_utc(a.appointment_date) >= now and a.status not in ("cancelled", "completed")]
+        next_booking = min(future, key=lambda a: a.appointment_date) if future else None
+        # Last visit = the most recent completed touchpoint (service or a past
+        # appointment), so it matches the list view's definition.
+        visit_dates = [_as_utc(r.performed_date) for r in records]
+        visit_dates += [_as_utc(a.appointment_date) for a in appointments
+                        if _as_utc(a.appointment_date) <= now]
+        last_visit = max(visit_dates) if visit_dates else None
+        health_avg = round(sum(scores) / len(scores), 1) if scores else 0.0
+
+        return {
+            "id": str(customer.id),
+            "full_name": customer.full_name,
+            "phone": customer.phone,
+            "email": customer.email,
+            "address": customer.address,
+            "since": customer.created_at.isoformat() if customer.created_at else None,
+            "has_telegram": customer.telegram_id is not None,
+            "loyalty_points": customer.loyalty_points or 0,
+            "tier": _tier(lifetime_value),
+            "stats": {
+                "vehicle_count": len(vehicles),
+                "lifetime_value": lifetime_value,
+                "health_avg": health_avg,
+                "health_band": _band(health_avg),
+                "outstanding": 0.0,        # invoices module not built yet
+                "emergency_count": 0,       # emergency module not built yet
+                "last_visit": last_visit.isoformat() if last_visit else None,
+                "next_booking": next_booking.appointment_date.isoformat() if next_booking else None,
+            },
+            "vehicles": vehicle_out,
+            "appointments": [self._serialize_appt(a) for a in
+                             sorted(appointments, key=lambda a: a.appointment_date, reverse=True)[:12]],
+            "timeline": self._build_timeline(records, appointments),
+            "ai_summary": self._ai_summary(customer, vehicle_out, records, lifetime_value, next_booking),
+        }
+
+    async def _center_name(self) -> str:
+        from app.models.service_center import ServiceCenter
+        result = await self.session.execute(
+            select(ServiceCenter.brand_name, ServiceCenter.name).where(ServiceCenter.id == self.sc)
+        )
+        row = result.first()
+        return (row[0] or row[1]) if row else "GarageOS"
+
+    async def _vehicles_with_models(self, ids: Sequence[uuid.UUID]) -> Sequence[Vehicle]:
+        if not ids:
+            return []
+        stmt = select(Vehicle).where(Vehicle.id.in_(ids)).options(
+            selectinload(Vehicle.vehicle_model).selectinload(VehicleModel.brand)
+        ).order_by(Vehicle.created_at.desc())
+        return (await self.session.execute(stmt)).scalars().all()
+
+    async def _spend_by_customer(self, ids: Sequence[uuid.UUID]) -> dict:
+        if not ids:
+            return {}
+        stmt = (
+            select(Vehicle.customer_id, func.coalesce(func.sum(ServiceRecord.cost), 0))
+            .join(ServiceRecord, ServiceRecord.vehicle_id == Vehicle.id)
+            .where(Vehicle.customer_id.in_(ids), Vehicle.service_center_id == self.sc)
+            .group_by(Vehicle.customer_id)
+        )
+        return {cid: float(total) for cid, total in (await self.session.execute(stmt)).all()}
+
+    async def _vehicle_counts(self, ids: Sequence[uuid.UUID]) -> dict:
+        if not ids:
+            return {}
+        stmt = (
+            select(Vehicle.customer_id, func.count())
+            .where(Vehicle.customer_id.in_(ids), Vehicle.service_center_id == self.sc,
+                   Vehicle.is_active.is_(True))
+            .group_by(Vehicle.customer_id)
+        )
+        return {cid: int(n) for cid, n in (await self.session.execute(stmt)).all()}
+
+    async def _last_visit(self, ids: Sequence[uuid.UUID]) -> dict:
+        if not ids:
+            return {}
+        now = datetime.now(timezone.utc)
+        stmt = (
+            select(Appointment.customer_id, func.max(Appointment.appointment_date))
+            .where(Appointment.customer_id.in_(ids), Appointment.service_center_id == self.sc,
+                   Appointment.appointment_date <= now)
+            .group_by(Appointment.customer_id)
+        )
+        return {cid: dt for cid, dt in (await self.session.execute(stmt)).all()}
+
+    def _serialize_appt(self, a: Appointment) -> dict:
+        return {
+            "id": str(a.id),
+            "date": a.appointment_date.isoformat(),
+            "time": a.appointment_time,
+            "status": a.status,
+            "mechanic_name": a.mechanic_name,
+            "duration": a.estimated_duration_minutes,
+            "vehicle_id": str(a.vehicle_id),
+            "total_cost": a.total_cost,
+        }
+
+    def _build_timeline(self, records: Sequence[ServiceRecord], appointments: Sequence[Appointment]) -> list:
+        events: List[dict] = []
+        for r in records:
+            events.append({
+                "type": "service", "title": r.service_type,
+                "date": r.performed_date.isoformat(), "detail": r.description, "cost": r.cost,
+            })
+        for a in appointments:
+            events.append({
+                "type": f"appointment_{a.status}",
+                "title": f"Appointment {a.status.replace('_', ' ').title()}",
+                "date": a.appointment_date.isoformat(), "detail": a.mechanic_name,
+            })
+        events.sort(key=lambda e: e["date"], reverse=True)
+        return events[:40]
+
+    def _ai_summary(self, customer, vehicles, records, lifetime_value, next_booking) -> str:
+        n = len(vehicles)
+        since = customer.created_at.year if customer.created_at else None
+        overdue = sum(1 for v in vehicles if v["band"] == "poor")
+        first = customer.full_name.split()[0] if customer.full_name else "This customer"
+        parts = [
+            f"{first} has {n} vehicle{'s' if n != 1 else ''} on file"
+            + (f" and has been a customer since {since}" if since else "")
+            + f", with {len(records)} completed service{'s' if len(records) != 1 else ''}"
+            + f" totalling ${round(lifetime_value):,}."
+        ]
+        parts.append(
+            f"{overdue} vehicle{'s' if overdue != 1 else ''} currently need attention and should be booked in soon."
+            if overdue else
+            "All vehicles are currently in good standing with no overdue services."
+        )
+        parts.append(
+            "There is an upcoming appointment already scheduled."
+            if next_booking else
+            "No upcoming appointment is on the books — a good candidate for a proactive reminder."
+        )
+        return " ".join(parts)

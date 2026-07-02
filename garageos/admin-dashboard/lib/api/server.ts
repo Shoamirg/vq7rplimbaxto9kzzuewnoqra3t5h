@@ -8,6 +8,8 @@ import type {
   Appointment,
   AppointmentStats,
   CalendarPayload,
+  Customer360,
+  CustomerList,
   CurrentUser,
   FleetHealth,
   Passport,
@@ -60,6 +62,10 @@ export const getVehicleTimeline = (id: string) => apiFetch<VehicleTimeline>(`/ve
 
 export const getCalendar = (start: string, end: string) =>
   apiFetch<CalendarPayload>(`/calendar?start=${start}&end=${end}`);
+
+export const getCustomers = (q = "") =>
+  apiFetch<CustomerList>(`/customers?q=${encodeURIComponent(q)}`);
+export const getCustomer360 = (id: string) => apiFetch<Customer360>(`/customers/${id}`);
 
 /** Public passport fetch — no auth cookie (the document is shareable). Returns
  *  null on 404 so the page can render a clean "not found" instead of throwing. */

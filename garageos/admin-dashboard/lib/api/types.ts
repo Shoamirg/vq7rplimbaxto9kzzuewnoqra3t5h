@@ -180,6 +180,73 @@ export interface DueServices {
   services: HealthService[];
 }
 
+// ─── Customer 360 ────────────────────────────────────────────
+export interface CustomerListItem {
+  id: string;
+  full_name: string;
+  phone: string | null;
+  email: string | null;
+  vehicle_count: number;
+  lifetime_value: number;
+  tier: string;
+  last_visit: string | null;
+}
+
+export interface CustomerList {
+  items: CustomerListItem[];
+  count: number;
+}
+
+export interface Customer360Vehicle {
+  id: string;
+  label: string;
+  brand: string;
+  model: string;
+  year: number;
+  license_plate: string | null;
+  current_km: number;
+  score: number;
+  band: HealthBand;
+  passport_code: string;
+}
+
+export interface Customer360Appointment {
+  id: string;
+  date: string;
+  time: string;
+  status: AppointmentStatus;
+  mechanic_name: string | null;
+  duration: number;
+  vehicle_id: string;
+  total_cost: number | null;
+}
+
+export interface Customer360 {
+  id: string;
+  full_name: string;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  since: string | null;
+  has_telegram: boolean;
+  loyalty_points: number;
+  tier: { label: string; stars: number };
+  stats: {
+    vehicle_count: number;
+    lifetime_value: number;
+    health_avg: number;
+    health_band: HealthBand;
+    outstanding: number;
+    emergency_count: number;
+    last_visit: string | null;
+    next_booking: string | null;
+  };
+  vehicles: Customer360Vehicle[];
+  appointments: Customer360Appointment[];
+  timeline: TimelineEvent[];
+  ai_summary: string;
+}
+
 // ─── Certified Vehicle Passport ──────────────────────────────
 export type PassportStatus = "on_track" | "due_soon" | "overdue";
 
