@@ -180,6 +180,27 @@ export interface DueServices {
   services: HealthService[];
 }
 
+// ─── Notifications ───────────────────────────────────────────
+export type NotificationSeverity = "critical" | "high" | "medium" | "low" | "info";
+
+export interface NotificationItem {
+  id: string;
+  category: string;
+  severity: NotificationSeverity;
+  title: string;
+  body: string | null;
+  entity_type: string | null;
+  entity_id: string | null;
+  link: string | null;
+  is_read: boolean;
+  created_at: string;
+}
+
+export interface NotificationFeed {
+  items: NotificationItem[];
+  unread_count: number;
+}
+
 // ─── Global Search ───────────────────────────────────────────
 export interface SearchResults {
   query: string;

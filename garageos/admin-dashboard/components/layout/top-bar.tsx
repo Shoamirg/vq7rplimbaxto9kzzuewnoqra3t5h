@@ -17,6 +17,7 @@ import {
 import { cn, Avatar, Badge, Button, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from "@garageos/design-system";
 import { useTheme } from "../providers/theme-provider";
 import { OPEN_EVENT } from "./command-menu";
+import { NotificationBell } from "./notification-bell";
 
 type ShellUser = { name: string; email: string; role: string | null };
 
@@ -112,25 +113,7 @@ export function TopBar({ user }: { user?: ShellUser }) {
         </button>
 
         {/* Notifications */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              className="relative p-2 rounded-lg hover:bg-muted transition-colors"
-              aria-label="Notifications"
-            >
-              <Bell className="size-4 text-muted-foreground" />
-              <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-danger" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-80" maxHeight="400px">
-            <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <div className="py-6 text-center text-sm text-muted-foreground">
-              <Bell className="size-8 mx-auto mb-2 opacity-40" />
-              <p>No new notifications</p>
-            </div>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <NotificationBell />
 
         {/* User Profile Menu */}
         <DropdownMenu>

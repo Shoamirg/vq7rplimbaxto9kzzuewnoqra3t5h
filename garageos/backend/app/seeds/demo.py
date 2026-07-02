@@ -23,6 +23,7 @@ from app.models import (
     AppointmentSlot,
     Customer,
     MaintenanceRule,
+    Notification,
     ServiceCenter,
     ServiceRecord,
     User,
@@ -37,6 +38,7 @@ from app.seeds.models import seed_vehicle_models
 from app.seeds.roles import seed_roles
 from app.seeds.service_centers import seed_service_center
 from app.seeds.fleet import generate_fleet_vehicles
+from app.seeds.notifications import generate_notifications
 
 logger = logging.getLogger("seeds.demo")
 
@@ -74,7 +76,7 @@ PRIMARY_VOLUME = {"mechanics": 6, "customers": 200, "vehicles": 350, "appointmen
 SECOND_VOLUME = {"mechanics": 2, "customers": 15, "vehicles": 20, "appointments": 6}
 
 # Tenant-scoped tables, in safe deletion order (children before parents).
-_TENANT_TABLES = [ServiceRecord, AppointmentSlot, Appointment, Vehicle, Customer, MaintenanceRule, User]
+_TENANT_TABLES = [Notification, ServiceRecord, AppointmentSlot, Appointment, Vehicle, Customer, MaintenanceRule, User]
 
 
 async def _wipe_tenant(session: AsyncSession, center: ServiceCenter) -> None:
@@ -138,6 +140,7 @@ async def _seed_tenant(
     await generate_appointments(
         session, center, vehicles, staff["mechanics"], rules, volume["appointments"]
     )
+    await generate_notifications(session, center)
     logger.info(
         "Seeded %s: %d customers, %d vehicles",
         center.name, len(customers), len(vehicles),

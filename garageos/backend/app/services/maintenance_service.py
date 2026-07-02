@@ -203,5 +203,6 @@ class MaintenanceService:
                     customer_id=uuid.UUID(report.customer_id),
                     service_type=item.service_type,
                     due_km=item.remaining_km,
+                    service_center_id=self.service_center_id,
                 ))
         return events

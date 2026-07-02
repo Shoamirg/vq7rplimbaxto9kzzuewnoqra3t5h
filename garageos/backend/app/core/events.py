@@ -30,18 +30,22 @@ class AppointmentConfirmed(DomainEvent):
     appointment_id: UUID
     customer_id: UUID
     vehicle_id: UUID
+    service_center_id: UUID | None = None
 
 
 @dataclass(kw_only=True)
 class AppointmentCompleted(DomainEvent):
     appointment_id: UUID
     service_record_id: UUID | None = None
+    service_center_id: UUID | None = None
+    vehicle_label: str | None = None
 
 
 @dataclass(kw_only=True)
 class AppointmentCancelled(DomainEvent):
     appointment_id: UUID
     reason: str | None = None
+    service_center_id: UUID | None = None
 
 
 @dataclass(kw_only=True)
@@ -66,6 +70,7 @@ class MaintenanceDue(DomainEvent):
     service_type: str
     due_km: int | None = None
     due_date: datetime | None = None
+    service_center_id: UUID | None = None
 
 
 EventHandler = Callable[[DomainEvent], Any]

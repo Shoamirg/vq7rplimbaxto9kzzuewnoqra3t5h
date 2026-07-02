@@ -193,6 +193,7 @@ class AppointmentService:
             appointment_id=appointment_id,
             customer_id=appointment.customer_id,
             vehicle_id=appointment.vehicle_id,
+            service_center_id=self.uow.service_center_id,
         ))
         await self.uow.flush()
         return await self.get_appointment(appointment_id)
@@ -266,6 +267,7 @@ class AppointmentService:
             aggregate_id=appointment.id,
             appointment_id=appointment.id,
             service_record_id=record.id,
+            service_center_id=self.uow.service_center_id,
         ))
         await self.uow.flush()
 
@@ -301,6 +303,7 @@ class AppointmentService:
             aggregate_id=appointment_id,
             appointment_id=appointment_id,
             reason=reason,
+            service_center_id=self.uow.service_center_id,
         ))
         await self.uow.flush()
         return await self.get_appointment(appointment_id)

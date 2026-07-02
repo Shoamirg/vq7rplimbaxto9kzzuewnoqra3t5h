@@ -10,6 +10,7 @@ from app.models.maintenance_rule import MaintenanceRule
 from app.models.appointment import Appointment
 from app.models.appointment_slot import AppointmentSlot, AppointmentSlotStatus
 from app.models.service_record import ServiceRecord
+from app.models.notification import Notification
 
 __all__ = [
     "BaseModelMixin",
@@ -26,4 +27,5 @@ __all__ = [
     "AppointmentSlot",
     "AppointmentSlotStatus",
     "ServiceRecord",
+    "Notification",
 ]
