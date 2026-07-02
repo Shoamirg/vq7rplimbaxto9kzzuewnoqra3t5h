@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Certified Vehicle Passport — mockup v2</title>
+<style>
+  :root{
+    --ink:#15120C;            /* warm near-black */
+    --ink-2:#4A4438;
+    --muted:#8A8272;
+    --paper:#F7F3EA;          /* ivory */
+    --paper-2:#EFEADD;
+    --line:#E0D8C4;
+    --gold:#9C7C3C;
+    --gold-2:#C0A05A;
+    --emerald:#0E8A5F;
+    --emerald-soft:#E6F2EC;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#4c5462}
+  .page{width:820px;margin:0 auto;background:
+      radial-gradient(120% 60% at 50% 0%, #FBF8F1 0%, var(--paper) 60%);
+    color:var(--ink);position:relative;overflow:hidden;
+    font-family:"Segoe UI",system-ui,-apple-system,sans-serif;padding:38px 46px 26px;}
+  .disp{font-family:"Bodoni MT","Didot","Playfair Display",Georgia,serif;}
+  .frame{position:absolute;inset:16px;border:1.5px solid var(--ink);pointer-events:none}
+  .frame:before{content:"";position:absolute;inset:6px;border:1px solid var(--gold);opacity:.5}
+  .corner{position:absolute;width:22px;height:22px;border:2px solid var(--gold)}
+  .c-tl{top:9px;left:9px;border-right:0;border-bottom:0}.c-tr{top:9px;right:9px;border-left:0;border-bottom:0}
+  .c-bl{bottom:9px;left:9px;border-right:0;border-top:0}.c-br{bottom:9px;right:9px;border-left:0;border-top:0}
+  .wm{position:absolute;inset:0;pointer-events:none;opacity:.028;background:
+     repeating-linear-gradient(135deg, var(--ink) 0 1px, transparent 1px 9px)}
+  .rel{position:relative;z-index:2}
+  .over{font-size:10px;letter-spacing:.34em;text-transform:uppercase;color:var(--muted);font-weight:600}
+
+  /* Masthead */
+  .mast{display:flex;justify-content:space-between;align-items:center;padding-bottom:14px}
+  .brandL{display:flex;align-items:center;gap:12px}
+  .mono{width:44px;height:44px;border:1.5px solid var(--ink);border-radius:50%;display:grid;place-items:center;
+    font-family:"Bodoni MT",Georgia,serif;font-weight:700;font-size:22px}
+  .brandL h1{font-size:16px;letter-spacing:.22em;font-weight:700}
+  .brandL p{font-size:9.5px;letter-spacing:.14em;color:var(--muted);margin-top:3px;text-transform:uppercase}
+  .mastR{text-align:right}
+  .mastR .no{font-size:10px;color:var(--muted);font-family:"Consolas",monospace}
+  .rule{height:1.5px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:6px 0 0}
+  .passtitle{text-align:center;margin:14px 0 2px}
+  .passtitle .k{font-size:11px;letter-spacing:.5em;color:var(--gold);font-weight:700}
+  .passtitle .t{font-size:30px;letter-spacing:.06em;margin-top:4px}
+
+  /* Vehicle + silhouette */
+  .veh{display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:center;padding:14px 0 6px}
+  .veh .name{font-size:40px;line-height:1.02;letter-spacing:-.01em}
+  .veh .sub{font-size:13px;color:var(--ink-2);margin-top:8px;letter-spacing:.02em}
+  .veh .plate{display:inline-block;margin-top:12px;border:1.5px solid var(--ink);border-radius:6px;
+    padding:4px 12px;font-family:"Consolas",monospace;font-weight:700;letter-spacing:.12em;font-size:14px}
+  .silo{opacity:.9}
+
+  /* Health hero */
+  .hero{position:relative;text-align:center;padding:20px 0 18px;margin:6px 0;
+    border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .hero .score{font-size:118px;line-height:.9;letter-spacing:-.03em;font-weight:600}
+  .hero .score sup{font-size:26px;color:var(--muted);letter-spacing:0;font-weight:600;vertical-align:super}
+  .hero .grade{font-size:24px;color:var(--emerald);margin-top:2px;letter-spacing:.02em}
+  .hero .lbl{font-size:11px;letter-spacing:.42em;color:var(--muted);margin-top:8px}
+  .badge{display:inline-flex;align-items:center;gap:8px;margin-top:16px;padding:8px 16px;border-radius:999px;
+    border:1px solid var(--gold);color:var(--gold);background:linear-gradient(180deg,#FBF7ED,#F3ECDA);
+    font-size:11px;letter-spacing:.16em;font-weight:700;text-transform:uppercase}
+  .stars{letter-spacing:2px;color:var(--gold-2)}
+
+  /* Trust strip */
+  .trust{display:flex;align-items:center;justify-content:center;gap:26px;padding:14px 0;flex-wrap:wrap}
+  .trust .v{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--ink-2)}
+  .trust .tick{width:16px;height:16px;border-radius:50%;background:var(--emerald-soft);color:var(--emerald);
+    display:grid;place-items:center;font-size:10px;font-weight:800}
+  .trust .by{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+
+  /* Service history cards */
+  .sechead{display:flex;align-items:center;gap:12px;margin:18px 0 12px}
+  .sechead .over{white-space:nowrap}
+  .sechead .ln{flex:1;height:1px;background:var(--line)}
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .scard{border:1px solid var(--line);border-radius:12px;background:#fff;padding:13px 13px 12px;position:relative}
+  .scard .ok{position:absolute;top:11px;right:11px;width:18px;height:18px;border-radius:50%;background:var(--emerald);
+    color:#fff;display:grid;place-items:center;font-size:11px;font-weight:800}
+  .scard .st{font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--emerald);font-weight:700}
+  .scard .ti{font-size:14px;font-weight:600;margin-top:6px}
+  .scard .dt{font-size:11px;color:var(--muted);margin-top:5px}
+  .scard .me{font-size:11px;color:var(--ink-2);margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}
+  .scard .me b{font-weight:600}
+
+  /* two-up: upcoming + vitals */
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:26px;margin-top:16px}
+  .col h4{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink);padding-bottom:8px;
+    margin-bottom:8px;border-bottom:1px solid var(--line)}
+  .due{display:flex;align-items:center;gap:9px;padding:6px 0;font-size:12.5px}
+  .pill{font-size:9px;font-weight:700;padding:2px 8px;border-radius:999px;letter-spacing:.04em}
+  .pill.ok{background:var(--emerald-soft);color:var(--emerald)}
+  .pill.soon{background:#F6EBD3;color:#B07A22}
+  .vit{display:flex;justify-content:space-between;padding:6px 0;font-size:12.5px;border-bottom:1px dashed var(--line)}
+  .vit:last-child{border:0}.vit b{font-size:13px}
+
+  /* AI summary */
+  .ai{margin-top:18px;border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:10px;
+    background:linear-gradient(180deg,#FCFAF4,#F7F2E8);padding:16px 18px}
+  .ai .h{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .ai .h .over{color:var(--gold)}
+  .ai p{font-size:13.5px;line-height:1.65;color:var(--ink-2)}
+  .ai p b{color:var(--ink);font-weight:700}
+
+  /* Timeline flow */
+  .flow{margin-top:20px}
+  .flowtrack{display:flex;align-items:center;margin-top:14px}
+  .step{text-align:center;flex:1}
+  .step .node{width:14px;height:14px;border-radius:50%;margin:0 auto;background:#fff;border:2px solid var(--emerald)}
+  .step.mut .node{border-color:var(--muted)}
+  .step.now .node{background:var(--gold);border-color:var(--gold)}
+  .step .t{font-size:11px;font-weight:600;margin-top:8px}
+  .step .d{font-size:9px;color:var(--muted);margin-top:2px}
+  .arrow{color:var(--line);font-size:14px;padding:0 2px;margin-bottom:22px}
+
+  /* Footer: QR + signature + seal + micro */
+  .foot{display:grid;grid-template-columns:auto 1fr auto;gap:22px;align-items:center;
+    margin-top:22px;padding-top:18px;border-top:1.5px solid var(--ink)}
+  .qrbox{display:flex;gap:14px;align-items:center}
+  #qr{width:92px;height:92px;display:grid;grid-template-columns:repeat(25,1fr);grid-template-rows:repeat(25,1fr);
+    padding:6px;background:#fff;border:1px solid var(--ink);border-radius:8px}
+  #qr i{background:var(--ink)}
+  .qrt .over{margin-bottom:3px}
+  .qrt .u{font-size:12.5px;font-weight:700;font-family:"Consolas",monospace}
+  .qrt .m{font-size:10px;color:var(--muted);margin-top:3px}
+  .sign{text-align:center}
+  .sign .sig{font-family:"Segoe Script","Brush Script MT",cursive;font-size:26px;color:var(--ink);line-height:1}
+  .sign .ln{height:1px;background:var(--ink);margin:4px 0 5px}
+  .sign .cap{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .seal{width:104px;height:104px;border-radius:50%;border:2px solid var(--gold);position:relative;display:grid;
+    place-items:center;text-align:center;color:var(--gold);transform:rotate(-7deg);
+    background:radial-gradient(circle,rgba(156,124,60,.07),transparent 70%)}
+  .seal:before{content:"";position:absolute;inset:6px;border:1px dashed var(--gold);border-radius:50%;opacity:.6}
+  .seal .s1{font-size:8px;letter-spacing:.2em;font-weight:700}
+  .seal .s2{font-family:"Bodoni MT",Georgia,serif;font-size:15px;font-weight:700;margin:2px 0}
+  .seal .s3{font-size:7.5px;letter-spacing:.08em}
+  .holo{height:8px;margin-top:14px;border-radius:4px;opacity:.5;
+    background:linear-gradient(90deg,#c9b3d6,#b3d6cf,#d6cdb3,#d6b3b8,#b3bdd6,#c9b3d6)}
+  .micro{font-size:5px;letter-spacing:.28em;color:var(--muted);text-align:center;margin-top:7px;
+    white-space:nowrap;overflow:hidden;text-transform:uppercase}
+  .legal{display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-top:8px}
+  .avatar{width:22px;height:22px;border-radius:50%;background:var(--ink);color:var(--paper);display:inline-grid;
+    place-items:center;font-size:10px;font-weight:700;vertical-align:middle;margin-right:7px}
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="frame"></div><div class="wm"></div>
+    <div class="corner c-tl"></div><div class="corner c-tr"></div>
+    <div class="corner c-bl"></div><div class="corner c-br"></div>
+
+    <div class="rel">
+      <!-- Masthead -->
+      <div class="mast">
+        <div class="brandL">
+          <div class="mono">A</div>
+          <div><h1>AUTOCARE&nbsp;ELITE</h1><p>Precision Service · Est. 2009</p></div>
+        </div>
+        <div class="mastR">
+          <div class="over">Digitally Certified</div>
+          <div class="no">No. P-2026-004812</div>
+        </div>
+      </div>
+      <div class="rule"></div>
+      <div class="passtitle">
+        <div class="k">CERTIFIED</div>
+        <div class="t disp">Vehicle&nbsp;Passport</div>
+      </div>
+
+      <!-- Vehicle + silhouette -->
+      <div class="veh">
+        <div>
+          <div class="name disp">Toyota Land&nbsp;Cruiser</div>
+          <div class="sub">2022 · VX Executive · 4.0 V6 · Pearl White</div>
+          <span class="plate">KET&nbsp;8301</span>
+        </div>
+        <svg class="silo" width="300" height="118" viewBox="0 0 300 118" fill="none">
+          <g stroke="#15120C" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" fill="#15120C" fill-opacity="0.05">
+            <path d="M18 84 L30 84 C34 66 44 58 62 57 L96 55 C108 44 124 36 150 35 L206 36 C226 37 240 46 250 58 L272 62 C282 64 286 70 286 80 L286 84 L268 84"/>
+            <path d="M84 84 L246 84" stroke-opacity="0.35"/>
+            <path d="M104 55 L118 40 L168 39 L172 54 Z" fill-opacity="0.09"/>
+            <path d="M180 54 L176 39 L206 40 C220 41 232 47 240 55 Z" fill-opacity="0.09"/>
+          </g>
+          <circle cx="72" cy="84" r="17" fill="#fff" stroke="#15120C" stroke-width="2.4"/>
+          <circle cx="72" cy="84" r="7" fill="#15120C" fill-opacity="0.15" stroke="#15120C" stroke-width="1.6"/>
+          <circle cx="238" cy="84" r="17" fill="#fff" stroke="#15120C" stroke-width="2.4"/>
+          <circle cx="238" cy="84" r="7" fill="#15120C" fill-opacity="0.15" stroke="#15120C" stroke-width="1.6"/>
+        </svg>
+      </div>
+
+      <!-- Health hero -->
+      <div class="hero">
+        <div class="lbl">VEHICLE&nbsp;HEALTH</div>
+        <div class="score disp">97<sup>/100</sup></div>
+        <div class="grade disp">Excellent</div>
+        <div class="badge"><span>◆</span> Platinum Certified <span class="stars">★★★★★</span></div>
+      </div>
+
+      <!-- Trust -->
+      <div class="trust">
+        <div class="by">Verified by Autocare Elite</div>
+        <div class="v"><span class="tick">✓</span> Digital records verified</div>
+        <div class="v"><span class="tick">✓</span> Maintenance history verified</div>
+        <div class="v"><span class="tick">✓</span> Mileage consistent</div>
+      </div>
+
+      <!-- Service history cards -->
+      <div class="sechead"><span class="over">Service History</span><span class="ln"></span></div>
+      <div class="cards">
+        <div class="scard"><div class="ok">✓</div><div class="st">Completed</div><div class="ti">Oil &amp; Filter</div><div class="dt">1 Jun 2026 · 18,000 km</div><div class="me">Tech · <b>Carlos M.</b></div></div>
+        <div class="scard"><div class="ok">✓</div><div class="st">Completed</div><div class="ti">Brake Service</div><div class="dt">4 Mar 2026 · 16,400 km</div><div class="me">Tech · <b>Dmitri V.</b></div></div>
+        <div class="scard"><div class="ok">✓</div><div class="st">Completed</div><div class="ti">Tire Rotation</div><div class="dt">12 Dec 2025 · 13,900 km</div><div class="me">Tech · <b>Lukas N.</b></div></div>
+        <div class="scard"><div class="ok">✓</div><div class="st">Completed</div><div class="ti">Major Service</div><div class="dt">20 Aug 2025 · 11,200 km</div><div class="me">Tech · <b>Raj P.</b></div></div>
+      </div>
+
+      <!-- Upcoming + Vitals -->
+      <div class="two">
+        <div class="col">
+          <h4>Upcoming Maintenance</h4>
+          <div class="due"><span class="pill ok">On track</span> Engine oil &amp; filter · in 7,700 km</div>
+          <div class="due"><span class="pill ok">On track</span> Brake fluid · in 5 months</div>
+          <div class="due"><span class="pill soon">Due soon</span> Cabin filter · in 900 km</div>
+          <div class="due"><span class="pill ok">On track</span> Coolant flush · in 22,000 km</div>
+        </div>
+        <div class="col">
+          <h4>Vehicle Vitals</h4>
+          <div class="vit"><span>Services completed</span><b>11</b></div>
+          <div class="vit"><span>Overdue items</span><b>0</b></div>
+          <div class="vit"><span>Total invested</span><b>$4,120</b></div>
+          <div class="vit"><span>Ownership</span><b>1 owner · 4 yrs</b></div>
+        </div>
+      </div>
+
+      <!-- AI summary -->
+      <div class="ai">
+        <div class="h"><span class="over">✦ AI Assessment</span></div>
+        <p><b>This vehicle has been exceptionally well maintained.</b> Every scheduled service has been completed on time, with a complete and unbroken record, and no critical systems currently require attention. Based on its service history, consistent mileage, and current condition, the vehicle is expected to remain in <b>excellent operating condition</b> with routine maintenance.</p>
+      </div>
+
+      <!-- Ownership timeline flow -->
+      <div class="flow">
+        <div class="sechead"><span class="over">Ownership Timeline</span><span class="ln"></span></div>
+        <div class="flowtrack">
+          <div class="step mut"><div class="node"></div><div class="t">Purchased</div><div class="d">Mar 2022</div></div>
+          <div class="arrow">→</div>
+          <div class="step"><div class="node"></div><div class="t">Major Service</div><div class="d">Aug 2025</div></div>
+          <div class="arrow">→</div>
+          <div class="step"><div class="node"></div><div class="t">Brake Service</div><div class="d">Mar 2026</div></div>
+          <div class="arrow">→</div>
+          <div class="step"><div class="node"></div><div class="t">Certified Healthy</div><div class="d">Jun 2026</div></div>
+          <div class="arrow">→</div>
+          <div class="step now"><div class="node"></div><div class="t">Today</div><div class="d">Jul 2026</div></div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="foot">
+        <div class="qrbox">
+          <div id="qr"></div>
+          <div class="qrt">
+            <div class="over">Scan to Verify Authenticity</div>
+            <div class="u">autocare.elite/passport/P-004812</div>
+            <div class="m"><span class="avatar">M</span>Michelle Martin · live report, always current</div>
+          </div>
+        </div>
+        <div class="sign">
+          <div class="sig">Autocare Elite</div>
+          <div class="ln"></div>
+          <div class="cap">Authorised Signature</div>
+        </div>
+        <div class="seal">
+          <div class="s1">CERTIFIED</div>
+          <div class="s2 disp">HEALTHY</div>
+          <div class="s3">EST · JUL 2026</div>
+        </div>
+      </div>
+
+      <div class="holo"></div>
+      <div class="micro" id="micro"></div>
+      <div class="legal">
+        <span>Issued 2 Jul 2026 · Autocare Elite · Digitally signed</span>
+        <span>Passport No. P-2026-004812 · Powered by GarageOS</span>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const N=25, qr=document.getElementById('qr');
+  function finder(c,r0,c0){for(let r=0;r<7;r++)for(let k=0;k<7;k++){const e=r===0||r===6||k===0||k===6;const co=r>=2&&r<=4&&k>=2&&k<=4;c[(r0+r)*N+(c0+k)]=e||co?1:0;}}
+  const cells=new Array(N*N).fill(0);let s=48291;const rnd=()=>(s=(s*1103515245+12345)&0x7fffffff)/0x7fffffff;
+  for(let i=0;i<N*N;i++)cells[i]=rnd()>0.55?1:0;
+  finder(cells,0,0);finder(cells,0,N-7);finder(cells,N-7,0);
+  for(let k=0;k<8;k++){cells[7*N+k]=0;cells[k*N+7]=0;cells[7*N+(N-1-k)]=0;cells[k*N+(N-8)]=0;cells[(N-8)*N+k]=0;cells[(N-1-k)*N+7]=0;}
+  for(let i=0;i<N*N;i++){const el=document.createElement('i');if(!cells[i])el.style.background='transparent';qr.appendChild(el);}
+  document.getElementById('micro').textContent=("Autocare Elite · Certified Vehicle Passport · Authentic · P-2026-004812 · ").repeat(6);
+</script>
+</body>
+</html>

@@ -249,8 +249,10 @@ export function VehicleHealthScreen({ health, timeline }: Props) {
             <div className="flex items-start gap-3">
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-foreground">Digital Vehicle Passport</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Share this vehicle&apos;s full service history and health report.</p>
-                <Button variant="outline" size="sm" className="mt-3" leftIcon={<QrCode className="size-4" />}>Generate QR Code</Button>
+                <p className="text-xs text-muted-foreground mt-0.5">A certified, shareable record of this vehicle&apos;s health and service history.</p>
+                <Link href={`/passport/${v.id}`} target="_blank" className="inline-block mt-3">
+                  <Button variant="outline" size="sm" leftIcon={<QrCode className="size-4" />}>Open Passport</Button>
+                </Link>
               </div>
               <div className="rounded-lg bg-background border border-border p-1.5 shrink-0">
                 <PassportQR seed={v.id} size={92} />

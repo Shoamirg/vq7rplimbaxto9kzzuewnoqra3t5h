@@ -73,6 +73,9 @@ export interface VehicleHealthVehicle {
   license_plate: string | null;
   vin: string | null;
   current_km: number;
+  color?: string | null;
+  transmission?: string | null;
+  engine_type?: string | null;
   customer_id: string;
   customer_name: string | null;
 }
@@ -156,4 +159,46 @@ export interface DueServices {
   vehicle_id: string;
   due_count: number;
   services: HealthService[];
+}
+
+// ─── Certified Vehicle Passport ──────────────────────────────
+export type PassportStatus = "on_track" | "due_soon" | "overdue";
+
+export interface PassportUpcoming {
+  service_type: string;
+  status: PassportStatus;
+  remaining_km: number | null;
+  remaining_days: number | null;
+}
+
+export interface PassportHistory {
+  service_type: string;
+  date: string;
+  km: number | null;
+  cost: number | null;
+}
+
+export interface Passport {
+  code: string;
+  issued_at: string;
+  vehicle: VehicleHealthVehicle;
+  owner_name: string | null;
+  health: {
+    score: number;
+    band: HealthBand;
+    compliance: number;
+    urgent_count: number;
+    due_soon_count: number;
+  };
+  vitals: {
+    services_completed: number;
+    overdue_items: number;
+    total_spent: number;
+    ownership_years: number;
+    last_service: string | null;
+  };
+  upcoming: PassportUpcoming[];
+  history: PassportHistory[];
+  highlights: { label: string; ok: boolean }[];
+  garage: { name: string; address: string | null; phone: string | null };
 }

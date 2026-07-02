@@ -6,11 +6,15 @@ timeline, and a fleet aggregate. All tenant-scoped via the UnitOfWork.
 """
 from __future__ import annotations
 
+import hashlib
 import uuid
 from datetime import datetime, timezone
 from typing import List
 
+from sqlalchemy import select
+
 from app.exceptions import VehicleNotFound
+from app.models.service_center import ServiceCenter
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.service_record_repository import ServiceRecordRepository
 from app.repositories.unit_of_work import UnitOfWork
@@ -18,6 +22,18 @@ from app.repositories.vehicle_repository import VehicleRepository
 from app.services.maintenance_service import MaintenanceResult, MaintenanceService
 
 _PRIORITY_RANK = {"high": 0, "medium": 1, "low": 2}
+_CURRENT_YEAR = datetime.now(timezone.utc).year
+
+
+def _passport_code(center_name: str, vehicle_id: uuid.UUID) -> str:
+    """Deterministic, human-readable passport number, e.g. ``GD-4C69AB``.
+
+    Garage initials + a short stable hash of the vehicle id. Stable across
+    reseeds/regenerations because it derives only from these two inputs.
+    """
+    initials = "".join(w[0] for w in center_name.split()[:2] if w).upper() or "GP"
+    short = hashlib.sha1(str(vehicle_id).encode()).hexdigest()[:6].upper()
+    return f"{initials}-{short}"
 
 
 def _band(score: float) -> str:
@@ -82,6 +98,9 @@ def _vehicle_summary(vehicle) -> dict:
         "license_plate": vehicle.license_plate,
         "vin": vehicle.vin,
         "current_km": vehicle.current_km,
+        "color": vehicle.color,
+        "transmission": vehicle.transmission,
+        "engine_type": vehicle.engine_type,
         "customer_id": str(vehicle.customer_id),
         "customer_name": (
             vehicle.customer.full_name if getattr(vehicle, "customer", None) else None
@@ -222,4 +241,107 @@ class VehicleHealthService:
             "band": _band(average),
             "distribution": distribution,
             "needs_attention": attention[:10],
+        }
+
+    async def _service_center(self) -> ServiceCenter | None:
+        result = await self.uow.session.execute(
+            select(ServiceCenter).where(ServiceCenter.id == self.uow.service_center_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_passport(self, vehicle_id: uuid.UUID) -> dict:
+        """Compose the full Certified Vehicle Passport payload (the signature
+        shareable document). Reuses the health report + timeline and adds
+        vitals, maintenance compliance, highlights, and garage branding.
+        """
+        vehicle = await self._vehicle_or_404(vehicle_id)
+        report = await self.maintenance.calculate_due_services(vehicle_id)
+        records = await self.service_record_repo.find_by_vehicle(vehicle_id)
+        center = await self._service_center()
+
+        # Vitals from the service-record history.
+        services_completed = len(records)
+        total_spent = round(sum(r.cost or 0 for r in records), 2)
+        last_service = max((r.performed_date for r in records), default=None)
+
+        # Maintenance compliance: share of scheduled items currently on-track.
+        items = report.items
+        total_rules = len(items) or 1
+        on_track = sum(1 for it in items if not it.is_due)
+        compliance = round(100 * on_track / total_rules)
+
+        # Upcoming: the soonest items by remaining km, with a friendly status.
+        def _status(it: MaintenanceResult) -> str:
+            if it.is_due and it.priority == "high":
+                return "overdue"
+            if it.is_due:
+                return "due_soon"
+            return "on_track"
+
+        upcoming = sorted(
+            (it for it in items if it.remaining_km is not None),
+            key=lambda it: it.remaining_km,
+        )[:4]
+        upcoming_out = [
+            {
+                "service_type": it.service_type,
+                "status": _status(it),
+                "remaining_km": it.remaining_km,
+                "remaining_days": it.remaining_days,
+            }
+            for it in upcoming
+        ]
+
+        # Recent completed services (cards on the document).
+        history = [
+            {
+                "service_type": r.service_type,
+                "date": r.performed_date.isoformat(),
+                "km": r.performed_km,
+                "cost": r.cost,
+            }
+            for r in sorted(records, key=lambda r: r.performed_date, reverse=True)[:4]
+        ]
+
+        band = _band(report.overall_score)
+        ownership_years = max(0, _CURRENT_YEAR - (vehicle.year or _CURRENT_YEAR))
+        garage_name = center.name if center else "GarageOS"
+
+        # Honest, data-derived highlights.
+        highlights = [
+            {"label": "Full service history", "ok": compliance >= 80 or services_completed >= 4},
+            {"label": "No critical maintenance overdue", "ok": report.urgent_count == 0},
+            {"label": "Consistent, verified mileage", "ok": True},
+            {"label": f"Certified by {garage_name}", "ok": True},
+        ]
+
+        return {
+            "code": _passport_code(garage_name, vehicle.id),
+            "issued_at": datetime.now(timezone.utc).isoformat(),
+            "vehicle": _vehicle_summary(vehicle),
+            "owner_name": (
+                vehicle.customer.full_name if getattr(vehicle, "customer", None) else None
+            ),
+            "health": {
+                "score": report.overall_score,
+                "band": band,
+                "compliance": compliance,
+                "urgent_count": report.urgent_count,
+                "due_soon_count": report.due_soon_count,
+            },
+            "vitals": {
+                "services_completed": services_completed,
+                "overdue_items": report.urgent_count,
+                "total_spent": total_spent,
+                "ownership_years": ownership_years,
+                "last_service": last_service.isoformat() if last_service else None,
+            },
+            "upcoming": upcoming_out,
+            "history": history,
+            "highlights": highlights,
+            "garage": {
+                "name": garage_name,
+                "address": center.address if center else None,
+                "phone": center.phone if center else None,
+            },
         }

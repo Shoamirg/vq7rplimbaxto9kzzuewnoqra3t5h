@@ -60,7 +60,11 @@ async function main() {
       const score = (await h.json())?.overall_score ?? 0;
       if (!best || score > best.score) best = { id: v.id, score };
     }
-    if (best) shots.push({ name: "vehicle-health", path: `/vehicles/${best.id}` });
+    if (best) {
+      shots.push({ name: "vehicle-health", path: `/vehicles/${best.id}` });
+      // The Certified Vehicle Passport for the same hero (public route).
+      shots.push({ name: "passport", path: `/passport/${best.id}` });
+    }
   } catch {
     /* non-fatal — skip the detail shot if the sampling fails */
   }

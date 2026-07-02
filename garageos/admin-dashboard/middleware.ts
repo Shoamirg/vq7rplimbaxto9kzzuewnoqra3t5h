@@ -3,7 +3,8 @@ import type { NextRequest } from "next/server";
 
 import { AUTH_COOKIE } from "@/lib/api/constants";
 
-const PUBLIC_PATHS = ["/login"];
+// /passport/* is a shareable, public document — no auth required.
+const PUBLIC_PATHS = ["/login", "/passport"];
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

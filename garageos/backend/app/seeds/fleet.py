@@ -35,7 +35,7 @@ _BANDS = [
 
 # The flagship "digital passport" vehicle — pinned to near-perfect so the
 # Vehicle Health screen always has a hero to open on.
-_HERO = {"km": 18000, "consumed": 0.03, "months_ago": 1}
+_HERO = {"km": 18000, "consumed": 0.03}
 
 
 def _band_counts(total: int) -> list[tuple]:
@@ -146,10 +146,12 @@ async def generate_fleet_vehicles(
         vehicles.append(vehicle)
 
         if hero:
+            # Spread the hero's history across ~a year so the passport reads as a
+            # genuine multi-service record, not one clustered date.
             _add_history(
                 records, center, vehicle, rules_by_brand[model.brand_id],
                 consumed_range=(_HERO["consumed"], _HERO["consumed"]),
-                coverage=1.0, months_range=(_HERO["months_ago"], _HERO["months_ago"]),
+                coverage=1.0, months_range=(1, 11),
                 force_full=True,
             )
             is_first_excellent = False

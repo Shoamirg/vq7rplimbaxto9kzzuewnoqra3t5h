@@ -1,0 +1,167 @@
+/* Certified Vehicle Passport — print-first premium document.
+   Timeless over decorative: restrained gold, a single accent derived from the
+   health band (--accent, set inline on .pp-root), generous whitespace.
+   All classes prefixed `pp-` to stay isolated from app styles. */
+
+.pp-root {
+  --ink: #15120C;
+  --ink-2: #4A4438;
+  --muted: #8A8272;
+  --paper: #F7F3EA;
+  --line: #E2DBC9;
+  --gold: #9C7C3C;          /* used sparingly */
+  --accent: #0E8A5F;        /* overridden inline per health band */
+  --accent-soft: #E8F2EC;   /* overridden inline per health band */
+  width: 820px;
+  margin: 0 auto;
+  background: radial-gradient(120% 55% at 50% 0%, #FBF8F1 0%, var(--paper) 60%);
+  color: var(--ink);
+  position: relative;
+  overflow: hidden;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  padding: 40px 48px 28px;
+}
+.pp-disp { font-family: "Bodoni MT", "Didot", "Playfair Display", Georgia, serif; }
+.pp-notes { font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif; }
+
+.pp-frame { position: absolute; inset: 16px; border: 1.5px solid var(--ink); pointer-events: none; }
+.pp-frame:before { content: ""; position: absolute; inset: 6px; border: 1px solid var(--gold); opacity: .32; }
+.pp-corner { position: absolute; width: 20px; height: 20px; border: 2px solid var(--gold); opacity: .8; }
+.pp-tl { top: 9px; left: 9px; border-right: 0; border-bottom: 0; }
+.pp-tr { top: 9px; right: 9px; border-left: 0; border-bottom: 0; }
+.pp-bl { bottom: 9px; left: 9px; border-right: 0; border-top: 0; }
+.pp-br { bottom: 9px; right: 9px; border-left: 0; border-top: 0; }
+.pp-wm { position: absolute; inset: 0; pointer-events: none; opacity: .025;
+  background: repeating-linear-gradient(135deg, var(--ink) 0 1px, transparent 1px 10px); }
+.pp-rel { position: relative; z-index: 2; }
+.pp-over { font-size: 10px; letter-spacing: .34em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+
+/* Masthead */
+.pp-mast { display: flex; justify-content: space-between; align-items: center; padding-bottom: 14px; }
+.pp-brand { display: flex; align-items: center; gap: 12px; }
+.pp-mono { width: 44px; height: 44px; border: 1.5px solid var(--ink); border-radius: 50%; display: grid; place-items: center;
+  font-family: "Bodoni MT", Georgia, serif; font-weight: 700; font-size: 22px; }
+.pp-brand h1 { font-size: 16px; letter-spacing: .2em; font-weight: 700; }
+.pp-brand p { font-size: 9.5px; letter-spacing: .14em; color: var(--muted); margin-top: 3px; text-transform: uppercase; }
+.pp-mastR { text-align: right; }
+.pp-mastR .pp-no { font-size: 10px; color: var(--muted); font-family: "Consolas", monospace; margin-top: 3px; }
+.pp-rule { height: 1.5px; background: linear-gradient(90deg, transparent, var(--gold), transparent); opacity: .7; }
+.pp-passtitle { text-align: center; margin: 16px 0 2px; }
+.pp-passtitle .pp-k { font-size: 11px; letter-spacing: .5em; color: var(--accent); font-weight: 700; }
+.pp-passtitle .pp-t { font-size: 30px; letter-spacing: .06em; margin-top: 5px; }
+
+/* Vehicle + silhouette */
+.pp-veh { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: center; padding: 16px 0 8px; }
+.pp-name { font-size: 40px; line-height: 1.02; letter-spacing: -.01em; }
+.pp-sub { font-size: 13px; color: var(--ink-2); margin-top: 8px; letter-spacing: .02em; }
+.pp-plate { display: inline-block; margin-top: 12px; border: 1.5px solid var(--ink); border-radius: 6px;
+  padding: 4px 12px; font-family: "Consolas", monospace; font-weight: 700; letter-spacing: .12em; font-size: 14px; }
+.pp-silo { filter: drop-shadow(0 10px 14px rgba(21,18,12,.12)); }
+
+/* Health hero — the poster moment, lots of air */
+.pp-hero { text-align: center; padding: 30px 0 26px; margin: 10px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.pp-hero .pp-lbl { font-size: 11px; letter-spacing: .42em; color: var(--muted); }
+.pp-score { font-size: 122px; line-height: .9; letter-spacing: -.03em; font-weight: 600; margin-top: 6px; color: var(--ink); }
+.pp-score sup { font-size: 26px; color: var(--muted); letter-spacing: 0; font-weight: 600; vertical-align: super; }
+.pp-grade { font-size: 25px; color: var(--accent); margin-top: 6px; letter-spacing: .02em; }
+.pp-badge { display: inline-flex; align-items: center; gap: 8px; margin-top: 20px; padding: 8px 16px; border-radius: 999px;
+  border: 1px solid var(--accent); color: var(--accent); background: var(--accent-soft);
+  font-size: 11px; letter-spacing: .16em; font-weight: 700; text-transform: uppercase; }
+.pp-stars { letter-spacing: 2px; }
+
+/* Compliance bar */
+.pp-comp { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; padding: 16px 0 4px; }
+.pp-comp .pp-cl { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink); white-space: nowrap; }
+.pp-track { height: 9px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.pp-fill { height: 100%; border-radius: 999px; background: var(--accent); }
+.pp-comp .pp-cv { font-size: 15px; font-weight: 700; color: var(--accent); }
+.pp-comp .pp-cap { grid-column: 2 / 3; font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+
+/* Trust strip */
+.pp-trust { display: flex; align-items: center; justify-content: center; gap: 24px; padding: 14px 0; flex-wrap: wrap; }
+.pp-trust .pp-by { font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+.pp-trust .pp-v { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--ink-2); }
+.pp-tick { width: 16px; height: 16px; border-radius: 50%; background: var(--accent-soft); color: var(--accent);
+  display: grid; place-items: center; font-size: 10px; font-weight: 800; }
+.pp-tick.pp-off { background: #EFEADD; color: var(--muted); }
+
+/* Section head */
+.pp-sechead { display: flex; align-items: center; gap: 12px; margin: 20px 0 12px; }
+.pp-sechead .pp-ln { flex: 1; height: 1px; background: var(--line); }
+
+/* Service history cards */
+.pp-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.pp-scard { border: 1px solid var(--line); border-radius: 12px; background: #fff; padding: 13px; position: relative; }
+.pp-scard .pp-ok { position: absolute; top: 11px; right: 11px; width: 18px; height: 18px; border-radius: 50%;
+  background: var(--accent); color: #fff; display: grid; place-items: center; font-size: 11px; font-weight: 800; }
+.pp-scard .pp-st { font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.pp-scard .pp-ti { font-size: 14px; font-weight: 600; margin-top: 6px; }
+.pp-scard .pp-dt { font-size: 11px; color: var(--muted); margin-top: 5px; }
+
+/* two-up: upcoming + highlights */
+.pp-two { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 18px; }
+.pp-col h4 { font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink);
+  padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid var(--line); }
+.pp-due { display: flex; align-items: center; gap: 9px; padding: 6px 0; font-size: 12.5px; }
+.pp-pill { font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 999px; letter-spacing: .04em; white-space: nowrap; }
+.pp-pill.pp-on { background: var(--accent-soft); color: var(--accent); }
+.pp-pill.pp-soon { background: #F6EBD3; color: #B07A22; }
+.pp-pill.pp-over { background: #F7E3E0; color: #B4442E; }
+.pp-hi { display: flex; align-items: center; gap: 9px; padding: 6px 0; font-size: 12.5px; color: var(--ink-2); }
+
+/* Technician's assessment (AI) */
+.pp-ai { margin-top: 20px; border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 10px;
+  background: linear-gradient(180deg, #FCFAF4, #F7F2E8); padding: 16px 18px; }
+.pp-ai .pp-h { color: var(--accent); margin-bottom: 8px; }
+.pp-ai p { font-size: 14.5px; line-height: 1.6; color: var(--ink-2); font-style: italic; }
+.pp-ai p b { color: var(--ink); font-weight: 700; font-style: normal; }
+
+/* Timeline flow */
+.pp-flowtrack { display: flex; align-items: center; margin-top: 14px; }
+.pp-step { text-align: center; flex: 1; }
+.pp-node { width: 14px; height: 14px; border-radius: 50%; margin: 0 auto; background: #fff; border: 2px solid var(--accent); }
+.pp-step.pp-mut .pp-node { border-color: var(--muted); }
+.pp-step.pp-now .pp-node { background: var(--accent); }
+.pp-step .pp-tt { font-size: 11px; font-weight: 600; margin-top: 8px; }
+.pp-step .pp-dd { font-size: 9px; color: var(--muted); margin-top: 2px; }
+.pp-arrow { color: var(--line); font-size: 14px; padding: 0 2px; margin-bottom: 22px; }
+
+/* Footer: QR + signature + seal */
+.pp-foot { display: grid; grid-template-columns: auto 1fr auto; gap: 22px; align-items: center;
+  margin-top: 22px; padding-top: 18px; border-top: 1.5px solid var(--ink); }
+.pp-qrbox { display: flex; gap: 14px; align-items: center; }
+.pp-qr { width: 92px; height: 92px; padding: 6px; background: #fff; border: 1.5px solid var(--accent); border-radius: 8px; }
+.pp-qr svg { display: block; width: 100%; height: 100%; }
+.pp-qrt .pp-u { font-size: 12.5px; font-weight: 700; font-family: "Consolas", monospace; margin-top: 3px; }
+.pp-qrt .pp-m { font-size: 10px; color: var(--muted); margin-top: 3px; display: flex; align-items: center; gap: 6px; }
+.pp-avatar { width: 20px; height: 20px; border-radius: 50%; background: var(--ink); color: var(--paper);
+  display: grid; place-items: center; font-size: 9px; font-weight: 700; }
+.pp-sign { text-align: center; }
+.pp-sign .pp-sig { font-family: "Segoe Script", "Brush Script MT", cursive; font-size: 24px; color: var(--ink); line-height: 1; }
+.pp-sign .pp-sln { height: 1px; background: var(--ink); margin: 4px 0 5px; }
+.pp-sign .pp-role { font-size: 10px; font-weight: 600; }
+.pp-sign .pp-cap { font-size: 8.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-top: 2px; }
+.pp-seal { width: 100px; height: 100px; border-radius: 50%; border: 2px solid var(--gold); position: relative; display: grid;
+  place-items: center; text-align: center; color: var(--gold); transform: rotate(-7deg);
+  background: radial-gradient(circle, rgba(156,124,60,.06), transparent 70%); }
+.pp-seal:before { content: ""; position: absolute; inset: 6px; border: 1px dashed var(--gold); border-radius: 50%; opacity: .55; }
+.pp-seal .pp-s1 { font-size: 8px; letter-spacing: .2em; font-weight: 700; }
+.pp-seal .pp-s2 { font-family: "Bodoni MT", Georgia, serif; font-size: 15px; font-weight: 700; margin: 2px 0; color: var(--accent); }
+.pp-seal .pp-s3 { font-size: 7.5px; letter-spacing: .08em; }
+
+.pp-holo { height: 7px; margin-top: 14px; border-radius: 4px; opacity: .45;
+  background: linear-gradient(90deg, #c9b3d6, #b3d6cf, #d6cdb3, #d6b3b8, #b3bdd6, #c9b3d6); }
+.pp-micro { font-size: 5px; letter-spacing: .28em; color: var(--muted); text-align: center; margin-top: 7px;
+  white-space: nowrap; overflow: hidden; text-transform: uppercase; }
+.pp-legal { display: flex; justify-content: space-between; font-size: 9px; color: var(--muted); margin-top: 8px; }
+
+/* Action bar (screen only) */
+.pp-actions { display: flex; align-items: center; gap: 8px; width: 820px; max-width: 100%; margin: 0 auto 14px; }
+.pp-actions-spacer { flex: 1; }
+
+/* Print: just the document, edge to edge, no chrome */
+@media print {
+  .pp-actions { display: none !important; }
+  .pp-root { width: 100%; box-shadow: none; margin: 0; }
+  @page { size: A4; margin: 12mm; }
+}

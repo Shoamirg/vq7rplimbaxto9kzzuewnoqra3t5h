@@ -5,7 +5,7 @@ this single router under ``settings.API_V1_PREFIX``.
 """
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import appointments, auth, calendar, fleet, slots, vehicles
+from app.api.v1.endpoints import appointments, auth, calendar, fleet, public, slots, vehicles
 
 api_router = APIRouter()
 
@@ -15,3 +15,4 @@ api_router.include_router(slots.router, prefix="/slots", tags=["slots"])
 api_router.include_router(calendar.router, prefix="/calendar", tags=["calendar"])
 api_router.include_router(vehicles.router, prefix="/vehicles", tags=["vehicles"])
 api_router.include_router(fleet.router, prefix="/fleet", tags=["fleet"])
+api_router.include_router(public.router, prefix="/public", tags=["public"])

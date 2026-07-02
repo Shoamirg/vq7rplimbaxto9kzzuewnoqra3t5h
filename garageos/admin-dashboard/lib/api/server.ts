@@ -10,6 +10,7 @@ import type {
   CalendarPayload,
   CurrentUser,
   FleetHealth,
+  Passport,
   VehicleHealth,
   VehicleList,
   VehicleTimeline,
@@ -59,3 +60,15 @@ export const getVehicleTimeline = (id: string) => apiFetch<VehicleTimeline>(`/ve
 
 export const getCalendar = (start: string, end: string) =>
   apiFetch<CalendarPayload>(`/calendar?start=${start}&end=${end}`);
+
+/** Public passport fetch — no auth cookie (the document is shareable). Returns
+ *  null on 404 so the page can render a clean "not found" instead of throwing. */
+export async function getPublicPassport(vehicleId: string): Promise<Passport | null> {
+  const res = await fetch(`${apiBaseUrl()}/public/passport/${vehicleId}`, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new ApiError(`passport responded ${res.status}`, res.status);
+  return (await res.json()) as Passport;
+}
