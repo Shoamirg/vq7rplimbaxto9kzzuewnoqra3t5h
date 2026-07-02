@@ -20,6 +20,7 @@ import {
   BarChart3,
   FileText,
   Warehouse,
+  Siren,
 } from "lucide-react";
 import { cn } from "@garageos/design-system";
 
@@ -37,6 +38,7 @@ const mainNav: NavItem[] = [
   { label: "Appointments", href: "/appointments", icon: <Wrench className="size-5" /> },
   { label: "Vehicles", href: "/vehicles", icon: <Car className="size-5" /> },
   { label: "Customers", href: "/customers", icon: <Users className="size-5" /> },
+  { label: "Operations", href: "/operations", icon: <Siren className="size-5" /> },
   { label: "Inventory", href: "/inventory", icon: <Warehouse className="size-5" /> },
   { label: "Reports", href: "/reports", icon: <BarChart3 className="size-5" /> },
 ];

@@ -182,6 +182,54 @@ export interface DueServices {
   services: HealthService[];
 }
 
+// ─── Operations Center ───────────────────────────────────────
+export type CaseType = "emergency" | "support" | "towing" | "warranty" | "vip";
+export type CaseStatus =
+  | "new" | "acknowledged" | "assigned" | "en_route" | "in_progress"
+  | "waiting_customer" | "resolved" | "closed";
+export type CaseSeverity = "critical" | "high" | "medium" | "low";
+
+export interface CaseListItem {
+  id: string;
+  code: string;
+  case_type: CaseType;
+  status: CaseStatus;
+  severity: CaseSeverity;
+  title: string;
+  channel: string | null;
+  customer_name: string | null;
+  vehicle_label?: string | null;
+  assigned_user_id: string | null;
+  location_text: string | null;
+  sla_response_minutes: number;
+  elapsed_seconds: number;
+  sla_breached: boolean;
+  is_open: boolean;
+  created_at: string;
+}
+
+export interface CaseDetail extends Omit<CaseListItem, "customer_name" | "vehicle_label"> {
+  description: string | null;
+  customer_id: string;
+  vehicle_id: string | null;
+  location_lat: number | null;
+  location_lng: number | null;
+  customer: { id: string; name: string; phone: string | null; email: string | null } | null;
+  assigned_mechanic?: string | null;
+  vehicle?: { id: string; label: string | null; score: number; band: HealthBand } | null;
+  timeline: { title: string; detail: string | null; date: string; severity: CaseSeverity; category: string }[];
+}
+
+export interface CaseList {
+  items: CaseListItem[];
+  active_count: number;
+}
+
+export interface CaseMechanic {
+  id: string;
+  name: string;
+}
+
 // ─── Notifications ───────────────────────────────────────────
 export type NotificationSeverity = "critical" | "high" | "medium" | "low" | "info";
 

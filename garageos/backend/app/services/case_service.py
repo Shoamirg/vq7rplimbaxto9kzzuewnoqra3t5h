@@ -117,6 +117,14 @@ class CaseService:
             ))
         return await self.serialize(case)
 
+    async def list_mechanics(self) -> list:
+        from app.repositories.user_repository import UserRepository
+        users = await UserRepository(self.session).find_by_service_center(self.sc)
+        return [
+            {"id": str(u.id), "name": u.full_name}
+            for u in users if u.role and u.role.name == "mechanic"
+        ]
+
     # ── read ──────────────────────────────────────────────────
     async def list_cases(self, *, status_group: str | None = None, case_type: str | None = None) -> dict:
         stmt = select(OperationalCase).where(

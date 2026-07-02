@@ -40,6 +40,11 @@ async def list_cases(
     return await CaseService(uow).list_cases(status_group=status_group, case_type=case_type)
 
 
+@router.get("/mechanics", summary="Assignable mechanics (for dispatch)")
+async def list_mechanics(uow: UnitOfWork = Depends(get_tenant_uow)) -> list:
+    return await CaseService(uow).list_mechanics()
+
+
 @router.get("/{case_id}", summary="Case detail (customer, vehicle, timeline)")
 async def get_case(case_id: uuid.UUID, uow: UnitOfWork = Depends(get_tenant_uow)) -> dict:
     return await CaseService(uow).get_case(case_id)
