@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Operations Center — dispatch console v2</title>
+<style>
+  :root{
+    --ink:#0B1220; --slate:#0F172A; --slate-2:#1E293B; --slate-3:#334155;
+    --paper:#F6F7F9; --card:#FFFFFF; --line:#E5E8EC; --muted:#64748B; --muted-2:#94A3B8;
+    --blue:#2563EB; --blue-soft:#EAF0FE; --purple:#7C3AED; --purple-soft:#F3EAFE;
+    --red:#DC2626; --red-soft:#FDECEC; --amber:#D97706; --amber-soft:#FBF1E3; --green:#059669; --green-soft:#E7F5EF;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Segoe UI",system-ui,-apple-system,sans-serif;background:var(--paper);color:var(--ink)}
+  .console{width:1680px;height:1180px;margin:0 auto;display:flex;flex-direction:column;overflow:hidden;background:var(--paper)}
+  .mono{font-family:"Consolas",monospace}
+
+  header{height:58px;background:var(--slate);color:#fff;display:flex;align-items:center;gap:18px;padding:0 20px;flex-shrink:0}
+  header .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--red),#F97316);display:grid;place-items:center;font-size:17px}
+  header h1{font-size:16px;font-weight:700}
+  header .active{display:flex;align-items:center;gap:7px;background:rgba(220,38,38,.15);color:#FCA5A5;padding:5px 11px;border-radius:999px;font-size:12px;font-weight:700}
+  header .active .dot{width:8px;height:8px;border-radius:50%;background:var(--red);box-shadow:0 0 0 4px rgba(220,38,38,.25)}
+  header .tabs{display:flex;gap:2px;margin-left:6px}
+  header .tab{padding:6px 11px;border-radius:8px;font-size:12.5px;color:#94A3B8}
+  header .tab.on{background:var(--slate-2);color:#fff}
+  header .tab .n{color:#64748B;margin-left:4px}
+  header .spacer{flex:1}
+  header .sla{font-size:12px;color:#CBD5E1}
+  header .u{width:30px;height:30px;border-radius:50%;background:var(--slate-3);display:grid;place-items:center;font-size:12px;font-weight:700}
+
+  .body{flex:1;display:flex;overflow:hidden}
+
+  /* Left rail — severity forward */
+  .rail{width:300px;background:var(--slate);color:#E2E8F0;flex-shrink:0;overflow-y:auto}
+  .rail .rhead{padding:13px 15px 6px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#64748B;font-weight:700}
+  .case{margin:6px 10px;padding:11px 12px;border-radius:12px;background:var(--slate-2);border-left:4px solid transparent;cursor:pointer}
+  .case.crit{border-left-color:var(--red)} .case.high.sel{border-left-color:var(--amber)} .case.med{border-left-color:var(--blue)}
+  .case.sel{background:#241a1e;box-shadow:0 0 0 1px rgba(217,119,6,.5) inset}
+  .case .r1{display:flex;align-items:center;justify-content:space-between}
+  .sevtag{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800;letter-spacing:.06em}
+  .sevtag.crit{color:#F87171}.sevtag.high{color:#FBBF24}.sevtag.med{color:#60A5FA}
+  .case .timer{font-family:"Consolas",monospace;font-size:14px;font-weight:700;color:#fff}
+  .case .r2{display:flex;align-items:center;gap:8px;margin-top:7px}
+  .case .ic{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-size:15px;background:#0b1220}
+  .case .who .t{font-size:13.5px;font-weight:600;color:#fff}
+  .case .who .s{font-size:11.5px;color:#94A3B8}
+  .case .type{margin-left:auto;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:#94A3B8;background:#0b1220;padding:2px 7px;border-radius:6px}
+  .slabar{height:6px;border-radius:999px;background:#334155;overflow:hidden;margin-top:9px}
+  .slabar i{display:block;height:100%;border-radius:999px}
+  .case.resolved{opacity:.5}
+
+  /* Center */
+  .detail{flex:1;overflow-y:auto;padding:16px 18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px;margin-bottom:13px}
+  .card h3{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:11px;font-weight:700;display:flex;align-items:center;gap:7px}
+
+  /* case header + progress */
+  .chead{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+  .chead .big{width:46px;height:46px;border-radius:12px;background:var(--amber-soft);display:grid;place-items:center;font-size:23px}
+  .chead .no{font-size:12px;color:var(--muted)} .chead .no b{color:var(--ink)}
+  .chead .title{font-size:20px;font-weight:700}
+  .typebadge{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--red);background:var(--red-soft);padding:3px 9px;border-radius:999px}
+  .chead .sla{margin-left:auto;text-align:right}
+  .chead .sla .k{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .chead .sla .v{font-size:20px;font-weight:800;color:var(--amber);font-family:"Consolas",monospace}
+
+  .stepper{display:flex;align-items:center;gap:0}
+  .step{display:flex;flex-direction:column;align-items:center;gap:5px;flex:1;position:relative}
+  .step .b{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;background:#fff;border:2px solid var(--line);color:var(--muted-2);z-index:2}
+  .step.done .b{background:var(--green);border-color:var(--green);color:#fff}
+  .step.now .b{background:var(--amber);border-color:var(--amber);color:#fff;box-shadow:0 0 0 4px var(--amber-soft)}
+  .step .lab{font-size:10.5px;color:var(--muted);font-weight:600}
+  .step.now .lab{color:var(--amber)}
+  .step:not(:last-child):after{content:"";position:absolute;top:13px;left:50%;width:100%;height:2px;background:var(--line);z-index:1}
+  .step.done:after{background:var(--green)}
+
+  /* map hero + dispatch */
+  .maprow{display:grid;grid-template-columns:1fr 288px;gap:13px}
+  .map{height:308px;border-radius:12px;position:relative;overflow:hidden;border:1px solid var(--line);
+    background:linear-gradient(0deg,rgba(37,99,235,.05),rgba(37,99,235,.05)),
+      repeating-linear-gradient(0deg,#eef1f5 0 1px,transparent 1px 30px),
+      repeating-linear-gradient(90deg,#eef1f5 0 1px,transparent 1px 30px),#F4F6F9}
+  .road{position:absolute;background:#DCE2E9}
+  .pin{position:absolute;left:56%;top:44%;width:18px;height:18px;border-radius:50%;background:var(--red);border:3px solid #fff;box-shadow:0 0 0 8px rgba(220,38,38,.2);transform:translate(-50%,-50%)}
+  .veh{position:absolute;left:24%;top:72%;width:26px;height:26px;border-radius:8px;background:var(--blue);color:#fff;display:grid;place-items:center;font-size:13px;border:2px solid #fff}
+  .route{position:absolute;left:26%;top:72%;width:32%;height:2px;background:repeating-linear-gradient(90deg,var(--blue) 0 6px,transparent 6px 11px);transform:rotate(-24deg);transform-origin:left}
+  .maptag{position:absolute;left:12px;bottom:12px;background:#fff;border:1px solid var(--line);border-radius:9px;padding:7px 10px;font-size:12px;box-shadow:0 4px 12px -6px rgba(0,0,0,.3)}
+  .maptag b{color:var(--ink)}
+  .mapeta{position:absolute;right:12px;top:12px;background:var(--slate);color:#fff;border-radius:9px;padding:7px 11px;font-size:12px;font-weight:700}
+
+  .techcard{border:1px solid var(--line);border-radius:12px;padding:13px;margin-bottom:11px;background:linear-gradient(180deg,#fff,#FBFCFD)}
+  .techcard .h{display:flex;align-items:center;gap:9px}
+  .techcard .av{width:38px;height:38px;border-radius:50%;background:var(--slate-2);color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px}
+  .techcard .nm{font-size:14px;font-weight:700}
+  .enroute{font-size:11px;color:var(--green);font-weight:700}
+  .techcard .rows{margin:9px 0}
+  .trow{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;color:var(--muted)}.trow b{color:var(--ink)}
+  .tbtns{display:flex;gap:6px}
+  .tbtn{flex:1;text-align:center;font-size:11.5px;font-weight:600;padding:6px;border-radius:8px;border:1px solid var(--line);background:#fff}
+  .tbtn.blue{background:var(--blue);border-color:var(--blue);color:#fff}
+  .board{border:1px solid var(--line);border-radius:12px;padding:11px 13px}
+  .board .bh{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:6px}
+  .tech{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12.5px;border-bottom:1px dashed var(--line)}
+  .tech:last-child{border:0}
+  .tech .av{width:26px;height:26px;border-radius:50%;background:#EEF1F5;color:var(--slate);display:grid;place-items:center;font-size:10px;font-weight:700}
+  .tech .st{margin-left:auto;font-size:10.5px;padding:2px 8px;border-radius:999px}
+  .st.free{background:var(--green-soft);color:var(--green)}.st.busy{background:var(--line);color:var(--muted)}
+
+  /* escalation */
+  .esc{display:flex;gap:8px;margin-bottom:13px}
+  .escbtn{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:10px;border-radius:11px;font-size:13px;font-weight:600;border:1.5px solid var(--red);color:var(--red);background:var(--red-soft)}
+  .escbtn.amber{border-color:var(--amber);color:var(--amber);background:var(--amber-soft)}
+  .escbtn.slate{border-color:var(--slate-3);color:var(--slate);background:#fff}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+  .row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;font-size:12.5px;border-bottom:1px dashed var(--line)}
+  .row:last-child{border:0}.row .l{color:var(--muted)}.row .r{font-weight:600}
+  .cust{display:flex;align-items:center;gap:11px}
+  .cust .av{width:42px;height:42px;border-radius:11px;background:var(--blue-soft);color:var(--blue);display:grid;place-items:center;font-weight:800}
+  .tier{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;color:var(--purple);background:var(--purple-soft);padding:2px 7px;border-radius:999px}
+  .vh{display:flex;gap:14px;align-items:center}
+  .bar{display:flex;align-items:center;gap:9px;margin:5px 0;font-size:12px}
+  .bar .lab{width:56px;color:var(--muted)} .bar .tr{flex:1;height:6px;border-radius:999px;background:var(--line);overflow:hidden}.bar .tr i{display:block;height:100%}
+
+  /* reassurance */
+  .reassure{display:flex;gap:8px;margin-bottom:13px}
+  .rc{flex:1;display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:11px;padding:9px 11px;font-size:12px}
+  .rc .b{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:800}
+  .rc.ok .b{background:var(--green);color:#fff} .rc.wait .b{background:var(--amber-soft);color:var(--amber)}
+  .rc .lab{color:var(--muted)} .rc.ok .lab{color:var(--ink);font-weight:600}
+
+  /* AI structured */
+  .aihead{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+  .conf{width:50px;height:50px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--green) 83%,#E2E8F0 0)}
+  .conf span{width:40px;height:40px;border-radius:50%;background:#fff;display:grid;place-items:center;font-size:13px;font-weight:800;color:var(--green)}
+  .aigrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .aik{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:5px}
+  .chk{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:3px 0}
+  .chk .b{width:15px;height:15px;border-radius:4px;background:var(--green-soft);color:var(--green);display:grid;place-items:center;font-size:10px;font-weight:800}
+  .risk{font-size:12.5px;color:#92400E;background:var(--amber-soft);border-radius:9px;padding:9px 11px;line-height:1.4}
+
+  /* timeline */
+  .tl{position:relative;padding-left:18px}
+  .tl:before{content:"";position:absolute;left:4px;top:4px;bottom:4px;width:2px;background:var(--line)}
+  .tli{position:relative;padding:4px 0}
+  .tli .n{position:absolute;left:-18px;top:7px;width:9px;height:9px;border-radius:50%;background:var(--red);border:2px solid #fff}
+  .tli.done .n{background:var(--muted-2)}
+  .tli .t{font-size:12.5px;font-weight:600}.tli .d{font-size:11px;color:var(--muted)}
+
+  /* Right conversation — wider */
+  .conv{width:452px;background:#fff;border-left:1px solid var(--line);flex-shrink:0;display:flex;flex-direction:column}
+  .conv .ctabs{display:flex;padding:10px 14px 0;gap:8px;border-bottom:1px solid var(--line)}
+  .conv .ctab{padding:9px 12px;font-size:13.5px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+  .conv .ctab.on{color:var(--ink);border-color:var(--blue)}
+  .conv .ctab .bdg{font-size:10px;background:var(--red);color:#fff;border-radius:999px;padding:0 5px;margin-left:5px}
+  .channels{display:flex;gap:6px;padding:9px 14px;border-bottom:1px solid var(--line);align-items:center;flex-wrap:wrap}
+  .ch{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:3px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+  .ch.tg{color:#229ED9;border-color:#bfe6f7;background:#EAF7FD}
+  .thread{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:11px;background:#FBFCFD}
+  .who-lab{font-size:10px;font-weight:700;letter-spacing:.04em;margin-bottom:3px;padding:0 3px}
+  .msg{max-width:84%}
+  .msg .b{padding:9px 12px;border-radius:13px;font-size:13.5px;line-height:1.45}
+  .msg.them{align-self:flex-start}.msg.them .b{background:#fff;border:1px solid var(--line);border-bottom-left-radius:4px}
+  .msg.them .who-lab{color:var(--slate)}
+  .msg.me{align-self:flex-end}.msg.me .b{background:var(--blue);color:#fff;border-bottom-right-radius:4px}
+  .msg.me .who-lab{color:var(--blue);text-align:right}
+  .msg.mech{align-self:flex-start}.msg.mech .b{background:var(--green-soft);border:1px solid #bbe8d5;color:#065F46;border-bottom-left-radius:4px}
+  .msg.mech .who-lab{color:var(--green)}
+  .msg .meta{font-size:10px;color:var(--muted-2);margin-top:3px;padding:0 4px}
+  .photo{width:150px;height:96px;border-radius:10px;background:linear-gradient(135deg,#334155,#64748B);display:grid;place-items:center;color:#cbd5e1;font-size:11px}
+  .loc{display:flex;align-items:center;gap:8px;font-size:12px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+  .loc .p{width:26px;height:26px;border-radius:7px;background:var(--red-soft);color:var(--red);display:grid;place-items:center}
+  .voice{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:12px}
+  .voice .wave{flex:1;height:18px;background:repeating-linear-gradient(90deg,var(--blue) 0 2px,transparent 2px 5px);opacity:.55;border-radius:3px}
+  .composer{border-top:1px solid var(--line);padding:11px 14px;display:flex;align-items:center;gap:8px}
+  .composer .in{flex:1;background:#F1F5F9;border-radius:10px;padding:10px 12px;font-size:13px;color:var(--muted)}
+  .composer .ico{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="console">
+  <header>
+    <div class="logo">🛰️</div>
+    <h1>Operations&nbsp;Center</h1>
+    <div class="active"><span class="dot"></span> 2 ACTIVE</div>
+    <div class="tabs">
+      <div class="tab on">All <span class="n">6</span></div>
+      <div class="tab">Emergency <span class="n">3</span></div>
+      <div class="tab">Support <span class="n">2</span></div>
+      <div class="tab">Towing <span class="n">1</span></div>
+      <div class="tab">Warranty</div>
+      <div class="tab">VIP</div>
+    </div>
+    <div class="spacer"></div>
+    <div class="sla">Avg response <b style="color:#fff">6m 40s</b> · SLA met <b style="color:#34D399">94%</b></div>
+    <div class="u">AD</div>
+  </header>
+
+  <div class="body">
+    <!-- Left: severity-forward rail -->
+    <div class="rail">
+      <div class="rhead">Active</div>
+      <div class="case crit">
+        <div class="r1"><div class="sevtag crit">🚨 CRITICAL</div><div class="timer">00:03</div></div>
+        <div class="r2"><div class="ic">🚗</div><div class="who"><div class="t">Sarah Jones</div><div class="s">BMW X5</div></div><div class="type">Accident</div></div>
+        <div class="slabar"><i style="width:88%;background:var(--red)"></i></div>
+      </div>
+      <div class="case high sel">
+        <div class="r1"><div class="sevtag high">⚠ HIGH</div><div class="timer">08:12</div></div>
+        <div class="r2"><div class="ic">🔋</div><div class="who"><div class="t">Ahmed Khan</div><div class="s">Toyota Land Cruiser</div></div><div class="type">Battery</div></div>
+        <div class="slabar"><i style="width:55%;background:var(--amber)"></i></div>
+      </div>
+      <div class="case med">
+        <div class="r1"><div class="sevtag med">● MEDIUM</div><div class="timer">22:40</div></div>
+        <div class="r2"><div class="ic">🛞</div><div class="who"><div class="t">Omar Lopez</div><div class="s">Ford Focus</div></div><div class="type">Flat tire</div></div>
+        <div class="slabar"><i style="width:28%;background:var(--green)"></i></div>
+      </div>
+      <div class="rhead" style="margin-top:6px">Support &amp; other</div>
+      <div class="case med" style="border-left-color:var(--purple)">
+        <div class="r1"><div class="sevtag" style="color:#C4B5FD">★ VIP</div><div class="timer" style="font-size:12px;color:#94A3B8">1h</div></div>
+        <div class="r2"><div class="ic">💬</div><div class="who"><div class="t">Michelle Martin</div><div class="s">Booking request</div></div><div class="type">Support</div></div>
+      </div>
+      <div class="rhead" style="margin-top:6px">Resolved today</div>
+      <div class="case med resolved"><div class="r2"><div class="ic">🔧</div><div class="who"><div class="t">Linda Allen</div><div class="s">Honda CR-V · Overheat</div></div><div class="type" style="background:var(--green);color:#fff">42m</div></div></div>
+    </div>
+
+    <!-- Center -->
+    <div class="detail">
+      <!-- Case header + progress -->
+      <div class="card">
+        <div class="chead">
+          <div class="big">🔋</div>
+          <div>
+            <div class="no">Case <b class="mono">#EC-2048</b> · <span class="typebadge">Emergency</span></div>
+            <div class="title">Battery won't start · Ahmed Khan</div>
+          </div>
+          <div class="sla"><div class="k">SLA · response</div><div class="v">08:12 <span style="font-size:11px;color:var(--muted)">/ 15:00</span></div></div>
+        </div>
+        <div class="stepper">
+          <div class="step done"><div class="b">✓</div><div class="lab">Reported</div></div>
+          <div class="step done"><div class="b">✓</div><div class="lab">Verified</div></div>
+          <div class="step done"><div class="b">✓</div><div class="lab">Dispatched</div></div>
+          <div class="step now"><div class="b">🚗</div><div class="lab">En Route</div></div>
+          <div class="step"><div class="b">4</div><div class="lab">Repair</div></div>
+          <div class="step"><div class="b">5</div><div class="lab">Resolved</div></div>
+        </div>
+      </div>
+
+      <!-- Escalation -->
+      <div class="esc">
+        <div class="escbtn">🆘 Emergency services</div>
+        <div class="escbtn amber">🚚 Request tow</div>
+        <div class="escbtn slate">📣 Notify manager</div>
+        <div class="escbtn slate">➕ 2nd technician</div>
+      </div>
+
+      <!-- MAP HERO + dispatch -->
+      <div class="maprow">
+        <div class="card" style="padding:0;overflow:hidden">
+          <div class="map">
+            <div class="road" style="left:0;right:0;top:44%;height:9px"></div>
+            <div class="road" style="top:0;bottom:0;left:56%;width:9px"></div>
+            <div class="road" style="left:0;right:0;top:72%;height:6px"></div>
+            <div class="route"></div>
+            <div class="veh">🔧</div>
+            <div class="pin"></div>
+            <div class="maptag">📍 <b>Samarqand Road</b>, Tashkent</div>
+            <div class="mapeta">Carlos · ETA 8 min</div>
+          </div>
+        </div>
+        <div>
+          <div class="techcard">
+            <div class="h"><div class="av">CM</div><div style="flex:1"><div class="nm">Carlos Mendez</div><div class="enroute">● En route · 8 min ETA</div></div></div>
+            <div class="rows">
+              <div class="trow"><span>Distance</span><b>2.8 km</b></div>
+              <div class="trow"><span>Current job</span><b>Oil service (paused)</b></div>
+              <div class="trow"><span>Rating</span><b>4.9 ★</b></div>
+            </div>
+            <div class="tbtns"><div class="tbtn">Call</div><div class="tbtn">Message</div><div class="tbtn blue">Live GPS</div></div>
+          </div>
+          <div class="board">
+            <div class="bh">Reassign / add</div>
+            <div class="tech"><div class="av">SH</div><div><b>Sami Haddad</b><div style="font-size:10.5px;color:var(--muted)">4 km · free</div></div><span class="st free">Assign</span></div>
+            <div class="tech"><div class="av">DV</div><div><b>Dmitri Volkov</b><div style="font-size:10.5px;color:var(--muted)">On a job</div></div><span class="st busy">Busy</span></div>
+            <div class="tech"><div class="av">RP</div><div><b>Raj Patel</b><div style="font-size:10.5px;color:var(--muted)">6 km · free</div></div><span class="st free">Assign</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reassurance -->
+      <div class="reassure">
+        <div class="rc ok"><span class="b">✓</span><span class="lab">Customer informed</span></div>
+        <div class="rc ok"><span class="b">✓</span><span class="lab">Technician assigned</span></div>
+        <div class="rc ok"><span class="b">✓</span><span class="lab">ETA shared</span></div>
+        <div class="rc wait"><span class="b">…</span><span class="lab">Awaiting arrival</span></div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <h3>Customer</h3>
+          <div class="cust"><div class="av">AK</div><div style="flex:1"><div style="font-size:15px;font-weight:700">Ahmed Khan &nbsp;<span class="tier">★ Platinum</span></div><div style="font-size:12px;color:var(--muted)">Since 2021 · Prefers Carlos</div></div></div>
+          <div style="margin-top:10px">
+            <div class="row"><span class="l">Phone</span><span class="r mono">+998 90 123 4567</span></div>
+            <div class="row"><span class="l">Lifetime value</span><span class="r">$12,480</span></div>
+            <div class="row"><span class="l">Insurance</span><span class="r">AXA · #PL-4471</span></div>
+            <div class="row"><span class="l">Previous emergencies</span><span class="r">2</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Vehicle · live status</h3>
+          <div class="vh">
+            <div style="text-align:center">
+              <svg width="84" height="48" viewBox="0 0 84 48"><path d="M7 43 A36 36 0 0 1 77 43" fill="none" stroke="#E5E8EC" stroke-width="7" stroke-linecap="round"/><path d="M7 43 A36 36 0 0 1 74 28" fill="none" stroke="#059669" stroke-width="7" stroke-linecap="round"/></svg>
+              <div style="font-size:20px;font-weight:800;margin-top:-6px">96</div>
+            </div>
+            <div style="flex:1">
+              <div style="font-size:13px;font-weight:600;margin-bottom:5px">Toyota Land Cruiser <span class="tier">Platinum</span></div>
+              <div class="bar"><span class="lab">Battery</span><span class="tr"><i style="width:88%;background:var(--green)"></i></span></div>
+              <div class="bar"><span class="lab">Brakes</span><span class="tr"><i style="width:74%;background:var(--green)"></i></span></div>
+              <div class="bar"><span class="lab">Tires</span><span class="tr"><i style="width:92%;background:var(--green)"></i></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI structured -->
+      <div class="card">
+        <h3>🤖 AI Triage</h3>
+        <div class="aihead">
+          <div class="conf"><span>83%</span></div>
+          <div><div class="aik" style="margin:0">Likely issue</div><div style="font-size:16px;font-weight:700">Jump-start required</div><div style="font-size:12px;color:var(--muted)">Confidence 83% · est. repair 15 min</div></div>
+        </div>
+        <div class="aigrid">
+          <div>
+            <div class="aik">Recommended</div>
+            <div class="chk"><span class="b">✓</span> Ask customer to switch headlights on</div>
+            <div class="chk"><span class="b">✓</span> Verify dashboard warning lights</div>
+            <div class="chk"><span class="b">✓</span> Dispatch Carlos with jump-start kit</div>
+          </div>
+          <div>
+            <div class="aik">Potential risks</div>
+            <div class="risk">⚠ If the battery is over 5 years old it may need replacement — bring a spare and prepare a quote as fallback.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Timeline -->
+      <div class="card">
+        <h3>Case timeline</h3>
+        <div class="tl">
+          <div class="tli"><span class="n"></span><div class="t">Tech en route</div><div class="d">2 min ago · Carlos · ETA 8 min</div></div>
+          <div class="tli done"><span class="n"></span><div class="t">Assigned to Carlos Mendez</div><div class="d">5 min ago · Dispatcher</div></div>
+          <div class="tli done"><span class="n"></span><div class="t">Verified &amp; triaged (AI)</div><div class="d">7 min ago</div></div>
+          <div class="tli done"><span class="n"></span><div class="t">Emergency opened via Telegram</div><div class="d">8 min ago · Ahmed Khan</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: conversation (wider, multi-participant) -->
+    <div class="conv">
+      <div class="ctabs">
+        <div class="ctab on">Customer</div>
+        <div class="ctab">Internal <span class="bdg">2</span></div>
+        <div class="ctab">Files</div>
+      </div>
+      <div class="channels">
+        <span class="ch tg">✈ Telegram</span><span class="ch">☎ Phone</span><span class="ch">✉ Email</span>
+        <span style="font-size:11px;color:var(--muted);margin-left:auto">one thread · any channel</span>
+      </div>
+      <div class="thread">
+        <div class="msg them"><div class="who-lab">Ahmed · Customer</div><div class="b">My car won't start 😩 I'm stuck.</div><div class="meta">Telegram · 08:41</div></div>
+        <div class="msg me"><div class="who-lab">You · Dispatcher</div><div class="b">Hi Ahmed — sorry to hear that. Can you share your location and a photo of the dashboard?</div><div class="meta">08:42</div></div>
+        <div class="msg them"><div class="b" style="padding:6px;background:transparent;border:0"><div class="photo">📷 dashboard.jpg</div></div><div class="meta">08:43</div></div>
+        <div class="msg them"><div class="loc"><span class="p">📍</span><div><b>Live location</b><div style="font-size:11px;color:var(--muted)">Samarqand Road, Tashkent</div></div></div><div class="meta">08:43</div></div>
+        <div class="msg me"><div class="who-lab">You · Dispatcher</div><div class="b">Thanks! Battery looks discharged. Carlos is on the way with a jump-start — ETA 8 minutes. 🚗</div><div class="meta">08:44</div></div>
+        <div class="msg mech"><div class="who-lab">Carlos · Mechanic</div><div class="b">On my way — 8 minutes out. Bringing a jump pack + spare battery just in case.</div><div class="meta">08:45</div></div>
+        <div class="msg them"><div class="voice"><span>▶</span><div class="wave"></div><span style="color:var(--muted)">0:07</span></div><div class="meta">Voice · 08:45</div></div>
+      </div>
+      <div class="composer">
+        <div class="ico">📎</div><div class="ico">📷</div>
+        <div class="in">Message Ahmed…</div>
+        <div class="ico">🎤</div><div class="ico" style="background:var(--blue);color:#fff">➤</div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

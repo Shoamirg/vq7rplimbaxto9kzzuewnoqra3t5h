@@ -73,6 +73,47 @@ class MaintenanceDue(DomainEvent):
     service_center_id: UUID | None = None
 
 
+@dataclass(kw_only=True)
+class CaseOpened(DomainEvent):
+    service_center_id: UUID
+    case_id: UUID
+    code: str
+    case_type: str
+    severity: str
+    title: str
+    customer_id: UUID
+    vehicle_id: UUID | None = None
+
+
+@dataclass(kw_only=True)
+class CaseAssigned(DomainEvent):
+    service_center_id: UUID
+    case_id: UUID
+    code: str
+    mechanic_name: str | None = None
+    customer_id: UUID | None = None
+    vehicle_id: UUID | None = None
+
+
+@dataclass(kw_only=True)
+class CaseStatusChanged(DomainEvent):
+    service_center_id: UUID
+    case_id: UUID
+    code: str
+    status: str
+    customer_id: UUID | None = None
+    vehicle_id: UUID | None = None
+
+
+@dataclass(kw_only=True)
+class CaseResolved(DomainEvent):
+    service_center_id: UUID
+    case_id: UUID
+    code: str
+    customer_id: UUID | None = None
+    vehicle_id: UUID | None = None
+
+
 EventHandler = Callable[[DomainEvent], Any]
 
 

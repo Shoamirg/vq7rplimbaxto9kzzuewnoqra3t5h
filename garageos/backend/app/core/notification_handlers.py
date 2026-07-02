@@ -20,6 +20,10 @@ from app.core.events import (
     AppointmentCompleted,
     AppointmentConfirmed,
     AppointmentCreated,
+    CaseAssigned,
+    CaseOpened,
+    CaseResolved,
+    CaseStatusChanged,
     MaintenanceDue,
     event_bus,
 )
@@ -75,6 +79,35 @@ def _spec_for(event) -> Optional[dict]:
             entity_type="vehicle", entity_id=event.vehicle_id, link=f"/vehicles/{event.vehicle_id}",
             vehicle_id=event.vehicle_id, customer_id=event.customer_id,
         )
+    # ── Operations Center cases ──
+    if isinstance(event, CaseOpened):
+        cat = "emergency" if event.case_type == "emergency" else "operations"
+        return dict(
+            service_center_id=sc, category=cat, severity=event.severity,
+            title=f"{event.case_type.title()} case opened", body=event.title,
+            entity_type="case", entity_id=event.case_id, link=f"/operations/{event.case_id}",
+            vehicle_id=event.vehicle_id, customer_id=event.customer_id,
+        )
+    if isinstance(event, CaseAssigned):
+        return dict(
+            service_center_id=sc, category="operations", severity="low",
+            title="Case assigned", body=f"Assigned to {event.mechanic_name}" if event.mechanic_name else None,
+            entity_type="case", entity_id=event.case_id, link=f"/operations/{event.case_id}",
+            vehicle_id=event.vehicle_id, customer_id=event.customer_id,
+        )
+    if isinstance(event, CaseStatusChanged):
+        return dict(
+            service_center_id=sc, category="operations", severity="low",
+            title=f"Case · {event.status.replace('_', ' ')}",
+            entity_type="case", entity_id=event.case_id, link=f"/operations/{event.case_id}",
+            vehicle_id=event.vehicle_id, customer_id=event.customer_id,
+        )
+    if isinstance(event, CaseResolved):
+        return dict(
+            service_center_id=sc, category="operations", severity="info", title="Case resolved",
+            entity_type="case", entity_id=event.case_id, link=f"/operations/{event.case_id}",
+            vehicle_id=event.vehicle_id, customer_id=event.customer_id,
+        )
     return None
 
 
@@ -105,7 +138,8 @@ def register_notification_handlers() -> None:
     if _registered:
         return
     for evt in (AppointmentCreated, AppointmentConfirmed, AppointmentCancelled,
-                AppointmentCompleted, MaintenanceDue):
+                AppointmentCompleted, MaintenanceDue,
+                CaseOpened, CaseAssigned, CaseStatusChanged, CaseResolved):
         event_bus.register(evt, _handle)
     _registered = True
     logger.info("Notification handlers registered")
