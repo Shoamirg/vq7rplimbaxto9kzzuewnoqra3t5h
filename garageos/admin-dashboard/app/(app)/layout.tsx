@@ -5,6 +5,7 @@ import { CommandPaletteContent } from "@/components/layout/command-palette-conte
 import { Sidebar } from "@/components/layout/sidebar";
 import { TopBar } from "@/components/layout/top-bar";
 import { ApiError, getCurrentUser } from "@/lib/api/server";
+import { brandCssVars } from "@/lib/branding";
 
 // Authenticated app shell. Reads the auth cookie (via getCurrentUser) at request
 // time, so it renders dynamically. /login lives outside this group and gets no shell.
@@ -23,8 +24,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <ToastProvider position="bottom-right">
-      <div className="flex h-screen overflow-hidden">
-        <Sidebar user={shellUser} />
+      <div className="flex h-screen overflow-hidden" style={brandCssVars(user.branding)}>
+        <Sidebar user={shellUser} branding={user.branding} />
         <div className="flex-1 flex flex-col overflow-hidden">
           <TopBar user={shellUser} />
           <main className="flex-1 overflow-y-auto bg-muted/30">{children}</main>

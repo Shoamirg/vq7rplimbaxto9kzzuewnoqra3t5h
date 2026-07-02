@@ -2,8 +2,12 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_auth_service, get_current_user
+from app.core.database import get_db
+from app.models.service_center import ServiceCenter
 from app.models.user import User
 from app.schemas.auth import (
     CurrentUserResponse,
@@ -11,6 +15,7 @@ from app.schemas.auth import (
     RefreshTokenRequest,
     TokenResponse,
 )
+from app.schemas.branding import Branding, branding_dict
 from app.services.auth_service import AuthService
 
 router = APIRouter()
@@ -35,7 +40,14 @@ async def refresh(
 
 
 @router.get("/me", response_model=CurrentUserResponse, summary="Current authenticated user")
-async def me(current_user: User = Depends(get_current_user)) -> CurrentUserResponse:
+async def me(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> CurrentUserResponse:
+    result = await db.execute(
+        select(ServiceCenter).where(ServiceCenter.id == current_user.service_center_id)
+    )
+    center = result.scalar_one_or_none()
     return CurrentUserResponse(
         id=str(current_user.id),
         email=current_user.email,
@@ -43,4 +55,5 @@ async def me(current_user: User = Depends(get_current_user)) -> CurrentUserRespo
         role=current_user.role.name if current_user.role else None,
         service_center_id=str(current_user.service_center_id),
         is_super_admin=current_user.is_super_admin,
+        branding=Branding(**branding_dict(center)) if center else None,
     )

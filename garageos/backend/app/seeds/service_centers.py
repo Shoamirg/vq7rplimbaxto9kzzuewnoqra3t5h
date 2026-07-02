@@ -15,8 +15,14 @@ async def seed_service_center(
     phone: str | None = None,
     address: str | None = None,
     timezone: str = "UTC",
+    brand_name: str | None = None,
+    tagline: str | None = None,
+    monogram: str | None = None,
+    primary_color: str | None = None,
+    accent_color: str | None = None,
+    slug: str | None = None,
 ) -> ServiceCenter:
-    center, _ = await get_or_create(
+    center, created = await get_or_create(
         session,
         ServiceCenter,
         defaults={
@@ -24,7 +30,21 @@ async def seed_service_center(
             "phone": phone,
             "address": address,
             "timezone": timezone,
+            "brand_name": brand_name,
+            "tagline": tagline,
+            "monogram": monogram,
+            "primary_color": primary_color,
+            "accent_color": accent_color,
+            "slug": slug,
         },
         email=email,
     )
+    # Keep branding current on existing tenants (idempotent reseeds).
+    if not created:
+        center.brand_name = brand_name
+        center.tagline = tagline
+        center.monogram = monogram
+        center.primary_color = primary_color
+        center.accent_color = accent_color
+        center.slug = slug
     return center

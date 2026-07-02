@@ -1,5 +1,7 @@
 from pydantic import BaseModel, EmailStr, Field
 
+from app.schemas.branding import Branding
+
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -39,3 +41,4 @@ class CurrentUserResponse(BaseModel):
     role: str | None = None
     service_center_id: str
     is_super_admin: bool
+    branding: Branding | None = None

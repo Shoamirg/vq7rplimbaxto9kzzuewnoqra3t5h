@@ -13,6 +13,15 @@ class ServiceCenter(BaseModelMixin, Base):
     address: Mapped[str | None] = mapped_column(Text, nullable=True)
     timezone: Mapped[str] = mapped_column(String(50), default="UTC")
 
+    # White-label branding — every customer-facing surface (shell, login,
+    # passport, PDF, emails, Mini App) derives its identity from these.
+    brand_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    tagline: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    monogram: Mapped[str | None] = mapped_column(String(4), nullable=True)
+    primary_color: Mapped[str | None] = mapped_column(String(9), nullable=True)   # hex
+    accent_color: Mapped[str | None] = mapped_column(String(9), nullable=True)    # hex
+    slug: Mapped[str | None] = mapped_column(String(60), nullable=True)
+
     # Relationships
     users = relationship("User", back_populates="service_center", lazy="selectin")
     customers = relationship("Customer", back_populates="service_center", lazy="selectin")

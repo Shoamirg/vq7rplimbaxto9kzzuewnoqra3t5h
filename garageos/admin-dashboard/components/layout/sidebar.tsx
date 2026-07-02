@@ -47,6 +47,7 @@ const bottomNav: NavItem[] = [
 ];
 
 type ShellUser = { name: string; email: string; role: string | null };
+type Brand = { name: string; monogram: string; tagline: string | null } | null;
 
 function initials(name?: string): string {
   return (
@@ -60,7 +61,10 @@ function initials(name?: string): string {
 }
 
 // ─── Sidebar Component ────────────────────────────────────────
-export function Sidebar({ user }: { user?: ShellUser }) {
+export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand }) {
+  const brandName = branding?.name ?? "GarageOS";
+  const brandMono = branding?.monogram ?? "G";
+  const brandTagline = branding?.tagline ?? "Admin Panel";
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -104,12 +108,12 @@ export function Sidebar({ user }: { user?: ShellUser }) {
           collapsed ? "justify-center px-0" : "px-4 gap-3"
         )}>
           <div className="size-9 rounded-xl bg-primary flex items-center justify-center shrink-0 shadow-sm">
-            <span className="text-primary-foreground font-bold text-sm">G</span>
+            <span className="text-primary-foreground font-bold text-sm">{brandMono}</span>
           </div>
           {!collapsed && (
             <div className="flex flex-col min-w-0">
-              <span className="font-semibold text-sidebar-foreground text-sm leading-tight">GarageOS</span>
-              <span className="text-[10px] text-sidebar-foreground/50 leading-tight">Admin Panel</span>
+              <span className="font-semibold text-sidebar-foreground text-sm leading-tight truncate">{brandName}</span>
+              <span className="text-[10px] text-sidebar-foreground/50 leading-tight truncate">{brandTagline}</span>
             </div>
           )}
         </div>

@@ -99,10 +99,10 @@ export function PassportDocument({
         {/* Masthead */}
         <div className="pp-mast">
           <div className="pp-brand">
-            <div className="pp-mono">{monogram(p.garage.name)}</div>
+            <div className="pp-mono">{p.garage.monogram ?? monogram(p.garage.name)}</div>
             <div>
               <h1>{p.garage.name.toUpperCase()}</h1>
-              <p>{p.garage.address ?? "Certified Service Centre"}</p>
+              <p>{p.garage.tagline ?? p.garage.address ?? "Certified Service Centre"}</p>
             </div>
           </div>
           <div className="pp-mastR">

@@ -32,6 +32,15 @@ export interface Appointment {
   total_cost: number | null;
 }
 
+export interface Branding {
+  name: string;
+  tagline: string | null;
+  monogram: string;
+  primary_color: string;
+  accent_color: string;
+  slug: string | null;
+}
+
 export interface CurrentUser {
   id: string;
   email: string;
@@ -39,6 +48,7 @@ export interface CurrentUser {
   role: string | null;
   service_center_id: string;
   is_super_admin: boolean;
+  branding: Branding | null;
 }
 
 // ─── Vehicle Health ──────────────────────────────────────────
@@ -209,5 +219,14 @@ export interface Passport {
   upcoming: PassportUpcoming[];
   history: PassportHistory[];
   highlights: { label: string; ok: boolean }[];
-  garage: { name: string; address: string | null; phone: string | null };
+  garage: {
+    name: string;
+    address: string | null;
+    phone: string | null;
+    monogram?: string;
+    tagline?: string | null;
+    primary_color?: string;
+    accent_color?: string;
+    slug?: string | null;
+  };
 }

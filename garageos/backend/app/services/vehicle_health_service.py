@@ -19,6 +19,7 @@ from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.service_record_repository import ServiceRecordRepository
 from app.repositories.unit_of_work import UnitOfWork
 from app.repositories.vehicle_repository import VehicleRepository
+from app.schemas.branding import branding_dict
 from app.services.maintenance_service import MaintenanceResult, MaintenanceService
 
 _PRIORITY_RANK = {"high": 0, "medium": 1, "low": 2}
@@ -356,5 +357,6 @@ class VehicleHealthService:
                 "name": garage_name,
                 "address": center.address if center else None,
                 "phone": center.phone if center else None,
+                **(branding_dict(center) if center else {}),
             },
         }

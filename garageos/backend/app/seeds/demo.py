@@ -47,6 +47,12 @@ PRIMARY = {
     "phone": "+15550100100",
     "address": "100 Main Street, Springfield",
     "timezone": "UTC",
+    "brand_name": "GarageOS Demo Workshop",
+    "tagline": "Precision Auto Care",
+    "monogram": "G",
+    "primary_color": "#2563EB",   # signature blue
+    "accent_color": "#2563EB",
+    "slug": "garageos-demo",
 }
 SECOND = {
     "name": "Northside Auto (Tenant B)",
@@ -54,6 +60,12 @@ SECOND = {
     "phone": "+15550200200",
     "address": "42 North Avenue, Rivertown",
     "timezone": "UTC",
+    "brand_name": "Northside Auto",
+    "tagline": "Off-Road & 4x4 Specialists",
+    "monogram": "N",
+    "primary_color": "#EA580C",   # rugged orange — proves white-label
+    "accent_color": "#EA580C",
+    "slug": "northside",
 }
 
 # Service histories are generated per-vehicle by the fleet generator (they set
