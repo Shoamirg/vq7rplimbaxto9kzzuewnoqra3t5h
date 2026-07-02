@@ -13,39 +13,66 @@ import {
   ChevronLeft,
   ChevronRight,
   Plus,
-  Bell,
-  LogOut,
   User,
   HelpCircle,
   BarChart3,
-  FileText,
   Warehouse,
   Siren,
+  Inbox,
 } from "lucide-react";
 import { cn } from "@garageos/design-system";
 
-// ─── Navigation Items ─────────────────────────────────────────
+import { useI18n } from "@/lib/i18n/context";
+
+// ─── Navigation ───────────────────────────────────────────────
+// Grouped into labelled sections so the rail reads by intent, not as one long
+// flat list. Labels are i18n keys resolved at render time.
 interface NavItem {
-  label: string;
+  key: string; // nav.* translation key
   href: string;
   icon: React.ReactNode;
   badge?: string | number;
 }
+interface NavSection {
+  key: string; // section.* translation key
+  items: NavItem[];
+}
 
-const mainNav: NavItem[] = [
-  { label: "Dashboard", href: "/dashboard", icon: <LayoutDashboard className="size-5" /> },
-  { label: "Calendar", href: "/calendar", icon: <Calendar className="size-5" /> },
-  { label: "Appointments", href: "/appointments", icon: <Wrench className="size-5" /> },
-  { label: "Vehicles", href: "/vehicles", icon: <Car className="size-5" /> },
-  { label: "Customers", href: "/customers", icon: <Users className="size-5" /> },
-  { label: "Operations", href: "/operations", icon: <Siren className="size-5" /> },
-  { label: "Inventory", href: "/inventory", icon: <Warehouse className="size-5" /> },
-  { label: "Reports", href: "/reports", icon: <BarChart3 className="size-5" /> },
+const NAV_SECTIONS: NavSection[] = [
+  {
+    key: "section.workspace",
+    items: [
+      { key: "nav.dashboard", href: "/dashboard", icon: <LayoutDashboard className="size-5" /> },
+      { key: "nav.calendar", href: "/calendar", icon: <Calendar className="size-5" /> },
+      { key: "nav.appointments", href: "/appointments", icon: <Wrench className="size-5" /> },
+    ],
+  },
+  {
+    key: "section.crm",
+    items: [
+      { key: "nav.customers", href: "/customers", icon: <Users className="size-5" /> },
+      { key: "nav.vehicles", href: "/vehicles", icon: <Car className="size-5" /> },
+    ],
+  },
+  {
+    key: "section.operations",
+    items: [
+      { key: "nav.inbox", href: "/inbox", icon: <Inbox className="size-5" /> },
+      { key: "nav.operations", href: "/operations", icon: <Siren className="size-5" /> },
+    ],
+  },
+  {
+    key: "section.business",
+    items: [
+      { key: "nav.inventory", href: "/inventory", icon: <Warehouse className="size-5" /> },
+      { key: "nav.reports", href: "/reports", icon: <BarChart3 className="size-5" /> },
+    ],
+  },
 ];
 
 const bottomNav: NavItem[] = [
-  { label: "Settings", href: "/settings", icon: <Settings className="size-5" /> },
-  { label: "Help & Support", href: "/support", icon: <HelpCircle className="size-5" /> },
+  { key: "nav.settings", href: "/settings", icon: <Settings className="size-5" /> },
+  { key: "nav.support", href: "/support", icon: <HelpCircle className="size-5" /> },
 ];
 
 type ShellUser = { name: string; email: string; role: string | null };
@@ -64,9 +91,10 @@ function initials(name?: string): string {
 
 // ─── Sidebar Component ────────────────────────────────────────
 export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand }) {
+  const { t } = useI18n();
   const brandName = branding?.name ?? "GarageOS";
   const brandMono = branding?.monogram ?? "G";
-  const brandTagline = branding?.tagline ?? "Admin Panel";
+  const brandTagline = branding?.tagline ?? t("brand.tagline");
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -133,45 +161,56 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
             aria-label="Create new"
           >
             <Plus className="size-4 shrink-0" />
-            {!collapsed && <span>New Appointment</span>}
+            {!collapsed && <span>{t("action.new_appointment")}</span>}
           </button>
         </div>
 
-        {/* Main Navigation */}
-        <nav className="flex-1 overflow-y-auto px-3 py-1 space-y-0.5">
-          {mainNav.map((item) => {
-            const active = isActive(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-150 group",
-                  collapsed ? "justify-center h-11 w-11 mx-auto" : "px-3 py-2.5",
-                  active
-                    ? "bg-sidebar-active/15 text-sidebar-active"
-                    : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-muted/50"
-                )}
-              >
-                <span className={cn(
-                  "shrink-0",
-                  active ? "text-sidebar-active" : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground/70"
-                )}>
-                  {item.icon}
-                </span>
-                {!collapsed && (
-                  <>
-                    <span className="flex-1 truncate">{item.label}</span>
-                    {item.badge && (
-                      <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-sidebar-active/20 text-sidebar-active text-[10px] font-semibold">
-                        {item.badge}
-                      </span>
+        {/* Main Navigation — grouped sections */}
+        <nav className="flex-1 overflow-y-auto px-3 py-1 space-y-1">
+          {NAV_SECTIONS.map((section) => (
+            <div key={section.key} className="space-y-0.5">
+              {!collapsed && (
+                <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
+                  {t(section.key)}
+                </p>
+              )}
+              {collapsed && <div className="my-2 mx-2 border-t border-sidebar-muted/60" />}
+              {section.items.map((item) => {
+                const active = isActive(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    title={collapsed ? t(item.key) : undefined}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-150 group",
+                      collapsed ? "justify-center h-11 w-11 mx-auto" : "px-3 py-2.5",
+                      active
+                        ? "bg-sidebar-active/15 text-sidebar-active"
+                        : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-muted/50"
                     )}
-                  </>
-                )}
-              </Link>
-            );
-          })}
+                  >
+                    <span className={cn(
+                      "shrink-0",
+                      active ? "text-sidebar-active" : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground/70"
+                    )}>
+                      {item.icon}
+                    </span>
+                    {!collapsed && (
+                      <>
+                        <span className="flex-1 truncate">{t(item.key)}</span>
+                        {item.badge && (
+                          <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-sidebar-active/20 text-sidebar-active text-[10px] font-semibold">
+                            {item.badge}
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
         {/* Bottom Navigation */}
@@ -196,7 +235,7 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
                 )}>
                   {item.icon}
                 </span>
-                {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
+                {!collapsed && <span className="flex-1 truncate">{t(item.key)}</span>}
               </Link>
             );
           })}
@@ -209,13 +248,13 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
               collapsed ? "justify-center h-11 w-11 mx-auto" : "px-3 py-2.5",
               "text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-muted/50"
             )}
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={collapsed ? t("action.expand") : t("action.collapse")}
           >
             <ChevronLeft className={cn(
               "size-4 shrink-0 transition-transform duration-300",
               collapsed && "rotate-180"
             )} />
-            {!collapsed && <span>Collapse</span>}
+            {!collapsed && <span>{t("action.collapse")}</span>}
           </button>
         </div>
 

@@ -114,6 +114,35 @@ class CaseResolved(DomainEvent):
     vehicle_id: UUID | None = None
 
 
+@dataclass(kw_only=True)
+class ConversationStarted(DomainEvent):
+    service_center_id: UUID
+    conversation_id: UUID
+    conv_type: str
+    subject: str | None = None
+    customer_id: UUID | None = None
+    vehicle_id: UUID | None = None
+    case_id: UUID | None = None
+
+
+@dataclass(kw_only=True)
+class MessagePosted(DomainEvent):
+    """Every message on every channel emits this — the single producer the
+    Inbox, timelines and (later) Telegram all consume."""
+    service_center_id: UUID
+    conversation_id: UUID
+    message_id: UUID
+    channel: str
+    author_role: str
+    author_name: str | None = None
+    is_internal: bool = False
+    preview: str | None = None
+    mentions: list | None = None
+    customer_id: UUID | None = None
+    vehicle_id: UUID | None = None
+    case_id: UUID | None = None
+
+
 EventHandler = Callable[[DomainEvent], Any]
 
 

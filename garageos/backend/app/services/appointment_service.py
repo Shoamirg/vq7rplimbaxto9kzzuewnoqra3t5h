@@ -417,11 +417,15 @@ class AppointmentService:
         self,
         *,
         status: Optional[str] = None,
+        date_from: Optional[date] = None,
+        date_to: Optional[date] = None,
+        overdue: bool = False,
         skip: int = 0,
         limit: int = 50,
     ) -> dict:
         items, total = await self.appointment_repo.list_detailed(
-            status=status, skip=skip, limit=limit
+            status=status, date_from=date_from, date_to=date_to, overdue=overdue,
+            skip=skip, limit=limit,
         )
         return {"items": [serialize_appointment(a) for a in items], "total": total}
 

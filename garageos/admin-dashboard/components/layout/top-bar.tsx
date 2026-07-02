@@ -18,6 +18,8 @@ import { cn, Avatar, Badge, Button, DropdownMenu, DropdownMenuTrigger, DropdownM
 import { useTheme } from "../providers/theme-provider";
 import { OPEN_EVENT } from "./command-menu";
 import { NotificationBell } from "./notification-bell";
+import { LanguageSwitcher } from "./language-switcher";
+import { useI18n } from "@/lib/i18n/context";
 
 type ShellUser = { name: string; email: string; role: string | null };
 
@@ -35,30 +37,35 @@ function initials(name?: string): string {
 // ─── Breadcrumbs ──────────────────────────────────────────────
 // Human labels for the top-level segment. Deeper segments (ids) fall back to
 // a title-cased slug so a detail route still reads sensibly.
-const SEGMENT_LABELS: Record<string, string> = {
-  dashboard: "Dashboard",
-  calendar: "Calendar",
-  appointments: "Appointments",
-  vehicles: "Vehicles",
-  customers: "Customers",
-  inventory: "Inventory",
-  reports: "Reports",
-  settings: "Settings",
+// Known top-level segments map to a nav.* translation key; unknown segments
+// (ids, sub-pages) fall back to a title-cased slug.
+const SEGMENT_KEYS: Record<string, string> = {
+  dashboard: "nav.dashboard",
+  calendar: "nav.calendar",
+  appointments: "nav.appointments",
+  vehicles: "nav.vehicles",
+  customers: "nav.customers",
+  operations: "nav.operations",
+  inbox: "nav.inbox",
+  inventory: "nav.inventory",
+  reports: "nav.reports",
+  settings: "nav.settings",
+  support: "nav.support",
 };
 
-function labelFor(segment: string): string {
-  return SEGMENT_LABELS[segment] ?? segment.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
 function Breadcrumbs() {
+  const { t } = useI18n();
   const pathname = usePathname() ?? "/dashboard";
   // Only show the first segment — ids/sub-pages own their own in-page header.
   const first = pathname.split("/").filter(Boolean)[0] ?? "dashboard";
+  const label = SEGMENT_KEYS[first]
+    ? t(SEGMENT_KEYS[first])
+    : first.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   return (
     <nav aria-label="Breadcrumb" className="hidden md:flex items-center gap-1.5 text-sm">
       <span className="text-muted-foreground">GarageOS</span>
       <ChevronDown className="size-3 -rotate-90 text-muted-foreground/50" />
-      <span className="text-foreground font-medium">{labelFor(first)}</span>
+      <span className="text-foreground font-medium">{label}</span>
     </nav>
   );
 }
@@ -66,6 +73,7 @@ function Breadcrumbs() {
 // ─── TopBar ───────────────────────────────────────────────────
 export function TopBar({ user }: { user?: ShellUser }) {
   const { resolvedTheme, toggleTheme } = useTheme();
+  const { t } = useI18n();
   const router = useRouter();
 
   const handleSignOut = useCallback(async () => {
@@ -89,7 +97,7 @@ export function TopBar({ user }: { user?: ShellUser }) {
         >
           <Search className="size-4 text-muted-foreground shrink-0 ml-3" />
           <span className="flex-1 text-sm text-muted-foreground/60 py-2.5 truncate">
-            Search customers, vehicles, plate, VIN…
+            {t("topbar.search")}
           </span>
           <kbd className="hidden md:inline-flex items-center gap-0.5 rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground mr-3">
             ⌘K
@@ -112,6 +120,9 @@ export function TopBar({ user }: { user?: ShellUser }) {
           )}
         </button>
 
+        {/* Language */}
+        <LanguageSwitcher />
+
         {/* Notifications */}
         <NotificationBell />
 
@@ -133,21 +144,21 @@ export function TopBar({ user }: { user?: ShellUser }) {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem icon={<User className="size-4" />}>
-              Profile
+              {t("menu.profile")}
             </DropdownMenuItem>
             <DropdownMenuItem icon={<Settings className="size-4" />}>
-              Account Settings
+              {t("menu.account")}
             </DropdownMenuItem>
             <DropdownMenuItem icon={<MessageSquare className="size-4" />}>
-              Messages
+              {t("menu.messages")}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem icon={<HelpCircle className="size-4" />}>
-              Help & Support
+              {t("menu.help")}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem icon={<LogOut className="size-4" />} destructive onClick={handleSignOut}>
-              Sign Out
+              {t("menu.signout")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

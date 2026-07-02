@@ -376,3 +376,128 @@ export interface Passport {
     slug?: string | null;
   };
 }
+
+// ─── Unified Communications Platform (Inbox) ──────────────────
+export type ConvType = "emergency" | "support" | "warranty" | "vip" | "general";
+export type ConvStatus =
+  | "open" | "waiting_customer" | "waiting_technician" | "waiting_approval" | "snoozed" | "resolved";
+export type ConvPriority = "high" | "medium" | "low";
+export type Channel = "telegram" | "web" | "phone" | "email" | "sms" | "internal";
+
+export interface InboxItem {
+  id: string;
+  subject: string | null;
+  conv_type: ConvType;
+  status: ConvStatus;
+  status_label: string;
+  priority: ConvPriority;
+  last_channel: Channel | null;
+  last_message_at: string | null;
+  last_activity_at: string | null;
+  last_message_preview: string | null;
+  last_sender_role: string | null;
+  unread_messages: number;
+  unread_activity: number;
+  ai_summary: string | null;
+  is_open: boolean;
+  assigned_user_id: string | null;
+  customer_id: string | null;
+  vehicle_id: string | null;
+  case_id: string | null;
+  created_at: string | null;
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  vehicle_label?: string | null;
+  assigned_name?: string | null;
+  case_code?: string | null;
+  sla_elapsed_seconds?: number;
+  sla_response_minutes?: number;
+  sla_breached?: boolean;
+}
+
+export interface InboxCounts {
+  needs_reply: number;
+  assigned_me: number;
+  waiting_customer: number;
+  waiting_technician: number;
+  waiting_approval: number;
+  unread: number;
+  resolved: number;
+}
+
+export interface InboxResponse {
+  items: InboxItem[];
+  counts: InboxCounts;
+  view: string;
+}
+
+export interface ConvAttachment {
+  id: string;
+  kind: string;
+  label: string;
+  url: string | null;
+  meta: Record<string, unknown> | null;
+}
+
+export interface ConvMessage {
+  id: string;
+  kind: "text" | "note" | "announcement";
+  channel: Channel;
+  is_internal: boolean;
+  author_role: string;
+  author_name: string | null;
+  body: string | null;
+  delivery_status: string;
+  mentions: string[];
+  created_at: string | null;
+  attachments: ConvAttachment[];
+}
+
+export interface ConvParticipant {
+  id: string;
+  role: string;
+  display_name: string;
+  is_online: boolean;
+  is_typing: boolean;
+  is_following: boolean;
+  active_channel: string | null;
+}
+
+export interface LinkedCard {
+  kind: "case" | "vehicle" | "customer" | "passport";
+  title: string;
+  subtitle: string;
+  link: string;
+  score?: number;
+  band?: HealthBand;
+  phone?: string;
+}
+
+export interface ActivityItem {
+  type: "event" | "message";
+  title: string;
+  detail: string | null;
+  date: string | null;
+  severity: string;
+  category?: string;
+  author_role?: string;
+  channel?: string;
+}
+
+export interface ThreadDetail extends InboxItem {
+  messages: ConvMessage[];
+  participants: ConvParticipant[];
+  activity: ActivityItem[];
+  linked: LinkedCard[];
+  pinned_notes: string[];
+  is_following: boolean;
+  followers: number;
+}
+
+export interface AppointmentListResponse {
+  items: Appointment[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
