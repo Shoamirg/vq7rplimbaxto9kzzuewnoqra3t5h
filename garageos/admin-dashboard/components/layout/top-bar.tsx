@@ -47,6 +47,7 @@ const SEGMENT_KEYS: Record<string, string> = {
   customers: "nav.customers",
   operations: "nav.operations",
   inbox: "nav.inbox",
+  billing: "nav.billing",
   inventory: "nav.inventory",
   reports: "nav.reports",
   settings: "nav.settings",
