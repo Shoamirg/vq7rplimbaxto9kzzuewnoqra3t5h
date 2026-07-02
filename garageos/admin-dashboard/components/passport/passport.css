@@ -155,13 +155,34 @@
   white-space: nowrap; overflow: hidden; text-transform: uppercase; }
 .pp-legal { display: flex; justify-content: space-between; font-size: 9px; color: var(--muted); margin-top: 8px; }
 
+/* Verification banner (trust-first landing) */
+.pp-verified {
+  width: 820px; max-width: 100%; margin: 0 auto 16px; text-align: center;
+  border: 1px solid var(--line); border-top: 3px solid var(--accent); border-radius: 14px;
+  background: linear-gradient(180deg, #fff, var(--paper)); padding: 22px 24px 20px;
+  font-family: "Segoe UI", system-ui, sans-serif; color: var(--ink);
+  box-shadow: 0 18px 40px -30px rgba(21,18,12,.5);
+}
+.pp-verified .pp-vbadge {
+  display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px;
+  background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 800;
+  letter-spacing: .18em; text-transform: uppercase;
+}
+.pp-verified .pp-vcheck { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); color: #fff;
+  display: grid; place-items: center; font-size: 11px; }
+.pp-verified .pp-vtitle { font-family: "Bodoni MT", Georgia, serif; font-size: 22px; letter-spacing: .04em; margin-top: 12px; }
+.pp-verified .pp-vmeta { display: flex; align-items: center; justify-content: center; gap: 28px; margin-top: 12px; flex-wrap: wrap; }
+.pp-verified .pp-vk { font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+.pp-verified .pp-vv { font-size: 13px; font-weight: 600; margin-top: 2px; }
+.pp-verified .pp-vv.pp-mono { font-family: "Consolas", monospace; }
+
 /* Action bar (screen only) */
 .pp-actions { display: flex; align-items: center; gap: 8px; width: 820px; max-width: 100%; margin: 0 auto 14px; }
 .pp-actions-spacer { flex: 1; }
 
 /* Print: just the document, edge to edge, no chrome */
 @media print {
-  .pp-actions { display: none !important; }
+  .pp-actions, .pp-verified { display: none !important; }
   .pp-root { width: 100%; box-shadow: none; margin: 0; }
   @page { size: A4; margin: 12mm; }
 }

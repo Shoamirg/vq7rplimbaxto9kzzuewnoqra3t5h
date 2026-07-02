@@ -27,11 +27,12 @@ class VehicleRepository(TenantScopedRepository[Vehicle]):
         return result.scalar_one_or_none()
 
     async def list_active(self, limit: int = 500) -> Sequence[Vehicle]:
-        """Active vehicles for this tenant, model+brand loaded (fleet views)."""
+        """Active vehicles for this tenant, model+brand+customer loaded (fleet views)."""
         stmt = self._scope(
             select(Vehicle).where(Vehicle.is_active == True)
         ).options(
-            selectinload(Vehicle.vehicle_model).selectinload(VehicleModel.brand)
+            selectinload(Vehicle.vehicle_model).selectinload(VehicleModel.brand),
+            selectinload(Vehicle.customer),
         ).limit(limit)
         result = await self.session.execute(stmt)
         return result.scalars().all()

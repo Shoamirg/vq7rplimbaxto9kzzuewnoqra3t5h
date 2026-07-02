@@ -120,12 +120,21 @@ export interface VehicleList {
   count: number;
 }
 
+export interface CertifiedVehicle {
+  vehicle_id: string;
+  summary: string;
+  score: number;
+  band: HealthBand;
+  owner_name: string | null;
+}
+
 export interface FleetHealth {
   evaluated_count: number;
   average_score: number;
   band: HealthBand;
   distribution: { excellent: number; good: number; fair: number; poor: number };
   needs_attention: { vehicle_id: string; summary: string; score: number; urgent_count: number }[];
+  certified: CertifiedVehicle[];
 }
 
 // ─── Calendar ────────────────────────────────────────────────

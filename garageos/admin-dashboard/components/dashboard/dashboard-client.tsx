@@ -17,6 +17,8 @@ import {
   FileText,
   LogOut,
   CalendarCheck,
+  BadgeCheck,
+  QrCode,
 } from "lucide-react";
 import { EmptyState } from "@/components/states/empty-state";
 import {
@@ -83,12 +85,6 @@ const weeklyRevenue = [
   { day: "Fri", revenue: 4600 },
   { day: "Sat", revenue: 2100 },
   { day: "Sun", revenue: 1800 },
-];
-
-const vehiclesDue = [
-  { id: 1, customer: "Robert Chen", vehicle: "Tesla Model 3", nextService: "Oil Change", dueDate: "Today", urgent: true },
-  { id: 2, customer: "Sarah Williams", vehicle: "Ford F-150", nextService: "Brake Inspection", dueDate: "Tomorrow", urgent: false },
-  { id: 3, customer: "John Smith", vehicle: "Chevrolet Silverado", nextService: "Transmission Fluid", dueDate: "In 3 days", urgent: false },
 ];
 
 const STATUS_MAP: Record<string, { label: string; variant: string }> = {
@@ -296,35 +292,42 @@ export function DashboardClient({ userName, stats, today, fleet }: Props) {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Due for Service</CardTitle>
-                <CardDescription>Vehicles needing attention</CardDescription>
+                <CardTitle>Certified Vehicles</CardTitle>
+                <CardDescription>Excellent-health · passport-ready</CardDescription>
               </div>
-              <DemoBadge />
+              <span className="grid size-8 place-items-center rounded-lg bg-success/10 text-success">
+                <BadgeCheck className="size-4" />
+              </span>
             </div>
           </CardHeader>
           <CardContent padding="none">
-            <div className="divide-y divide-border">
-              {vehiclesDue.map((v) => (
-                <div key={v.id} className="px-4 py-3 hover:bg-muted/30 transition-colors">
-                  <div className="flex items-start justify-between gap-2">
+            {fleet.certified.length === 0 ? (
+              <EmptyState compact icon={BadgeCheck} title="No certified vehicles yet"
+                description="Vehicles reaching excellent health become passport-ready and appear here." />
+            ) : (
+              <div className="divide-y divide-border">
+                {fleet.certified.map((v) => (
+                  <Link key={v.vehicle_id} href={`/passport/${v.vehicle_id}`} target="_blank"
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors group">
+                    <span className="grid size-9 place-items-center rounded-full bg-success/10 text-success shrink-0 text-xs font-bold">
+                      {Math.round(v.score)}
+                    </span>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium text-foreground truncate">{v.vehicle}</p>
-                        {v.urgent && <AlertTriangle className="size-3.5 text-danger shrink-0" />}
-                      </div>
-                      <p className="text-xs text-muted-foreground truncate">{v.customer}</p>
+                      <p className="text-sm font-medium text-foreground truncate">{v.summary}</p>
+                      <p className="text-xs text-muted-foreground truncate">{v.owner_name ?? "—"}</p>
                     </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-xs font-medium text-foreground">{v.nextService}</p>
-                      <Badge variant={v.urgent ? "danger" : "warning"} size="sm">{v.dueDate}</Badge>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground group-hover:text-primary transition-colors">
+                      <QrCode className="size-3.5" /> Passport
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
           </CardContent>
           <CardFooter>
-            <Button variant="ghost" size="sm" fullWidth leftIcon={<Car className="size-4" />}>View All Vehicles</Button>
+            <Link href="/vehicles" className="w-full">
+              <Button variant="ghost" size="sm" fullWidth leftIcon={<Car className="size-4" />}>View All Vehicles</Button>
+            </Link>
           </CardFooter>
         </Card>
       </div>

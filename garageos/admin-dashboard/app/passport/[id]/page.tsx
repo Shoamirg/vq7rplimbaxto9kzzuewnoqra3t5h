@@ -6,6 +6,7 @@ import { FileWarning } from "lucide-react";
 import { getPublicPassport } from "@/lib/api/server";
 import { PassportDocument } from "@/components/passport/passport-document";
 import { PassportActions } from "@/components/passport/passport-actions";
+import { PassportVerified } from "@/components/passport/passport-verified";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,7 @@ export default async function PassportPage({ params }: { params: Promise<{ id: s
     <div className="min-h-screen bg-[#4c5462] py-8 print:bg-white print:py-0">
       <div className="mx-auto w-[820px] max-w-full">
         <PassportActions />
+        <PassportVerified passport={passport} />
         <PassportDocument passport={passport} qrSvg={qrSvg} verifyUrl={url} />
       </div>
     </div>

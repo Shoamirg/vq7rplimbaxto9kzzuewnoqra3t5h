@@ -12,6 +12,7 @@ import {
   Loader2,
   Phone,
   Plus,
+  QrCode,
   Send,
   Users,
   Wrench,
@@ -645,6 +646,9 @@ function InspectorDrawer({ appointment, onClose, onChanged }: { appointment: App
                 <div className="text-sm"><p className="font-medium text-foreground capitalize">{health.band}</p><p className="text-muted-foreground">{health.urgent_count} overdue · {health.due_soon_count} due soon</p></div>
               </div>
             ) : <p className="text-xs text-muted-foreground mt-2">Loading health…</p>}
+            <Link href={`/passport/${appointment.vehicle_id}`} target="_blank" className="mt-3 flex items-center justify-center gap-2 rounded-lg border border-border py-2 text-xs font-medium text-foreground hover:border-primary/40 hover:bg-muted/40 transition-colors">
+              <QrCode className="size-3.5" /> View Certified Passport
+            </Link>
           </div>
           {due && due.services.length > 0 && (
             <div className="rounded-xl border border-border p-4">

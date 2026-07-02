@@ -215,6 +215,7 @@ class VehicleHealthService:
         vehicles = await self.vehicle_repo.list_active(limit=limit)
         scores: List[float] = []
         attention: List[dict] = []
+        certified: List[dict] = []
         for vehicle in vehicles:
             report = await self.maintenance.calculate_due_services(vehicle.id)
             scores.append(report.overall_score)
@@ -225,8 +226,19 @@ class VehicleHealthService:
                     "score": report.overall_score,
                     "urgent_count": report.urgent_count,
                 })
+            if _band(report.overall_score) == "excellent":
+                certified.append({
+                    "vehicle_id": str(vehicle.id),
+                    "summary": _vehicle_label(vehicle),
+                    "score": report.overall_score,
+                    "band": "excellent",
+                    "owner_name": (
+                        vehicle.customer.full_name if getattr(vehicle, "customer", None) else None
+                    ),
+                })
 
         n = len(scores)
+        certified.sort(key=lambda c: c["score"], reverse=True)
         average = round(sum(scores) / n, 1) if n else 0.0
         distribution = {
             "excellent": sum(1 for s in scores if s >= 80),
@@ -241,6 +253,7 @@ class VehicleHealthService:
             "band": _band(average),
             "distribution": distribution,
             "needs_attention": attention[:10],
+            "certified": certified[:6],
         }
 
     async def _service_center(self) -> ServiceCenter | None:
