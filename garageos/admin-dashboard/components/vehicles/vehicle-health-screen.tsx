@@ -50,6 +50,13 @@ import { HealthGauge } from "./health-gauge";
 type Props = { health: VehicleHealth; timeline: VehicleTimeline };
 
 const TABS = ["Overview", "Timeline", "Services & History", "Documents", "Insights"] as const;
+
+// Event-stream items (from the notification engine) tinted by severity.
+const EVENT_TINT: Record<string, string> = {
+  critical: "bg-red-500/10 text-red-600", high: "bg-red-500/10 text-red-600",
+  medium: "bg-amber-500/10 text-amber-600", low: "bg-blue-500/10 text-blue-600",
+  info: "bg-muted text-muted-foreground",
+};
 type Tab = (typeof TABS)[number];
 
 function scoreBand(score: number): HealthBand {
@@ -456,12 +463,15 @@ function TimelineList({ events }: { events: VehicleTimeline["events"] }) {
   }
   return (
     <div className="divide-y divide-border">
-      {events.map((e) => {
+      {events.map((e, i) => {
         const isService = e.type === "service";
+        const isEvent = e.type.startsWith("event_");
+        const chip = isEvent ? EVENT_TINT[e.severity ?? "info"]
+          : isService ? "bg-success/10 text-success" : "bg-primary/10 text-primary";
         return (
-          <div key={e.id} className="flex items-start gap-3 px-4 py-3">
-            <div className={cn("size-8 rounded-full grid place-items-center shrink-0 mt-0.5", isService ? "bg-success/10 text-success" : "bg-primary/10 text-primary")}>
-              {isService ? <Wrench className="size-4" /> : <Calendar className="size-4" />}
+          <div key={e.id ?? i} className="flex items-start gap-3 px-4 py-3">
+            <div className={cn("size-8 rounded-full grid place-items-center shrink-0 mt-0.5", chip)}>
+              {isEvent ? <Activity className="size-4" /> : isService ? <Wrench className="size-4" /> : <Calendar className="size-4" />}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground truncate">{e.title}</p>

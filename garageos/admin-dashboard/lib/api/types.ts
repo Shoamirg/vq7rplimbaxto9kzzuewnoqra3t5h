@@ -108,7 +108,9 @@ export interface TimelineEvent {
   detail: string | null;
   km?: number;
   cost?: number | null;
-  id: string;
+  id?: string;
+  severity?: NotificationSeverity;
+  category?: string;
 }
 
 export interface VehicleTimeline {

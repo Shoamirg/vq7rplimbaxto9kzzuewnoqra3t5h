@@ -24,16 +24,23 @@ _FEED = [
 ]
 
 
-async def generate_notifications(session, center: ServiceCenter) -> int:
-    rows = [
-        Notification(
+async def generate_notifications(session, center: ServiceCenter, vehicles=None) -> int:
+    # Tie the vehicle/passport events to real vehicles (and their owners) so the
+    # same events show up on those entities' timelines — one stream, many views.
+    linkable = [v for v in (vehicles or []) if v.customer_id][:4]
+    rows = []
+    for i, (mins, cat, sev, title, body, link, is_read) in enumerate(_FEED):
+        v = linkable[i % len(linkable)] if linkable and cat in ("vehicle", "passport", "appointment") else None
+        rows.append(Notification(
             service_center_id=center.id,
             category=cat, severity=sev, title=title, body=body,
-            link=link, is_read=is_read,
+            link=(f"/vehicles/{v.id}" if v else link), is_read=is_read,
             created_at=_NOW - timedelta(minutes=mins),
-        )
-        for (mins, cat, sev, title, body, link, is_read) in _FEED
-    ]
+            entity_type=("vehicle" if v else None),
+            entity_id=(v.id if v else None),
+            vehicle_id=(v.id if v else None),
+            customer_id=(v.customer_id if v else None),
+        ))
     session.add_all(rows)
     await session.flush()
     return len(rows)

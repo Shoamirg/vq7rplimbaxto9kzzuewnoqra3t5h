@@ -48,6 +48,8 @@ class NotificationService:
         entity_type: str | None = None,
         entity_id: uuid.UUID | None = None,
         link: str | None = None,
+        vehicle_id: uuid.UUID | None = None,
+        customer_id: uuid.UUID | None = None,
     ) -> Notification:
         n = Notification(
             service_center_id=self.sc,
@@ -58,10 +60,44 @@ class NotificationService:
             entity_type=entity_type,
             entity_id=entity_id,
             link=link,
+            vehicle_id=vehicle_id,
+            customer_id=customer_id,
         )
         self.session.add(n)
         await self.session.flush()
         return n
+
+    async def timeline_for(
+        self,
+        *,
+        vehicle_id: uuid.UUID | None = None,
+        customer_id: uuid.UUID | None = None,
+        limit: int = 40,
+    ) -> list[dict]:
+        """Project the event stream onto one entity — the same notifications the
+        bell shows, rendered as timeline events. One stream, another view."""
+        if vehicle_id is None and customer_id is None:
+            return []
+        stmt = select(Notification).where(
+            Notification.service_center_id == self.sc, Notification.is_active.is_(True)
+        )
+        if vehicle_id is not None:
+            stmt = stmt.where(Notification.vehicle_id == vehicle_id)
+        if customer_id is not None:
+            stmt = stmt.where(Notification.customer_id == customer_id)
+        stmt = stmt.order_by(Notification.created_at.desc()).limit(limit)
+        rows = (await self.session.execute(stmt)).scalars().all()
+        return [
+            {
+                "type": f"event_{n.category}",
+                "title": n.title,
+                "date": n.created_at.isoformat(),
+                "detail": n.body,
+                "severity": n.severity,
+                "category": n.category,
+            }
+            for n in rows
+        ]
 
     async def list(self, *, category: str | None = None, limit: int = 30) -> dict:
         stmt = select(Notification).where(

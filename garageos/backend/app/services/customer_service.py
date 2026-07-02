@@ -292,6 +292,14 @@ class CustomerService:
         last_visit = max(visit_dates) if visit_dates else None
         health_avg = round(sum(scores) / len(scores), 1) if scores else 0.0
 
+        # Merge the event stream (bell notifications) into this customer's
+        # timeline — one stream, another view.
+        from app.services.notification_service import NotificationService
+        timeline = self._build_timeline(records, appointments)
+        timeline += await NotificationService(self.uow).timeline_for(customer_id=customer_id)
+        timeline.sort(key=lambda e: e["date"], reverse=True)
+        timeline = timeline[:40]
+
         return {
             "id": str(customer.id),
             "full_name": customer.full_name,
@@ -315,7 +323,7 @@ class CustomerService:
             "vehicles": vehicle_out,
             "appointments": [self._serialize_appt(a) for a in
                              sorted(appointments, key=lambda a: a.appointment_date, reverse=True)[:12]],
-            "timeline": self._build_timeline(records, appointments),
+            "timeline": timeline,
             "ai_summary": self._ai_summary(customer, vehicle_out, records, lifetime_value, next_booking),
         }
 

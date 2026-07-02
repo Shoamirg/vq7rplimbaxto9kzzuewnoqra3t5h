@@ -204,6 +204,10 @@ class VehicleHealthService:
                 "detail": a.mechanic_name,
                 "id": str(a.id),
             })
+        # Project the event stream onto this vehicle's timeline (one stream,
+        # another view) — e.g. passport certified, maintenance-due events.
+        from app.services.notification_service import NotificationService
+        events += await NotificationService(self.uow).timeline_for(vehicle_id=vehicle_id)
         events.sort(key=lambda e: e["date"], reverse=True)
         return {"vehicle_id": str(vehicle_id), "events": events}
 

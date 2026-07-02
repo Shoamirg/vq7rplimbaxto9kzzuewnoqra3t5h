@@ -140,7 +140,7 @@ async def _seed_tenant(
     await generate_appointments(
         session, center, vehicles, staff["mechanics"], rules, volume["appointments"]
     )
-    await generate_notifications(session, center)
+    await generate_notifications(session, center, vehicles)
     logger.info(
         "Seeded %s: %d customers, %d vehicles",
         center.name, len(customers), len(vehicles),

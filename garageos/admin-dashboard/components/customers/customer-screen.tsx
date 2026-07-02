@@ -17,6 +17,10 @@ const BAND_TEXT: Record<HealthBand, string> = {
   excellent: "text-emerald-600", good: "text-green-600", fair: "text-amber-600", poor: "text-red-600",
 };
 
+const TL_SEVERITY: Record<string, string> = {
+  critical: "bg-red-600", high: "bg-red-500", medium: "bg-amber-500", low: "bg-blue-500", info: "bg-slate-400",
+};
+
 const TABS = [
   "Overview", "Vehicles", "Passports", "Timeline", "Appointments",
   "Messages", "Emergency", "Invoices", "Documents", "Notes",
@@ -212,11 +216,12 @@ function Timeline({ customer: c }: { customer: Customer360 }) {
       <div className="relative pl-6">
         <div className="absolute left-2 top-1 bottom-1 w-px bg-border" />
         {c.timeline.map((e, i) => {
-          const isService = e.type === "service";
+          const isEvent = e.type.startsWith("event_");
+          const dot = isEvent ? (TL_SEVERITY[e.severity ?? "info"])
+            : e.type === "service" ? "bg-emerald-500" : "bg-primary";
           return (
             <div key={i} className="relative pb-5 last:pb-0">
-              <span className={cn("absolute -left-[19px] top-0.5 size-3 rounded-full ring-2 ring-card",
-                isService ? "bg-emerald-500" : "bg-primary")} />
+              <span className={cn("absolute -left-[19px] top-0.5 size-3 rounded-full ring-2 ring-card", dot)} />
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-foreground">{e.title}</p>

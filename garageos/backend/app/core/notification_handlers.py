@@ -63,6 +63,7 @@ def _spec_for(event) -> Optional[dict]:
             service_center_id=sc, category="appointment", severity="info",
             title="New appointment booked",
             entity_type="appointment", entity_id=event.appointment_id, link="/calendar",
+            vehicle_id=event.vehicle_id, customer_id=event.customer_id,
         )
     if isinstance(event, MaintenanceDue):
         overdue = event.due_km is not None and event.due_km < 0
@@ -72,6 +73,7 @@ def _spec_for(event) -> Optional[dict]:
             title=f"{'Overdue' if overdue else 'Due soon'}: {event.service_type}",
             body="A vehicle needs attention.",
             entity_type="vehicle", entity_id=event.vehicle_id, link=f"/vehicles/{event.vehicle_id}",
+            vehicle_id=event.vehicle_id, customer_id=event.customer_id,
         )
     return None
 

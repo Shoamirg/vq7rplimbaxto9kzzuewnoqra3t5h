@@ -30,4 +30,9 @@ class Notification(BaseModelMixin, ServiceCenterMixin, Base):
     entity_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     link: Mapped[str | None] = mapped_column(String(300), nullable=True)
 
+    # Entity linkage so the SAME event projects onto the vehicle & customer
+    # timelines (one stream, many views). Nullable — not every event has both.
+    vehicle_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+    customer_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+
     is_read: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
