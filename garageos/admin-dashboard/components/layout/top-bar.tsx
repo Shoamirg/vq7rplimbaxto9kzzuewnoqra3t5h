@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { cn, Avatar, Badge, Button, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from "@garageos/design-system";
 import { useTheme } from "../providers/theme-provider";
+import { OPEN_EVENT } from "./command-menu";
 
 type ShellUser = { name: string; email: string; role: string | null };
 
@@ -65,8 +66,6 @@ function Breadcrumbs() {
 export function TopBar({ user }: { user?: ShellUser }) {
   const { resolvedTheme, toggleTheme } = useTheme();
   const router = useRouter();
-  const [searchFocused, setSearchFocused] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
 
   const handleSignOut = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -74,43 +73,27 @@ export function TopBar({ user }: { user?: ShellUser }) {
     router.refresh();
   }, [router]);
 
-  const handleSearch = useCallback(
-    (e: React.FormEvent) => {
-      e.preventDefault();
-      // In a real app, this would navigate to search results or open command palette
-    },
-    []
-  );
-
   return (
     <header className="h-16 border-b border-border bg-background/95 backdrop-blur-sm flex items-center justify-between gap-4 px-4 lg:px-6 shrink-0 sticky top-0 z-30">
       {/* Left: Breadcrumbs + Search */}
       <div className="flex items-center gap-4 flex-1 min-w-0">
         <Breadcrumbs />
 
-        {/* Global Search */}
-        <form
-          onSubmit={handleSearch}
-          className={cn(
-            "hidden sm:flex items-center gap-2 rounded-lg border transition-all duration-200 flex-1 max-w-md",
-            searchFocused
-              ? "border-ring ring-2 ring-ring/20"
-              : "border-border hover:border-muted-foreground/30",
-            "bg-muted/30"
-          )}
+        {/* Global Search — opens the ⌘K command menu */}
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event(OPEN_EVENT))}
+          className="hidden sm:flex items-center gap-2 rounded-lg border border-border hover:border-muted-foreground/30 bg-muted/30 transition-colors flex-1 max-w-md text-left"
+          aria-label="Open search"
         >
           <Search className="size-4 text-muted-foreground shrink-0 ml-3" />
-          <input
-            type="search"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onFocus={() => setSearchFocused(true)}
-            onBlur={() => setSearchFocused(false)}
-            placeholder="Search customers, VIN, appointments... (⌘K)"
-            className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 outline-none py-2.5 pr-3 min-w-0"
-            aria-label="Global search"
-          />
-        </form>
+          <span className="flex-1 text-sm text-muted-foreground/60 py-2.5 truncate">
+            Search customers, vehicles, plate, VIN…
+          </span>
+          <kbd className="hidden md:inline-flex items-center gap-0.5 rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground mr-3">
+            ⌘K
+          </kbd>
+        </button>
       </div>
 
       {/* Right: Actions */}

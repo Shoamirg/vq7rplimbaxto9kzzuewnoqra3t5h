@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { ToastProvider } from "@garageos/design-system";
 
-import { CommandPaletteContent } from "@/components/layout/command-palette-content";
+import { CommandMenu } from "@/components/layout/command-menu";
 import { Sidebar } from "@/components/layout/sidebar";
 import { TopBar } from "@/components/layout/top-bar";
 import { ApiError, getCurrentUser } from "@/lib/api/server";
@@ -30,7 +30,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <TopBar user={shellUser} />
           <main className="flex-1 overflow-y-auto bg-muted/30">{children}</main>
         </div>
-        <CommandPaletteContent />
+        <CommandMenu />
       </div>
     </ToastProvider>
   );

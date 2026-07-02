@@ -180,6 +180,14 @@ export interface DueServices {
   services: HealthService[];
 }
 
+// ─── Global Search ───────────────────────────────────────────
+export interface SearchResults {
+  query: string;
+  customers: { id: string; name: string; phone: string | null; email: string | null }[];
+  vehicles: { id: string; label: string; license_plate: string | null; year: number }[];
+  mechanics: { id: string; name: string; role: string }[];
+}
+
 // ─── Customer 360 ────────────────────────────────────────────
 export interface CustomerListItem {
   id: string;
