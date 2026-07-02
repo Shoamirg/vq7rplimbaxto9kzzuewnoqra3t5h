@@ -427,7 +427,26 @@ class AppointmentService:
             status=status, date_from=date_from, date_to=date_to, overdue=overdue,
             skip=skip, limit=limit,
         )
-        return {"items": [serialize_appointment(a) for a in items], "total": total}
+        # Enrich each row with a lightweight health score. Computed per unique
+        # vehicle on the page (deduped), so a full-page load is a bounded cost.
+        from app.services.maintenance_service import MaintenanceService
+        from app.services.vehicle_health_service import _band
+
+        maintenance = MaintenanceService(self.uow.session, self.uow.service_center_id)
+        health_cache: dict = {}
+        serialized = []
+        for a in items:
+            row = serialize_appointment(a)
+            vid = a.vehicle_id
+            if vid not in health_cache:
+                try:
+                    report = await maintenance.calculate_due_services(vid)
+                    health_cache[vid] = (report.overall_score, _band(report.overall_score))
+                except Exception:
+                    health_cache[vid] = (None, None)
+            row["health_score"], row["health_band"] = health_cache[vid]
+            serialized.append(row)
+        return {"items": serialized, "total": total}
 
     async def get_today(self) -> List[dict]:
         items, _ = await self.appointment_repo.list_detailed(on_date=date.today(), limit=200)
