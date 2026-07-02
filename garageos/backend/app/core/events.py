@@ -143,6 +143,64 @@ class MessagePosted(DomainEvent):
     case_id: UUID | None = None
 
 
+@dataclass(kw_only=True)
+class EstimateCreated(DomainEvent):
+    service_center_id: UUID
+    invoice_id: UUID
+    code: str
+    customer_id: UUID
+    vehicle_id: UUID | None = None
+    total: float | None = None
+
+
+@dataclass(kw_only=True)
+class EstimateSent(DomainEvent):
+    service_center_id: UUID
+    invoice_id: UUID
+    code: str
+    customer_id: UUID
+    vehicle_id: UUID | None = None
+
+
+@dataclass(kw_only=True)
+class EstimateApproved(DomainEvent):
+    service_center_id: UUID
+    invoice_id: UUID
+    code: str
+    customer_id: UUID
+    vehicle_id: UUID | None = None
+
+
+@dataclass(kw_only=True)
+class InvoiceIssued(DomainEvent):
+    service_center_id: UUID
+    invoice_id: UUID
+    code: str
+    customer_id: UUID
+    vehicle_id: UUID | None = None
+    total: float | None = None
+
+
+@dataclass(kw_only=True)
+class PaymentReceived(DomainEvent):
+    service_center_id: UUID
+    invoice_id: UUID
+    code: str
+    customer_id: UUID
+    vehicle_id: UUID | None = None
+    amount: float | None = None
+    method: str | None = None
+
+
+@dataclass(kw_only=True)
+class InvoicePaid(DomainEvent):
+    service_center_id: UUID
+    invoice_id: UUID
+    code: str
+    customer_id: UUID
+    vehicle_id: UUID | None = None
+
+
 EventHandler = Callable[[DomainEvent], Any]
 
 

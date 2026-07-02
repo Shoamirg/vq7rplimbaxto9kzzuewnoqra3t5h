@@ -18,6 +18,11 @@ from app.models.conversation import (
     Message,
     Attachment,
 )
+from app.models.invoice import (
+    Invoice,
+    InvoiceLineItem,
+    Payment,
+)
 
 __all__ = [
     "BaseModelMixin",
@@ -40,4 +45,7 @@ __all__ = [
     "Participant",
     "Message",
     "Attachment",
+    "Invoice",
+    "InvoiceLineItem",
+    "Payment",
 ]
