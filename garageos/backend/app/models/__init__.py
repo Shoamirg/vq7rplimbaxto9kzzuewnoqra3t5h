@@ -12,6 +12,12 @@ from app.models.appointment_slot import AppointmentSlot, AppointmentSlotStatus
 from app.models.service_record import ServiceRecord
 from app.models.notification import Notification
 from app.models.operational_case import OperationalCase
+from app.models.conversation import (
+    Conversation,
+    Participant,
+    Message,
+    Attachment,
+)
 
 __all__ = [
     "BaseModelMixin",
@@ -30,4 +36,8 @@ __all__ = [
     "ServiceRecord",
     "Notification",
     "OperationalCase",
+    "Conversation",
+    "Participant",
+    "Message",
+    "Attachment",
 ]

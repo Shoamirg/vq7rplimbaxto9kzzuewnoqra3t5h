@@ -25,6 +25,7 @@ from app.core.events import (
     CaseResolved,
     CaseStatusChanged,
     MaintenanceDue,
+    MessagePosted,
     event_bus,
 )
 from app.repositories.unit_of_work import UnitOfWork
@@ -108,6 +109,27 @@ def _spec_for(event) -> Optional[dict]:
             entity_type="case", entity_id=event.case_id, link=f"/operations/{event.case_id}",
             vehicle_id=event.vehicle_id, customer_id=event.customer_id,
         )
+    # ── Unified Communications Platform ──
+    if isinstance(event, MessagePosted):
+        # Only surface things that need a human: inbound customer messages and
+        # @mentions. Staff replies flow into the thread without ringing the bell.
+        mentioned = bool(event.mentions)
+        inbound = event.author_role == "customer"
+        if not (mentioned or inbound):
+            return None
+        if mentioned:
+            title = "You were mentioned"
+            category = "mention"
+        else:
+            title = f"New message from {event.author_name}" if event.author_name else "New customer message"
+            category = "message"
+        return dict(
+            service_center_id=sc, category=category, severity="medium", title=title,
+            body=event.preview,
+            entity_type="conversation", entity_id=event.conversation_id,
+            link=f"/inbox/{event.conversation_id}",
+            vehicle_id=event.vehicle_id, customer_id=event.customer_id,
+        )
     return None
 
 
@@ -139,7 +161,8 @@ def register_notification_handlers() -> None:
         return
     for evt in (AppointmentCreated, AppointmentConfirmed, AppointmentCancelled,
                 AppointmentCompleted, MaintenanceDue,
-                CaseOpened, CaseAssigned, CaseStatusChanged, CaseResolved):
+                CaseOpened, CaseAssigned, CaseStatusChanged, CaseResolved,
+                MessagePosted):
         event_bus.register(evt, _handle)
     _registered = True
     logger.info("Notification handlers registered")

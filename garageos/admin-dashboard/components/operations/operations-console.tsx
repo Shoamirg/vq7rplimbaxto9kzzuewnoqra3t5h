@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Search, Radio } from "lucide-react";
 import { cn } from "@garageos/design-system";
 
@@ -26,12 +27,19 @@ export function OperationsConsole() {
   const [q, setQ] = useState("");
   const [now, setNow] = useState(() => Date.now());
   const seen = useRef<Set<string>>(new Set());
+  const searchParams = useSearchParams();
 
   // SLA timers tick every second.
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
+
+  // Deep-link from the Inbox ("Open Operational Case") preselects the case.
+  useEffect(() => {
+    const c = searchParams.get("case");
+    if (c) setActiveId(c);
+  }, [searchParams]);
 
   const loadCases = useCallback(async () => {
     try {

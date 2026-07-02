@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from app.api.deps import get_tenant_uow
 from app.repositories.unit_of_work import UnitOfWork
 from app.services.case_service import CaseService
+from app.services.conversation_service import ConversationService
 
 router = APIRouter()
 
@@ -48,6 +49,12 @@ async def list_mechanics(uow: UnitOfWork = Depends(get_tenant_uow)) -> list:
 @router.get("/{case_id}", summary="Case detail (customer, vehicle, timeline)")
 async def get_case(case_id: uuid.UUID, uow: UnitOfWork = Depends(get_tenant_uow)) -> dict:
     return await CaseService(uow).get_case(case_id)
+
+
+@router.get("/{case_id}/conversation", summary="The case's live conversation (shared UCP model)")
+async def case_conversation(case_id: uuid.UUID, uow: UnitOfWork = Depends(get_tenant_uow)) -> dict:
+    # Operations reuses the SAME conversation model as the Inbox — created on demand.
+    return await ConversationService(uow).get_or_create_for_case(case_id)
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, summary="Open a case")

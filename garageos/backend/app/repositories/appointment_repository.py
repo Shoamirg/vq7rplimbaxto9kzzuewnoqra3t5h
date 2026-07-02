@@ -50,6 +50,9 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
         *,
         status: Optional[str] = None,
         on_date: Optional[date] = None,
+        date_from: Optional[date] = None,
+        date_to: Optional[date] = None,
+        overdue: bool = False,
         skip: int = 0,
         limit: int = 50,
     ) -> tuple[Sequence[Appointment], int]:
@@ -60,6 +63,16 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
             base = base.where(
                 Appointment.appointment_date >= datetime.combine(on_date, datetime.min.time()),
                 Appointment.appointment_date < datetime.combine(on_date, datetime.max.time()),
+            )
+        if date_from:
+            base = base.where(Appointment.appointment_date >= datetime.combine(date_from, datetime.min.time()))
+        if date_to:
+            base = base.where(Appointment.appointment_date < datetime.combine(date_to, datetime.max.time()))
+        if overdue:
+            # Past its date and still needing work — the operational "chase list".
+            base = base.where(
+                Appointment.appointment_date < datetime.combine(date.today(), datetime.min.time()),
+                Appointment.status.in_([AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED]),
             )
 
         total = await self.session.scalar(select(func.count()).select_from(base.subquery()))

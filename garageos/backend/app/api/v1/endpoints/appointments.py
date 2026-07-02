@@ -7,6 +7,7 @@ leaks across tenants.
 from __future__ import annotations
 
 import uuid
+from datetime import date
 from math import ceil
 
 from fastapi import APIRouter, Body, Depends, Header, Query, status
@@ -32,16 +33,20 @@ router = APIRouter()
 # they are not swallowed by the UUID path parameter.
 
 
-@router.get("", summary="List appointments (paginated, optional status filter)")
+@router.get("", summary="List appointments (paginated; status / date / overdue filters)")
 async def list_appointments(
     uow: UnitOfWork = Depends(get_tenant_uow),
     status: str | None = Query(default=None),
+    date_from: date | None = Query(default=None),
+    date_to: date | None = Query(default=None),
+    overdue: bool = Query(default=False),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
 ) -> dict:
     service = AppointmentService(uow)
     result = await service.list_appointments(
-        status=status, skip=(page - 1) * page_size, limit=page_size
+        status=status, date_from=date_from, date_to=date_to, overdue=overdue,
+        skip=(page - 1) * page_size, limit=page_size,
     )
     total = result["total"]
     return {
