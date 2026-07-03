@@ -35,6 +35,6 @@ export function middleware(req: NextRequest) {
 export const config = {
   // Run on everything except Next internals, the API routes, and static assets.
   matcher: [
-    "/((?!api/auth|api/proxy|api/mini|_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|manifest.webmanifest|brand/).*)",
+    "/((?!api/auth|api/proxy|api/mini|healthz|_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|manifest.webmanifest|brand/).*)",
   ],
 };
