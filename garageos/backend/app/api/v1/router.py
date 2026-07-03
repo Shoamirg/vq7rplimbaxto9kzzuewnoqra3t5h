@@ -9,6 +9,7 @@ from app.api.v1.endpoints import (
     appointments, auth, calendar, cases, conversations, customers, fleet,
     invoices, notifications, public, reports, search, slots, vehicles,
 )
+from app.api.v1.endpoints import customer as customer_portal
 
 api_router = APIRouter()
 
@@ -26,3 +27,4 @@ api_router.include_router(invoices.router, prefix="/invoices", tags=["invoices"]
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
 api_router.include_router(fleet.router, prefix="/fleet", tags=["fleet"])
 api_router.include_router(public.router, prefix="/public", tags=["public"])
+api_router.include_router(customer_portal.router, prefix="/customer")
