@@ -98,6 +98,23 @@ class CustomerAuthService:
         await self.uow.session.flush()
         return self._tokens(customer)
 
+    async def dev_authenticate(self, telegram_id: int | None = None) -> dict:
+        """DEBUG-only: mint a token for a seeded customer without Telegram.
+
+        Lets the Mini App be developed and end-to-end tested in a plain browser
+        (and Playwright) where no Telegram ``initData`` exists. The calling
+        endpoint gates this on ``settings.DEBUG`` so it can never run in prod.
+        """
+        stmt = select(Customer).where(Customer.is_active == True)  # noqa: E712
+        if telegram_id is not None:
+            stmt = stmt.where(Customer.telegram_id == telegram_id)
+        else:
+            stmt = stmt.where(Customer.telegram_id.isnot(None))
+        customer = (await self.uow.session.execute(stmt.limit(1))).scalar_one_or_none()
+        if customer is None:
+            raise TelegramNotLinked("No seeded customer available for dev sign-in")
+        return self._tokens(customer)
+
     async def refresh(self, refresh_token: str) -> dict:
         payload = decode_token(refresh_token)
         if not payload or payload.get("type") != _REFRESH:

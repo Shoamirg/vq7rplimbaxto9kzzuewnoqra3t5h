@@ -9,7 +9,10 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 
 from app.api.customer_deps import get_customer_auth_service
+from app.core.config import settings
+from app.exceptions import NotFoundError
 from app.schemas.customer_portal import (
+    DevSignInRequest,
     LinkRequest,
     RefreshRequest,
     TelegramSignInRequest,
@@ -42,3 +45,15 @@ async def refresh(
     auth: CustomerAuthService = Depends(get_customer_auth_service),
 ) -> TokenResponse:
     return TokenResponse(**await auth.refresh(body.refresh_token))
+
+
+@router.post("/dev", response_model=TokenResponse, summary="DEBUG-only sign-in (no Telegram)")
+async def dev_sign_in(
+    body: DevSignInRequest | None = None,
+    auth: CustomerAuthService = Depends(get_customer_auth_service),
+) -> TokenResponse:
+    # Never expose this outside development — 404 so it's indistinguishable
+    # from a route that doesn't exist.
+    if not settings.DEBUG:
+        raise NotFoundError("Not found")
+    return TokenResponse(**await auth.dev_authenticate(body.telegram_id if body else None))

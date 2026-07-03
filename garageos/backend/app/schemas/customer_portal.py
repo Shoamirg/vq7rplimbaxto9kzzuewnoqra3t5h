@@ -41,6 +41,12 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
+class DevSignInRequest(BaseModel):
+    """DEBUG-only sign-in — optionally target a specific seeded customer."""
+
+    telegram_id: Optional[int] = None
+
+
 class GarageIdentity(BaseModel):
     id: str
     name: str
