@@ -15,8 +15,9 @@ cut. Keep it honest — a red box blocks the release, not the checklist.
 - [ ] **No accessibility regressions** — keyboard-navigable, visible focus rings,
       labelled icon-only controls, ≥44px touch targets, contrast AA, reduced
       motion respected (spot-check `/mini` + one staff screen)
-- [ ] **Localization complete** — no hard-coded user-facing English in changed
-      surfaces; EN/RU/UZ present; dates/currency/plurals formatted per locale
+- [ ] **Localization complete** — `cd admin-dashboard && npm run i18n:check`
+      (fails on any key missing across EN/RU/UZ); no hard-coded user-facing
+      English in changed surfaces; dates/currency/plurals formatted per locale
 - [ ] **Performance budget met** — landing/app JS within budget, no new render
       waterfalls, polling intervals unchanged or justified (measure, don't guess)
 - [ ] **Changelog updated** — new entry in `CHANGELOG.md`
