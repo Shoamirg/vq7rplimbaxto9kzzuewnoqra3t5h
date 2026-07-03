@@ -21,6 +21,7 @@ from app.core.security import create_access_token
 from app.exceptions import InvalidToken
 from app.models import Brand, Customer, ServiceCenter, Vehicle, VehicleModel
 from app.repositories.unit_of_work import UnitOfWork
+from app.schemas.customer_portal import RoadsideRequest
 from app.services.customer_auth_service import CustomerAuthService, TelegramNotLinked
 from app.services.customer_portal_service import CustomerPortalService
 
@@ -129,3 +130,125 @@ async def test_me_returns_scoped_profile(session):
     assert me.full_name == "Ahmed Khan"
     assert me.vehicle_count == 3
     assert me.garage.name == "Portal Garage"
+
+
+# ── ownership + composition (Phases C–G) ────────────────────────────────────
+
+def _portal(session, center, customer) -> CustomerPortalService:
+    uow = UnitOfWork(service_center_id=center.id)
+    uow.session = session
+    return CustomerPortalService(uow, customer)
+
+
+async def _add_vehicle(session, center, customer) -> Vehicle:
+    brand = Brand(name=f"B-{uuid.uuid4().hex[:8]}")
+    session.add(brand)
+    await session.flush()
+    model = VehicleModel(brand_id=brand.id, name="Land Cruiser", year_start=2015)
+    session.add(model)
+    await session.flush()
+    v = Vehicle(service_center_id=center.id, customer_id=customer.id,
+                vehicle_model_id=model.id, year=2021, current_km=42000,
+                license_plate="A-1234")
+    session.add(v)
+    await session.flush()
+    return v
+
+
+@pytest.mark.asyncio
+async def test_vehicle_ownership_is_enforced(session):
+    from app.exceptions import VehicleNotFound
+
+    center, alice = await _tenant(session, telegram_id=920001)
+    _, bob = await _tenant(session, telegram_id=920002)
+    bob.service_center_id = center.id  # same tenant, different customer
+    await session.flush()
+    bob_vehicle = await _add_vehicle(session, center, bob)
+
+    # Alice must not be able to read Bob's vehicle passport/health.
+    with pytest.raises(VehicleNotFound):
+        await _portal(session, center, alice).vehicle_passport(bob_vehicle.id)
+    with pytest.raises(VehicleNotFound):
+        await _portal(session, center, alice).vehicle_health(bob_vehicle.id)
+
+
+@pytest.mark.asyncio
+async def test_billing_is_plain_and_scoped(session):
+    center, customer = await _tenant(session, telegram_id=920003)
+    billing = await _portal(session, center, customer).billing()
+    # No invoices yet -> a clean, no-balance state (no payer score fields exist).
+    assert billing.has_balance is False
+    assert billing.balance_due == 0.0
+    assert "commercial_health" not in billing.model_dump()
+
+
+@pytest.mark.asyncio
+async def test_roadside_opens_case_and_conversation(session):
+    center, customer = await _tenant(session, telegram_id=920004)
+    vehicle = await _add_vehicle(session, center, customer)
+    portal = _portal(session, center, customer)
+
+    case = await portal.create_roadside(
+        RoadsideRequest(description="Flat tyre on the highway",
+                        vehicle_id=str(vehicle.id), location_text="Route 7")
+    )
+    assert case.code.startswith("OPS-") or case.code  # a real case code was minted
+    assert case.status == "new"
+    assert case.conversation_id  # dispatcher thread exists
+    # Stepper: first step current, none resolved yet.
+    assert case.steps[0].current is True
+    assert case.steps[-1].done is False
+
+    # Status lookup returns the same case for the owner.
+    again = await portal.roadside_status(uuid.UUID(case.id))
+    assert again.code == case.code
+
+
+@pytest.mark.asyncio
+async def test_roadside_status_rejects_other_customer(session):
+    from app.exceptions import NotFoundError
+
+    center, alice = await _tenant(session, telegram_id=920005)
+    _, bob = await _tenant(session, telegram_id=920006)
+    bob.service_center_id = center.id
+    await session.flush()
+    bob_case = await _portal(session, center, bob).create_roadside(
+        RoadsideRequest(description="Won't start")
+    )
+    with pytest.raises(NotFoundError):
+        await _portal(session, center, alice).roadside_status(uuid.UUID(bob_case.id))
+
+
+@pytest.mark.asyncio
+async def test_thread_excludes_internal_notes(session):
+    from app.models.conversation import Channel, MessageKind, ParticipantRole
+    from app.services.conversation_service import ConversationService
+
+    center, customer = await _tenant(session, telegram_id=920007)
+    uow = UnitOfWork(service_center_id=center.id)
+    uow.session = session
+    convs = ConversationService(uow)
+    thread = await convs.create_conversation(subject="Brake noise", customer_id=customer.id)
+    conv_id = uuid.UUID(thread["id"])
+    await convs.post_message(conv_id, body="Customer-visible reply",
+                             channel=Channel.WEB, author_role=ParticipantRole.DISPATCHER,
+                             author_name="Dispatcher")
+    await convs.post_message(conv_id, body="Internal staff note",
+                             author_role=ParticipantRole.DISPATCHER, author_name="Dispatcher",
+                             kind=MessageKind.NOTE)
+
+    out = await _portal(session, center, customer).thread(conv_id)
+    bodies = [m.body for m in out.messages]
+    assert "Customer-visible reply" in bodies
+    assert "Internal staff note" not in bodies
+
+
+@pytest.mark.asyncio
+async def test_home_aggregates(session):
+    center, customer = await _tenant(session, telegram_id=920008)
+    await _add_vehicle(session, center, customer)
+    home = await _portal(session, center, customer).home()
+    assert home.sos_available is True
+    assert home.greeting == "Ahmed"
+    assert home.garage.name == "Portal Garage"
+    assert home.primary_vehicle is not None
