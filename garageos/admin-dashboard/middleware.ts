@@ -6,12 +6,14 @@ import { AUTH_COOKIE } from "@/lib/api/constants";
 // /passport/* is a shareable, public document — no auth required.
 // /mini/* is the customer Mini App: a separate principal with its own customer
 // token cookie, so it must bypass the staff auth gate entirely.
-const PUBLIC_PATHS = ["/login", "/passport", "/mini"];
+// The marketing site (/, /privacy, /terms) is public too.
+const PUBLIC_PATHS = ["/login", "/passport", "/mini", "/privacy", "/terms"];
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const isAuthed = Boolean(req.cookies.get(AUTH_COOKIE)?.value);
-  const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+  // "/" is the public landing page (exact match, since every path startsWith "/").
+  const isPublic = pathname === "/" || PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 
   // Unauthenticated visitor to a protected page -> login.
   if (!isAuthed && !isPublic) {
@@ -35,6 +37,6 @@ export function middleware(req: NextRequest) {
 export const config = {
   // Run on everything except Next internals, the API routes, and static assets.
   matcher: [
-    "/((?!api/auth|api/proxy|api/mini|healthz|_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|manifest.webmanifest|brand/).*)",
+    "/((?!api/auth|api/proxy|api/mini|healthz|_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|manifest.webmanifest|brand/|marketing/).*)",
   ],
 };
