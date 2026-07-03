@@ -12,6 +12,7 @@ interface HapticFeedback {
 
 interface TelegramWebApp {
   initData?: string;
+  initDataUnsafe?: { user?: { language_code?: string } };
   colorScheme?: "light" | "dark";
   ready?: () => void;
   expand?: () => void;
@@ -31,6 +32,19 @@ export function isTelegram(): boolean {
 
 export function themeScheme(): "light" | "dark" {
   return telegram()?.colorScheme ?? "light";
+}
+
+/**
+ * The customer's Telegram UI language mapped to a supported locale (en/ru/uz),
+ * or null when unavailable. Telegram sends e.g. "ru", "uz", "en-US".
+ */
+export function telegramLocale(): "en" | "ru" | "uz" | null {
+  const code = telegram()?.initDataUnsafe?.user?.language_code?.toLowerCase();
+  if (!code) return null;
+  if (code.startsWith("ru")) return "ru";
+  if (code.startsWith("uz")) return "uz";
+  if (code.startsWith("en")) return "en";
+  return null;
 }
 
 type Haptic = "light" | "medium" | "heavy" | "success" | "warning" | "error" | "selection";

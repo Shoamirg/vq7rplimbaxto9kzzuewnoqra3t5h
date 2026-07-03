@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { WifiOff } from "lucide-react";
 
 import { haptic } from "@/lib/mini/telegram";
+import { useI18n } from "@/lib/i18n/context";
 
 // Shared visual primitives for the Mini App. Kept self-contained (its own
 // tokens) so the customer surface reads as an intentional, branded product —
@@ -171,7 +172,7 @@ export function EmptyState({ icon, title, note }: { icon?: ReactNode; title: str
 
 /** One consistent error state with a Retry, used by every screen. */
 export function ScreenError({
-  message = "Something went wrong.",
+  message,
   onRetry,
   offline = false,
 }: {
@@ -179,13 +180,12 @@ export function ScreenError({
   onRetry?: () => void;
   offline?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <div className="grid place-items-center rounded-3xl bg-white/60 px-6 py-12 text-center ring-1 ring-slate-900/[0.04]" role="alert">
       {offline ? <WifiOff className="mb-2 size-8 text-slate-300" /> : null}
-      <p className="font-medium text-slate-700">{offline ? "You're offline" : message}</p>
-      <p className="mt-1 text-sm text-slate-400">
-        {offline ? "Check your connection and try again." : "Please try again."}
-      </p>
+      <p className="font-medium text-slate-700">{offline ? t("mini.offline") : (message ?? t("mini.error_generic"))}</p>
+      <p className="mt-1 text-sm text-slate-400">{offline ? t("mini.offline_hint") : t("mini.error_hint")}</p>
       {onRetry ? (
         <button
           onClick={() => {
@@ -194,7 +194,7 @@ export function ScreenError({
           }}
           className="mt-5 min-h-[44px] rounded-full bg-blue-600 px-6 text-sm font-semibold text-white transition motion-safe:active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50"
         >
-          Try again
+          {t("mini.retry")}
         </button>
       ) : null}
     </div>

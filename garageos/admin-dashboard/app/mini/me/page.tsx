@@ -3,25 +3,24 @@
 import { Award, Car, Mail, Phone, Store } from "lucide-react";
 
 import { useMiniData } from "@/lib/mini/hooks";
+import { useI18n } from "@/lib/i18n/context";
 import type { MeResponse } from "@/lib/mini/types";
 import { Card, ListSkeleton, ScreenError, ScreenHeader } from "@/components/mini/ui";
 
-function fmtMonthYear(iso?: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", { month: "long", year: "numeric" });
-}
+const MONTH_YEAR: Intl.DateTimeFormatOptions = { month: "long", year: "numeric" };
 
 export default function MePage() {
   const { data: me, loading, error, reload } = useMiniData<MeResponse>("/me");
+  const { t, fmt } = useI18n();
 
-  if (error) return <div><ScreenHeader title="Me" /><ScreenError onRetry={reload} /></div>;
-  if (loading || !me) return <div><ScreenHeader title="Me" /><ListSkeleton rows={2} /></div>;
+  if (error) return <div><ScreenHeader title={t("mini.me.title")} /><ScreenError onRetry={reload} /></div>;
+  if (loading || !me) return <div><ScreenHeader title={t("mini.me.title")} /><ListSkeleton rows={2} /></div>;
 
   const initials = me.full_name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
 
   return (
     <div>
-      <ScreenHeader title="Me" />
+      <ScreenHeader title={t("mini.me.title")} />
 
       <Card className="!p-5">
         <div className="flex items-center gap-4">
@@ -30,24 +29,26 @@ export default function MePage() {
           </div>
           <div>
             <p className="text-lg font-bold text-slate-900">{me.full_name}</p>
-            <p className="text-sm text-slate-500">Member since {fmtMonthYear(me.member_since)}</p>
+            <p className="text-sm text-slate-500">
+              {t("mini.me.member_since", { date: fmt.date(me.member_since, MONTH_YEAR) || "—" })}
+            </p>
           </div>
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-3">
           <div className="rounded-2xl bg-amber-50 p-3">
             <div className="flex items-center gap-1.5 text-amber-700">
-              <Award className="size-4" />
-              <span className="text-xs font-semibold uppercase tracking-wide">Loyalty</span>
+              <Award className="size-4" aria-hidden />
+              <span className="text-xs font-semibold uppercase tracking-wide">{t("mini.me.loyalty")}</span>
             </div>
-            <p className="mt-1 text-xl font-bold text-slate-900">{me.loyalty_points}</p>
+            <p className="mt-1 text-xl font-bold text-slate-900">{fmt.number(me.loyalty_points)}</p>
           </div>
           <div className="rounded-2xl bg-blue-50 p-3">
             <div className="flex items-center gap-1.5 text-blue-700">
-              <Car className="size-4" />
-              <span className="text-xs font-semibold uppercase tracking-wide">Vehicles</span>
+              <Car className="size-4" aria-hidden />
+              <span className="text-xs font-semibold uppercase tracking-wide">{t("mini.me.vehicles")}</span>
             </div>
-            <p className="mt-1 text-xl font-bold text-slate-900">{me.vehicle_count}</p>
+            <p className="mt-1 text-xl font-bold text-slate-900">{fmt.number(me.vehicle_count)}</p>
           </div>
         </div>
       </Card>
@@ -55,9 +56,9 @@ export default function MePage() {
       <div className="mt-4 space-y-3">
         <Card className="!p-2">
           <ul className="divide-y divide-slate-100">
-            {me.phone ? <Row icon={<Phone className="size-4" />} label="Phone" value={me.phone} /> : null}
-            {me.email ? <Row icon={<Mail className="size-4" />} label="Email" value={me.email} /> : null}
-            <Row icon={<Store className="size-4" />} label="Garage" value={me.garage.name} />
+            {me.phone ? <Row icon={<Phone className="size-4" />} label={t("mini.me.phone")} value={me.phone} /> : null}
+            {me.email ? <Row icon={<Mail className="size-4" />} label={t("mini.me.email")} value={me.email} /> : null}
+            <Row icon={<Store className="size-4" />} label={t("mini.me.garage")} value={me.garage.name} />
           </ul>
         </Card>
       </div>

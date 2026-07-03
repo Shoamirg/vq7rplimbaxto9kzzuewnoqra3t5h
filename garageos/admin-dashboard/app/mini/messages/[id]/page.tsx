@@ -7,16 +7,15 @@ import { ArrowLeft, ImageIcon, Send } from "lucide-react";
 
 import { miniFetch } from "@/lib/mini/client";
 import { haptic } from "@/lib/mini/telegram";
+import { useI18n } from "@/lib/i18n/context";
 import type { ThreadMessage, ThreadResponse } from "@/lib/mini/types";
 import { ListSkeleton } from "@/components/mini/ui";
 
-function fmtTime(iso?: string | null): string {
-  if (!iso) return "";
-  return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-}
-
 export default function ThreadPage() {
   const params = useParams<{ id: string }>();
+  const { t, locale } = useI18n();
+  const fmtTime = (iso?: string | null) =>
+    iso ? new Date(iso).toLocaleTimeString(locale === "en" ? "en-US" : locale, { hour: "numeric", minute: "2-digit" }) : "";
   const [thread, setThread] = useState<ThreadResponse | null>(null);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -53,15 +52,19 @@ export default function ThreadPage() {
 
   return (
     <div className="flex min-h-[calc(100dvh-7rem)] flex-col">
-      <Link href="/mini/messages" className="mb-2 inline-flex items-center gap-1 text-sm font-medium text-slate-500">
-        <ArrowLeft className="size-4" /> Messages
+      <Link
+        href="/mini/messages"
+        onClick={() => haptic("light")}
+        className="mb-2 inline-flex min-h-[44px] items-center gap-1 text-sm font-medium text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg"
+      >
+        <ArrowLeft className="size-4" aria-hidden /> {t("mini.messages.title")}
       </Link>
 
       {!thread ? (
         <ListSkeleton rows={4} />
       ) : (
         <>
-          <h1 className="mb-3 px-1 text-lg font-bold text-slate-900">{thread.subject ?? "Conversation"}</h1>
+          <h1 className="mb-3 px-1 text-lg font-bold text-slate-900">{thread.subject ?? t("mini.home.conversation")}</h1>
           <div className="flex-1 space-y-2.5">
             {thread.messages.map((m) => (
               <div key={m.id} className={`flex ${m.from_me ? "justify-end" : "justify-start"}`}>
@@ -95,8 +98,8 @@ export default function ThreadPage() {
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && send()}
-              placeholder="Message…"
-              aria-label="Type a message"
+              placeholder={t("mini.messages.compose")}
+              aria-label={t("mini.messages.compose")}
               className="flex-1 bg-transparent px-3 py-2 text-sm outline-none"
             />
             <button
