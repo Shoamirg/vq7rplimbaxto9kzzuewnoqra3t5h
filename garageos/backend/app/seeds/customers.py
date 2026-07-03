@@ -1,10 +1,14 @@
 """Generate demo customers for a service center."""
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Customer, ServiceCenter
 from app.seeds.base import email_for, full_name, phone, rng
+
+_NOW = datetime.now(timezone.utc)
 
 # Base offset for synthetic, collision-free telegram ids.
 _TELEGRAM_BASE = 100_000_000
@@ -33,6 +37,9 @@ async def generate_customers(
             ),
             loyalty_points=rng.choice([0, 0, 50, 100, 150, 250, 500]),
             notes=None,
+            # Spread acquisition over ~15 months so "new this month" is a subset
+            # of total (realistic cohorts, retention, and executive KPIs).
+            created_at=_NOW - timedelta(days=rng.randint(1, 460), hours=rng.randint(0, 23)),
         )
         customers.append(customer)
     session.add_all(customers)

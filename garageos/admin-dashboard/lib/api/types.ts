@@ -643,20 +643,31 @@ export interface ReportKpi {
   series: number[] | null;
   tone: "danger" | "success" | "warning" | null;
 }
-export interface ReportInsight { tone: string; label: string; text: string; }
+export interface ReportInsight { tone: string; label: string; text: string; drill?: string; }
 export interface ReportQuestion { q: string; drill: string; }
+export interface ReportGroup { title: string; kpis: ReportKpi[]; }
+export interface ReportSection {
+  title: string;
+  kind: "area" | "donut" | "funnel" | "bars";
+  drill: string;
+  span: number;
+  data: any;
+}
+export interface ReportReconciliation {
+  ledger_entries: number;
+  checks: { label: string; ok: boolean }[];
+  status: string;
+  debit: number;
+  credit: number;
+  outstanding: number;
+}
 export interface ReportResponse {
   report: string;
+  title: string;
   period: { key: string; start: string; end: string };
-  groups: { money: ReportKpi[]; operations: ReportKpi[]; customers: ReportKpi[] };
-  charts: {
-    revenue_trend: { label: string; value: number }[];
-    vehicle_health: { excellent: number; good: number; fair: number; poor: number };
-    commercial_health: { band: string; count: number }[];
-    conversion_funnel: { stage: string; count: number }[];
-    ar_aging: { bucket: string; amount: number }[];
-    revenue_by_service: { name: string; amount: number }[];
-  };
-  insights: ReportInsight[];
   questions: ReportQuestion[];
+  insights: ReportInsight[];
+  groups: ReportGroup[];
+  sections: ReportSection[];
+  reconciliation: ReportReconciliation | null;
 }

@@ -217,6 +217,14 @@ async def generate_invoice_history(session, center: ServiceCenter, vehicles) -> 
         return 0
     rng = random.Random(center.id.int & 0xFFFFFFFF)  # stable per tenant
     tax = _m(12)
+    # Assign each customer a payer profile so Commercial Health distributes
+    # realistically (~45% fast / 32% normal / 15% slow / 8% risky).
+    _PAY_RANGE = {"fast": (0, 4), "normal": (3, 12), "slow": (16, 40), "risky": (20, 55)}
+    profiles: dict = {}
+    for cust, _v in pairs:
+        if cust not in profiles:
+            r = rng.random()
+            profiles[cust] = "fast" if r < 0.45 else "normal" if r < 0.77 else "slow" if r < 0.92 else "risky"
     n = int(await session.scalar(
         select(func.count()).select_from(Invoice).where(
             Invoice.service_center_id == center.id, Invoice.kind == InvoiceKind.INVOICE)) or 0)
@@ -237,13 +245,23 @@ async def generate_invoice_history(session, center: ServiceCenter, vehicles) -> 
             total = _m(subtotal + taxv)
             n += 1
             code = f"INV-{created_dt.year}-{n:06d}"
-            paid_dt = min(_NOW, created_dt + timedelta(days=rng.randint(0, 12)))
+            prof = profiles[cust]
+            lo, hi = _PAY_RANGE[prof]
+            # Risky payers leave ~35% of invoices unpaid (overdue); everyone else
+            # pays within their profile's window.
+            leave_overdue = prof == "risky" and rng.random() < 0.35
+            due_date = (created_dt + timedelta(days=7)).date()
+            if leave_overdue:
+                status, amount_paid, balance, paid_dt = InvoiceStatus.OVERDUE, _m(0), total, None
+            else:
+                status, amount_paid, balance = InvoiceStatus.PAID, total, _m(0)
+                paid_dt = min(_NOW, created_dt + timedelta(days=rng.randint(lo, hi)))
             inv = Invoice(
                 service_center_id=center.id, code=code, kind=InvoiceKind.INVOICE,
-                status=InvoiceStatus.PAID, customer_id=cust, vehicle_id=veh, currency="USD",
+                status=status, customer_id=cust, vehicle_id=veh, currency="USD",
                 tax_rate=tax, subtotal=subtotal, discount_total=_m(0), tax_total=taxv,
-                total=total, amount_paid=total, balance=_m(0), issued_at=created_dt,
-                due_date=(created_dt + timedelta(days=7)).date(), paid_at=paid_dt, created_at=created_dt)
+                total=total, amount_paid=amount_paid, balance=balance, issued_at=created_dt,
+                due_date=due_date, paid_at=paid_dt, created_at=created_dt)
             session.add(inv)
             await session.flush()
             li.append(InvoiceLineItem(service_center_id=center.id, invoice_id=inv.id, kind=LineKind.LABOR,
@@ -251,15 +269,16 @@ async def generate_invoice_history(session, center: ServiceCenter, vehicles) -> 
             if part > 0:
                 li.append(InvoiceLineItem(service_center_id=center.id, invoice_id=inv.id, kind=LineKind.PART,
                                           description=f"{cat} parts", quantity=_m(1), unit_price=part_c, line_total=part_c, sort_order=1))
-            meth, src = rng.choice(_HIST_METHODS)
-            pays.append(Payment(service_center_id=center.id, invoice_id=inv.id, kind=PaymentKind.PAYMENT,
-                                method=meth, source=src, amount=total, reference=f"H-{code[-5:]}", received_at=paid_dt))
             led.append(LedgerEntry(service_center_id=center.id, customer_id=cust, invoice_id=inv.id,
                                    entry_type=LedgerEntryType.INVOICE_ISSUED, direction=LedgerDirection.DEBIT,
                                    amount=total, description=f"Invoice issued · {code}", occurred_at=created_dt))
-            led.append(LedgerEntry(service_center_id=center.id, customer_id=cust, invoice_id=inv.id,
-                                   entry_type=LedgerEntryType.PAYMENT_RECEIVED, direction=LedgerDirection.CREDIT,
-                                   amount=total, description=f"Payment · {meth} · {code}", occurred_at=paid_dt))
+            if not leave_overdue:
+                meth, src = rng.choice(_HIST_METHODS)
+                pays.append(Payment(service_center_id=center.id, invoice_id=inv.id, kind=PaymentKind.PAYMENT,
+                                    method=meth, source=src, amount=total, reference=f"H-{code[-5:]}", received_at=paid_dt))
+                led.append(LedgerEntry(service_center_id=center.id, customer_id=cust, invoice_id=inv.id,
+                                       entry_type=LedgerEntryType.PAYMENT_RECEIVED, direction=LedgerDirection.CREDIT,
+                                       amount=total, description=f"Payment · {meth} · {code}", occurred_at=paid_dt))
             created += 1
     session.add_all(li + pays + led)
     await session.flush()
