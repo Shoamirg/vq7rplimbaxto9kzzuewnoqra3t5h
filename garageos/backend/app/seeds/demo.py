@@ -26,6 +26,7 @@ from app.models import (
     Customer,
     Invoice,
     InvoiceLineItem,
+    LedgerEntry,
     MaintenanceRule,
     Message,
     Notification,
@@ -87,7 +88,7 @@ PRIMARY_VOLUME = {"mechanics": 6, "customers": 200, "vehicles": 350, "appointmen
 SECOND_VOLUME = {"mechanics": 2, "customers": 15, "vehicles": 20, "appointments": 6}
 
 # Tenant-scoped tables, in safe deletion order (children before parents).
-_TENANT_TABLES = [Payment, InvoiceLineItem, Invoice, Attachment, Message, Participant, Conversation, OperationalCase, Notification, ServiceRecord, AppointmentSlot, Appointment, Vehicle, Customer, MaintenanceRule, User]
+_TENANT_TABLES = [LedgerEntry, Payment, InvoiceLineItem, Invoice, Attachment, Message, Participant, Conversation, OperationalCase, Notification, ServiceRecord, AppointmentSlot, Appointment, Vehicle, Customer, MaintenanceRule, User]
 
 
 async def _wipe_tenant(session: AsyncSession, center: ServiceCenter) -> None:

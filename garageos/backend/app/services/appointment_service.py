@@ -429,10 +429,12 @@ class AppointmentService:
         )
         # Enrich each row with a lightweight health score. Computed per unique
         # vehicle on the page (deduped), so a full-page load is a bounded cost.
+        from app.services.financial_service import FinancialService
         from app.services.maintenance_service import MaintenanceService
         from app.services.vehicle_health_service import _band
 
         maintenance = MaintenanceService(self.uow.session, self.uow.service_center_id)
+        financial = FinancialService(self.uow)
         health_cache: dict = {}
         serialized = []
         for a in items:
@@ -445,6 +447,8 @@ class AppointmentService:
                 except Exception:
                     health_cache[vid] = (None, None)
             row["health_score"], row["health_band"] = health_cache[vid]
+            # Billing status closes the operational loop (paid? estimate? overdue?).
+            row["billing"] = await financial.invoice_for_appointment(a.id, a.vehicle_id)
             serialized.append(row)
         return {"items": serialized, "total": total}
 

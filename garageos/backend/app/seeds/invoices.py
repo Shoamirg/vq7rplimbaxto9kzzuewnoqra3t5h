@@ -10,7 +10,9 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal
 
-from app.models import Invoice, InvoiceLineItem, Notification, Payment, ServiceCenter
+from sqlalchemy import select
+
+from app.models import Appointment, Invoice, InvoiceLineItem, Notification, Payment, ServiceCenter
 from app.models.invoice import (
     InvoiceKind,
     InvoiceStatus,
@@ -77,7 +79,20 @@ _DOCS = [
 
 
 async def generate_invoices(session, center: ServiceCenter, vehicles) -> int:
-    pairs = [(v.customer_id, v.id) for v in (vehicles or []) if v.customer_id][: len(_DOCS)]
+    # Derive the (customer, vehicle) pairs from the MOST RECENT appointments so
+    # every seeded invoice links to a vehicle that appears on the schedule —
+    # making the appointment ↔ billing loop visible on the Appointments page.
+    appt_by_vehicle: dict = {}
+    pairs: list = []
+    for a in (await session.execute(
+        select(Appointment).where(Appointment.service_center_id == center.id)
+        .order_by(Appointment.appointment_date.desc()))).scalars().all():
+        if a.vehicle_id not in appt_by_vehicle:
+            appt_by_vehicle[a.vehicle_id] = a.id  # latest appointment per vehicle
+            pairs.append((a.customer_id, a.vehicle_id))
+    pairs = pairs[: len(_DOCS)]
+    if not pairs:  # fallback if a tenant has no appointments
+        pairs = [(v.customer_id, v.id) for v in (vehicles or []) if v.customer_id][: len(_DOCS)]
     if not pairs:
         return 0
     year = _NOW.year
@@ -106,7 +121,8 @@ async def generate_invoices(session, center: ServiceCenter, vehicles) -> int:
 
         inv = Invoice(
             service_center_id=center.id, code=code, kind=kind, status=status,
-            customer_id=cust_id, vehicle_id=veh_id, currency="USD", tax_rate=tax_rate,
+            customer_id=cust_id, vehicle_id=veh_id, appointment_id=appt_by_vehicle.get(veh_id),
+            currency="USD", tax_rate=tax_rate,
             subtotal=subtotal, discount_total=discount, tax_total=tax, total=total,
             amount_paid=amount_paid, balance=balance,
             issued_at=(base_dt if kind == InvoiceKind.INVOICE else None),

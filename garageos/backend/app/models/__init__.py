@@ -23,6 +23,7 @@ from app.models.invoice import (
     InvoiceLineItem,
     Payment,
 )
+from app.models.ledger import LedgerEntry
 
 __all__ = [
     "BaseModelMixin",
@@ -48,4 +49,5 @@ __all__ = [
     "Invoice",
     "InvoiceLineItem",
     "Payment",
+    "LedgerEntry",
 ]

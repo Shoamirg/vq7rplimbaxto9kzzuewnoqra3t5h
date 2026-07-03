@@ -140,7 +140,16 @@ class InvoiceService:
             self.uow.add_event(InvoiceIssued(
                 service_center_id=self.sc, invoice_id=inv.id, code=code,
                 customer_id=customer_id, vehicle_id=vehicle_id, total=_f(inv.total)))
+            self._ledger(inv, "invoice_issued", "debit", _f(inv.total), f"Invoice issued · {code}")
+        await self.session.flush()
         return await self.get_document(inv.id)
+
+    def _ledger(self, inv: Invoice, entry_type: str, direction: str, amount: float, desc: str) -> None:
+        # Append to the reserved ledger stream (reports/exports project over it).
+        from app.services.financial_service import FinancialService
+        FinancialService(self.uow).add_ledger(
+            customer_id=inv.customer_id, invoice_id=inv.id, entry_type=entry_type,
+            direction=direction, amount=amount, description=desc)
 
     def _build_item(self, invoice_id: uuid.UUID, data: dict, order: int) -> InvoiceLineItem:
         qty = _money(data.get("quantity", 1))
@@ -216,6 +225,9 @@ class InvoiceService:
             service_center_id=self.sc, invoice_id=inv.id, code=inv.code,
             customer_id=inv.customer_id, vehicle_id=inv.vehicle_id,
             amount=_f(amt), method=method))
+        self._ledger(
+            inv, "refund_issued" if kind == PaymentKind.REFUND else "payment_received",
+            "credit", _f(amt), f"{kind.title()} · {method} · {inv.code}")
         if inv.status == InvoiceStatus.PAID:
             self.uow.add_event(InvoicePaid(
                 service_center_id=self.sc, invoice_id=inv.id, code=inv.code,

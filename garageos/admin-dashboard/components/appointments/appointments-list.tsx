@@ -50,7 +50,7 @@ const HEALTH_COLOR: Record<string, string> = {
   poor: "text-red-600 bg-red-50 border-red-200",
 };
 
-const GRID = "grid-cols-[auto_1.3fr_1.4fr_1.1fr_1fr_1fr_auto_auto_auto]";
+const GRID = "grid-cols-[auto_1.3fr_1.3fr_1fr_1fr_0.9fr_auto_auto_auto_auto]";
 
 const PAGE_SIZE = 15;
 
@@ -230,7 +230,7 @@ export function AppointmentsList() {
         <div className={cn("grid gap-3 px-4 py-2.5 border-b border-border bg-muted/40 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground items-center", GRID)}>
           <input type="checkbox" checked={allSelected} onChange={toggleAll} className="size-4 accent-[hsl(var(--primary))]" aria-label="Select all" />
           <span>Customer</span><span>Vehicle</span><span>Service</span><span>When</span><span>Mechanic</span>
-          <span className="text-center">Health</span><span className="text-center">Duration</span><span className="text-right pr-1">Status</span>
+          <span className="text-center">Health</span><span className="text-center">Billing</span><span className="text-center">Duration</span><span className="text-right pr-1">Status</span>
         </div>
 
         {loading && (
@@ -313,12 +313,32 @@ function Row({
           </Link>
         ) : <span className="text-muted-foreground/40 text-sm">—</span>}
       </span>
+      <span className="flex justify-center"><BillingPill b={a.billing} vid={a.vehicle_id} /></span>
       <span className="text-sm text-muted-foreground text-center tabular-nums">{fmtDuration(a.estimated_duration_minutes)}</span>
       <div className="flex items-center justify-end gap-2">
         <Badge variant={STATUS_BADGE[a.status]} size="sm" className="capitalize">{a.status.replace("_", " ")}</Badge>
         <RowActions a={a} canConfirm={canConfirm} canCancel={canCancel} onAct={onAct} router={router} />
       </div>
     </div>
+  );
+}
+
+function BillingPill({ b, vid }: { b: import("@/lib/api/types").AppointmentBilling | null | undefined; vid: string }) {
+  if (!b) return <span className="text-muted-foreground/40 text-sm">—</span>;
+  const bal = "$" + b.balance.toLocaleString("en-US", { maximumFractionDigits: 0 });
+  let cls = "text-slate-500 bg-slate-100 border-slate-200", label = b.status as string;
+  if (b.kind === "estimate") {
+    cls = b.status === "approved" ? "text-emerald-600 bg-emerald-50 border-emerald-200" : "text-purple-600 bg-purple-50 border-purple-200";
+    label = "Est";
+  } else if (b.status === "paid") { cls = "text-emerald-600 bg-emerald-50 border-emerald-200"; label = "Paid"; }
+  else if (b.status === "overdue") { cls = "text-red-600 bg-red-50 border-red-200"; label = bal; }
+  else if (b.status === "partial") { cls = "text-amber-600 bg-amber-50 border-amber-200"; label = bal; }
+  else { cls = "text-blue-600 bg-blue-50 border-blue-200"; label = bal; }  // issued
+  return (
+    <Link href="/billing" title={`${b.code} · ${b.status}`}
+      className={cn("inline-flex items-center justify-center min-w-[42px] px-2 py-0.5 rounded-md border text-[11px] font-bold hover:opacity-80", cls)}>
+      {label}
+    </Link>
   );
 }
 
