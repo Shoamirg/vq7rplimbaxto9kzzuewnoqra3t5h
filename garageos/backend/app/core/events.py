@@ -172,6 +172,15 @@ class EstimateApproved(DomainEvent):
 
 
 @dataclass(kw_only=True)
+class EstimateRejected(DomainEvent):
+    service_center_id: UUID
+    invoice_id: UUID
+    code: str
+    customer_id: UUID
+    vehicle_id: UUID | None = None
+
+
+@dataclass(kw_only=True)
 class InvoiceIssued(DomainEvent):
     service_center_id: UUID
     invoice_id: UUID
