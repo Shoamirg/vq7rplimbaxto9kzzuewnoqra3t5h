@@ -7,6 +7,7 @@ import { cn } from "@garageos/design-system";
 import { clientFetch } from "@/lib/api/client";
 import type { BillingCounts, BillingKpis, BillingResponse, InvoiceDoc, InvoiceListItem } from "@/lib/api/types";
 import { DocumentView } from "./document-view";
+import { NewInvoiceModal } from "./new-invoice-modal";
 import { STATUS_META, VIEWS, money, relTime } from "./shared";
 
 // The Commercial workspace — rail (views) ↔ queue ↔ document, swapped by state.
@@ -17,6 +18,7 @@ export function BillingWorkspace() {
   const [kpis, setKpis] = useState<BillingKpis | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [doc, setDoc] = useState<InvoiceDoc | null>(null);
+  const [newKind, setNewKind] = useState<"estimate" | "invoice" | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -58,10 +60,18 @@ export function BillingWorkspace() {
           </div>
         )}
         <div className="ml-auto flex gap-2">
-          <button className="text-sm font-semibold px-3 py-1.5 rounded-lg border border-border text-slate-600 hover:bg-muted">＋ Estimate</button>
-          <button className="text-sm font-semibold px-3 py-1.5 rounded-lg bg-primary text-primary-foreground">＋ Invoice</button>
+          <button onClick={() => setNewKind("estimate")} className="text-sm font-semibold px-3 py-1.5 rounded-lg border border-border text-slate-600 hover:bg-muted">＋ Estimate</button>
+          <button onClick={() => setNewKind("invoice")} className="text-sm font-semibold px-3 py-1.5 rounded-lg bg-primary text-primary-foreground">＋ Invoice</button>
         </div>
       </div>
+
+      {newKind && (
+        <NewInvoiceModal
+          kind={newKind}
+          onClose={() => setNewKind(null)}
+          onCreated={(created) => { setActiveId(created.id); load(); }}
+        />
+      )}
 
       <div className="flex-1 flex overflow-hidden">
         {/* rail */}
