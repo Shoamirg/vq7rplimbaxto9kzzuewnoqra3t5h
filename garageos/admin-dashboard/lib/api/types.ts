@@ -30,6 +30,7 @@ export interface Appointment {
   service_type: string | null;
   estimated_duration_minutes: number;
   total_cost: number | null;
+  notes?: string | null;
   health_score?: number | null;
   health_band?: HealthBand | null;
   billing?: AppointmentBilling | null;

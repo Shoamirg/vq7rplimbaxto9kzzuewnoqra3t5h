@@ -51,17 +51,24 @@ export function NewAppointmentModal({
   onClose,
   onCreated,
   presetDate,
+  preset,
 }: {
   onClose: () => void;
   onCreated?: () => void;
   presetDate?: string;
+  preset?: { id: string; name: string; vehicleId?: string };
 }) {
   const { toast } = useToast();
+
+  // When opened from a customer/vehicle context, the customer is pre-selected.
+  const presetCustomer: CustomerListItem | null = preset
+    ? { id: preset.id, full_name: preset.name, phone: null, email: null, vehicle_count: 0, lifetime_value: 0, tier: "", last_visit: null }
+    : null;
 
   const [customers, setCustomers] = useState<CustomerListItem[]>([]);
   const [mechanics, setMechanics] = useState<CaseMechanic[]>([]);
   const [query, setQuery] = useState("");
-  const [customer, setCustomer] = useState<CustomerListItem | null>(null);
+  const [customer, setCustomer] = useState<CustomerListItem | null>(presetCustomer);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [vehicleId, setVehicleId] = useState("");
   const [date, setDate] = useState(presetDate || todayIso());
@@ -86,7 +93,8 @@ export function NewAppointmentModal({
       .then((c) => {
         const vs = c.vehicles.map((v) => ({ id: v.id, label: v.label }));
         setVehicles(vs);
-        setVehicleId(vs.length === 1 ? vs[0].id : "");
+        const wanted = preset?.vehicleId && vs.some((v) => v.id === preset.vehicleId) ? preset.vehicleId : "";
+        setVehicleId(wanted || (vs.length === 1 ? vs[0].id : ""));
       })
       .catch(() => setVehicles([]))
       .finally(() => setLoadingVehicles(false));

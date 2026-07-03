@@ -14,6 +14,7 @@ import {
 
 import { clientFetch } from "@/lib/api/client";
 import { NewAppointmentButton } from "@/components/appointments/new-appointment-modal";
+import { EditAppointmentModal } from "@/components/appointments/edit-appointment-modal";
 import type {
   Appointment, AppointmentListResponse, AppointmentStats, AppointmentStatus,
 } from "@/lib/api/types";
@@ -98,6 +99,7 @@ export function AppointmentsList() {
   const [data, setData] = useState<AppointmentListResponse | null>(null);
   const [stats, setStats] = useState<AppointmentStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<Appointment | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const loadStats = useCallback(() => {
@@ -252,7 +254,7 @@ export function AppointmentsList() {
         {!loading && rows.length > 0 && (
           <div className="divide-y divide-border">
             {rows.map((a) => (
-              <Row key={a.id} a={a} selected={selected.has(a.id)} onToggle={() => toggleOne(a.id)} onAct={act} router={router} />
+              <Row key={a.id} a={a} selected={selected.has(a.id)} onToggle={() => toggleOne(a.id)} onAct={act} onEdit={setEditing} router={router} />
             ))}
           </div>
         )}
@@ -268,17 +270,26 @@ export function AppointmentsList() {
           </div>
         </div>
       )}
+
+      {editing && (
+        <EditAppointmentModal
+          appointment={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => { setEditing(null); load(); loadStats(); }}
+        />
+      )}
     </div>
   );
 }
 
 function Row({
-  a, selected, onToggle, onAct, router,
+  a, selected, onToggle, onAct, onEdit, router,
 }: {
   a: Appointment;
   selected: boolean;
   onToggle: () => void;
   onAct: (id: string, action: "confirm" | "cancel") => void;
+  onEdit: (a: Appointment) => void;
   router: ReturnType<typeof useRouter>;
 }) {
   const date = new Date(a.appointment_date).toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -318,7 +329,7 @@ function Row({
       <span className="text-sm text-muted-foreground text-center tabular-nums">{fmtDuration(a.estimated_duration_minutes)}</span>
       <div className="flex items-center justify-end gap-2">
         <Badge variant={STATUS_BADGE[a.status]} size="sm" className="capitalize">{a.status.replace("_", " ")}</Badge>
-        <RowActions a={a} canConfirm={canConfirm} canCancel={canCancel} onAct={onAct} router={router} />
+        <RowActions a={a} canConfirm={canConfirm} canCancel={canCancel} onAct={onAct} onEdit={onEdit} router={router} />
       </div>
     </div>
   );
@@ -344,12 +355,13 @@ function BillingPill({ b, vid }: { b: import("@/lib/api/types").AppointmentBilli
 }
 
 function RowActions({
-  a, canConfirm, canCancel, onAct, router,
+  a, canConfirm, canCancel, onAct, onEdit, router,
 }: {
   a: Appointment;
   canConfirm: boolean;
   canCancel: boolean;
   onAct: (id: string, action: "confirm" | "cancel") => void;
+  onEdit: (a: Appointment) => void;
   router: ReturnType<typeof useRouter>;
 }) {
   return (
@@ -367,7 +379,7 @@ function RowActions({
         <DropdownMenuItem icon={<Wrench className="size-4" />} onClick={() => router.push(`/vehicles/${a.vehicle_id}`)}>Open Vehicle</DropdownMenuItem>
         <DropdownMenuItem icon={<QrCode className="size-4" />} onClick={() => window.open(`/passport/${a.vehicle_id}`, "_blank")}>Open Passport</DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem icon={<CalendarClock className="size-4" />} onClick={() => router.push("/calendar")}>Reschedule</DropdownMenuItem>
+        <DropdownMenuItem icon={<CalendarClock className="size-4" />} onClick={() => onEdit(a)}>Edit / reschedule</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

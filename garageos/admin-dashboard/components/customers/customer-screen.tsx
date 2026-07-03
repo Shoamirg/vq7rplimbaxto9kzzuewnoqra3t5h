@@ -13,6 +13,7 @@ import { Badge, Button, cn, useToast } from "@garageos/design-system";
 import { HealthGauge } from "@/components/vehicles/health-gauge";
 import { EmptyState } from "@/components/states/empty-state";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { NewAppointmentModal } from "@/components/appointments/new-appointment-modal";
 import { clientFetch } from "@/lib/api/client";
 import type { Customer360, HealthBand } from "@/lib/api/types";
 
@@ -47,6 +48,7 @@ const monogram = (name: string) => name.split(" ").filter(Boolean).slice(0, 2).m
 export function CustomerScreen({ customer }: { customer: Customer360 }) {
   const [tab, setTab] = useState<Tab>("Overview");
   const [del, setDel] = useState(false);
+  const [book, setBook] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
   const c = customer;
@@ -83,12 +85,21 @@ export function CustomerScreen({ customer }: { customer: Customer360 }) {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button size="sm" leftIcon={<CalendarClock className="size-4" />} onClick={() => setBook(true)}>Book</Button>
             {c.phone && <Button variant="outline" size="sm" leftIcon={<Phone className="size-4" />}>Call</Button>}
             {c.email && <Button variant="outline" size="sm" leftIcon={<Mail className="size-4" />}>Email</Button>}
             {c.has_telegram && <Button variant="outline" size="sm" leftIcon={<Send className="size-4" />}>Telegram</Button>}
             <Button variant="outline" size="sm" leftIcon={<Trash2 className="size-4" />} onClick={() => setDel(true)}>Delete</Button>
           </div>
         </div>
+
+        {book && (
+          <NewAppointmentModal
+            preset={{ id: customer.id, name: c.full_name }}
+            onClose={() => setBook(false)}
+            onCreated={() => { setBook(false); router.refresh(); }}
+          />
+        )}
 
         {del && (
           <ConfirmDialog
