@@ -10,6 +10,6 @@ export const metadata: Metadata = {
     "Scheduling, vehicle intelligence, operations, billing, and a customer app in Telegram — one platform for modern garages and multi-location groups.",
 };
 
-export default function RootPage() {
+export default function HomePage() {
   return <LandingPage />;
 }

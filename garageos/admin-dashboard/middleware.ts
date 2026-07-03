@@ -6,8 +6,8 @@ import { AUTH_COOKIE } from "@/lib/api/constants";
 // /passport/* is a shareable, public document — no auth required.
 // /mini/* is the customer Mini App: a separate principal with its own customer
 // token cookie, so it must bypass the staff auth gate entirely.
-// The marketing site (/, /privacy, /terms) and the public demo entry are public.
-const PUBLIC_PATHS = ["/login", "/passport", "/mini", "/privacy", "/terms", "/demo"];
+// The public marketing site + demo entry. "/" is handled as an exact match below.
+const PUBLIC_PATHS = ["/login", "/passport", "/mini", "/demo", "/pricing", "/security", "/docs", "/privacy", "/terms"];
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
