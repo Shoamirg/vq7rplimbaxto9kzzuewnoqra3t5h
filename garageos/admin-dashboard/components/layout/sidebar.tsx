@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Calendar,
@@ -24,6 +24,7 @@ import {
 import { cn } from "@garageos/design-system";
 
 import { useI18n } from "@/lib/i18n/context";
+import { NewAppointmentModal } from "@/components/appointments/new-appointment-modal";
 
 // ─── Navigation ───────────────────────────────────────────────
 // Grouped into labelled sections so the rail reads by intent, not as one long
@@ -98,8 +99,10 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
   const brandMono = branding?.monogram ?? "G";
   const brandTagline = branding?.tagline ?? t("brand.tagline");
   const pathname = usePathname();
+  const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [apptOpen, setApptOpen] = useState(false);
 
   const toggle = useCallback(() => setCollapsed((prev) => !prev), []);
 
@@ -160,12 +163,19 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
                 ? "justify-center h-10 w-10 mx-auto"
                 : "px-4 py-2.5 text-sm"
             )}
-            aria-label="Create new"
+            aria-label={t("action.new_appointment")}
+            onClick={() => setApptOpen(true)}
           >
             <Plus className="size-4 shrink-0" />
             {!collapsed && <span>{t("action.new_appointment")}</span>}
           </button>
         </div>
+        {apptOpen && (
+          <NewAppointmentModal
+            onClose={() => setApptOpen(false)}
+            onCreated={() => router.push("/appointments")}
+          />
+        )}
 
         {/* Main Navigation — grouped sections */}
         <nav className="flex-1 overflow-y-auto px-3 py-1 space-y-1">

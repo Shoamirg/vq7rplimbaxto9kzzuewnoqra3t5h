@@ -179,6 +179,56 @@ class AppointmentService:
         await self.uow.flush()
         return await self.get_appointment(appointment.id)
 
+    async def create_appointment_direct(
+        self,
+        *,
+        customer_id: uuid.UUID,
+        vehicle_id: uuid.UUID,
+        appointment_date,       # datetime.date
+        appointment_time: str,  # "HH:MM"
+        estimated_duration_minutes: int = 60,
+        mechanic_name: Optional[str] = None,
+        maintenance_rule_id: Optional[uuid.UUID] = None,
+        customer_notes: Optional[str] = None,
+    ) -> dict:
+        """Create an appointment at a given date/time without a pre-generated slot.
+
+        The staff-facing booking path. Ownership is enforced by the tenant-scoped
+        repos (a customer/vehicle from another tenant simply won't be found).
+        """
+        sc = self.uow.service_center_id
+        if not await self.customer_repo.get_by_id(customer_id):
+            raise CustomerNotFound()
+        if not await self.vehicle_repo.get_by_id(vehicle_id):
+            raise VehicleNotFound(vehicle_id)
+
+        hh, mm = int(appointment_time[:2]), int(appointment_time[3:])
+        appt_dt = datetime(
+            appointment_date.year, appointment_date.month, appointment_date.day,
+            hh, mm, tzinfo=timezone.utc,
+        )
+
+        appointment = await self.appointment_repo.create(
+            customer_id=customer_id,
+            vehicle_id=vehicle_id,
+            maintenance_rule_id=maintenance_rule_id,
+            mechanic_name=mechanic_name,
+            appointment_date=appt_dt,
+            appointment_time=appointment_time,
+            estimated_duration_minutes=estimated_duration_minutes,
+            status=AppointmentStatus.PENDING,
+            customer_notes=customer_notes,
+        )
+        self.uow.add_event(AppointmentCreated(
+            aggregate_id=appointment.id,
+            customer_id=customer_id,
+            vehicle_id=vehicle_id,
+            appointment_id=appointment.id,
+            service_center_id=sc,
+        ))
+        await self.uow.flush()
+        return await self.get_appointment(appointment.id)
+
     async def confirm_appointment(self, appointment_id: uuid.UUID) -> dict:
         appointment = await self.appointment_repo.get_by_id(appointment_id)
         if not appointment:

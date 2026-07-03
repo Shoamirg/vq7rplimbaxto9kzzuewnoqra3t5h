@@ -103,6 +103,22 @@ class AppointmentBookRequest(BaseModel):
     customer_notes: str | None = None
 
 
+class AppointmentDirectCreateRequest(BaseModel):
+    """Create an appointment directly at a date/time (no pre-generated slot).
+
+    This is the practical path for staff manually booking from the calendar: pick
+    a customer, vehicle, date/time, duration, and (optionally) a mechanic.
+    """
+    customer_id: UUID
+    vehicle_id: UUID
+    appointment_date: date
+    appointment_time: str = Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    estimated_duration_minutes: int = Field(default=60, ge=15, le=480)
+    mechanic_name: str | None = None
+    maintenance_rule_id: UUID | None = None
+    customer_notes: str | None = None
+
+
 class AppointmentCancelRequest(BaseModel):
     reason: str | None = None
 

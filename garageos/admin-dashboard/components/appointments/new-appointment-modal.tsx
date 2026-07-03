@@ -1,0 +1,230 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import { CalendarPlus, Loader2, Search, X } from "lucide-react";
+import { Button, useToast } from "@garageos/design-system";
+
+import { clientFetch, ClientApiError } from "@/lib/api/client";
+import type { CaseMechanic, Customer360, CustomerList, CustomerListItem } from "@/lib/api/types";
+
+const FIELD = "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
+const LABEL = "block text-xs font-semibold text-muted-foreground mb-1.5";
+const DURATIONS = [30, 60, 90, 120, 180];
+
+type Vehicle = { id: string; label: string };
+
+function todayIso(): string {
+  // Local date as YYYY-MM-DD without pulling in a date lib.
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// Self-contained trigger: a button that opens the modal and refreshes on create.
+export function NewAppointmentButton({
+  onCreated,
+  presetDate,
+  label = "New appointment",
+  size = "sm",
+  variant,
+  leftIcon,
+}: {
+  onCreated?: () => void;
+  presetDate?: string;
+  label?: string;
+  size?: "sm" | "md" | "lg";
+  variant?: "primary" | "secondary" | "outline" | "ghost";
+  leftIcon?: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button size={size} variant={variant} leftIcon={leftIcon ?? <CalendarPlus className="size-4" />} onClick={() => setOpen(true)}>
+        {label}
+      </Button>
+      {open ? <NewAppointmentModal onClose={() => setOpen(false)} onCreated={onCreated} presetDate={presetDate} /> : null}
+    </>
+  );
+}
+
+export function NewAppointmentModal({
+  onClose,
+  onCreated,
+  presetDate,
+}: {
+  onClose: () => void;
+  onCreated?: () => void;
+  presetDate?: string;
+}) {
+  const { toast } = useToast();
+
+  const [customers, setCustomers] = useState<CustomerListItem[]>([]);
+  const [mechanics, setMechanics] = useState<CaseMechanic[]>([]);
+  const [query, setQuery] = useState("");
+  const [customer, setCustomer] = useState<CustomerListItem | null>(null);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [vehicleId, setVehicleId] = useState("");
+  const [date, setDate] = useState(presetDate || todayIso());
+  const [time, setTime] = useState("09:00");
+  const [duration, setDuration] = useState(60);
+  const [mechanic, setMechanic] = useState("");
+  const [notes, setNotes] = useState("");
+  const [loadingVehicles, setLoadingVehicles] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Load pickers once.
+  useEffect(() => {
+    clientFetch<CustomerList>("/customers?limit=200").then((r) => setCustomers(r.items)).catch(() => {});
+    clientFetch<CaseMechanic[]>("/cases/mechanics").then(setMechanics).catch(() => {});
+  }, []);
+
+  // Load the chosen customer's vehicles.
+  useEffect(() => {
+    if (!customer) { setVehicles([]); setVehicleId(""); return; }
+    setLoadingVehicles(true);
+    clientFetch<Customer360>(`/customers/${customer.id}`)
+      .then((c) => {
+        const vs = c.vehicles.map((v) => ({ id: v.id, label: v.label }));
+        setVehicles(vs);
+        setVehicleId(vs.length === 1 ? vs[0].id : "");
+      })
+      .catch(() => setVehicles([]))
+      .finally(() => setLoadingVehicles(false));
+  }, [customer]);
+
+  const matches = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return customers.slice(0, 8);
+    return customers.filter((c) =>
+      c.full_name.toLowerCase().includes(q) || (c.phone ?? "").includes(q) || (c.email ?? "").toLowerCase().includes(q),
+    ).slice(0, 8);
+  }, [query, customers]);
+
+  const canSave = Boolean(customer && vehicleId && date && time) && !saving;
+
+  async function save() {
+    if (!customer || !vehicleId) return;
+    setSaving(true);
+    try {
+      await clientFetch("/appointments/direct", {
+        method: "POST",
+        body: JSON.stringify({
+          customer_id: customer.id,
+          vehicle_id: vehicleId,
+          appointment_date: date,
+          appointment_time: time,
+          estimated_duration_minutes: duration,
+          mechanic_name: mechanic || null,
+          customer_notes: notes.trim() || null,
+        }),
+      });
+      toast({ title: "Appointment booked", description: `${customer.full_name} · ${date} ${time}`, variant: "success" });
+      onCreated?.();
+      onClose();
+    } catch (err) {
+      // A read-only demo session already shows its own toast; avoid a duplicate.
+      if (!(err instanceof ClientApiError && err.status === 403)) {
+        toast({ title: "Could not book appointment", description: "Please check the details and try again.", variant: "danger" });
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px]" onClick={onClose} />
+      <div role="dialog" aria-modal="true" aria-label="New appointment"
+        className="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <h2 className="flex items-center gap-2 text-base font-bold"><CalendarPlus className="size-4 text-primary" /> New appointment</h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors" aria-label="Close"><X className="size-4" /></button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* Customer */}
+          <div>
+            <label className={LABEL} htmlFor="appt-customer">Customer</label>
+            {customer ? (
+              <div className="flex items-center justify-between rounded-lg border border-primary/40 bg-primary/5 px-3 py-2">
+                <span className="text-sm font-medium">{customer.full_name}</span>
+                <button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => { setCustomer(null); setQuery(""); }}>Change</button>
+              </div>
+            ) : (
+              <>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                  <input id="appt-customer" className={`${FIELD} pl-9`} placeholder="Search customers…" value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
+                </div>
+                {matches.length > 0 && (
+                  <div className="mt-1.5 max-h-44 overflow-y-auto rounded-lg border border-border divide-y divide-border">
+                    {matches.map((c) => (
+                      <button key={c.id} onClick={() => setCustomer(c)} className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors">
+                        <span className="font-medium">{c.full_name}</span>
+                        {c.phone ? <span className="text-muted-foreground"> · {c.phone}</span> : null}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Vehicle */}
+          <div>
+            <label className={LABEL} htmlFor="appt-vehicle">Vehicle</label>
+            <select id="appt-vehicle" className={FIELD} value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} disabled={!customer || loadingVehicles}>
+              <option value="">{!customer ? "Pick a customer first" : loadingVehicles ? "Loading…" : vehicles.length ? "Select a vehicle" : "No vehicles on file"}</option>
+              {vehicles.map((v) => (<option key={v.id} value={v.id}>{v.label}</option>))}
+            </select>
+          </div>
+
+          {/* Date / time */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={LABEL} htmlFor="appt-date">Date</label>
+              <input id="appt-date" type="date" className={FIELD} value={date} onChange={(e) => setDate(e.target.value)} />
+            </div>
+            <div>
+              <label className={LABEL} htmlFor="appt-time">Time</label>
+              <input id="appt-time" type="time" className={FIELD} value={time} onChange={(e) => setTime(e.target.value)} />
+            </div>
+          </div>
+
+          {/* Duration / mechanic */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={LABEL} htmlFor="appt-duration">Duration</label>
+              <select id="appt-duration" className={FIELD} value={duration} onChange={(e) => setDuration(Number(e.target.value))}>
+                {DURATIONS.map((d) => (<option key={d} value={d}>{d} min</option>))}
+              </select>
+            </div>
+            <div>
+              <label className={LABEL} htmlFor="appt-mechanic">Mechanic</label>
+              <select id="appt-mechanic" className={FIELD} value={mechanic} onChange={(e) => setMechanic(e.target.value)}>
+                <option value="">Unassigned</option>
+                {mechanics.map((m) => (<option key={m.id} value={m.name}>{m.name}</option>))}
+              </select>
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className={LABEL} htmlFor="appt-notes">Service / notes <span className="font-normal text-muted-foreground">(optional)</span></label>
+            <textarea id="appt-notes" className={`${FIELD} resize-none`} rows={2} placeholder="e.g. Oil change and brake inspection" value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
+          <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
+          <Button size="sm" disabled={!canSave} onClick={save} leftIcon={saving ? <Loader2 className="size-4 animate-spin" /> : <CalendarPlus className="size-4" />}>
+            {saving ? "Booking…" : "Book appointment"}
+          </Button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}

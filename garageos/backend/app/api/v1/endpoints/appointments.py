@@ -20,6 +20,7 @@ from app.schemas.appointment import (
     AppointmentBookRequest,
     AppointmentCancelRequest,
     AppointmentCompleteRequest,
+    AppointmentDirectCreateRequest,
     AppointmentStats,
     AppointmentUpdate,
     AssignMechanicRequest,
@@ -119,6 +120,23 @@ async def book_appointment(
         raise
     await idempotency_store.store(key, result["id"])
     return result
+
+
+@router.post("/direct", status_code=status.HTTP_201_CREATED, summary="Create an appointment at a date/time (no slot)")
+async def create_appointment_direct(
+    body: AppointmentDirectCreateRequest,
+    uow: UnitOfWork = Depends(get_tenant_uow),
+) -> dict:
+    return await AppointmentService(uow).create_appointment_direct(
+        customer_id=body.customer_id,
+        vehicle_id=body.vehicle_id,
+        appointment_date=body.appointment_date,
+        appointment_time=body.appointment_time,
+        estimated_duration_minutes=body.estimated_duration_minutes,
+        mechanic_name=body.mechanic_name,
+        maintenance_rule_id=body.maintenance_rule_id,
+        customer_notes=body.customer_notes,
+    )
 
 
 @router.patch("/{appointment_id}/confirm", summary="Confirm a pending appointment")

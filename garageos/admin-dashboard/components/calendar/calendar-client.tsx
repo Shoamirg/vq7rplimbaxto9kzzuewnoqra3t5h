@@ -22,6 +22,7 @@ import {
 import { Badge, Button, cn, useToast } from "@garageos/design-system";
 
 import { clientFetch } from "@/lib/api/client";
+import { NewAppointmentButton } from "@/components/appointments/new-appointment-modal";
 import { EmptyState } from "@/components/states/empty-state";
 import type { Appointment, CalendarPayload, DueServices, VehicleHealth } from "@/lib/api/types";
 import { HealthGauge } from "@/components/vehicles/health-gauge";
@@ -362,7 +363,7 @@ export function CalendarClient({ initial, initialDate }: Props) {
             <button onClick={() => setDate(addDays(date, -1))} className="p-2 rounded-lg hover:bg-muted transition-colors" aria-label="Previous day"><ChevronLeft className="size-4" /></button>
             <button onClick={() => setDate(addDays(date, 1))} className="p-2 rounded-lg hover:bg-muted transition-colors" aria-label="Next day"><ChevronRight className="size-4" /></button>
           </div>
-          <Button size="sm" leftIcon={<Plus className="size-4" />}>Book</Button>
+          <NewAppointmentButton label="Book" presetDate={date} leftIcon={<Plus className="size-4" />} onCreated={() => load(date)} />
         </div>
       </div>
 

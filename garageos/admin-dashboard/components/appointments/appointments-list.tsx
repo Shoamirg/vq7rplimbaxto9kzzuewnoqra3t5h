@@ -13,6 +13,7 @@ import {
 } from "@garageos/design-system";
 
 import { clientFetch } from "@/lib/api/client";
+import { NewAppointmentButton } from "@/components/appointments/new-appointment-modal";
 import type {
   Appointment, AppointmentListResponse, AppointmentStats, AppointmentStatus,
 } from "@/lib/api/types";
@@ -166,7 +167,7 @@ export function AppointmentsList() {
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Appointments</h1>
           <p className="text-sm text-muted-foreground mt-1">Your operational queue — filter, action, and jump into any record.</p>
         </div>
-        <Link href="/calendar"><Button size="sm" leftIcon={<CalendarPlus className="size-4" />}>New Appointment</Button></Link>
+        <NewAppointmentButton label="New Appointment" onCreated={() => { load(); loadStats(); }} />
       </div>
 
       {/* KPI strip */}
