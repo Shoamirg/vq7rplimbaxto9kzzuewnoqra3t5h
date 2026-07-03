@@ -9,6 +9,7 @@ import { useOnline } from "@/lib/mini/hooks";
 import { useI18n } from "@/lib/i18n/context";
 import { LOCALE_COOKIE } from "@/lib/i18n/dictionaries";
 import { TabBar } from "@/components/mini/tab-bar";
+import { LogoMark, LogoTile } from "@/components/brand/logo";
 
 function hasLocaleCookie(): boolean {
   if (typeof document === "undefined") return false;
@@ -40,8 +41,15 @@ export function MiniShell({ children }: { children: React.ReactNode }) {
 
   if (state === "loading") {
     return (
-      <div className="grid min-h-[100dvh] place-items-center bg-slate-50 text-slate-400" dir={dir}>
-        <Loader2 className="size-7 animate-spin" />
+      <div className="grid min-h-[100dvh] place-items-center bg-slate-950" dir={dir}>
+        <div className="flex flex-col items-center gap-4">
+          <LogoTile size={84} />
+          <div className="text-center">
+            <p className="font-brand text-xl font-extrabold tracking-tight text-white">GarageOS</p>
+            <p className="mt-0.5 text-[11px] uppercase tracking-[0.18em] text-slate-500">Vehicle Intelligence</p>
+          </div>
+          <Loader2 className="mt-1 size-5 animate-spin text-slate-600" />
+        </div>
       </div>
     );
   }
@@ -50,6 +58,7 @@ export function MiniShell({ children }: { children: React.ReactNode }) {
     return (
       <div className="grid min-h-[100dvh] place-items-center bg-slate-50 px-8" dir={dir}>
         <div className="max-w-xs text-center">
+          <LogoMark size={40} className="mx-auto mb-3" />
           <AlertCircle className="mx-auto size-9 text-slate-300" />
           <h1 className="mt-3 text-lg font-semibold text-slate-800">{t("mini.signin_failed")}</h1>
           <p className="mt-1 text-sm text-slate-500">{t("mini.signin_hint")}</p>

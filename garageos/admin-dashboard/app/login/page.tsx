@@ -2,8 +2,9 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Wrench, LogIn } from "lucide-react";
+import { LogIn } from "lucide-react";
 import { Button } from "@garageos/design-system";
+import { Logo } from "@/components/brand/logo";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -39,11 +40,9 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen grid place-items-center bg-gradient-to-br from-primary/5 via-background to-background p-4">
       <div className="w-full max-w-sm">
-        <div className="flex items-center gap-2 mb-6 justify-center">
-          <div className="p-2 rounded-xl bg-primary/10 text-primary">
-            <Wrench className="size-6" />
-          </div>
-          <span className="text-xl font-bold tracking-tight text-foreground">GarageOS</span>
+        <div className="mb-6 flex flex-col items-center gap-1.5">
+          <Logo size={26} theme="light" />
+          <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Vehicle Intelligence</p>
         </div>
 
         <div className="rounded-2xl border border-border bg-card shadow-lg p-6 space-y-5">
