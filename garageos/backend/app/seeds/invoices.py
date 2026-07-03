@@ -12,7 +12,8 @@ from decimal import ROUND_HALF_UP, Decimal
 
 from sqlalchemy import select
 
-from app.models import Appointment, Invoice, InvoiceLineItem, Notification, Payment, ServiceCenter
+from app.models import Appointment, Invoice, InvoiceLineItem, LedgerEntry, Notification, Payment, ServiceCenter
+from app.models.ledger import LedgerDirection, LedgerEntryType
 from app.models.invoice import (
     InvoiceKind,
     InvoiceStatus,
@@ -139,11 +140,23 @@ async def generate_invoices(session, center: ServiceCenter, vehicles) -> int:
                 description=it["description"], quantity=_m(it["quantity"]),
                 unit_price=_m(it["unit_price"]), line_total=it["line_total"],
                 taxable=it["taxable"], sort_order=order))
+        # Ledger stream — invoice issued (debit) + each payment (credit) — so
+        # Reports/exports project over a complete money-movement history.
+        if kind == InvoiceKind.INVOICE:
+            session.add(LedgerEntry(
+                service_center_id=center.id, customer_id=cust_id, invoice_id=inv.id,
+                entry_type=LedgerEntryType.INVOICE_ISSUED, direction=LedgerDirection.DEBIT,
+                amount=total, description=f"Invoice issued · {code}", occurred_at=base_dt))
         for order, (method, src, pkind, amt) in enumerate(pays):
+            pay_amt = _m(amt) if amt is not None else total
             session.add(Payment(
                 service_center_id=center.id, invoice_id=inv.id, kind=pkind, method=method,
-                source=src, amount=(_m(amt) if amt is not None else total),
+                source=src, amount=pay_amt,
                 reference=f"REF-{code[-4:]}-{order}", received_at=base_dt))
+            session.add(LedgerEntry(
+                service_center_id=center.id, customer_id=cust_id, invoice_id=inv.id,
+                entry_type=LedgerEntryType.PAYMENT_RECEIVED, direction=LedgerDirection.CREDIT,
+                amount=pay_amt, description=f"{pkind.title()} · {method} · {code}", occurred_at=base_dt))
 
         # Financial timeline (invoice-linked notifications), read-back on the doc.
         def _n(t, body, when, sev="info"):
