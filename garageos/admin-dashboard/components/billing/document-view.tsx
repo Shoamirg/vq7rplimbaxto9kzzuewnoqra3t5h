@@ -10,13 +10,14 @@ import { LINE_ICON, METHOD_ICON, STATUS_META, fmtDate, money } from "./shared";
 const ABTN = "text-[12.5px] font-bold px-3.5 py-2 rounded-lg border border-border bg-card text-slate-600 inline-flex items-center gap-1.5 hover:bg-muted transition-colors";
 
 export function DocumentView({
-  doc, onStatus, onSend, onConvert, onRecordPayment,
+  doc, onStatus, onSend, onConvert, onRecordPayment, onDelete,
 }: {
   doc: InvoiceDoc;
   onStatus: (s: string) => void;
   onSend: () => void;
   onConvert: () => void;
   onRecordPayment: (amount: number, method: string) => void;
+  onDelete: () => void;
 }) {
   const isEstimate = doc.kind === "estimate";
   const accent = isEstimate ? "blue" : "emerald";
@@ -49,6 +50,7 @@ export function DocumentView({
         )}
         <div className="flex-1" />
         <button className={ABTN}>🖨 PDF</button>
+        <button onClick={onDelete} className={cn(ABTN, "hover:text-red-600 hover:border-red-200")} aria-label={`Delete ${doc.kind}`}>🗑 Delete</button>
       </div>
 
       {/* the document */}

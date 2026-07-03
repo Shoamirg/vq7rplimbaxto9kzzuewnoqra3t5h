@@ -68,6 +68,12 @@ async def create_document(body: InvoiceCreate, uow: UnitOfWork = Depends(get_ten
     return await InvoiceService(uow).create(**payload)
 
 
+@router.delete("/{invoice_id}", summary="Delete (archive) an estimate or unpaid invoice")
+async def delete_document(invoice_id: uuid.UUID, uow: UnitOfWork = Depends(get_tenant_uow)) -> dict:
+    await InvoiceService(uow).delete(invoice_id)
+    return {"ok": True}
+
+
 @router.post("/{invoice_id}/payments", status_code=status.HTTP_201_CREATED, summary="Record a payment / refund")
 async def record_payment(invoice_id: uuid.UUID, body: PaymentIn, uow: UnitOfWork = Depends(get_tenant_uow)) -> dict:
     return await InvoiceService(uow).record_payment(invoice_id, **body.model_dump())

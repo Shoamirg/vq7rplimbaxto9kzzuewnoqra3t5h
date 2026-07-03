@@ -23,7 +23,7 @@ from app.core.events import (
     InvoicePaid,
     PaymentReceived,
 )
-from app.exceptions import NotFoundError
+from app.exceptions import ConflictError, NotFoundError
 from app.models.customer import Customer
 from app.models.invoice import (
     Invoice,
@@ -57,6 +57,11 @@ class InvoiceNotFound(NotFoundError):
         super().__init__("Invoice not found")
 
 
+class InvoiceHasPayments(ConflictError):
+    detail = "Cannot delete a document with recorded payments. Void it instead."
+    code = "INVOICE_HAS_PAYMENTS"
+
+
 class InvoiceService:
     def __init__(self, uow: UnitOfWork):
         self.uow = uow
@@ -81,6 +86,15 @@ class InvoiceService:
         if not inv:
             raise InvoiceNotFound()
         return inv
+
+    async def delete(self, invoice_id: uuid.UUID) -> None:
+        """Soft-delete an estimate or invoice. A document with recorded payments
+        cannot be deleted (protects the ledger) — void it instead."""
+        inv = await self._get(invoice_id)
+        if _money(inv.amount_paid) > 0:
+            raise InvoiceHasPayments()
+        inv.is_active = False
+        await self.uow.flush()
 
     # ── money ─────────────────────────────────────────────────
     def _recalc(self, inv: Invoice, items: list[InvoiceLineItem]) -> None:

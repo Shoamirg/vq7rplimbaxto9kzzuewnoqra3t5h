@@ -118,6 +118,13 @@ class VehicleHealthService:
         self.appointment_repo = AppointmentRepository(uow.session, sc)
         self.maintenance = MaintenanceService(uow.session, sc)
 
+    async def delete_vehicle(self, vehicle_id: uuid.UUID) -> None:
+        """Soft-delete (archive) a vehicle. Tenant-scoped."""
+        ok = await self.vehicle_repo.delete(vehicle_id)
+        if not ok:
+            raise VehicleNotFound(vehicle_id)
+        await self.uow.flush()
+
     async def list_vehicles(self, limit: int = 200) -> dict:
         """Lightweight vehicle list for navigation (no per-vehicle health calc)."""
         vehicles = await self.vehicle_repo.list_active(limit=limit)

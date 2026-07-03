@@ -55,3 +55,12 @@ async def vehicle_intelligence(
     uow: UnitOfWork = Depends(get_tenant_uow),
 ) -> dict:
     return await VehicleIntelligenceService(uow).get(vehicle_id)
+
+
+@router.delete("/{vehicle_id}", summary="Delete (archive) a vehicle")
+async def delete_vehicle(
+    vehicle_id: uuid.UUID,
+    uow: UnitOfWork = Depends(get_tenant_uow),
+) -> dict:
+    await VehicleHealthService(uow).delete_vehicle(vehicle_id)
+    return {"ok": True}

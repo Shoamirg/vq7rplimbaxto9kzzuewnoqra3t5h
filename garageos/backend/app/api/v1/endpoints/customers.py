@@ -31,3 +31,12 @@ async def customer_360(
     uow: UnitOfWork = Depends(get_tenant_uow),
 ) -> dict:
     return await CustomerService(uow).get_360(customer_id)
+
+
+@router.delete("/{customer_id}", summary="Delete (archive) a customer")
+async def delete_customer(
+    customer_id: uuid.UUID,
+    uow: UnitOfWork = Depends(get_tenant_uow),
+) -> dict:
+    await CustomerService(uow).delete_customer(customer_id)
+    return {"ok": True}

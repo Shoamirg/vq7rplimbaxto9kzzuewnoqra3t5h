@@ -18,9 +18,15 @@ import {
   ShieldCheck,
   Sparkles,
   Star,
+  Trash2,
   Wrench,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useToast } from "@garageos/design-system";
 
+import { NewAppointmentModal } from "@/components/appointments/new-appointment-modal";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { clientFetch } from "@/lib/api/client";
 import type { VehicleIntelligence } from "@/lib/api/types";
 
 const BAND_COLOR: Record<string, string> = {
@@ -134,6 +140,10 @@ export function VehicleIntelligenceCenter({ data }: { data: VehicleIntelligence 
   const { identity: v, health, passport, commercial, predictions, maintenance, timeline, owner_context: owner } = data;
   const [tab, setTab] = useState<Tab>("overview");
   const [active, setActive] = useState<{ name: string; score: number } | null>(null);
+  const [del, setDel] = useState(false);
+  const [book, setBook] = useState(false);
+  const router = useRouter();
+  const { toast } = useToast();
   const tier = passport.tier;
 
   return (
@@ -150,11 +160,34 @@ export function VehicleIntelligenceCenter({ data }: { data: VehicleIntelligence 
             className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 px-4 py-2 text-sm font-bold text-amber-950 transition hover:brightness-105">
             <Star className="size-4" /> View Passport
           </Link>
-          <button className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white transition hover:bg-slate-800">
+          <button onClick={() => setBook(true)} className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white transition hover:bg-slate-800">
             <CalendarClock className="size-4" /> Book service
+          </button>
+          <button onClick={() => setDel(true)} className="inline-flex items-center gap-1.5 rounded-xl border border-border px-4 py-2 text-sm font-bold text-muted-foreground transition hover:text-red-600 hover:border-red-200">
+            <Trash2 className="size-4" /> Delete
           </button>
         </div>
       </div>
+
+      {book && <NewAppointmentModal onClose={() => setBook(false)} onCreated={() => setBook(false)} />}
+      {del && (
+        <ConfirmDialog
+          title="Delete this vehicle?"
+          message={`${v.brand} ${v.model} will be archived and removed from your lists. Its owner and history stay in the system.`}
+          confirmLabel="Delete vehicle"
+          onClose={() => setDel(false)}
+          onConfirm={async () => {
+            try {
+              await clientFetch(`/vehicles/${v.id}`, { method: "DELETE" });
+              toast({ title: "Vehicle deleted", description: `${v.brand} ${v.model}`, variant: "success" });
+              router.push("/vehicles");
+            } catch {
+              setDel(false);
+              toast({ title: "Delete failed", description: "Please try again.", variant: "danger" });
+            }
+          }}
+        />
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 rounded-2xl bg-muted p-1 text-sm font-semibold sm:w-fit">

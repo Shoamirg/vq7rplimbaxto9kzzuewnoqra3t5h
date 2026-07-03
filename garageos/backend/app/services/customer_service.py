@@ -48,6 +48,14 @@ class CustomerService:
         self.service_record_repo = ServiceRecordRepository(uow.session, sc)
         self.maintenance = MaintenanceService(uow.session, sc)
 
+    async def delete_customer(self, customer_id: uuid.UUID) -> None:
+        """Soft-delete (archive) a customer — hidden from lists, recoverable in DB.
+        Tenant-scoped: another tenant's id is simply not found."""
+        ok = await self.customer_repo.delete(customer_id)
+        if not ok:
+            raise CustomerNotFound()
+        await self.uow.flush()
+
     async def create_customer(
         self,
         service_center_id: uuid.UUID,

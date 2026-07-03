@@ -2,15 +2,18 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Phone, Mail, Send, Car, Clock, DollarSign, CalendarClock, ShieldAlert,
   QrCode, Wrench, Sparkles, Star, MapPin, MessageSquare, FileText, StickyNote,
-  Gauge, ArrowRight, Receipt,
+  Gauge, ArrowRight, Receipt, Trash2,
 } from "lucide-react";
-import { Badge, Button, cn } from "@garageos/design-system";
+import { Badge, Button, cn, useToast } from "@garageos/design-system";
 
 import { HealthGauge } from "@/components/vehicles/health-gauge";
 import { EmptyState } from "@/components/states/empty-state";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { clientFetch } from "@/lib/api/client";
 import type { Customer360, HealthBand } from "@/lib/api/types";
 
 const BAND_TEXT: Record<HealthBand, string> = {
@@ -43,6 +46,9 @@ const monogram = (name: string) => name.split(" ").filter(Boolean).slice(0, 2).m
 
 export function CustomerScreen({ customer }: { customer: Customer360 }) {
   const [tab, setTab] = useState<Tab>("Overview");
+  const [del, setDel] = useState(false);
+  const router = useRouter();
+  const { toast } = useToast();
   const c = customer;
   const since = c.since ? new Date(c.since).getFullYear() : null;
 
@@ -80,8 +86,28 @@ export function CustomerScreen({ customer }: { customer: Customer360 }) {
             {c.phone && <Button variant="outline" size="sm" leftIcon={<Phone className="size-4" />}>Call</Button>}
             {c.email && <Button variant="outline" size="sm" leftIcon={<Mail className="size-4" />}>Email</Button>}
             {c.has_telegram && <Button variant="outline" size="sm" leftIcon={<Send className="size-4" />}>Telegram</Button>}
+            <Button variant="outline" size="sm" leftIcon={<Trash2 className="size-4" />} onClick={() => setDel(true)}>Delete</Button>
           </div>
         </div>
+
+        {del && (
+          <ConfirmDialog
+            title="Delete this customer?"
+            message={`${c.full_name} will be archived and removed from your lists. Their vehicles and history stay in the system.`}
+            confirmLabel="Delete customer"
+            onClose={() => setDel(false)}
+            onConfirm={async () => {
+              try {
+                await clientFetch(`/customers/${customer.id}`, { method: "DELETE" });
+                toast({ title: "Customer deleted", description: c.full_name, variant: "success" });
+                router.push("/customers");
+              } catch {
+                setDel(false);
+                toast({ title: "Delete failed", description: "Please try again.", variant: "danger" });
+              }
+            }}
+          />
+        )}
 
         {/* Stat strip — business signals up front */}
         <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">

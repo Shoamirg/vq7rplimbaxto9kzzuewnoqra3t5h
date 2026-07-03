@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { FileText } from "lucide-react";
-import { cn } from "@garageos/design-system";
+import { cn, useToast } from "@garageos/design-system";
 
-import { clientFetch } from "@/lib/api/client";
+import { clientFetch, ClientApiError } from "@/lib/api/client";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { BillingCounts, BillingKpis, BillingResponse, InvoiceDoc, InvoiceListItem } from "@/lib/api/types";
 import { DocumentView } from "./document-view";
 import { NewInvoiceModal } from "./new-invoice-modal";
@@ -19,6 +20,8 @@ export function BillingWorkspace() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [doc, setDoc] = useState<InvoiceDoc | null>(null);
   const [newKind, setNewKind] = useState<"estimate" | "invoice" | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const { toast } = useToast();
 
   const load = useCallback(async () => {
     try {
@@ -70,6 +73,32 @@ export function BillingWorkspace() {
           kind={newKind}
           onClose={() => setNewKind(null)}
           onCreated={(created) => { setActiveId(created.id); load(); }}
+        />
+      )}
+
+      {confirmDelete && doc && (
+        <ConfirmDialog
+          title={`Delete this ${doc.kind}?`}
+          message={`${doc.code} will be archived and removed from your billing lists. This can't be undone from here.`}
+          confirmLabel={`Delete ${doc.kind}`}
+          onClose={() => setConfirmDelete(false)}
+          onConfirm={async () => {
+            try {
+              await clientFetch(`/invoices/${doc.id}`, { method: "DELETE" });
+              toast({ title: `${doc.kind === "estimate" ? "Estimate" : "Invoice"} deleted`, description: doc.code, variant: "success" });
+              setConfirmDelete(false);
+              setActiveId(null); setDoc(null);
+              load();
+            } catch (err) {
+              setConfirmDelete(false);
+              const paid = err instanceof ClientApiError && err.status === 409;
+              toast({
+                title: paid ? "Can't delete a paid document" : "Delete failed",
+                description: paid ? "This invoice has recorded payments. Void it instead." : "Please try again.",
+                variant: "danger",
+              });
+            }
+          }}
         />
       )}
 
@@ -132,6 +161,7 @@ export function BillingWorkspace() {
             onSend={() => act(() => clientFetch<InvoiceDoc>(`/invoices/${doc.id}/send`, { method: "POST", body: JSON.stringify({}) }))}
             onConvert={() => act(() => clientFetch<InvoiceDoc>(`/invoices/${doc.id}/convert`, { method: "POST", body: JSON.stringify({}) }))}
             onRecordPayment={(amount, method) => act(() => clientFetch<InvoiceDoc>(`/invoices/${doc.id}/payments`, { method: "POST", body: JSON.stringify({ amount, method }) }))}
+            onDelete={() => setConfirmDelete(true)}
           />
         ) : (
           <div className="flex-1 grid place-items-center text-muted-foreground text-sm">Select a document.</div>
