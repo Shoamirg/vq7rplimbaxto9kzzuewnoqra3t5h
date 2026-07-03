@@ -44,6 +44,7 @@ import Link from "next/link";
 
 import type { Appointment, AppointmentStats, FleetHealth, HealthBand } from "@/lib/api/types";
 import { HealthGauge } from "@/components/vehicles/health-gauge";
+import { useI18n } from "@/lib/i18n/context";
 
 type Props = {
   userName: string;
@@ -58,10 +59,6 @@ const FLEET_BAND_TEXT: Record<HealthBand, string> = {
   fair: "text-amber-600 dark:text-amber-400",
   poor: "text-red-600 dark:text-red-400",
 };
-const FLEET_BAND_LABEL: Record<HealthBand, string> = {
-  excellent: "Excellent", good: "Good", fair: "Fair", poor: "Poor",
-};
-
 function FleetBar({ label, count, total, color }: { label: string; count: number; total: number; color: string }) {
   const pct = total ? Math.round((count / total) * 100) : 0;
   return (
@@ -87,13 +84,13 @@ const weeklyRevenue = [
   { day: "Sun", revenue: 1800 },
 ];
 
-const STATUS_MAP: Record<string, { label: string; variant: string }> = {
-  pending: { label: "Pending", variant: "warning" },
-  confirmed: { label: "Confirmed", variant: "info" },
-  in_progress: { label: "In Progress", variant: "primary" },
-  completed: { label: "Completed", variant: "success" },
-  cancelled: { label: "Cancelled", variant: "danger" },
-  rescheduled: { label: "Rescheduled", variant: "neutral" },
+const STATUS_VARIANT: Record<string, string> = {
+  pending: "warning",
+  confirmed: "info",
+  in_progress: "primary",
+  completed: "success",
+  cancelled: "danger",
+  rescheduled: "neutral",
 };
 
 function initials(name: string | null): string {
@@ -102,12 +99,14 @@ function initials(name: string | null): string {
 }
 
 function DemoBadge() {
-  return <Badge variant="neutral" size="sm">Demo</Badge>;
+  const { t } = useI18n();
+  return <Badge variant="neutral" size="sm">{t("common.demo")}</Badge>;
 }
 
 function AppointmentStatusBadge({ status }: { status: string }) {
-  const s = STATUS_MAP[status] ?? { label: status, variant: "neutral" };
-  return <Badge variant={s.variant as never} size="sm" dot>{s.label}</Badge>;
+  const { t } = useI18n();
+  const variant = STATUS_VARIANT[status] ?? "neutral";
+  return <Badge variant={variant as never} size="sm" dot>{t(`status.${status}`)}</Badge>;
 }
 
 function StatCard({
@@ -143,7 +142,9 @@ function StatCard({
 
 export function DashboardClient({ userName, stats, today, fleet }: Props) {
   const router = useRouter();
+  const { t, fmt } = useI18n();
   const activeCount = stats.pending_count + stats.confirmed_count;
+  const chartData = weeklyRevenue.map((d) => ({ ...d, label: t(`day.${d.day.toLowerCase()}`) }));
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -156,25 +157,23 @@ export function DashboardClient({ userName, stats, today, fleet }: Props) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Welcome back, {userName}. Here&apos;s what&apos;s happening at your garage today.
-          </p>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">{t("nav.dashboard")}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t("dash.welcome", { name: userName })}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" leftIcon={<FileText className="size-4" />}>Export</Button>
+          <Button variant="outline" size="sm" leftIcon={<FileText className="size-4" />}>{t("common.export")}</Button>
           <Button variant="ghost" size="sm" leftIcon={<LogOut className="size-4" />} onClick={handleLogout}>
-            Sign out
+            {t("common.signout")}
           </Button>
         </div>
       </div>
 
       {/* Stat Cards — live from /appointments/stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Active Appointments" value={activeCount} subtitle="pending + confirmed" icon={Calendar} color="bg-primary/10 text-primary" />
-        <StatCard title="Today" value={stats.today_count} subtitle="scheduled today" icon={Clock} color="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" />
-        <StatCard title="Completed" value={stats.completed_count} subtitle="all time" icon={CheckCircle2} color="bg-success/10 text-success" />
-        <StatCard title="Cancelled" value={stats.cancelled_count} subtitle="all time" icon={XCircle} color="bg-danger/10 text-danger" />
+        <StatCard title={t("dash.stat.active")} value={activeCount} subtitle={t("dash.stat.active_sub")} icon={Calendar} color="bg-primary/10 text-primary" />
+        <StatCard title={t("dash.stat.today")} value={stats.today_count} subtitle={t("dash.stat.today_sub")} icon={Clock} color="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" />
+        <StatCard title={t("dash.stat.completed")} value={stats.completed_count} subtitle={t("dash.stat.completed_sub")} icon={CheckCircle2} color="bg-success/10 text-success" />
+        <StatCard title={t("dash.stat.cancelled")} value={stats.cancelled_count} subtitle={t("dash.stat.cancelled_sub")} icon={XCircle} color="bg-danger/10 text-danger" />
       </div>
 
       {/* Fleet Health (demo) + Weekly Revenue (demo) */}
@@ -182,27 +181,27 @@ export function DashboardClient({ userName, stats, today, fleet }: Props) {
         <Card variant="elevated" className="lg:col-span-1 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent" />
           <CardHeader>
-            <CardTitle>Fleet Health</CardTitle>
-            <CardDescription>Average across {fleet.evaluated_count} vehicles</CardDescription>
+            <CardTitle>{t("dash.fleet.title")}</CardTitle>
+            <CardDescription>{t("dash.fleet.avg", { count: fleet.evaluated_count })}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col items-center py-2">
               <HealthGauge score={fleet.average_score} band={fleet.band} size={148} />
               <p className={cn("mt-2 text-sm font-semibold", FLEET_BAND_TEXT[fleet.band])}>
-                {FLEET_BAND_LABEL[fleet.band]}
+                {t(`band.${fleet.band}`)}
               </p>
               <div className="w-full mt-4 space-y-2">
-                <FleetBar label="Excellent" count={fleet.distribution.excellent} total={fleet.evaluated_count} color="bg-emerald-500" />
-                <FleetBar label="Good" count={fleet.distribution.good} total={fleet.evaluated_count} color="bg-green-500" />
-                <FleetBar label="Fair" count={fleet.distribution.fair} total={fleet.evaluated_count} color="bg-amber-500" />
-                <FleetBar label="Poor" count={fleet.distribution.poor} total={fleet.evaluated_count} color="bg-red-500" />
+                <FleetBar label={t("band.excellent")} count={fleet.distribution.excellent} total={fleet.evaluated_count} color="bg-emerald-500" />
+                <FleetBar label={t("band.good")} count={fleet.distribution.good} total={fleet.evaluated_count} color="bg-green-500" />
+                <FleetBar label={t("band.fair")} count={fleet.distribution.fair} total={fleet.evaluated_count} color="bg-amber-500" />
+                <FleetBar label={t("band.poor")} count={fleet.distribution.poor} total={fleet.evaluated_count} color="bg-red-500" />
               </div>
             </div>
           </CardContent>
           <CardFooter>
             <Link href="/vehicles" className="w-full">
               <Button variant="ghost" size="sm" fullWidth leftIcon={<TrendingUp className="size-4" />}>
-                {fleet.needs_attention.length} need attention
+                {t("dash.fleet.need_attention", { count: fleet.needs_attention.length })}
               </Button>
             </Link>
           </CardFooter>
@@ -212,8 +211,8 @@ export function DashboardClient({ userName, stats, today, fleet }: Props) {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Weekly Revenue</CardTitle>
-                <CardDescription>Appointment revenue over the last 7 days</CardDescription>
+                <CardTitle>{t("dash.revenue.title")}</CardTitle>
+                <CardDescription>{t("dash.revenue.sub")}</CardDescription>
               </div>
               <DemoBadge />
             </div>
@@ -221,7 +220,7 @@ export function DashboardClient({ userName, stats, today, fleet }: Props) {
           <CardContent>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={weeklyRevenue} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />
@@ -229,9 +228,9 @@ export function DashboardClient({ userName, stats, today, fleet }: Props) {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} />
-                  <XAxis dataKey="day" tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip formatter={(value: number) => [`$${value.toLocaleString("en-US")}`, "Revenue"]} />
+                  <Tooltip formatter={(value: number) => [fmt.money(value), t("dash.revenue.label")]} />
                   <Area type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#revenueGrad)" />
                 </AreaChart>
               </ResponsiveContainer>
@@ -246,10 +245,10 @@ export function DashboardClient({ userName, stats, today, fleet }: Props) {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Today&apos;s Appointments</CardTitle>
-                <CardDescription>{today.length} scheduled for today</CardDescription>
+                <CardTitle>{t("dash.today.title")}</CardTitle>
+                <CardDescription>{t("dash.today.sub", { count: today.length })}</CardDescription>
               </div>
-              <Button variant="outline" size="sm" leftIcon={<Calendar className="size-4" />}>Manage</Button>
+              <Button variant="outline" size="sm" leftIcon={<Calendar className="size-4" />}>{t("common.manage")}</Button>
             </div>
           </CardHeader>
           <CardContent padding="none">
@@ -257,10 +256,10 @@ export function DashboardClient({ userName, stats, today, fleet }: Props) {
               <EmptyState
                 compact
                 icon={CalendarCheck}
-                title="A clear day ahead"
-                description="No appointments are scheduled for today. Book one, or open the calendar to plan the week."
-                action={{ label: "New appointment", href: "/calendar" }}
-                secondary={{ label: "Open calendar", href: "/calendar" }}
+                title={t("dash.today.empty_title")}
+                description={t("dash.today.empty_desc")}
+                action={{ label: t("action.new_appointment"), href: "/calendar" }}
+                secondary={{ label: t("nav.calendar"), href: "/calendar" }}
               />
             ) : (
               <div className="divide-y divide-border">
@@ -275,7 +274,7 @@ export function DashboardClient({ userName, stats, today, fleet }: Props) {
                       <p className="text-xs text-muted-foreground truncate">{apt.vehicle_summary}</p>
                     </div>
                     <div className="hidden md:block text-right min-w-[140px]">
-                      <p className="text-xs text-muted-foreground truncate">{apt.service_type ?? "General Service"}</p>
+                      <p className="text-xs text-muted-foreground truncate">{apt.service_type ?? t("common.general_service")}</p>
                     </div>
                     <AppointmentStatusBadge status={apt.status} />
                   </div>
@@ -284,7 +283,7 @@ export function DashboardClient({ userName, stats, today, fleet }: Props) {
             )}
           </CardContent>
           <CardFooter>
-            <Button variant="ghost" size="sm" fullWidth leftIcon={<Calendar className="size-4" />}>View Full Schedule</Button>
+            <Button variant="ghost" size="sm" fullWidth leftIcon={<Calendar className="size-4" />}>{t("dash.today.view_schedule")}</Button>
           </CardFooter>
         </Card>
 
@@ -292,8 +291,8 @@ export function DashboardClient({ userName, stats, today, fleet }: Props) {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Certified Vehicles</CardTitle>
-                <CardDescription>Excellent-health · passport-ready</CardDescription>
+                <CardTitle>{t("dash.certified.title")}</CardTitle>
+                <CardDescription>{t("dash.certified.sub")}</CardDescription>
               </div>
               <span className="grid size-8 place-items-center rounded-lg bg-success/10 text-success">
                 <BadgeCheck className="size-4" />
@@ -302,8 +301,8 @@ export function DashboardClient({ userName, stats, today, fleet }: Props) {
           </CardHeader>
           <CardContent padding="none">
             {fleet.certified.length === 0 ? (
-              <EmptyState compact icon={BadgeCheck} title="No certified vehicles yet"
-                description="Vehicles reaching excellent health become passport-ready and appear here." />
+              <EmptyState compact icon={BadgeCheck} title={t("dash.certified.empty_title")}
+                description={t("dash.certified.empty_desc")} />
             ) : (
               <div className="divide-y divide-border">
                 {fleet.certified.map((v) => (
@@ -317,7 +316,7 @@ export function DashboardClient({ userName, stats, today, fleet }: Props) {
                       <p className="text-xs text-muted-foreground truncate">{v.owner_name ?? "—"}</p>
                     </div>
                     <span className="flex items-center gap-1 text-xs text-muted-foreground group-hover:text-primary transition-colors">
-                      <QrCode className="size-3.5" /> Passport
+                      <QrCode className="size-3.5" /> {t("dash.passport")}
                     </span>
                   </Link>
                 ))}
@@ -326,7 +325,7 @@ export function DashboardClient({ userName, stats, today, fleet }: Props) {
           </CardContent>
           <CardFooter>
             <Link href="/vehicles" className="w-full">
-              <Button variant="ghost" size="sm" fullWidth leftIcon={<Car className="size-4" />}>View All Vehicles</Button>
+              <Button variant="ghost" size="sm" fullWidth leftIcon={<Car className="size-4" />}>{t("dash.view_all_vehicles")}</Button>
             </Link>
           </CardFooter>
         </Card>

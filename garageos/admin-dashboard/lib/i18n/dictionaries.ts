@@ -6,6 +6,7 @@
 // it later without changing call sites, since components only touch `t("nav.x")`.
 
 import { MINI_DICTIONARY } from "./mini-dictionary";
+import { STAFF_DICTIONARY } from "./staff-dictionary";
 
 export const LOCALES = ["en", "ru", "uz"] as const;
 export type Locale = (typeof LOCALES)[number];
@@ -207,5 +208,5 @@ export function textDirection(locale: Locale): "ltr" | "rtl" {
 // Fold the Mini App strings into the main dictionaries so `t()` resolves them
 // the same way (kept in a separate file only to keep this module readable).
 for (const locale of LOCALES) {
-  Object.assign(DICTIONARIES[locale], MINI_DICTIONARY[locale]);
+  Object.assign(DICTIONARIES[locale], MINI_DICTIONARY[locale], STAFF_DICTIONARY[locale]);
 }
