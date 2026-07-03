@@ -66,3 +66,8 @@ desktop.ini
 # ---- Logs / runtime ----
 *.log
 logs/
+
+# ---- Playwright ----
+**/test-results/
+**/playwright-report/
+**/.playwright/

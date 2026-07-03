@@ -106,7 +106,7 @@ function CarStage({ subsystems, onPick, active }: {
         const warn = s.score < 75;
         const isActive = active === s.name;
         return (
-          <button key={s.name} onClick={() => onPick(s)}
+          <button key={s.name} onClick={() => onPick(s)} data-testid="vic-hotspot"
             className="absolute z-[3] -translate-x-1/2 -translate-y-1/2"
             style={{ left: `${pos.x}%`, top: `${pos.y}%` }} aria-label={`${s.name} ${Math.round(s.score)}`}>
             <span className="relative grid place-items-center">
@@ -177,7 +177,7 @@ export function VehicleIntelligenceCenter({ data }: { data: VehicleIntelligence 
             </div>
 
             {/* CENTER — the digital twin hero */}
-            <div className="relative overflow-hidden rounded-3xl p-6 text-white shadow-xl"
+            <div data-testid="vic-hero" className="relative overflow-hidden rounded-3xl p-6 text-white shadow-xl"
               style={{ background: "radial-gradient(120% 90% at 30% 0%, #1a2740 0%, #0e1626 45%, #0B1220 100%)" }}>
               <div className="pointer-events-none absolute inset-0 opacity-50"
                 style={{ backgroundImage: "linear-gradient(rgba(148,163,184,.12) 1px,transparent 1px),linear-gradient(90deg,rgba(148,163,184,.12) 1px,transparent 1px)", backgroundSize: "34px 34px", maskImage: "radial-gradient(70% 60% at 50% 40%,#000,transparent)" }} />
