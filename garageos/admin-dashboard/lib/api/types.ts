@@ -630,3 +630,33 @@ export interface BillingResponse {
   kpis: BillingKpis;
   view: string;
 }
+
+// ─── Reports & Analytics ──────────────────────────────────────
+export interface ReportDelta { pct: number | null; dir: "up" | "down" | "flat"; raw?: number; }
+export interface ReportKpi {
+  key: string;
+  label: string;
+  value: number | string;
+  format: "money" | "pct" | "int" | "days" | "text";
+  drill: string;
+  delta: ReportDelta | null;
+  series: number[] | null;
+  tone: "danger" | "success" | "warning" | null;
+}
+export interface ReportInsight { tone: string; label: string; text: string; }
+export interface ReportQuestion { q: string; drill: string; }
+export interface ReportResponse {
+  report: string;
+  period: { key: string; start: string; end: string };
+  groups: { money: ReportKpi[]; operations: ReportKpi[]; customers: ReportKpi[] };
+  charts: {
+    revenue_trend: { label: string; value: number }[];
+    vehicle_health: { excellent: number; good: number; fair: number; poor: number };
+    commercial_health: { band: string; count: number }[];
+    conversion_funnel: { stage: string; count: number }[];
+    ar_aging: { bucket: string; amount: number }[];
+    revenue_by_service: { name: string; amount: number }[];
+  };
+  insights: ReportInsight[];
+  questions: ReportQuestion[];
+}

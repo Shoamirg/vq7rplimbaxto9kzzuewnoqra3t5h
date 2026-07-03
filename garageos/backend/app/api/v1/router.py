@@ -7,7 +7,7 @@ from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
     appointments, auth, calendar, cases, conversations, customers, fleet,
-    invoices, notifications, public, search, slots, vehicles,
+    invoices, notifications, public, reports, search, slots, vehicles,
 )
 
 api_router = APIRouter()
@@ -23,5 +23,6 @@ api_router.include_router(notifications.router, prefix="/notifications", tags=["
 api_router.include_router(cases.router, prefix="/cases", tags=["cases"])
 api_router.include_router(conversations.router, prefix="/conversations", tags=["conversations"])
 api_router.include_router(invoices.router, prefix="/invoices", tags=["invoices"])
+api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
 api_router.include_router(fleet.router, prefix="/fleet", tags=["fleet"])
 api_router.include_router(public.router, prefix="/public", tags=["public"])

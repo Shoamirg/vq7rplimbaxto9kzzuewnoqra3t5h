@@ -48,7 +48,7 @@ from app.seeds.roles import seed_roles
 from app.seeds.service_centers import seed_service_center
 from app.seeds.cases import generate_cases
 from app.seeds.conversations import generate_conversations
-from app.seeds.invoices import generate_invoices
+from app.seeds.invoices import generate_invoices, generate_invoice_history
 from app.seeds.fleet import generate_fleet_vehicles
 from app.seeds.notifications import generate_notifications
 
@@ -156,6 +156,7 @@ async def _seed_tenant(
     await generate_cases(session, center, vehicles, staff["mechanics"])
     await generate_conversations(session, center, vehicles, staff["mechanics"])
     await generate_invoices(session, center, vehicles)
+    await generate_invoice_history(session, center, vehicles)
     logger.info(
         "Seeded %s: %d customers, %d vehicles",
         center.name, len(customers), len(vehicles),

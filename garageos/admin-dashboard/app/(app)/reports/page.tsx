@@ -1,7 +1,12 @@
-import { ComingSoon } from "@/components/states/coming-soon";
+import { ReportsWorkspace } from "@/components/reports/reports-workspace";
 
 export const dynamic = "force-dynamic";
 
+// Reports — a decision center projecting over the ledger + event stream.
 export default function ReportsPage() {
-  return <ComingSoon icon="reports" titleKey="reports.title" descKey="reports.desc" />;
+  return (
+    <div className="h-full">
+      <ReportsWorkspace />
+    </div>
+  );
 }
