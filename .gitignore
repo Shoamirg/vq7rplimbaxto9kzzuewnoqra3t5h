@@ -2,8 +2,12 @@
 .env
 .env.*
 !.env.example
+!.env.prod.example
 *.pem
 *.key
+
+# ---- Backups / runtime data ----
+backups/
 
 # ---- Python ----
 __pycache__/

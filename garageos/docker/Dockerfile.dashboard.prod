@@ -1,0 +1,33 @@
+# Production frontend image (Next.js standalone). Build context: repo ROOT
+# (the monorepo), because admin-dashboard depends on the @garageos/design-system
+# workspace package.
+FROM node:20-alpine AS deps
+WORKDIR /repo
+# Install workspace deps with the root lockfile for reproducible builds.
+COPY package.json package-lock.json ./
+COPY admin-dashboard/package.json ./admin-dashboard/
+COPY packages/design-system/package.json ./packages/design-system/
+RUN npm ci
+
+FROM node:20-alpine AS builder
+WORKDIR /repo
+COPY --from=deps /repo/node_modules ./node_modules
+COPY package.json package-lock.json ./
+COPY packages ./packages
+COPY admin-dashboard ./admin-dashboard
+WORKDIR /repo/admin-dashboard
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN npm run build
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000
+RUN addgroup -S nodejs && adduser -S nextjs -G nodejs
+# Standalone server + static assets + public (favicons, brand, manifest).
+COPY --from=builder --chown=nextjs:nodejs /repo/admin-dashboard/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /repo/admin-dashboard/.next/static ./admin-dashboard/.next/static
+COPY --from=builder --chown=nextjs:nodejs /repo/admin-dashboard/public ./admin-dashboard/public
+USER nextjs
+EXPOSE 3000
+# The standalone server entrypoint lives under the workspace path.
+CMD ["node", "admin-dashboard/server.js"]
