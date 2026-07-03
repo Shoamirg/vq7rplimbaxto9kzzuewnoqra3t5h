@@ -3,6 +3,55 @@
 All notable milestones for GarageOS. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); dates are ISO-8601.
 
+## [0.11.0-telegram] — 2026-07-03 — Telegram Mini App
+
+The first customer-facing surface. A dedicated, strict customer API composes the
+whole platform; a mobile-first Mini App renders it inside Telegram.
+
+### Added
+- **Customer API** (`/api/v1/customer/*`) — isolated from the staff API with its
+  own principal, deps, and narrow customer DTOs. Telegram `initData` verified via
+  HMAC-SHA256 (`WebAppData`); customer-scoped JWTs (a staff token can't satisfy a
+  customer route and vice-versa). Phone linking + refresh + a DEBUG dev sign-in.
+- **`CustomerPortalService`** — every read/write bound to the authenticated
+  customer via an ownership guard; composes existing services (Passport, Health,
+  Billing, UCP Conversations, Operational Cases) rather than duplicating them.
+- **`/mini` route group** — mobile-first client with its own customer-scoped BFF
+  (httpBearer cookie) and a Telegram-native shell. Screens: Home (action-first),
+  Vehicle (Certified Passport), Billing (one action, no payer scoring), Messages
+  (UCP, internal notes excluded), Roadside (request → live tracking), Me.
+- **Telegram bot** (`telegram-bot/`, `@garageos1_bot`) — the doorway: `/start`
+  ships the **Open Garage** Web App launch button; `setup_bot.py` wires commands +
+  menu button. Launch activates once `TELEGRAM_MINI_APP_URL` is public HTTPS.
+- **Customer estimate approval** — Approve / Decline / Ask on an estimate;
+  approve → `EstimateApproved`, decline → `EstimateRejected`, both ring the
+  advisor's bell + hit the financial timeline. Ask opens a linked conversation.
+- **Roadside attachments** — Location / Photo / Voice become Conversation
+  attachments → timeline events → Operations context (same path as the Inbox).
+
+### Notes
+- Roadside opens an `OperationalCase` that rides the existing event stream into
+  the Operations Center — no special-case Telegram logic.
+- Follow-ups: real bot launch needs a public HTTPS Mini App URL; online payment
+  and binary photo/voice storage are stubbed; `/mini` bodies not yet i18n'd.
+
+## [0.10.0-reports] — 2026-07-03 — Reports & Analytics
+
+A decision center over the ledger + operational data.
+
+### Added
+- **Analytics projection layer** (`services/analytics.py`) — `BaseProjection`
+  with a generic report contract (groups / sections / insights / questions /
+  reconciliation); one frontend renders all reports.
+- **Executive Overview** and **Commercial** reports, projecting over
+  `LedgerEntry` (revenue/cash with prev-period deltas), invoices (AR aging,
+  conversion funnel), cases, appointments, and health/commercial-health
+  distributions. Hand-built SVG charts (no charting dependency).
+- **Commercial Integrity** reconciliation — verifies the ledger identity
+  (debit − credit = outstanding) and invoice/payment ↔ ledger counts.
+- **Seed realism** — ~12mo backdated paid-invoice history + payer profiles +
+  cohort spread so trends and distributions are believable.
+
 ## [0.9.0-commercial-operations] — 2026-07-03 — Commercial Operations
 
 One commercial model for the whole billing lifecycle, linked to the rest of the
