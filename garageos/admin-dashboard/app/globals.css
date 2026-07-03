@@ -109,3 +109,10 @@
 h1, h2, h3, .font-brand {
   font-family: var(--font-brand), var(--font-sans), system-ui, sans-serif;
 }
+
+/* Vehicle Intelligence Center — ambient motion (premium, subtle) */
+@keyframes twin-float { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-7px) } }
+@keyframes twin-glow  { 0%,100% { opacity:.55 } 50% { opacity:.85 } }
+.twin-float { animation: twin-float 5.5s var(--ease-brand, ease-in-out) infinite; }
+.twin-glow  { animation: twin-glow 5.5s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .twin-float, .twin-glow { animation: none; } }
