@@ -30,6 +30,15 @@ class ValidationError(GarageException):
     code = "VALIDATION_ERROR"
 
 
+class RateLimitExceeded(GarageException):
+    status_code = 429
+    code = "RATE_LIMITED"
+    detail = "Too many requests. Please slow down and try again shortly."
+
+    def __init__(self, retry_after: int | None = None):
+        self.retry_after = retry_after
+
+
 # Domain-specific exceptions
 
 class VehicleNotFound(NotFoundError):

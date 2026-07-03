@@ -24,6 +24,7 @@ from app.models.invoice import (
     Payment,
 )
 from app.models.ledger import LedgerEntry
+from app.models.audit_log import AuditLog
 
 __all__ = [
     "BaseModelMixin",
@@ -50,4 +51,5 @@ __all__ = [
     "InvoiceLineItem",
     "Payment",
     "LedgerEntry",
+    "AuditLog",
 ]

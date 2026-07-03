@@ -40,6 +40,26 @@ class Settings(BaseSettings):
     TELEGRAM_BOT_TOKEN: Optional[str] = None
     TELEGRAM_WEBHOOK_URL: Optional[str] = None
 
+    # Rate limiting (Redis-backed, fixed window). Degrades open if Redis is down.
+    RATE_LIMIT_ENABLED: bool = True
+    # Auth endpoints (login/refresh/telegram) — tight, brute-force sensitive.
+    RATE_LIMIT_AUTH_MAX: int = 10
+    RATE_LIMIT_AUTH_WINDOW_SECONDS: int = 60
+    # Write-heavy endpoints — generous, abuse-oriented.
+    RATE_LIMIT_WRITE_MAX: int = 60
+    RATE_LIMIT_WRITE_WINDOW_SECONDS: int = 60
+    # Trust proxy IP headers (X-Real-IP / rightmost X-Forwarded-For). Safe default
+    # is OFF (use the socket peer); a directly-exposed app must not honor
+    # client-supplied forwarding headers. Turn ON only when behind a proxy that
+    # sets them (production sets this true in .env.prod behind Caddy).
+    TRUST_PROXY_HEADERS: bool = False
+
+    # Observability — Sentry is fully optional; error capture activates only when a
+    # DSN is present, so dev and CI stay noise-free with zero config.
+    SENTRY_DSN: Optional[str] = None
+    SENTRY_TRACES_SAMPLE_RATE: float = 0.0
+    SENTRY_ENVIRONMENT: Optional[str] = None  # falls back to ENVIRONMENT
+
     # Admin
     ADMIN_EMAIL: str = "admin@garageplatform.com"
     ADMIN_PASSWORD: str = "admin123"

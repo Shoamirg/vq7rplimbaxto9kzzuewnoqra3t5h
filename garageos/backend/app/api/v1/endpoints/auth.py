@@ -1,12 +1,14 @@
 """Authentication endpoints: login, token refresh, current user."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_auth_service, get_current_user
 from app.core.database import get_db
+from app.core.rate_limit import auth_rate_limit
+from app.exceptions import GarageException
 from app.models.service_center import ServiceCenter
 from app.models.user import User
 from app.schemas.auth import (
@@ -16,26 +18,62 @@ from app.schemas.auth import (
     TokenResponse,
 )
 from app.schemas.branding import Branding, branding_dict
+from app.services.audit_service import record_audit
 from app.services.auth_service import AuthService
 
 router = APIRouter()
 
 
-@router.post("/login", response_model=TokenResponse, summary="Authenticate and get tokens")
+@router.post(
+    "/login",
+    response_model=TokenResponse,
+    summary="Authenticate and get tokens",
+    dependencies=[Depends(auth_rate_limit)],
+)
 async def login(
     body: LoginRequest,
+    request: Request,
     auth: AuthService = Depends(get_auth_service),
 ) -> TokenResponse:
-    tokens = await auth.login(body.email, body.password)
+    try:
+        tokens = await auth.login(body.email, body.password)
+    except GarageException:
+        # Record the failed attempt (no tenant/actor — the email may be unknown)
+        # before re-raising, so brute-force attempts leave a trail.
+        await record_audit(
+            action="auth.login.failure",
+            status="failure",
+            actor_email=body.email,
+            request=request,
+        )
+        raise
+    await record_audit(
+        action="auth.login.success",
+        actor_email=body.email,
+        request=request,
+    )
     return TokenResponse(**tokens)
 
 
-@router.post("/refresh", response_model=TokenResponse, summary="Exchange a refresh token")
+@router.post(
+    "/refresh",
+    response_model=TokenResponse,
+    summary="Exchange a refresh token",
+    dependencies=[Depends(auth_rate_limit)],
+)
 async def refresh(
     body: RefreshTokenRequest,
+    request: Request,
     auth: AuthService = Depends(get_auth_service),
 ) -> TokenResponse:
-    tokens = await auth.refresh(body.refresh_token)
+    # A stolen/replayed refresh token being cycled leaves a trail too, not just
+    # login. The token itself is never recorded — only the outcome + provenance.
+    try:
+        tokens = await auth.refresh(body.refresh_token)
+    except GarageException:
+        await record_audit(action="auth.refresh.failure", status="failure", request=request)
+        raise
+    await record_audit(action="auth.refresh.success", request=request)
     return TokenResponse(**tokens)
 
 

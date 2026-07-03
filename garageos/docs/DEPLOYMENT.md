@@ -83,6 +83,42 @@ chmod +x scripts/backup.sh
 Backups land in `./backups` (last 14 days). **Recommended:** sync them off-host
 to S3/Cloudflare R2 (see the TODO in `scripts/backup.sh`).
 
+**Prove your backups restore** — a dump you have never restored is a hope, not a
+backup. `restore-test.sh` restores the latest backup into a throwaway Postgres
+container (never touching production) and asserts the schema and core tables came
+back with data:
+
+```bash
+chmod +x scripts/restore-test.sh
+./scripts/restore-test.sh                     # newest backup in ./backups
+# Weekly, after nightly backups:
+#   30 3 * * 0  cd /opt/garageos && ./scripts/restore-test.sh >> /var/log/garageos-restore-test.log 2>&1
+```
+
+## 6. Security & reliability (M2)
+
+These controls are on by default and configured in `.env.prod`:
+
+- **Rate limiting** (Redis-backed, per client IP). Auth endpoints (login, refresh,
+  Telegram sign-in/link) allow `RATE_LIMIT_AUTH_MAX` attempts per
+  `RATE_LIMIT_AUTH_WINDOW_SECONDS` — a brute-force ceiling. It **degrades open**:
+  if Redis is unavailable, requests are allowed rather than everyone locked out. A
+  throttled caller gets `429` with a `Retry-After` header. Because the real client
+  sits behind Caddy, `TRUST_PROXY_HEADERS=true` reads the IP from
+  `X-Forwarded-For`; keep it `true` only while behind a proxy that sets that header.
+- **Audit log** (`audit_logs` table). Append-only trail of security-relevant
+  actions — every login, success **and** failure, with IP + user-agent. Written in
+  its own transaction so a failed login is still recorded, and best-effort so it can
+  never turn a working action into an error. Inspect it with:
+  ```bash
+  docker compose -f docker-compose.prod.yml exec postgres \
+    psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+    -c "SELECT created_at, action, status, actor_email, ip FROM audit_logs ORDER BY created_at DESC LIMIT 20;"
+  ```
+- **Error monitoring (Sentry)** — optional, off unless `SENTRY_DSN` is set. When
+  set, unhandled errors are reported with PII scrubbed (`send_default_pii=False`).
+  `SENTRY_TRACES_SAMPLE_RATE` (default `0.0`) turns on performance tracing.
+
 ## Operate
 
 ```bash
@@ -93,12 +129,15 @@ git pull && docker compose -f docker-compose.prod.yml up -d --build
 # restore a backup
 gunzip -c backups/garageos-YYYYMMDD-HHMMSS.sql.gz | \
   docker compose -f docker-compose.prod.yml exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+# verify a backup actually restores (throwaway container, non-destructive)
+./scripts/restore-test.sh
 ```
 
 ## Still to come in Phase 12
 
 - **Week 2** — CI/CD (GitHub Actions: tsc + tests + Playwright + i18n + build →
-  deploy), Sentry, uptime monitoring.
+  deploy). ✅ Sentry, rate limiting, audit log, and restore testing landed in M2
+  (see §6). Still open: uptime/external monitoring.
 - **Week 3** — Stripe subscriptions + invoice payment gateway.
 - **Week 4** — self-service onboarding + data import.
 

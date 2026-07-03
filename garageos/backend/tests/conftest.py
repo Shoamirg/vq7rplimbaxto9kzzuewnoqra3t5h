@@ -17,6 +17,12 @@ from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
 
+# Rate limiting is infrastructure behavior, exercised explicitly in test_security.py.
+# Disable it for the rest of the suite: many tests log in from the same (shared)
+# test client IP, which would trip the per-IP auth ceiling once Redis is present
+# (e.g. in CI) and flake unrelated tests.
+settings.RATE_LIMIT_ENABLED = False
+
 _test_engine = create_async_engine(settings.DATABASE_URL, poolclass=NullPool)
 _TestSession = async_sessionmaker(_test_engine, class_=AsyncSession, expire_on_commit=False)
 

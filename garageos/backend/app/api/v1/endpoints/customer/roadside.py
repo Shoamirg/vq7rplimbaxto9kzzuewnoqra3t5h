@@ -13,6 +13,7 @@ import uuid
 from fastapi import APIRouter, Depends
 
 from app.api.customer_deps import get_current_customer, get_customer_uow
+from app.core.rate_limit import write_rate_limit
 from app.models.customer import Customer
 from app.repositories.unit_of_work import UnitOfWork
 from app.schemas.customer_portal import (
@@ -25,7 +26,12 @@ from app.services.customer_portal_service import CustomerPortalService
 router = APIRouter()
 
 
-@router.post("", response_model=RoadsideCase, summary="Request roadside assistance (opens a case)")
+@router.post(
+    "",
+    response_model=RoadsideCase,
+    summary="Request roadside assistance (opens a case)",
+    dependencies=[Depends(write_rate_limit)],
+)
 async def request_roadside(
     body: RoadsideRequest,
     customer: Customer = Depends(get_current_customer),
