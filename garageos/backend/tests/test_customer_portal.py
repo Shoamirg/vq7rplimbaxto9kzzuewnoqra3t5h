@@ -243,6 +243,76 @@ async def test_thread_excludes_internal_notes(session):
     assert "Internal staff note" not in bodies
 
 
+async def _estimate(session, center, customer, vehicle) -> str:
+    from app.models.invoice import InvoiceKind
+    from app.services.invoice_service import InvoiceService
+
+    uow = UnitOfWork(service_center_id=center.id)
+    uow.session = session
+    doc = await InvoiceService(uow).create(
+        kind=InvoiceKind.ESTIMATE, customer_id=customer.id, vehicle_id=vehicle.id,
+        line_items=[{"kind": "labor", "description": "Brake job", "quantity": 1,
+                     "unit_price": 376.0, "taxable": True}],
+    )
+    return doc["id"]
+
+
+@pytest.mark.asyncio
+async def test_estimate_approve_decline_and_ownership(session):
+    from app.exceptions import NotFoundError
+    from app.models.invoice import InvoiceStatus
+
+    center, customer = await _tenant(session, telegram_id=930001)
+    v = await _add_vehicle(session, center, customer)
+    est_id = await _estimate(session, center, customer, v)
+
+    approved = await _portal(session, center, customer).approve_estimate(uuid.UUID(est_id))
+    assert approved.status == InvoiceStatus.APPROVED
+
+    # A second customer cannot approve/decline this estimate.
+    _, mallory = await _tenant(session, telegram_id=930002)
+    mallory.service_center_id = center.id
+    await session.flush()
+    with pytest.raises(NotFoundError):
+        await _portal(session, center, mallory).decline_estimate(uuid.UUID(est_id))
+
+
+@pytest.mark.asyncio
+async def test_estimate_question_opens_thread(session):
+    center, customer = await _tenant(session, telegram_id=930003)
+    v = await _add_vehicle(session, center, customer)
+    est_id = await _estimate(session, center, customer, v)
+    portal = _portal(session, center, customer)
+
+    ask = await portal.ask_estimate_question(uuid.UUID(est_id), "Can you explain the brake charge?")
+    thread = await portal.thread(uuid.UUID(ask.conversation_id))
+    assert any(m.from_me and "brake charge" in (m.body or "") for m in thread.messages)
+
+
+@pytest.mark.asyncio
+async def test_roadside_attachment_lands_in_thread(session):
+    from app.schemas.customer_portal import RoadsideAttachmentRequest
+
+    center, customer = await _tenant(session, telegram_id=930004)
+    await _add_vehicle(session, center, customer)
+    portal = _portal(session, center, customer)
+
+    case = await portal.create_roadside(RoadsideRequest(
+        description="Won't start", location_lat=40.1, location_lng=-74.2,
+        location_text="Route 7",
+    ))
+    # The shared location was auto-attached to the dispatcher thread.
+    thread = await portal.thread(uuid.UUID(case.conversation_id))
+    assert any(a.kind == "location" for m in thread.messages for a in m.attachments)
+
+    # A follow-up voice note attaches too.
+    await portal.add_roadside_attachment(uuid.UUID(case.id), RoadsideAttachmentRequest(
+        kind="voice", label="Voice note", note="Sending a voice message",
+    ))
+    thread2 = await portal.thread(uuid.UUID(case.conversation_id))
+    assert any(a.kind == "voice" for m in thread2.messages for a in m.attachments)
+
+
 @pytest.mark.asyncio
 async def test_home_aggregates(session):
     center, customer = await _tenant(session, telegram_id=920008)
@@ -252,3 +322,25 @@ async def test_home_aggregates(session):
     assert home.greeting == "Ahmed"
     assert home.garage.name == "Portal Garage"
     assert home.primary_vehicle is not None
+
+
+@pytest.mark.asyncio
+async def test_home_with_upcoming_appointment(session):
+    # Regression: Appointment has no `service_type` column (it's derived from the
+    # maintenance rule). Home must not blow up when a customer has an appointment.
+    from datetime import datetime, timedelta, timezone
+
+    from app.models.appointment import Appointment
+
+    center, customer = await _tenant(session, telegram_id=920009)
+    v = await _add_vehicle(session, center, customer)
+    session.add(Appointment(
+        service_center_id=center.id, customer_id=customer.id, vehicle_id=v.id,
+        appointment_date=datetime.now(timezone.utc) + timedelta(days=3),
+        appointment_time="10:00", status="confirmed",
+    ))
+    await session.flush()
+
+    home = await _portal(session, center, customer).home()
+    assert home.next_appointment is not None
+    assert home.next_appointment.status == "confirmed"

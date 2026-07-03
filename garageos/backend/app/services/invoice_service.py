@@ -16,6 +16,7 @@ from sqlalchemy import func, or_, select
 
 from app.core.events import (
     EstimateApproved,
+    EstimateRejected,
     EstimateCreated,
     EstimateSent,
     InvoiceIssued,
@@ -179,6 +180,10 @@ class InvoiceService:
         if status == InvoiceStatus.APPROVED:
             inv.approved_at = datetime.now(timezone.utc)
             self.uow.add_event(EstimateApproved(
+                service_center_id=self.sc, invoice_id=inv.id, code=inv.code,
+                customer_id=inv.customer_id, vehicle_id=inv.vehicle_id))
+        elif status == InvoiceStatus.REJECTED:
+            self.uow.add_event(EstimateRejected(
                 service_center_id=self.sc, invoice_id=inv.id, code=inv.code,
                 customer_id=inv.customer_id, vehicle_id=inv.vehicle_id))
         await self.session.flush()

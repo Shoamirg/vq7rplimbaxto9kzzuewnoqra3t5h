@@ -163,6 +163,14 @@ class BillingResponse(BaseModel):
     receipts: List[BillingReceipt] = []
 
 
+class AskQuestionRequest(BaseModel):
+    body: str
+
+
+class AskResponse(BaseModel):
+    conversation_id: str
+
+
 # ── Messages ────────────────────────────────────────────────────────────────
 class ConversationCard(BaseModel):
     id: str
@@ -212,6 +220,17 @@ class RoadsideRequest(BaseModel):
     location_text: Optional[str] = None
     location_lat: Optional[float] = None
     location_lng: Optional[float] = None
+
+
+class RoadsideAttachmentRequest(BaseModel):
+    """Add a location/photo/voice attachment to an open roadside case's thread."""
+
+    kind: str  # location | photo | voice
+    label: str
+    url: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    note: Optional[str] = None
 
 
 class RoadsideStatusStep(BaseModel):

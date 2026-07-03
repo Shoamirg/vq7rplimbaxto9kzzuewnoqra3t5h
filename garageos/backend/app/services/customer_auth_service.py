@@ -105,12 +105,43 @@ class CustomerAuthService:
         (and Playwright) where no Telegram ``initData`` exists. The calling
         endpoint gates this on ``settings.DEBUG`` so it can never run in prod.
         """
-        stmt = select(Customer).where(Customer.is_active == True)  # noqa: E712
         if telegram_id is not None:
-            stmt = stmt.where(Customer.telegram_id == telegram_id)
-        else:
-            stmt = stmt.where(Customer.telegram_id.isnot(None))
-        customer = (await self.uow.session.execute(stmt.limit(1))).scalar_one_or_none()
+            customer = (await self.uow.session.execute(
+                select(Customer).where(
+                    Customer.is_active == True,  # noqa: E712
+                    Customer.telegram_id == telegram_id,
+                ).limit(1)
+            )).scalar_one_or_none()
+            if customer is None:
+                raise TelegramNotLinked("No seeded customer available for dev sign-in")
+            return self._tokens(customer)
+
+        # No target: prefer a customer with a pending estimate + an outstanding
+        # balance so the dev/demo session shows the richest UI (Approve buttons,
+        # a real balance). Fall back to any linked customer.
+        from app.models.invoice import Invoice, InvoiceKind, InvoiceStatus
+
+        pending = {InvoiceStatus.DRAFT, InvoiceStatus.SENT, InvoiceStatus.VIEWED}
+        rich = (await self.uow.session.execute(
+            select(Customer)
+            .join(Invoice, Invoice.customer_id == Customer.id)
+            .where(
+                Customer.is_active == True,  # noqa: E712
+                Customer.telegram_id.isnot(None),
+                Invoice.kind == InvoiceKind.ESTIMATE,
+                Invoice.status.in_(pending),
+            )
+            .limit(1)
+        )).scalar_one_or_none()
+        if rich is not None:
+            return self._tokens(rich)
+
+        customer = (await self.uow.session.execute(
+            select(Customer).where(
+                Customer.is_active == True,  # noqa: E712
+                Customer.telegram_id.isnot(None),
+            ).limit(1)
+        )).scalar_one_or_none()
         if customer is None:
             raise TelegramNotLinked("No seeded customer available for dev sign-in")
         return self._tokens(customer)

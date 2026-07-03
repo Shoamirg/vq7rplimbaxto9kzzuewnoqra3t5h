@@ -26,6 +26,7 @@ from app.core.events import (
     CaseStatusChanged,
     EstimateApproved,
     EstimateCreated,
+    EstimateRejected,
     EstimateSent,
     InvoiceIssued,
     InvoicePaid,
@@ -138,11 +139,12 @@ def _spec_for(event) -> Optional[dict]:
         )
     # ── Commercial Operations (billing) ── feeds the bell + financial timeline
     if isinstance(event, (EstimateCreated, EstimateSent, EstimateApproved,
-                          InvoiceIssued, PaymentReceived, InvoicePaid)):
+                          EstimateRejected, InvoiceIssued, PaymentReceived, InvoicePaid)):
         title, sev = {
             "EstimateCreated": ("Estimate created", "info"),
             "EstimateSent": ("Estimate sent", "low"),
             "EstimateApproved": ("Estimate approved", "medium"),
+            "EstimateRejected": ("Estimate declined", "medium"),
             "InvoiceIssued": ("Invoice issued", "medium"),
             "PaymentReceived": ("Payment received", "medium"),
             "InvoicePaid": ("Invoice paid", "info"),

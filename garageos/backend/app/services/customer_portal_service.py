@@ -16,13 +16,14 @@ from sqlalchemy.orm import selectinload
 
 from app.exceptions import NotFoundError, VehicleNotFound
 from app.models.conversation import (
+    AttachmentKind,
     Channel,
     Conversation,
     MessageKind,
     ParticipantRole,
 )
 from app.models.customer import Customer
-from app.models.invoice import InvoiceKind, InvoiceStatus
+from app.models.invoice import Invoice, InvoiceKind, InvoiceStatus
 from app.models.notification import Notification
 from app.models.operational_case import CaseStatus, CaseType, OperationalCase
 from app.models.service_center import ServiceCenter
@@ -32,6 +33,7 @@ from app.models.conversation import Attachment, Message
 from app.repositories.unit_of_work import UnitOfWork
 from app.schemas.customer_portal import (
     ActivityItem,
+    AskResponse,
     BillingDoc,
     BillingReceipt,
     BillingResponse,
@@ -56,6 +58,7 @@ from app.schemas.customer_portal import (
 from app.services.case_service import CaseService
 from app.services.conversation_service import ConversationService
 from app.services.financial_service import FinancialService
+from app.services.invoice_service import InvoiceService
 from app.services.vehicle_health_service import VehicleHealthService
 
 # case status -> the customer-facing tracking stepper
@@ -272,6 +275,57 @@ class CustomerPortalService:
             receipts=receipts,
         )
 
+    # ── estimate decisions (completes the commercial loop) ──────────────────
+    async def approve_estimate(self, estimate_id: uuid.UUID) -> BillingDoc:
+        est = await self._own_estimate(estimate_id)
+        # Emits EstimateApproved -> advisor bell + financial timeline.
+        doc = await InvoiceService(self.uow).set_status(est.id, InvoiceStatus.APPROVED)
+        return self._doc(doc)
+
+    async def decline_estimate(self, estimate_id: uuid.UUID) -> BillingDoc:
+        est = await self._own_estimate(estimate_id)
+        doc = await InvoiceService(self.uow).set_status(est.id, InvoiceStatus.REJECTED)
+        return self._doc(doc)
+
+    async def ask_estimate_question(self, estimate_id: uuid.UUID, body: str) -> AskResponse:
+        est = await self._own_estimate(estimate_id)
+        conv = await self._conversation_for_invoice(est)
+        await ConversationService(self.uow).post_message(
+            uuid.UUID(conv["id"]), body=body, channel=Channel.TELEGRAM,
+            author_role=ParticipantRole.CUSTOMER, author_name=self.customer.full_name,
+        )
+        return AskResponse(conversation_id=conv["id"])
+
+    async def _own_estimate(self, estimate_id: uuid.UUID) -> Invoice:
+        inv = await self.session.get(Invoice, estimate_id)
+        if (
+            inv is None
+            or not inv.is_active
+            or inv.customer_id != self.customer.id
+            or inv.kind != InvoiceKind.ESTIMATE
+        ):
+            raise NotFoundError("Estimate not found")
+        return inv
+
+    async def _conversation_for_invoice(self, inv: Invoice) -> dict:
+        existing = (await self.session.execute(
+            select(Conversation).where(
+                Conversation.invoice_id == inv.id,
+                Conversation.customer_id == self.customer.id,
+                Conversation.is_active == True,  # noqa: E712
+            ).limit(1)
+        )).scalar_one_or_none()
+        if existing:
+            return {"id": str(existing.id)}
+        created = await ConversationService(self.uow).create_conversation(
+            subject=f"Estimate {inv.code}",
+            customer_id=self.customer.id, vehicle_id=inv.vehicle_id, invoice_id=inv.id,
+            participants=[{"role": ParticipantRole.CUSTOMER,
+                           "display_name": self.customer.full_name,
+                           "customer_id": self.customer.id}],
+        )
+        return {"id": created["id"]}
+
     # ── messages (customer-safe threads: internal notes excluded) ───────────
     async def messages(self) -> MessagesResponse:
         convs = (await self.session.execute(
@@ -353,7 +407,48 @@ class CustomerPortalService:
         case = await self.session.get(OperationalCase, uuid.UUID(created["id"]))
         # Open the dispatcher conversation now so "Message dispatcher" works.
         conv = await ConversationService(self.uow).get_or_create_for_case(case.id)
-        return self._roadside(case, conversation_id=conv.get("id"))
+        conv_id = conv.get("id")
+        # If the customer shared their location, drop a pin into the thread so the
+        # dispatcher sees it immediately (attachment -> timeline -> Operations).
+        if conv_id and req.location_lat is not None and req.location_lng is not None:
+            await self._post_attachment(
+                uuid.UUID(conv_id), kind=AttachmentKind.LOCATION,
+                label=req.location_text or "Shared location",
+                meta={"lat": req.location_lat, "lng": req.location_lng},
+            )
+        return self._roadside(case, conversation_id=conv_id)
+
+    async def add_roadside_attachment(self, case_id: uuid.UUID, req) -> RoadsideCase:
+        """Attach a location/photo/voice to an open roadside case's thread.
+
+        Exactly the desktop Inbox attachment path — the item becomes a
+        Conversation attachment, a timeline event, and Operations context.
+        """
+        case = await self._own_case(case_id)
+        conv = await ConversationService(self.uow).get_or_create_for_case(case.id)
+        meta = None
+        if req.lat is not None and req.lng is not None:
+            meta = {"lat": req.lat, "lng": req.lng}
+        await self._post_attachment(
+            uuid.UUID(conv["id"]), kind=req.kind, label=req.label,
+            url=req.url, meta=meta, note=req.note,
+        )
+        return self._roadside(case, conversation_id=conv["id"])
+
+    async def _post_attachment(self, conversation_id: uuid.UUID, *, kind: str, label: str,
+                               url: str | None = None, meta: dict | None = None,
+                               note: str | None = None) -> None:
+        await ConversationService(self.uow).post_message(
+            conversation_id, body=note, channel=Channel.TELEGRAM,
+            author_role=ParticipantRole.CUSTOMER, author_name=self.customer.full_name,
+            attachments=[{"kind": kind, "label": label, "url": url, "meta": meta}],
+        )
+
+    async def _own_case(self, case_id: uuid.UUID) -> OperationalCase:
+        case = await self.session.get(OperationalCase, case_id)
+        if case is None or case.customer_id != self.customer.id:
+            raise NotFoundError("Case not found")
+        return case
 
     async def roadside_status(self, case_id: uuid.UUID) -> RoadsideCase:
         case = await self.session.get(OperationalCase, case_id)
@@ -481,7 +576,11 @@ class AppointmentReader:
                 Appointment.appointment_date >= today,
                 Appointment.status.notin_(["cancelled", "completed"]),
             )
-            .options(selectinload(Appointment.vehicle).selectinload(Vehicle.vehicle_model))
+            .options(
+                selectinload(Appointment.vehicle)
+                .selectinload(Vehicle.vehicle_model)
+                .selectinload(VehicleModel.brand)
+            )
             .order_by(Appointment.appointment_date.asc())
             .limit(5)
         )).scalars().all()
@@ -490,7 +589,9 @@ class AppointmentReader:
                 id=str(a.id),
                 date=a.appointment_date.isoformat(),
                 time=a.appointment_time,
-                service_type=a.service_type,
+                # service_type is derived from the linked maintenance rule
+                # (canonical source) — Appointment has no column of its own.
+                service_type=(a.maintenance_rule.service_type if a.maintenance_rule else None),
                 status=a.status,
                 vehicle_label=CustomerPortalService._vehicle_label(getattr(a, "vehicle", None)),
             )

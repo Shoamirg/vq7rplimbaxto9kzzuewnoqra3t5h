@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
-import { Check, LifeBuoy, MapPin, MessageSquare } from "lucide-react";
+import { Camera, Check, LifeBuoy, MapPin, MessageSquare, Mic } from "lucide-react";
 
 import { miniFetch } from "@/lib/mini/client";
 import type { RoadsideCase } from "@/lib/mini/types";
@@ -130,14 +130,126 @@ function Tracking({ c }: { c: RoadsideCase }) {
         </ol>
       </div>
 
+      <AttachmentBar caseId={c.id} />
+
       {c.conversation_id ? (
         <Link
           href={`/mini/messages/${c.conversation_id}`}
-          className="mt-2 flex items-center justify-center gap-2 rounded-2xl bg-slate-900 py-3.5 text-sm font-semibold text-white active:scale-[0.99]"
+          className="mt-3 flex items-center justify-center gap-2 rounded-2xl bg-slate-900 py-3.5 text-sm font-semibold text-white active:scale-[0.99]"
         >
           <MessageSquare className="size-4" /> Message dispatcher
         </Link>
       ) : null}
+    </div>
+  );
+}
+
+// Location / Photo / Voice → each becomes a Conversation attachment on the case
+// thread (timeline event + Operations context) — the same path as the desktop
+// Inbox. Location carries real coordinates; photo/voice attach a labelled record.
+function AttachmentBar({ caseId }: { caseId: string }) {
+  const [done, setDone] = useState<Record<string, boolean>>({});
+  const [busy, setBusy] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const recRef = useRef<MediaRecorder | null>(null);
+  const [recording, setRecording] = useState(false);
+
+  async function post(body: Record<string, unknown>, tag: string) {
+    setBusy(tag);
+    try {
+      await miniFetch<RoadsideCase>(`/roadside/${caseId}/attachment`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      setDone((d) => ({ ...d, [tag]: true }));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function shareLocation() {
+    if (!navigator.geolocation) return;
+    setBusy("location");
+    navigator.geolocation.getCurrentPosition(
+      (p) =>
+        post(
+          {
+            kind: "location",
+            label: "Shared location",
+            lat: p.coords.latitude,
+            lng: p.coords.longitude,
+          },
+          "location",
+        ),
+      () => setBusy(null),
+      { enableHighAccuracy: true, timeout: 8000 },
+    );
+  }
+
+  function onPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    post({ kind: "photo", label: file.name, note: "📷 Photo shared" }, "photo");
+  }
+
+  async function toggleVoice() {
+    if (recording) {
+      recRef.current?.stop();
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const rec = new MediaRecorder(stream);
+      const started = Date.now();
+      rec.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        setRecording(false);
+        const secs = Math.max(1, Math.round((Date.now() - started) / 1000));
+        post({ kind: "voice", label: `Voice note · ${secs}s`, note: "🎤 Voice message" }, "voice");
+      };
+      recRef.current = rec;
+      rec.start();
+      setRecording(true);
+    } catch {
+      /* mic denied — silently ignore */
+    }
+  }
+
+  const items: { key: string; label: string; icon: typeof MapPin; onClick: () => void }[] = [
+    { key: "location", label: "Location", icon: MapPin, onClick: shareLocation },
+    { key: "photo", label: "Photo", icon: Camera, onClick: () => fileRef.current?.click() },
+    { key: "voice", label: recording ? "Stop" : "Voice", icon: Mic, onClick: toggleVoice },
+  ];
+
+  return (
+    <div className="mt-5">
+      <p className="mb-2 px-1 text-sm font-semibold text-slate-700">Add to your report</p>
+      <div className="grid grid-cols-3 gap-2">
+        {items.map((it) => {
+          const Icon = it.icon;
+          const isDone = done[it.key];
+          const isBusy = busy === it.key;
+          const active = it.key === "voice" && recording;
+          return (
+            <button
+              key={it.key}
+              onClick={it.onClick}
+              disabled={isBusy}
+              className={`flex flex-col items-center gap-1.5 rounded-2xl py-3 text-xs font-medium ring-1 transition active:scale-95 ${
+                active
+                  ? "bg-red-50 text-red-600 ring-red-200"
+                  : isDone
+                    ? "bg-green-50 text-green-700 ring-green-200"
+                    : "bg-white text-slate-700 ring-slate-900/[0.06]"
+              }`}
+            >
+              {isDone ? <Check className="size-5" /> : <Icon className="size-5" />}
+              {isDone ? "Shared" : it.label}
+            </button>
+          );
+        })}
+      </div>
+      <input ref={fileRef} type="file" accept="image/*" capture="environment" hidden onChange={onPhoto} />
     </div>
   );
 }
