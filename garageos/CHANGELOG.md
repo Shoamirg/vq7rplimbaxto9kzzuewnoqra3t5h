@@ -3,6 +3,37 @@
 All notable milestones for GarageOS. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); dates are ISO-8601.
 
+## [0.12.0-quality] — 2026-07-03 — Quality, brand & production hardening
+
+The "polish → production" milestone. No new business modules — the platform is
+made presentable, localized, observable, and safe to expose to the first pilots.
+
+### Added
+- **Vehicle Intelligence Center (Digital Twin)** — the signature composed screen:
+  one intelligence payload over health / passport / commercial / predictions /
+  timeline, a cinematic hero with clickable subsystem hotspots.
+- **Brand system** — logo / mark / app tile, favicon + PWA icon set, Manrope +
+  Inter (latin **and** cyrillic, so RU/UZ render), brand tokens + motion.
+- **Localization** — `/mini` and the staff dashboard in EN/RU/UZ via a
+  dependency-free i18n core (interpolation, plurals, locale-aware `fmt`), guarded
+  by a CI coverage check (`npm run i18n:check`, 194 keys).
+- **Production infrastructure** — prod Docker stack behind Caddy (auto-HTTPS),
+  nightly backups + a restore-test that proves a backup restores, `DEPLOYMENT.md`.
+- **CI/CD** — GitHub Actions (backend tests; frontend tsc / i18n / lint / build),
+  `/healthz`, a demo-seed step, and an ESLint config so `next lint` actually runs.
+- **Reliability (Phase 13)** — Playwright e2e journey suite (staff + customer +
+  i18n, host-agnostic) and a `RELEASE_CHECKLIST`.
+- **Security (M2)** — Redis rate limiting on auth + roadside (degrades open,
+  proxy-aware IP, atomic window); an append-only **audit log** of logins and token
+  refreshes; env-gated **Sentry**; restore testing. Hardened after a security
+  review (XFF spoofing, connection churn, atomicity, unbounded refresh).
+
+### Notes
+- Regression gate for the tag: backend 62 tests, tsc, i18n, lint, Playwright e2e
+  10/10, production build — all green.
+- Still requires a live host to complete M2 (uptime monitoring, real Sentry DSN)
+  and to open the Telegram Mini App over public HTTPS.
+
 ## [0.11.0-telegram] — 2026-07-03 — Telegram Mini App
 
 The first customer-facing surface. A dedicated, strict customer API composes the
