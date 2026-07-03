@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Bell, ChevronRight, MessageSquare } from "lucide-react";
 
-import { miniFetch } from "@/lib/mini/client";
+import { useMiniData } from "@/lib/mini/hooks";
+import { haptic } from "@/lib/mini/telegram";
 import type { MessagesResponse } from "@/lib/mini/types";
-import { Card, EmptyState, Loading, ScreenHeader } from "@/components/mini/ui";
+import { Card, EmptyState, ListSkeleton, ScreenError, ScreenHeader } from "@/components/mini/ui";
 
 function fmtWhen(iso?: string | null): string {
   if (!iso) return "";
@@ -13,23 +14,24 @@ function fmtWhen(iso?: string | null): string {
 }
 
 export default function MessagesPage() {
-  const [data, setData] = useState<MessagesResponse | null>(null);
+  const { data, loading, error, reload } = useMiniData<MessagesResponse>("/messages");
   const [tab, setTab] = useState<"messages" | "activity">("messages");
-
-  useEffect(() => {
-    miniFetch<MessagesResponse>("/messages").then(setData).catch(() => setData({ conversations: [], activity: [] }));
-  }, []);
 
   return (
     <div>
       <ScreenHeader title="Messages" />
 
-      <div className="mb-4 flex rounded-2xl bg-slate-100 p-1 text-sm font-semibold">
+      <div className="mb-4 flex rounded-2xl bg-slate-100 p-1 text-sm font-semibold" role="tablist">
         {(["messages", "activity"] as const).map((t) => (
           <button
             key={t}
-            onClick={() => setTab(t)}
-            className={`flex-1 rounded-xl py-2 capitalize transition ${
+            role="tab"
+            aria-selected={tab === t}
+            onClick={() => {
+              haptic("selection");
+              setTab(t);
+            }}
+            className={`flex-1 rounded-xl py-2 capitalize transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
               tab === t ? "bg-white text-slate-900 shadow-sm" : "text-slate-400"
             }`}
           >
@@ -38,8 +40,10 @@ export default function MessagesPage() {
         ))}
       </div>
 
-      {!data ? (
-        <Loading />
+      {error ? (
+        <ScreenError onRetry={reload} />
+      ) : loading || !data ? (
+        <ListSkeleton />
       ) : tab === "messages" ? (
         data.conversations.length === 0 ? (
           <EmptyState icon={<MessageSquare className="size-8" />} title="No messages yet" note="Your garage will reach you here." />

@@ -5,8 +5,9 @@ import Link from "next/link";
 import { Camera, Check, LifeBuoy, MapPin, MessageSquare, Mic } from "lucide-react";
 
 import { miniFetch } from "@/lib/mini/client";
+import { haptic } from "@/lib/mini/telegram";
 import type { RoadsideCase } from "@/lib/mini/types";
-import { Card, Loading, ScreenHeader } from "@/components/mini/ui";
+import { Card, ListSkeleton, ScreenHeader } from "@/components/mini/ui";
 
 export default function RoadsidePage() {
   const [problem, setProblem] = useState("");
@@ -41,13 +42,15 @@ export default function RoadsidePage() {
           location_text: coords ? `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}` : null,
         }),
       });
+      haptic("success");
       setActive(c);
     } catch {
+      haptic("error");
       setSubmitting(false);
     }
   }
 
-  if (submitting && !active) return <div><ScreenHeader title="Roadside" /><Loading /></div>;
+  if (submitting && !active) return <div><ScreenHeader title="Roadside" /><ListSkeleton /></div>;
 
   if (active) return <Tracking c={active} />;
 
@@ -73,7 +76,7 @@ export default function RoadsidePage() {
 
       <button
         onClick={shareLocation}
-        className={`mt-3 flex w-full items-center gap-3 rounded-2xl p-4 text-sm font-medium ring-1 transition active:scale-[0.99] ${
+        className={`mt-3 flex w-full items-center gap-3 rounded-2xl p-4 text-sm font-medium ring-1 transition motion-safe:active:scale-[0.99] ${
           coords ? "bg-green-50 text-green-700 ring-green-200" : "bg-white text-slate-700 ring-slate-900/[0.06]"
         }`}
       >
@@ -84,7 +87,7 @@ export default function RoadsidePage() {
       <button
         onClick={submit}
         disabled={!problem.trim()}
-        className="mt-5 w-full rounded-2xl bg-red-600 py-4 text-base font-bold text-white transition active:scale-[0.99] disabled:opacity-40"
+        className="mt-5 min-h-[52px] w-full rounded-2xl bg-red-600 py-4 text-base font-bold text-white transition motion-safe:active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50 disabled:opacity-40"
       >
         Request assistance
       </button>
@@ -135,7 +138,7 @@ function Tracking({ c }: { c: RoadsideCase }) {
       {c.conversation_id ? (
         <Link
           href={`/mini/messages/${c.conversation_id}`}
-          className="mt-3 flex items-center justify-center gap-2 rounded-2xl bg-slate-900 py-3.5 text-sm font-semibold text-white active:scale-[0.99]"
+          className="mt-3 flex items-center justify-center gap-2 rounded-2xl bg-slate-900 py-3.5 text-sm font-semibold text-white motion-safe:active:scale-[0.99]"
         >
           <MessageSquare className="size-4" /> Message dispatcher
         </Link>
@@ -161,7 +164,10 @@ function AttachmentBar({ caseId }: { caseId: string }) {
         method: "POST",
         body: JSON.stringify(body),
       });
+      haptic("success");
       setDone((d) => ({ ...d, [tag]: true }));
+    } catch {
+      haptic("error");
     } finally {
       setBusy(null);
     }
@@ -235,7 +241,8 @@ function AttachmentBar({ caseId }: { caseId: string }) {
               key={it.key}
               onClick={it.onClick}
               disabled={isBusy}
-              className={`flex flex-col items-center gap-1.5 rounded-2xl py-3 text-xs font-medium ring-1 transition active:scale-95 ${
+              aria-label={isDone ? `${it.label} shared` : `Add ${it.label.toLowerCase()}`}
+              className={`flex min-h-[76px] flex-col items-center justify-center gap-1.5 rounded-2xl py-3 text-xs font-medium ring-1 transition motion-safe:active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
                 active
                   ? "bg-red-50 text-red-600 ring-red-200"
                   : isDone
@@ -243,7 +250,7 @@ function AttachmentBar({ caseId }: { caseId: string }) {
                     : "bg-white text-slate-700 ring-slate-900/[0.06]"
               }`}
             >
-              {isDone ? <Check className="size-5" /> : <Icon className="size-5" />}
+              {isDone ? <Check className="size-5" aria-hidden /> : <Icon className="size-5" aria-hidden />}
               {isDone ? "Shared" : it.label}
             </button>
           );

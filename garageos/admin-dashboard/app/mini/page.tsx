@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Bell,
@@ -11,9 +10,10 @@ import {
   Receipt,
 } from "lucide-react";
 
-import { miniFetch } from "@/lib/mini/client";
+import { useMiniData } from "@/lib/mini/hooks";
+import { haptic } from "@/lib/mini/telegram";
 import type { HomeResponse } from "@/lib/mini/types";
-import { Card, HealthRing, Loading, SectionLabel, money } from "@/components/mini/ui";
+import { Card, HealthRing, HomeSkeleton, ScreenError, SectionLabel, money } from "@/components/mini/ui";
 
 function fmtDate(iso?: string | null): string {
   if (!iso) return "";
@@ -22,15 +22,10 @@ function fmtDate(iso?: string | null): string {
 }
 
 export default function HomePage() {
-  const [home, setHome] = useState<HomeResponse | null>(null);
-  const [error, setError] = useState(false);
+  const { data: home, loading, error, reload } = useMiniData<HomeResponse>("/home");
 
-  useEffect(() => {
-    miniFetch<HomeResponse>("/home").then(setHome).catch(() => setError(true));
-  }, []);
-
-  if (error) return <p className="p-6 text-center text-sm text-slate-400">Couldn&apos;t load your garage.</p>;
-  if (!home) return <div className="pt-2"><Loading /></div>;
+  if (error) return <ScreenError message="Couldn't load your garage." onRetry={reload} />;
+  if (loading || !home) return <HomeSkeleton />;
 
   const v = home.primary_vehicle;
 
@@ -46,7 +41,9 @@ export default function HomePage() {
       {/* SOS — impossible to miss */}
       <Link
         href="/mini/roadside"
-        className="flex items-center gap-4 rounded-3xl bg-gradient-to-br from-red-500 to-rose-600 p-4 text-white shadow-[0_12px_32px_-10px_rgba(220,38,38,0.6)] transition active:scale-[0.99]"
+        aria-label="Request roadside assistance"
+        onClick={() => haptic("heavy")}
+        className="flex items-center gap-4 rounded-3xl bg-gradient-to-br from-red-500 to-rose-600 p-4 text-white shadow-[0_12px_32px_-10px_rgba(220,38,38,0.6)] transition motion-safe:active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50"
       >
         <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-white/20">
           <LifeBuoy className="size-7" />

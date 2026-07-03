@@ -6,8 +6,9 @@ import Link from "next/link";
 import { ArrowLeft, ImageIcon, Send } from "lucide-react";
 
 import { miniFetch } from "@/lib/mini/client";
+import { haptic } from "@/lib/mini/telegram";
 import type { ThreadMessage, ThreadResponse } from "@/lib/mini/types";
-import { Loading } from "@/components/mini/ui";
+import { ListSkeleton } from "@/components/mini/ui";
 
 function fmtTime(iso?: string | null): string {
   if (!iso) return "";
@@ -40,8 +41,10 @@ export default function ThreadPage() {
         method: "POST",
         body: JSON.stringify({ body }),
       });
+      haptic("light");
       setThread((t) => (t ? { ...t, messages: [...t.messages, msg] } : t));
     } catch {
+      haptic("error");
       setDraft(body); // restore on failure
     } finally {
       setSending(false);
@@ -55,7 +58,7 @@ export default function ThreadPage() {
       </Link>
 
       {!thread ? (
-        <Loading />
+        <ListSkeleton rows={4} />
       ) : (
         <>
           <h1 className="mb-3 px-1 text-lg font-bold text-slate-900">{thread.subject ?? "Conversation"}</h1>
@@ -93,14 +96,16 @@ export default function ThreadPage() {
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && send()}
               placeholder="Message…"
+              aria-label="Type a message"
               className="flex-1 bg-transparent px-3 py-2 text-sm outline-none"
             />
             <button
               onClick={send}
               disabled={!draft.trim() || sending}
-              className="grid size-10 place-items-center rounded-xl bg-blue-600 text-white transition active:scale-95 disabled:opacity-40"
+              aria-label="Send message"
+              className="grid size-11 place-items-center rounded-xl bg-blue-600 text-white transition motion-safe:active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-40"
             >
-              <Send className="size-4" />
+              <Send className="size-4" aria-hidden />
             </button>
           </div>
         </>

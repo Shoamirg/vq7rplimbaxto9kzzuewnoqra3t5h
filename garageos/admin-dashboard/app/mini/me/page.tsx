@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Award, Car, Mail, Phone, Store } from "lucide-react";
 
-import { miniFetch } from "@/lib/mini/client";
+import { useMiniData } from "@/lib/mini/hooks";
 import type { MeResponse } from "@/lib/mini/types";
-import { Card, Loading, ScreenHeader } from "@/components/mini/ui";
+import { Card, ListSkeleton, ScreenError, ScreenHeader } from "@/components/mini/ui";
 
 function fmtMonthYear(iso?: string | null): string {
   if (!iso) return "—";
@@ -13,13 +12,10 @@ function fmtMonthYear(iso?: string | null): string {
 }
 
 export default function MePage() {
-  const [me, setMe] = useState<MeResponse | null>(null);
+  const { data: me, loading, error, reload } = useMiniData<MeResponse>("/me");
 
-  useEffect(() => {
-    miniFetch<MeResponse>("/me").then(setMe).catch(() => setMe(null));
-  }, []);
-
-  if (!me) return <div><ScreenHeader title="Me" /><Loading /></div>;
+  if (error) return <div><ScreenHeader title="Me" /><ScreenError onRetry={reload} /></div>;
+  if (loading || !me) return <div><ScreenHeader title="Me" /><ListSkeleton rows={2} /></div>;
 
   const initials = me.full_name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
 

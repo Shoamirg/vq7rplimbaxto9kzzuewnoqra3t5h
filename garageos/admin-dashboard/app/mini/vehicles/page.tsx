@@ -1,24 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { ChevronRight, Gauge } from "lucide-react";
 
-import { miniFetch } from "@/lib/mini/client";
+import { useMiniData } from "@/lib/mini/hooks";
 import type { VehiclesResponse } from "@/lib/mini/types";
-import { Card, EmptyState, HealthRing, Loading, ScreenHeader } from "@/components/mini/ui";
+import { Card, EmptyState, HealthRing, ListSkeleton, ScreenError, ScreenHeader } from "@/components/mini/ui";
 
 export default function VehiclesPage() {
-  const [data, setData] = useState<VehiclesResponse | null>(null);
-
-  useEffect(() => {
-    miniFetch<VehiclesResponse>("/vehicles").then(setData).catch(() => setData({ vehicles: [] }));
-  }, []);
+  const { data, loading, error, reload } = useMiniData<VehiclesResponse>("/vehicles");
 
   return (
     <div>
       <ScreenHeader title="My vehicles" />
-      {!data ? (
-        <Loading />
+      {error ? (
+        <ScreenError onRetry={reload} />
+      ) : loading || !data ? (
+        <ListSkeleton />
       ) : data.vehicles.length === 0 ? (
         <EmptyState icon={<Gauge className="size-8" />} title="No vehicles yet" note="Your garage will add them here." />
       ) : (

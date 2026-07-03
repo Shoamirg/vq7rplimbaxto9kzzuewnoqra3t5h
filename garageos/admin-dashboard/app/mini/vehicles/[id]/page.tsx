@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, BadgeCheck, ChevronRight, ExternalLink, Wrench } from "lucide-react";
+import { ArrowLeft, BadgeCheck, ExternalLink, Wrench } from "lucide-react";
 
-import { miniFetch } from "@/lib/mini/client";
+import { useMiniData } from "@/lib/mini/hooks";
+import { haptic } from "@/lib/mini/telegram";
 import type { PassportResponse } from "@/lib/mini/types";
-import { Card, Chip, HealthRing, Loading, SectionLabel, money } from "@/components/mini/ui";
+import { Card, Chip, HealthRing, ListSkeleton, ScreenError, SectionLabel, Skeleton, money } from "@/components/mini/ui";
 
 function fmtDate(iso?: string | null): string {
   if (!iso) return "—";
@@ -18,24 +18,34 @@ const STATUS_TONE: Record<string, string> = { overdue: "red", due_soon: "amber",
 
 export default function VehicleDetailPage() {
   const params = useParams<{ id: string }>();
-  const [p, setP] = useState<PassportResponse | null>(null);
-  const [error, setError] = useState(false);
+  const { data: p, loading, error, reload } = useMiniData<PassportResponse>(`/vehicles/${params.id}/passport`);
 
-  useEffect(() => {
-    if (!params?.id) return;
-    miniFetch<PassportResponse>(`/vehicles/${params.id}/passport`).then(setP).catch(() => setError(true));
-  }, [params?.id]);
+  const back = (
+    <Link
+      href="/mini/vehicles"
+      onClick={() => haptic("light")}
+      className="inline-flex min-h-[44px] items-center gap-1 text-sm font-medium text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg"
+    >
+      <ArrowLeft className="size-4" aria-hidden /> Vehicles
+    </Link>
+  );
 
-  if (error) return <p className="p-6 text-center text-sm text-slate-400">Vehicle not found.</p>;
-  if (!p) return <div className="pt-2"><Loading /></div>;
+  if (error) return <div className="space-y-4">{back}<ScreenError message="Vehicle not found." onRetry={reload} /></div>;
+  if (loading || !p) {
+    return (
+      <div className="space-y-5">
+        {back}
+        <Skeleton className="h-44 w-full rounded-3xl" />
+        <ListSkeleton rows={3} />
+      </div>
+    );
+  }
 
   const tier = p.health.score >= 90 ? "Gold" : p.health.score >= 75 ? "Silver" : p.health.score >= 60 ? "Bronze" : null;
 
   return (
     <div className="space-y-5">
-      <Link href="/mini/vehicles" className="inline-flex items-center gap-1 text-sm font-medium text-slate-500">
-        <ArrowLeft className="size-4" /> Vehicles
-      </Link>
+      {back}
 
       {/* Passport hero — the differentiator, led with identity */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 to-slate-700 p-5 text-white shadow-xl">
@@ -125,9 +135,10 @@ export default function VehicleDetailPage() {
 
       <Link
         href={`/passport/${p.vehicle.id}`}
-        className="flex items-center justify-center gap-2 rounded-2xl bg-slate-900 py-3.5 text-sm font-semibold text-white active:scale-[0.99]"
+        onClick={() => haptic("light")}
+        className="flex min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-slate-900 py-3.5 text-sm font-semibold text-white transition motion-safe:active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50"
       >
-        <ExternalLink className="size-4" /> View &amp; share full passport
+        <ExternalLink className="size-4" aria-hidden /> View &amp; share full passport
       </Link>
     </div>
   );

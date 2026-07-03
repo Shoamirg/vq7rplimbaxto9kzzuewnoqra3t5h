@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { WifiOff } from "lucide-react";
+
+import { haptic } from "@/lib/mini/telegram";
 
 // Shared visual primitives for the Mini App. Kept self-contained (its own
 // tokens) so the customer surface reads as an intentional, branded product —
@@ -22,29 +25,34 @@ export function bandColor(band: string): string {
   return BAND_COLOR[band] ?? "#64748b";
 }
 
+const CARD_BASE =
+  "block rounded-3xl bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.06),0_8px_24px_-12px_rgba(15,23,42,0.12)] ring-1 ring-slate-900/[0.04]";
+const TAPPABLE =
+  " transition motion-safe:active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50";
+
 export function Card({
   children,
   className = "",
   href,
   onClick,
+  ariaLabel,
 }: {
   children: ReactNode;
   className?: string;
   href?: string;
   onClick?: () => void;
+  ariaLabel?: string;
 }) {
-  const cls =
-    "block rounded-3xl bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.06),0_8px_24px_-12px_rgba(15,23,42,0.12)] ring-1 ring-slate-900/[0.04] " +
-    className;
+  const cls = `${CARD_BASE} ${className}`;
   if (href) {
     return (
-      <Link href={href} className={cls + " transition active:scale-[0.99]"}>
+      <Link href={href} className={cls + TAPPABLE} aria-label={ariaLabel} onClick={() => haptic("light")}>
         {children}
       </Link>
     );
   }
   return (
-    <div className={cls + (onClick ? " transition active:scale-[0.99]" : "")} onClick={onClick}>
+    <div className={cls + (onClick ? TAPPABLE : "")} onClick={onClick}>
       {children}
     </div>
   );
@@ -110,14 +118,45 @@ export function Chip({ children, tone = "slate" }: { children: ReactNode; tone?:
   );
 }
 
-export function Loading() {
+// ── Skeletons (layout-mirroring, motion-safe) ───────────────────────────────
+export function Skeleton({ className = "" }: { className?: string }) {
+  return <div className={`motion-safe:animate-pulse rounded-2xl bg-slate-200/70 ${className}`} aria-hidden />;
+}
+
+/** Generic list-of-cards skeleton (vehicles, messages, receipts). */
+export function ListSkeleton({ rows = 3 }: { rows?: number }) {
   return (
-    <div className="space-y-3">
-      {[0, 1, 2].map((i) => (
-        <div key={i} className="h-24 animate-pulse rounded-3xl bg-slate-100" />
+    <div className="space-y-3" role="status" aria-label="Loading">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="flex items-center gap-4 rounded-3xl bg-white p-4 ring-1 ring-slate-900/[0.04]">
+          <Skeleton className="size-12 shrink-0 rounded-full" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-2/3" />
+            <Skeleton className="h-3 w-1/3" />
+          </div>
+        </div>
       ))}
     </div>
   );
+}
+
+/** Home skeleton: greeting + SOS + a card. */
+export function HomeSkeleton() {
+  return (
+    <div className="space-y-5" role="status" aria-label="Loading">
+      <div className="space-y-2 px-1">
+        <Skeleton className="h-3 w-32" />
+        <Skeleton className="h-7 w-44" />
+      </div>
+      <Skeleton className="h-20 w-full rounded-3xl" />
+      <ListSkeleton rows={2} />
+    </div>
+  );
+}
+
+// Kept for backwards-compat; screens should prefer a tailored skeleton.
+export function Loading() {
+  return <ListSkeleton rows={3} />;
 }
 
 export function EmptyState({ icon, title, note }: { icon?: ReactNode; title: string; note?: string }) {
@@ -126,6 +165,38 @@ export function EmptyState({ icon, title, note }: { icon?: ReactNode; title: str
       {icon ? <div className="mb-2 text-slate-300">{icon}</div> : null}
       <p className="font-medium text-slate-700">{title}</p>
       {note ? <p className="mt-1 text-sm text-slate-400">{note}</p> : null}
+    </div>
+  );
+}
+
+/** One consistent error state with a Retry, used by every screen. */
+export function ScreenError({
+  message = "Something went wrong.",
+  onRetry,
+  offline = false,
+}: {
+  message?: string;
+  onRetry?: () => void;
+  offline?: boolean;
+}) {
+  return (
+    <div className="grid place-items-center rounded-3xl bg-white/60 px-6 py-12 text-center ring-1 ring-slate-900/[0.04]" role="alert">
+      {offline ? <WifiOff className="mb-2 size-8 text-slate-300" /> : null}
+      <p className="font-medium text-slate-700">{offline ? "You're offline" : message}</p>
+      <p className="mt-1 text-sm text-slate-400">
+        {offline ? "Check your connection and try again." : "Please try again."}
+      </p>
+      {onRetry ? (
+        <button
+          onClick={() => {
+            haptic("medium");
+            onRetry();
+          }}
+          className="mt-5 min-h-[44px] rounded-full bg-blue-600 px-6 text-sm font-semibold text-white transition motion-safe:active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50"
+        >
+          Try again
+        </button>
+      ) : null}
     </div>
   );
 }
