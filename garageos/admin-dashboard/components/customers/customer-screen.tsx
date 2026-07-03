@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   Phone, Mail, Send, Car, Clock, DollarSign, CalendarClock, ShieldAlert,
   QrCode, Wrench, Sparkles, Star, MapPin, MessageSquare, FileText, StickyNote,
-  Gauge, ArrowRight,
+  Gauge, ArrowRight, Receipt,
 } from "lucide-react";
 import { Badge, Button, cn } from "@garageos/design-system";
 
@@ -22,10 +22,18 @@ const TL_SEVERITY: Record<string, string> = {
 };
 
 const TABS = [
-  "Overview", "Vehicles", "Passports", "Timeline", "Appointments",
-  "Messages", "Emergency", "Invoices", "Documents", "Notes",
+  "Overview", "Financial", "Vehicles", "Passports", "Timeline", "Appointments",
+  "Messages", "Emergency", "Documents", "Notes",
 ] as const;
 type Tab = (typeof TABS)[number];
+
+const CH_TONE: Record<string, string> = {
+  excellent: "text-emerald-600 bg-emerald-50 border-emerald-200",
+  good: "text-lime-600 bg-lime-50 border-lime-200",
+  fair: "text-amber-600 bg-amber-50 border-amber-200",
+  poor: "text-red-600 bg-red-50 border-red-200",
+  new: "text-slate-500 bg-slate-100 border-slate-200",
+};
 
 const nf = (n: number) => n.toLocaleString("en-US");
 const money = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
@@ -56,6 +64,12 @@ export function CustomerScreen({ customer }: { customer: Customer360 }) {
                   <Star className="size-3 fill-current" /> {c.tier.label}
                 </span>
               )}
+              {c.financial && (
+                <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold", CH_TONE[c.financial.commercial_health.band] ?? CH_TONE.new)}
+                  title={`Commercial Health · score ${c.financial.commercial_health.score} · risk ${c.financial.commercial_health.risk}`}>
+                  {"★".repeat(c.financial.commercial_health.stars)}{"☆".repeat(Math.max(0, 5 - c.financial.commercial_health.stars))} {c.financial.commercial_health.label}
+                </span>
+              )}
             </div>
             <p className="text-sm text-muted-foreground mt-1">
               {since ? `Customer since ${since}` : "Customer"}
@@ -69,12 +83,14 @@ export function CustomerScreen({ customer }: { customer: Customer360 }) {
           </div>
         </div>
 
-        {/* Stat strip */}
-        <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Stat icon={Car} label="Vehicles" value={String(c.stats.vehicle_count)} />
+        {/* Stat strip — business signals up front */}
+        <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           <Stat icon={DollarSign} label="Lifetime value" value={money(c.stats.lifetime_value)} />
+          <Stat icon={FileText} label="Outstanding" value={money(c.stats.outstanding)} valueClass={c.stats.outstanding > 0 ? "text-red-600" : undefined} />
+          <Stat icon={Receipt} label="Invoices" value={String(c.financial?.invoice_count ?? 0)} />
+          <Stat icon={Clock} label="Avg days to pay" value={c.financial?.avg_days_to_pay != null ? `${c.financial.avg_days_to_pay}` : "—"} />
+          <Stat icon={Car} label="Vehicles" value={String(c.stats.vehicle_count)} />
           <Stat icon={Gauge} label="Avg health" value={`${c.stats.health_avg}`} valueClass={BAND_TEXT[c.stats.health_band]} />
-          <Stat icon={Clock} label="Last visit" value={fmtDate(c.stats.last_visit)} />
         </div>
       </div>
 
@@ -95,15 +111,108 @@ export function CustomerScreen({ customer }: { customer: Customer360 }) {
       </div>
 
       {tab === "Overview" && <Overview customer={c} />}
+      {tab === "Financial" && <Financial customer={c} />}
       {tab === "Vehicles" && <Vehicles customer={c} />}
       {tab === "Passports" && <Passports customer={c} />}
       {tab === "Timeline" && <Timeline customer={c} />}
       {tab === "Appointments" && <Appointments customer={c} />}
       {tab === "Messages" && <Placeholder icon={MessageSquare} title="Conversations arrive with the Support Center" body="Telegram, chat, voice notes, and emergency threads will unify here as one conversation tied to this customer." />}
       {tab === "Emergency" && <Placeholder icon={ShieldAlert} title="Emergency history arrives with the Emergency Center" body="Roadside cases, tow dispatches, live location, and photos will appear here, linked to this customer's timeline." />}
-      {tab === "Invoices" && <Placeholder icon={FileText} title="Invoices arrive with the Billing module" body="Estimates, invoices, and payments will live here and feed lifetime value automatically." />}
       {tab === "Documents" && <Placeholder icon={FileText} title="No documents yet" body="Inspection reports, warranties, and uploads will be stored here per customer." />}
       {tab === "Notes" && <Placeholder icon={StickyNote} title="No notes yet" body="Staff notes and preferences for this customer will be captured here." />}
+    </div>
+  );
+}
+
+function Financial({ customer: c }: { customer: Customer360 }) {
+  const f = c.financial;
+  if (!f) return <Placeholder icon={Receipt} title="No financial data yet" body="Estimates, invoices, and payments will appear here." />;
+  const ch = f.commercial_health;
+  const kpis = [
+    { label: "Lifetime spend", value: money(f.lifetime_spend) },
+    { label: "Outstanding", value: money(f.outstanding), tone: f.outstanding > 0 ? "text-red-600" : undefined },
+    { label: "Overdue", value: `${money(f.overdue_amount)}${f.overdue_count ? ` · ${f.overdue_count}` : ""}`, tone: f.overdue_amount > 0 ? "text-red-600" : undefined },
+    { label: "Avg days to pay", value: f.avg_days_to_pay != null ? `${f.avg_days_to_pay}` : "—" },
+    { label: "Preferred method", value: f.preferred_method ? f.preferred_method.replace("_", " ") : "—" },
+    { label: "Approval rate", value: f.approval_rate != null ? `${Math.round(f.approval_rate * 100)}%` : "—" },
+    { label: "Open estimates", value: String(f.open_estimate_count) },
+    { label: "Last payment", value: f.last_payment ? `${money(f.last_payment.amount)} · ${fmtDate(f.last_payment.date)}` : "—" },
+  ];
+  return (
+    <div className="space-y-5">
+      {/* Commercial Health — the money equivalent of Vehicle Health */}
+      <div className={cn("rounded-2xl border p-5 flex items-center gap-5", CH_TONE[ch.band] ?? CH_TONE.new)}>
+        <div className="text-center shrink-0">
+          <div className="text-3xl font-extrabold tabular-nums">{ch.score}</div>
+          <div className="text-lg leading-none">{"★".repeat(ch.stars)}{"☆".repeat(Math.max(0, 5 - ch.stars))}</div>
+        </div>
+        <div className="min-w-0">
+          <p className="text-[11px] uppercase tracking-wide font-bold opacity-70">Commercial Health</p>
+          <p className="text-xl font-extrabold">{ch.label}</p>
+          <p className="text-sm opacity-80">Risk: <span className="font-semibold capitalize">{ch.risk}</span> · {f.invoice_count} invoices · avg pay {f.avg_days_to_pay ?? "—"} days</p>
+        </div>
+      </div>
+
+      {/* KPI grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {kpis.map((k) => (
+          <div key={k.label} className="rounded-xl border border-border bg-card p-3">
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{k.label}</p>
+            <p className={cn("text-sm font-bold text-foreground mt-0.5 truncate", k.tone)}>{k.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Documents */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <DocList title="Invoices" rows={f.invoices} />
+        <DocList title="Estimates" rows={f.estimates} />
+        <PayList rows={f.payments} />
+      </div>
+    </div>
+  );
+}
+
+function DocList({ title, rows }: { title: string; rows: any[] }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
+        <span className="text-sm font-bold">{title}</span>
+        <Link href="/billing" className="text-xs text-primary hover:underline">Open →</Link>
+      </div>
+      {rows.length === 0 ? <p className="px-4 py-6 text-center text-xs text-muted-foreground">None yet.</p> : (
+        <div className="divide-y divide-border">
+          {rows.slice(0, 6).map((d: any) => (
+            <Link key={d.id} href="/billing" className="flex items-center gap-2 px-4 py-2.5 hover:bg-muted/40">
+              <span className="font-mono text-[11px] text-muted-foreground">{d.code}</span>
+              <span className="ml-auto text-sm font-mono font-bold">{money(d.total)}</span>
+              <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded capitalize",
+                d.status === "paid" ? "text-emerald-600 bg-emerald-50" : d.status === "overdue" ? "text-red-600 bg-red-50" :
+                d.status === "partial" ? "text-amber-600 bg-amber-50" : d.status === "approved" ? "text-emerald-600 bg-emerald-50" :
+                "text-blue-600 bg-blue-50")}>{d.status}</span>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PayList({ rows }: { rows: any[] }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+      <div className="px-4 py-2.5 border-b border-border"><span className="text-sm font-bold">Payments</span></div>
+      {rows.length === 0 ? <p className="px-4 py-6 text-center text-xs text-muted-foreground">None yet.</p> : (
+        <div className="divide-y divide-border">
+          {rows.slice(0, 6).map((p: any) => (
+            <div key={p.id} className="flex items-center gap-2 px-4 py-2.5 text-sm">
+              <span className="capitalize">{p.method.replace("_", " ")}</span>
+              <span className="text-[11px] text-muted-foreground">{fmtDate(p.received_at)}</span>
+              <span className={cn("ml-auto font-mono font-bold", p.kind === "refund" && "text-red-600")}>{p.kind === "refund" ? "−" : ""}{money(p.amount)}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

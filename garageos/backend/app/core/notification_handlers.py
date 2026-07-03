@@ -24,8 +24,14 @@ from app.core.events import (
     CaseOpened,
     CaseResolved,
     CaseStatusChanged,
+    EstimateApproved,
+    EstimateCreated,
+    EstimateSent,
+    InvoiceIssued,
+    InvoicePaid,
     MaintenanceDue,
     MessagePosted,
+    PaymentReceived,
     event_bus,
 )
 from app.repositories.unit_of_work import UnitOfWork
@@ -130,6 +136,26 @@ def _spec_for(event) -> Optional[dict]:
             link=f"/inbox/{event.conversation_id}",
             vehicle_id=event.vehicle_id, customer_id=event.customer_id,
         )
+    # ── Commercial Operations (billing) ── feeds the bell + financial timeline
+    if isinstance(event, (EstimateCreated, EstimateSent, EstimateApproved,
+                          InvoiceIssued, PaymentReceived, InvoicePaid)):
+        title, sev = {
+            "EstimateCreated": ("Estimate created", "info"),
+            "EstimateSent": ("Estimate sent", "low"),
+            "EstimateApproved": ("Estimate approved", "medium"),
+            "InvoiceIssued": ("Invoice issued", "medium"),
+            "PaymentReceived": ("Payment received", "medium"),
+            "InvoicePaid": ("Invoice paid", "info"),
+        }[type(event).__name__]
+        body = None
+        if isinstance(event, PaymentReceived) and event.amount is not None:
+            body = f"${event.amount:,.2f}" + (f" · {event.method}" if event.method else "")
+        return dict(
+            service_center_id=sc, category="finance", severity=sev,
+            title=f"{title} · {event.code}", body=body,
+            entity_type="invoice", entity_id=event.invoice_id, link=f"/billing/{event.invoice_id}",
+            vehicle_id=event.vehicle_id, customer_id=event.customer_id,
+        )
     return None
 
 
@@ -162,7 +188,9 @@ def register_notification_handlers() -> None:
     for evt in (AppointmentCreated, AppointmentConfirmed, AppointmentCancelled,
                 AppointmentCompleted, MaintenanceDue,
                 CaseOpened, CaseAssigned, CaseStatusChanged, CaseResolved,
-                MessagePosted):
+                MessagePosted,
+                EstimateCreated, EstimateSent, EstimateApproved,
+                InvoiceIssued, PaymentReceived, InvoicePaid):
         event_bus.register(evt, _handle)
     _registered = True
     logger.info("Notification handlers registered")

@@ -30,6 +30,18 @@ export interface Appointment {
   service_type: string | null;
   estimated_duration_minutes: number;
   total_cost: number | null;
+  health_score?: number | null;
+  health_band?: HealthBand | null;
+  billing?: AppointmentBilling | null;
+}
+
+export interface AppointmentBilling {
+  id: string;
+  code: string;
+  kind: InvoiceKind;
+  status: InvoiceStatus;
+  total: number;
+  balance: number;
 }
 
 export interface Branding {
@@ -320,10 +332,44 @@ export interface Customer360 {
     last_visit: string | null;
     next_booking: string | null;
   };
+  financial?: CustomerFinancial;
   vehicles: Customer360Vehicle[];
   appointments: Customer360Appointment[];
   timeline: TimelineEvent[];
   ai_summary: string;
+}
+
+export interface CommercialHealth {
+  score: number;
+  stars: number;
+  band: string;
+  label: string;
+  risk: string;
+}
+
+export interface CustomerFinancialDoc {
+  id: string; code: string; kind: InvoiceKind; status: InvoiceStatus;
+  total: number; balance: number; due_date: string | null; created_at: string | null;
+}
+
+export interface CustomerFinancial {
+  lifetime_spend: number;
+  refunds: number;
+  outstanding: number;
+  overdue_amount: number;
+  overdue_count: number;
+  avg_days_to_pay: number | null;
+  invoice_count: number;
+  estimate_count: number;
+  open_estimate_count: number;
+  payment_count: number;
+  preferred_method: PaymentMethodT | null;
+  approval_rate: number | null;
+  last_payment: { amount: number; method: string; date: string } | null;
+  commercial_health: CommercialHealth;
+  invoices: CustomerFinancialDoc[];
+  estimates: CustomerFinancialDoc[];
+  payments: PaymentRow[];
 }
 
 // ─── Certified Vehicle Passport ──────────────────────────────
@@ -500,4 +546,87 @@ export interface AppointmentListResponse {
   page: number;
   page_size: number;
   total_pages: number;
+}
+
+// ─── Commercial Operations (Billing) ──────────────────────────
+export type InvoiceKind = "estimate" | "invoice";
+export type InvoiceStatus =
+  | "draft" | "sent" | "viewed" | "approved" | "rejected" | "changes_requested" | "expired"
+  | "issued" | "partial" | "paid" | "overdue" | "void" | "refunded";
+export type LineKind = "part" | "labor" | "fee" | "discount";
+export type PaymentMethodT = "cash" | "card" | "bank_transfer" | "online";
+export type PaymentKindT = "payment" | "refund" | "deposit";
+export type PaymentSourceT = "manual" | "terminal" | "telegram" | "stripe" | "bank" | "cash";
+
+export interface InvoiceListItem {
+  id: string;
+  code: string;
+  kind: InvoiceKind;
+  status: InvoiceStatus;
+  currency: string;
+  tax_rate: number;
+  subtotal: number;
+  discount_total: number;
+  tax_total: number;
+  total: number;
+  amount_paid: number;
+  balance: number;
+  notes: string | null;
+  customer_id: string;
+  vehicle_id: string | null;
+  appointment_id: string | null;
+  case_id: string | null;
+  source_estimate_id: string | null;
+  issued_at: string | null;
+  due_date: string | null;
+  approved_at: string | null;
+  paid_at: string | null;
+  created_at: string | null;
+  is_overdue: boolean;
+  customer_name?: string | null;
+  vehicle_label?: string | null;
+}
+
+export interface InvoiceLineItemRow {
+  id: string;
+  kind: LineKind;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
+  taxable: boolean;
+}
+
+export interface PaymentRow {
+  id: string;
+  kind: PaymentKindT;
+  method: PaymentMethodT;
+  source: PaymentSourceT;
+  amount: number;
+  reference: string | null;
+  note: string | null;
+  received_at: string | null;
+}
+
+export interface InvoiceDoc extends InvoiceListItem {
+  customer?: { id: string; name: string; phone: string | null; email: string | null } | null;
+  line_items: InvoiceLineItemRow[];
+  payments: PaymentRow[];
+  timeline: { title: string; detail: string | null; date: string; severity: string }[];
+}
+
+export interface BillingCounts {
+  invoices: number; estimates: number; overdue: number;
+  awaiting: number; drafts: number; payments: number; recurring: number;
+}
+
+export interface BillingKpis {
+  outstanding: number; overdue: number; paid_this_month: number;
+}
+
+export interface BillingResponse {
+  items: InvoiceListItem[];
+  counts: BillingCounts;
+  kpis: BillingKpis;
+  view: string;
 }

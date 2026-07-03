@@ -300,6 +300,10 @@ class CustomerService:
         timeline.sort(key=lambda e: e["date"], reverse=True)
         timeline = timeline[:40]
 
+        # Financial summary — Commercial Health, the money equivalent of Vehicle Health.
+        from app.services.financial_service import FinancialService
+        financial = await FinancialService(self.uow).customer_summary(customer_id)
+
         return {
             "id": str(customer.id),
             "full_name": customer.full_name,
@@ -315,11 +319,12 @@ class CustomerService:
                 "lifetime_value": lifetime_value,
                 "health_avg": health_avg,
                 "health_band": _band(health_avg),
-                "outstanding": 0.0,        # invoices module not built yet
+                "outstanding": financial["outstanding"],
                 "emergency_count": 0,       # emergency module not built yet
                 "last_visit": last_visit.isoformat() if last_visit else None,
                 "next_booking": next_booking.appointment_date.isoformat() if next_booking else None,
             },
+            "financial": financial,
             "vehicles": vehicle_out,
             "appointments": [self._serialize_appt(a) for a in
                              sorted(appointments, key=lambda a: a.appointment_date, reverse=True)[:12]],

@@ -19,6 +19,7 @@ import {
   Warehouse,
   Siren,
   Inbox,
+  Receipt,
 } from "lucide-react";
 import { cn } from "@garageos/design-system";
 
@@ -64,6 +65,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     key: "section.business",
     items: [
+      { key: "nav.billing", href: "/billing", icon: <Receipt className="size-5" /> },
       { key: "nav.inventory", href: "/inventory", icon: <Warehouse className="size-5" /> },
       { key: "nav.reports", href: "/reports", icon: <BarChart3 className="size-5" /> },
     ],

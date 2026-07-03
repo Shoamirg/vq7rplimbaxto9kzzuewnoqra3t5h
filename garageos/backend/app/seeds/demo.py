@@ -24,11 +24,15 @@ from app.models import (
     Attachment,
     Conversation,
     Customer,
+    Invoice,
+    InvoiceLineItem,
+    LedgerEntry,
     MaintenanceRule,
     Message,
     Notification,
     OperationalCase,
     Participant,
+    Payment,
     ServiceCenter,
     ServiceRecord,
     User,
@@ -44,6 +48,7 @@ from app.seeds.roles import seed_roles
 from app.seeds.service_centers import seed_service_center
 from app.seeds.cases import generate_cases
 from app.seeds.conversations import generate_conversations
+from app.seeds.invoices import generate_invoices
 from app.seeds.fleet import generate_fleet_vehicles
 from app.seeds.notifications import generate_notifications
 
@@ -83,7 +88,7 @@ PRIMARY_VOLUME = {"mechanics": 6, "customers": 200, "vehicles": 350, "appointmen
 SECOND_VOLUME = {"mechanics": 2, "customers": 15, "vehicles": 20, "appointments": 6}
 
 # Tenant-scoped tables, in safe deletion order (children before parents).
-_TENANT_TABLES = [Attachment, Message, Participant, Conversation, OperationalCase, Notification, ServiceRecord, AppointmentSlot, Appointment, Vehicle, Customer, MaintenanceRule, User]
+_TENANT_TABLES = [LedgerEntry, Payment, InvoiceLineItem, Invoice, Attachment, Message, Participant, Conversation, OperationalCase, Notification, ServiceRecord, AppointmentSlot, Appointment, Vehicle, Customer, MaintenanceRule, User]
 
 
 async def _wipe_tenant(session: AsyncSession, center: ServiceCenter) -> None:
@@ -150,6 +155,7 @@ async def _seed_tenant(
     await generate_notifications(session, center, vehicles)
     await generate_cases(session, center, vehicles, staff["mechanics"])
     await generate_conversations(session, center, vehicles, staff["mechanics"])
+    await generate_invoices(session, center, vehicles)
     logger.info(
         "Seeded %s: %d customers, %d vehicles",
         center.name, len(customers), len(vehicles),
