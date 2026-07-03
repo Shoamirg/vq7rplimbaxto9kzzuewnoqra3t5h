@@ -14,6 +14,14 @@ export async function clientFetch<T>(path: string, init?: RequestInit): Promise<
     headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
   });
   if (!res.ok) {
+    // A write blocked by the read-only demo guard — surface it as a friendly toast
+    // (the DemoBanner listens) instead of a silent failure.
+    if (res.status === 403 && typeof window !== "undefined") {
+      const body = await res.clone().json().catch(() => null);
+      if (body?.error?.code === "DEMO_READ_ONLY") {
+        window.dispatchEvent(new CustomEvent("garageos:demo-blocked"));
+      }
+    }
     throw new ClientApiError(`${path} responded ${res.status}`, res.status);
   }
   return (await res.json()) as T;

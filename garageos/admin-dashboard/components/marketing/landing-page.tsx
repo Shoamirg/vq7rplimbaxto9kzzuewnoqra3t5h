@@ -68,6 +68,7 @@ export function LandingPage() {
             <a href="#platform">Platform</a>
             <a href="#features">Features</a>
             <a href="#pricing">Pricing</a>
+            <a href="/demo">Live demo</a>
           </nav>
           <div className="mkt-nav__cta">
             <a href={SIGN_IN_HREF} className="mkt-nav__signin">Sign in</a>
@@ -90,10 +91,10 @@ export function LandingPage() {
             into one platform — so every job, every car, and every dollar is in one place.
           </p>
           <div className="mkt-hero__cta mkt-rise mkt-rise-4">
-            <a href={DEMO_HREF} className="mkt-btn mkt-btn--primary mkt-btn--lg">Book a demo <ArrowRight size={17} /></a>
-            <a href="#features" className="mkt-btn mkt-btn--ghost mkt-btn--lg">See the platform</a>
+            <a href="/demo" className="mkt-btn mkt-btn--primary mkt-btn--lg">Explore the live demo <ArrowRight size={17} /></a>
+            <a href={DEMO_HREF} className="mkt-btn mkt-btn--ghost mkt-btn--lg">Book a demo</a>
           </div>
-          <p className="mkt-hero__trust mkt-rise mkt-rise-4">Built for independent shops and multi-location groups.</p>
+          <p className="mkt-hero__trust mkt-rise mkt-rise-4">No signup — a read-only tour on real demo data.</p>
 
           <div className="mkt-frame mkt-rise mkt-rise-4">
             <div className="mkt-frame__dots" aria-hidden><i /><i /><i /></div>

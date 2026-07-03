@@ -23,6 +23,7 @@ from app.core.database import engine
 from app.core.event_handlers import register_event_handlers
 from app.core.notification_handlers import register_notification_handlers
 from app.core.logging import setup_logging
+from app.core.demo_mode import DemoReadOnlyMiddleware
 from app.core.observability import init_sentry
 from app.core.rate_limit import close_rate_limiter
 from app.exceptions import GarageException, RateLimitExceeded
@@ -106,6 +107,8 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    # Read-only guard for public demo sessions (rejects writes from demo tokens).
+    app.add_middleware(DemoReadOnlyMiddleware)
 
     _register_exception_handlers(app)
 

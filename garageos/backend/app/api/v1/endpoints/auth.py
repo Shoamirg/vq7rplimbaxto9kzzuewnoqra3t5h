@@ -6,9 +6,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_auth_service, get_current_user
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.rate_limit import auth_rate_limit
-from app.exceptions import GarageException
+from app.exceptions import GarageException, NotFoundError
 from app.models.service_center import ServiceCenter
 from app.models.user import User
 from app.schemas.auth import (
@@ -75,6 +76,19 @@ async def refresh(
         raise
     await record_audit(action="auth.refresh.success", request=request)
     return TokenResponse(**tokens)
+
+
+@router.post(
+    "/demo",
+    response_model=TokenResponse,
+    summary="Enter the read-only public demo",
+    dependencies=[Depends(auth_rate_limit)],
+)
+async def demo(auth: AuthService = Depends(get_auth_service)) -> TokenResponse:
+    # 404 (not 403) when disabled, so the route is indistinguishable from missing.
+    if not settings.DEMO_MODE_ENABLED:
+        raise NotFoundError("Not found")
+    return TokenResponse(**await auth.demo_login())
 
 
 @router.get("/me", response_model=CurrentUserResponse, summary="Current authenticated user")

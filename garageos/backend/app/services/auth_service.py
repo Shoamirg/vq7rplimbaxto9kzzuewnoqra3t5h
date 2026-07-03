@@ -101,17 +101,42 @@ class AuthService:
         if not user:
             raise UserNotFound()
 
+        # Carry the demo flag across refresh — otherwise a read-only demo session
+        # could refresh into a full-access token and bypass the write guard.
+        demo = {"demo": True} if payload.get("demo") else {}
         access_token = create_access_token(
-            data={"sub": str(user.id), "email": user.email, "type": "access"},
+            data={"sub": str(user.id), "email": user.email, "type": "access", **demo},
             expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
         )
         new_refresh = create_refresh_token(
-            data={"sub": str(user.id), "type": "refresh"},
+            data={"sub": str(user.id), "type": "refresh", **demo},
         )
 
         return {
             "access_token": access_token,
             "refresh_token": new_refresh,
+            "token_type": "bearer",
+        }
+
+    async def demo_login(self) -> dict:
+        """Mint a READ-ONLY demo session for the configured demo account.
+
+        No password: entry is gated at the endpoint by DEMO_MODE_ENABLED. Tokens
+        carry a ``demo`` claim that DemoReadOnlyMiddleware uses to reject writes.
+        """
+        user = await self.user_repo.find_by_email(settings.DEMO_EMAIL)
+        if not user:
+            raise UserNotFound()
+        access_token = create_access_token(
+            data={"sub": str(user.id), "email": user.email, "type": "access", "demo": True},
+            expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+        )
+        refresh_token = create_refresh_token(
+            data={"sub": str(user.id), "type": "refresh", "demo": True},
+        )
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
             "token_type": "bearer",
         }
 

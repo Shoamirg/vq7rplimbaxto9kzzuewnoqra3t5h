@@ -60,6 +60,13 @@ class Settings(BaseSettings):
     SENTRY_TRACES_SAMPLE_RATE: float = 0.0
     SENTRY_ENVIRONMENT: Optional[str] = None  # falls back to ENVIRONMENT
 
+    # Public demo — a no-signup, READ-ONLY session into the demo tenant. Off by
+    # default (dev/prod); the public marketing deployment turns it on. Demo tokens
+    # carry a `demo` claim; a middleware rejects all writes, so the demo data stays
+    # pristine with no reset needed.
+    DEMO_MODE_ENABLED: bool = False
+    DEMO_EMAIL: str = "admin@demo.garageos.app"
+
     # Admin
     ADMIN_EMAIL: str = "admin@garageplatform.com"
     ADMIN_PASSWORD: str = "admin123"
