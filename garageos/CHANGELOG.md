@@ -3,6 +3,33 @@
 All notable milestones for GarageOS. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); dates are ISO-8601.
 
+## [0.9.0-commercial-operations] — 2026-07-03 — Commercial Operations
+
+One commercial model for the whole billing lifecycle, linked to the rest of the
+platform.
+
+### Added
+- **Invoices & Payments** — one `Invoice` aggregate (`kind` estimate|invoice +
+  status lifecycle); estimates and invoices are separate rows linked by
+  `source_estimate_id` (immutable estimates). `InvoiceLineItem` (part/labor/fee/
+  discount, taxable) and first-class `Payment` (method + kind + **source**).
+- **Billing workspace** (`/billing`) — 3-pane rail + document queue + premium
+  document, with **distinct estimate (blue) / invoice (green)** identities,
+  grouped line items, VAT totals, payments, QR, and a financial timeline.
+- **Appointments ↔ Billing** — Health + Billing on every appointment row
+  (Paid / balance / Overdue / Est).
+- **Customer 360 Financial** — a Financial tab + header KPIs (Lifetime Value /
+  Outstanding / Invoices / Avg Days to Pay).
+- **Commercial Health** — an operational payer score (score/stars/band/risk),
+  the financial equivalent of Vehicle Health, reused across surfaces.
+- **`LedgerEntry`** — a reserved append-only money-movement stream; one entry
+  per financial mutation (invariant-tested) so Reports/exports project over it.
+- **Health Score column** on the Appointments queue.
+
+### Notes
+- Backend events (Estimate*/Invoice*/Payment*) feed the financial timeline via
+  the existing notification engine — no new timeline table.
+
 ## [0.8.0-ucp] — 2026-07-02 — Unified Communications Platform
 
 The integration checkpoint: one universal conversation model across the product.

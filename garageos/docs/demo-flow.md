@@ -3,7 +3,7 @@
 A scripted ~12-minute end-to-end walkthrough. Doubles as the **release regression
 checklist**: if every step passes, the platform is stable enough to merge/ship.
 
-Last verified: 2026-07-02 (UCP milestone, commit `d390acd` / merge `6d7ca7c`).
+Last verified: 2026-07-03 (Commercial Operations, merge `95b6b9b`, tag `v0.9.0-commercial-operations`).
 
 ---
 
@@ -30,8 +30,9 @@ Last verified: 2026-07-02 (UCP milestone, commit `d390acd` / merge `6d7ca7c`).
 
 1. **Dashboard** — `/dashboard`. Executive view: active appointments, fleet health ring, weekly revenue, today's schedule, certified vehicles.
 2. **Calendar** — `/calendar`. Scheduling grid: technician columns, slots, drag-to-move appointments. *(Calendar plans; Appointments manages.)*
-3. **Appointments** — `/appointments`. The operational queue: KPI strip, status + date quick-filters (Today / This week / Overdue), search, bulk confirm/cancel, and a per-row `⋯` menu that jumps to Customer 360 / Vehicle / Passport / Reschedule.
-4. **Customer 360** — from any row, open the customer. One command center for a customer: vehicles, passports, timeline, appointments, LTV, tier.
+3. **Appointments** — `/appointments`. The operational queue: KPI strip, status + date quick-filters (Today / This week / Overdue), search, bulk confirm/cancel, a per-row `⋯` menu into Customer 360 / Vehicle / Passport / Reschedule, and **Health + Billing** columns (Paid / balance / Overdue / Est) — the operational loop at a glance.
+3a. **Billing** — `/billing`. The commercial workspace: rail (Invoices / Estimates / Payments / Overdue / Awaiting / Drafts) + KPIs, a document queue, and the premium document. **Estimate = blue** (Approve / Reject / Convert); **Invoice = green** (Record payment / QR). Record a payment → status flips to Paid; approve an estimate → Convert to invoice.
+4. **Customer 360** — from any row, open the customer. One command center: vehicles, passports, timeline, appointments, LTV, tier — plus a **Financial** tab (Commercial Health ★, outstanding, avg days to pay, invoices/estimates/payments) and financial KPIs in the header.
 5. **Vehicle Health** — open a vehicle. Animated health gauge + component breakdown + due-services.
 6. **Passport** — from the vehicle, open its **Certified Vehicle Passport** (`/passport/{id}`, public route). Health hero, service history, QR, dealer stamp, garage branding.
 7. **Print Passport** — use the Print/Download action on the passport. Print styles produce a clean certificate.
@@ -54,8 +55,9 @@ Run before every merge to `main`. All must pass.
 
 - [ ] 1. Dashboard loads with live stats
 - [ ] 2. Calendar renders the scheduling grid
-- [ ] 3. Appointments queue shows real rows + KPI strip + filters
-- [ ] 4. Customer 360 opens for a customer
+- [ ] 3. Appointments queue: rows + KPI strip + filters + Health/Billing columns
+- [ ] 3a. Billing workspace: invoice (green) + estimate (blue); record payment / convert
+- [ ] 4. Customer 360 opens, incl. Financial tab + Commercial Health
 - [ ] 5. Vehicle Health gauge renders
 - [ ] 6. Passport renders (public route)
 - [ ] 7. Passport print/download works
