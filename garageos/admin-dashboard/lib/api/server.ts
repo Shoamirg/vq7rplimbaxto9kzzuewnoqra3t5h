@@ -57,7 +57,9 @@ export const getCurrentUser = () => apiFetch<CurrentUser>("/auth/me");
 
 export const getVehicles = () => apiFetch<VehicleList>("/vehicles");
 // Bounded for dashboard responsiveness (fleet health is O(N) over vehicles).
-export const getFleetHealth = (limit = 60) => apiFetch<FleetHealth>(`/fleet/health?limit=${limit}`);
+// 120 keeps the sample large enough to be representative of a big fleet while
+// staying comfortably under the <1s dashboard budget (~0.7s at this size).
+export const getFleetHealth = (limit = 120) => apiFetch<FleetHealth>(`/fleet/health?limit=${limit}`);
 export const getVehicleHealth = (id: string) => apiFetch<VehicleHealth>(`/vehicles/${id}/health`);
 export const getVehicleTimeline = (id: string) => apiFetch<VehicleTimeline>(`/vehicles/${id}/timeline`);
 export const getVehicleIntelligence = (id: string) => apiFetch<VehicleIntelligence>(`/vehicles/${id}/intelligence`);

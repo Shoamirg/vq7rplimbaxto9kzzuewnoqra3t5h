@@ -84,7 +84,11 @@ SECOND = {
 
 # Service histories are generated per-vehicle by the fleet generator (they set
 # each vehicle's health), so there's no separate service-record volume knob.
-PRIMARY_VOLUME = {"mechanics": 6, "customers": 200, "vehicles": 350, "appointments": 40}
+# The primary tenant is sized as a full, busy shop so every screen looks its best
+# in a demo: a large fleet, a deep customer book, and 8 mechanic lanes on the
+# board. NOTE: the appointment schedule is slot-driven (mechanics × days × slots ×
+# fill), so `mechanics` — not `appointments` — is what fills the calendar.
+PRIMARY_VOLUME = {"mechanics": 8, "customers": 250, "vehicles": 720, "appointments": 40}
 SECOND_VOLUME = {"mechanics": 2, "customers": 15, "vehicles": 20, "appointments": 6}
 
 # Tenant-scoped tables, in safe deletion order (children before parents).
