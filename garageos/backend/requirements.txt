@@ -15,6 +15,9 @@ email-validator==2.2.0
 httpx==0.27.2
 redis==5.1.1
 apscheduler==3.10.4
+# Optional error monitoring — activates only when SENTRY_DSN is set (see
+# app/core/observability.py). Safe to keep installed; a no-op without a DSN.
+sentry-sdk[fastapi]==2.19.2
 python-dotenv==1.0.1
 structlog==24.4.0
 pytest==8.3.3

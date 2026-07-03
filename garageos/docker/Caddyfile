@@ -1,0 +1,28 @@
+# GarageOS reverse proxy — automatic HTTPS via Let's Encrypt.
+# Only the dashboard is exposed publicly; the backend is reached internally by
+# the Next BFF over the Docker network, so it never faces the internet.
+#
+# Requires DOMAIN and ACME_EMAIL in the environment (see .env.prod).
+
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	# Long-lived, hashed static assets can be cached hard.
+	@static path /_next/static/* /brand/* /icon.svg /apple-icon.png
+	header @static Cache-Control "public, max-age=31536000, immutable"
+
+	# Security headers (baseline; tighten CSP once external origins are known).
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	reverse_proxy dashboard:3000
+}

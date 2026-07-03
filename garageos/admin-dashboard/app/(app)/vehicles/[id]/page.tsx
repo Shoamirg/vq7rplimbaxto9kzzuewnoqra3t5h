@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 
-import { VehicleHealthScreen } from "@/components/vehicles/vehicle-health-screen";
-import { ApiError, getVehicleHealth, getVehicleTimeline } from "@/lib/api/server";
+import { VehicleIntelligenceCenter } from "@/components/vehicles/vehicle-intelligence-center";
+import { ApiError, getVehicleIntelligence } from "@/lib/api/server";
 
 export const dynamic = "force-dynamic";
 
@@ -12,11 +12,8 @@ export default async function VehicleDetailPage({
 }) {
   const { id } = await params;
   try {
-    const [health, timeline] = await Promise.all([
-      getVehicleHealth(id),
-      getVehicleTimeline(id),
-    ]);
-    return <VehicleHealthScreen health={health} timeline={timeline} />;
+    const data = await getVehicleIntelligence(id);
+    return <VehicleIntelligenceCenter data={data} />;
   } catch (err) {
     if (err instanceof ApiError) {
       if (err.status === 401) redirect("/login");

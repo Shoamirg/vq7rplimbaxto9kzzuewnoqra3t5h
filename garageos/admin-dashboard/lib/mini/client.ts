@@ -2,22 +2,12 @@
 // BFF auth route), then talks to the customer API through the same-origin proxy.
 "use client";
 
+import { telegram } from "@/lib/mini/telegram";
+
 export interface CustomerSummary {
   id: string;
   full_name: string;
   service_center_id: string;
-}
-
-interface TelegramWebApp {
-  initData?: string;
-  ready?: () => void;
-  expand?: () => void;
-  colorScheme?: string;
-}
-
-export function telegram(): TelegramWebApp | undefined {
-  if (typeof window === "undefined") return undefined;
-  return (window as unknown as { Telegram?: { WebApp?: TelegramWebApp } }).Telegram?.WebApp;
 }
 
 let sessionPromise: Promise<CustomerSummary> | null = null;

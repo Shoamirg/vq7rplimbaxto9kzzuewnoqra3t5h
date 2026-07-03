@@ -5,6 +5,9 @@
 // This is intentionally dependency-free — a full library (next-intl) can replace
 // it later without changing call sites, since components only touch `t("nav.x")`.
 
+import { MINI_DICTIONARY } from "./mini-dictionary";
+import { STAFF_DICTIONARY } from "./staff-dictionary";
+
 export const LOCALES = ["en", "ru", "uz"] as const;
 export type Locale = (typeof LOCALES)[number];
 
@@ -157,6 +160,53 @@ export const DICTIONARIES: Record<Locale, Dict> = {
   },
 };
 
-export function translate(locale: Locale, key: string): string {
-  return DICTIONARIES[locale]?.[key] ?? DICTIONARIES.en[key] ?? key;
+export type TParams = Record<string, string | number>;
+
+function interpolate(s: string, params?: TParams): string {
+  if (!params) return s;
+  return s.replace(/\{(\w+)\}/g, (_, k) => (k in params ? String(params[k]) : `{${k}}`));
+}
+
+export function translate(locale: Locale, key: string, params?: TParams): string {
+  const raw = DICTIONARIES[locale]?.[key] ?? DICTIONARIES.en[key] ?? key;
+  return interpolate(raw, params);
+}
+
+// Plural-aware lookup. Dictionary stores forms as `${key}.one`, `.few`, `.many`,
+// `.other`; the correct category is chosen per-locale via Intl.PluralRules
+// (Russian/Uzbek have richer plural rules than English). `{count}` is filled in.
+export function translatePlural(
+  locale: Locale,
+  key: string,
+  count: number,
+  params?: TParams,
+): string {
+  const cat = new Intl.PluralRules(locale).select(count);
+  const dict = DICTIONARIES[locale] ?? DICTIONARIES.en;
+  const raw =
+    dict[`${key}.${cat}`] ??
+    dict[`${key}.other`] ??
+    DICTIONARIES.en[`${key}.other`] ??
+    DICTIONARIES.en[`${key}.one`] ??
+    key;
+  return interpolate(raw, { count, ...params });
+}
+
+// Locales that render right-to-left. None yet (en/ru/uz are all LTR), but call
+// sites read this so adding Arabic/Hebrew later is a dictionary change, not a
+// layout rewrite.
+const RTL_LOCALES: readonly Locale[] = [];
+
+export function isRtl(locale: Locale): boolean {
+  return RTL_LOCALES.includes(locale);
+}
+
+export function textDirection(locale: Locale): "ltr" | "rtl" {
+  return isRtl(locale) ? "rtl" : "ltr";
+}
+
+// Fold the Mini App strings into the main dictionaries so `t()` resolves them
+// the same way (kept in a separate file only to keep this module readable).
+for (const locale of LOCALES) {
+  Object.assign(DICTIONARIES[locale], MINI_DICTIONARY[locale], STAFF_DICTIONARY[locale]);
 }

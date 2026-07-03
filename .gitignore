@@ -2,8 +2,12 @@
 .env
 .env.*
 !.env.example
+!.env.prod.example
 *.pem
 *.key
+
+# ---- Backups / runtime data ----
+backups/
 
 # ---- Python ----
 __pycache__/
@@ -62,3 +66,8 @@ desktop.ini
 # ---- Logs / runtime ----
 *.log
 logs/
+
+# ---- Playwright ----
+**/test-results/
+**/playwright-report/
+**/.playwright/

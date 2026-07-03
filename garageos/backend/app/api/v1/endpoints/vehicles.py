@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, Query
 from app.api.deps import get_tenant_uow
 from app.repositories.unit_of_work import UnitOfWork
 from app.services.vehicle_health_service import VehicleHealthService
+from app.services.vehicle_intelligence_service import VehicleIntelligenceService
 
 router = APIRouter()
 
@@ -46,3 +47,11 @@ async def vehicle_timeline(
     uow: UnitOfWork = Depends(get_tenant_uow),
 ) -> dict:
     return await VehicleHealthService(uow).get_timeline(vehicle_id)
+
+
+@router.get("/{vehicle_id}/intelligence", summary="Vehicle Intelligence Center (composed)")
+async def vehicle_intelligence(
+    vehicle_id: uuid.UUID,
+    uow: UnitOfWork = Depends(get_tenant_uow),
+) -> dict:
+    return await VehicleIntelligenceService(uow).get(vehicle_id)

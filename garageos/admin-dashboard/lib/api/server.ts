@@ -14,6 +14,7 @@ import type {
   FleetHealth,
   Passport,
   VehicleHealth,
+  VehicleIntelligence,
   VehicleList,
   VehicleTimeline,
 } from "./types";
@@ -59,6 +60,7 @@ export const getVehicles = () => apiFetch<VehicleList>("/vehicles");
 export const getFleetHealth = (limit = 60) => apiFetch<FleetHealth>(`/fleet/health?limit=${limit}`);
 export const getVehicleHealth = (id: string) => apiFetch<VehicleHealth>(`/vehicles/${id}/health`);
 export const getVehicleTimeline = (id: string) => apiFetch<VehicleTimeline>(`/vehicles/${id}/timeline`);
+export const getVehicleIntelligence = (id: string) => apiFetch<VehicleIntelligence>(`/vehicles/${id}/intelligence`);
 
 export const getCalendar = (start: string, end: string) =>
   apiFetch<CalendarPayload>(`/calendar?start=${start}&end=${end}`);

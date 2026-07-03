@@ -1,26 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { ChevronRight, Gauge } from "lucide-react";
 
-import { miniFetch } from "@/lib/mini/client";
+import { useMiniData } from "@/lib/mini/hooks";
+import { useI18n } from "@/lib/i18n/context";
 import type { VehiclesResponse } from "@/lib/mini/types";
-import { Card, EmptyState, HealthRing, Loading, ScreenHeader } from "@/components/mini/ui";
+import { Card, EmptyState, HealthRing, ListSkeleton, ScreenError, ScreenHeader } from "@/components/mini/ui";
 
 export default function VehiclesPage() {
-  const [data, setData] = useState<VehiclesResponse | null>(null);
-
-  useEffect(() => {
-    miniFetch<VehiclesResponse>("/vehicles").then(setData).catch(() => setData({ vehicles: [] }));
-  }, []);
+  const { data, loading, error, reload } = useMiniData<VehiclesResponse>("/vehicles");
+  const { t, fmt } = useI18n();
 
   return (
     <div>
-      <ScreenHeader title="My vehicles" />
-      {!data ? (
-        <Loading />
+      <ScreenHeader title={t("mini.vehicles.title")} />
+      {error ? (
+        <ScreenError onRetry={reload} />
+      ) : loading || !data ? (
+        <ListSkeleton />
       ) : data.vehicles.length === 0 ? (
-        <EmptyState icon={<Gauge className="size-8" />} title="No vehicles yet" note="Your garage will add them here." />
+        <EmptyState
+          icon={<Gauge className="size-8" />}
+          title={t("mini.vehicles.empty")}
+          note={t("mini.vehicles.empty_hint")}
+        />
       ) : (
         <div className="space-y-3">
           {data.vehicles.map((v) => (
@@ -30,12 +33,12 @@ export default function VehiclesPage() {
                 <div className="flex-1">
                   <p className="font-semibold text-slate-900">{v.label}</p>
                   <p className="text-sm text-slate-500">
-                    {[v.year, v.plate, v.mileage ? `${v.mileage.toLocaleString()} km` : null]
+                    {[v.year, v.plate, v.mileage ? `${fmt.number(v.mileage)} ${t("mini.unit.km")}` : null]
                       .filter(Boolean)
                       .join(" · ")}
                   </p>
                 </div>
-                <ChevronRight className="size-5 text-slate-300" />
+                <ChevronRight className="size-5 text-slate-300" aria-hidden />
               </div>
             </Card>
           ))}

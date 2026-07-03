@@ -23,7 +23,9 @@ from app.core.database import engine
 from app.core.event_handlers import register_event_handlers
 from app.core.notification_handlers import register_notification_handlers
 from app.core.logging import setup_logging
-from app.exceptions import GarageException
+from app.core.observability import init_sentry
+from app.core.rate_limit import close_rate_limiter
+from app.exceptions import GarageException, RateLimitExceeded
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +50,8 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
-        # Release the connection pool cleanly on shutdown.
+        # Release the connection pools cleanly on shutdown.
+        await close_rate_limiter()
         await engine.dispose()
         logger.info("Shutdown complete; database engine disposed")
 
@@ -56,9 +59,13 @@ async def lifespan(app: FastAPI):
 def _register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(GarageException)
     async def handle_garage_exception(request: Request, exc: GarageException) -> JSONResponse:
+        headers = None
+        if isinstance(exc, RateLimitExceeded) and exc.retry_after:
+            headers = {"Retry-After": str(exc.retry_after)}
         return JSONResponse(
             status_code=exc.status_code,
             content={"error": {"code": exc.code, "detail": exc.detail}},
+            headers=headers,
         )
 
     @app.exception_handler(RequestValidationError)
@@ -80,6 +87,7 @@ def _register_exception_handlers(app: FastAPI) -> None:
 
 def create_app() -> FastAPI:
     setup_logging()
+    init_sentry()
 
     app = FastAPI(
         title=settings.APP_NAME,

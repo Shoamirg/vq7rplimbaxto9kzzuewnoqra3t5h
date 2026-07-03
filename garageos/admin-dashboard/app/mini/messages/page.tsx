@@ -1,91 +1,70 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Bell, ChevronRight, MessageSquare } from "lucide-react";
+import { Headphones, MessageSquare } from "lucide-react";
 
-import { miniFetch } from "@/lib/mini/client";
+import { useMiniData } from "@/lib/mini/hooks";
+import { useI18n } from "@/lib/i18n/context";
+import { haptic } from "@/lib/mini/telegram";
 import type { MessagesResponse } from "@/lib/mini/types";
-import { Card, EmptyState, Loading, ScreenHeader } from "@/components/mini/ui";
+import Link from "next/link";
+import { EmptyState, ListSkeleton, ScreenError, ScreenHeader } from "@/components/mini/ui";
 
-function fmtWhen(iso?: string | null): string {
-  if (!iso) return "";
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
+// A clean DM inbox — Telegram/Instagram style: full-width rows, an avatar, the
+// last message preview, a timestamp, and an unread dot. No tabs, no cards.
 export default function MessagesPage() {
-  const [data, setData] = useState<MessagesResponse | null>(null);
-  const [tab, setTab] = useState<"messages" | "activity">("messages");
-
-  useEffect(() => {
-    miniFetch<MessagesResponse>("/messages").then(setData).catch(() => setData({ conversations: [], activity: [] }));
-  }, []);
+  const { data, loading, error, reload } = useMiniData<MessagesResponse>("/messages");
+  const { t, fmt } = useI18n();
 
   return (
     <div>
-      <ScreenHeader title="Messages" />
+      <ScreenHeader title={t("mini.messages.title")} />
 
-      <div className="mb-4 flex rounded-2xl bg-slate-100 p-1 text-sm font-semibold">
-        {(["messages", "activity"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`flex-1 rounded-xl py-2 capitalize transition ${
-              tab === t ? "bg-white text-slate-900 shadow-sm" : "text-slate-400"
-            }`}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-
-      {!data ? (
-        <Loading />
-      ) : tab === "messages" ? (
-        data.conversations.length === 0 ? (
-          <EmptyState icon={<MessageSquare className="size-8" />} title="No messages yet" note="Your garage will reach you here." />
-        ) : (
-          <div className="space-y-3">
-            {data.conversations.map((c) => (
-              <Card key={c.id} href={`/mini/messages/${c.id}`}>
-                <div className="flex items-center gap-3">
-                  <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-slate-100 text-slate-500">
-                    <MessageSquare className="size-6" />
+      {error ? (
+        <ScreenError onRetry={reload} />
+      ) : loading || !data ? (
+        <ListSkeleton />
+      ) : data.conversations.length === 0 ? (
+        <EmptyState
+          icon={<MessageSquare className="size-8" />}
+          title={t("mini.messages.empty")}
+          note={t("mini.messages.empty_hint")}
+        />
+      ) : (
+        <div className="overflow-hidden rounded-3xl bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06),0_8px_24px_-12px_rgba(15,23,42,0.12)] ring-1 ring-slate-900/[0.04]">
+          <ul>
+            {data.conversations.map((c, i) => (
+              <li key={c.id} className={i > 0 ? "border-t border-slate-100" : ""}>
+                <Link
+                  href={`/mini/messages/${c.id}`}
+                  onClick={() => haptic("light")}
+                  className="flex items-center gap-3 px-4 py-3.5 transition active:bg-slate-50 focus-visible:outline-none focus-visible:bg-slate-50"
+                >
+                  <div className="grid size-12 shrink-0 place-items-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+                    <Headphones className="size-5" aria-hidden />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="truncate font-semibold text-slate-900">{c.subject ?? "Conversation"}</p>
-                      {c.awaiting_you ? <span className="size-2 shrink-0 rounded-full bg-blue-500" /> : null}
+                    <div className="flex items-baseline justify-between gap-2">
+                      <p className={`truncate ${c.awaiting_you ? "font-bold" : "font-semibold"} text-slate-900`}>
+                        {c.subject ?? t("mini.home.conversation")}
+                      </p>
+                      <span className="shrink-0 text-xs text-slate-400">
+                        {fmt.date(c.last_message_at, { month: "short", day: "numeric" })}
+                      </span>
                     </div>
-                    <p className="truncate text-sm text-slate-500">{c.preview ?? "Open thread"}</p>
+                    <div className="mt-0.5 flex items-center gap-2">
+                      <p className={`truncate text-sm ${c.awaiting_you ? "text-slate-600" : "text-slate-400"}`}>
+                        {c.preview ?? t("mini.home.open_thread")}
+                      </p>
+                      {c.awaiting_you ? (
+                        <span className="ml-auto size-2.5 shrink-0 rounded-full bg-blue-500" aria-label="unread" />
+                      ) : null}
+                    </div>
                   </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <span className="text-xs text-slate-400">{fmtWhen(c.last_message_at)}</span>
-                    <ChevronRight className="size-4 text-slate-300" />
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        )
-      ) : data.activity.length === 0 ? (
-        <EmptyState icon={<Bell className="size-8" />} title="No activity yet" />
-      ) : (
-        <Card className="!p-2">
-          <ul className="divide-y divide-slate-100">
-            {data.activity.map((a, i) => (
-              <li key={i} className="flex items-start gap-3 px-2 py-3">
-                <div className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-400">
-                  <Bell className="size-4" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-slate-800">{a.title}</p>
-                  {a.detail ? <p className="text-sm text-slate-500">{a.detail}</p> : null}
-                  <p className="mt-0.5 text-xs text-slate-400">{fmtWhen(a.date)}</p>
-                </div>
+                </Link>
               </li>
             ))}
           </ul>
-        </Card>
+        </div>
       )}
     </div>
   );

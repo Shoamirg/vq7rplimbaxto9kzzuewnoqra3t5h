@@ -671,3 +671,31 @@ export interface ReportResponse {
   sections: ReportSection[];
   reconciliation: ReportReconciliation | null;
 }
+
+// ─── Vehicle Intelligence Center ────────────────────────────────────────────
+export interface VehicleIntelligence {
+  identity: {
+    id: string; brand: string; model: string; year: number | null;
+    plate: string | null; vin: string | null; mileage: number | null;
+    color: string | null; engine: string | null; transmission: string | null;
+    owner_name: string | null; band: string;
+  };
+  health: {
+    overall_score: number; band: string; urgent_count: number; due_soon_count: number;
+    subsystems: { name: string; score: number }[];
+  };
+  passport: {
+    code: string; tier: string | null; compliance: number;
+    vitals: { services_completed: number; overdue_items: number; total_spent: number; ownership_years: number; last_service: string | null };
+    highlights: { label: string; ok: boolean }[];
+  };
+  commercial: {
+    score: number; stars: number; band: string; label: string;
+    outstanding: number; lifetime_value: number; avg_days_to_pay: number | null;
+    preferred_method: string | null; spend_tier: string | null;
+  } | null;
+  predictions: { tone: string; icon: string; title: string; detail: string }[];
+  maintenance: { service_type: string; status: string | null; priority: string | null; remaining_days: number | null; remaining_km: number | null }[];
+  timeline: { type: string; title: string; date: string; detail?: string | null; cost?: number | null; km?: number | null; severity?: string }[];
+  owner_context: { id: string | null; name: string | null; vehicle_count: number; spend_tier: string | null } | null;
+}

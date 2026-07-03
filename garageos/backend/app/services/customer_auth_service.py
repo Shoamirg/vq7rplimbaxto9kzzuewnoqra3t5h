@@ -18,7 +18,7 @@ import uuid
 from datetime import timedelta
 from typing import Optional
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.core.config import settings
 from app.core.security import (
@@ -116,21 +116,21 @@ class CustomerAuthService:
                 raise TelegramNotLinked("No seeded customer available for dev sign-in")
             return self._tokens(customer)
 
-        # No target: prefer a customer with a pending estimate + an outstanding
-        # balance so the dev/demo session shows the richest UI (Approve buttons,
-        # a real balance). Fall back to any linked customer.
-        from app.models.invoice import Invoice, InvoiceKind, InvoiceStatus
+        # No target: pick the telegram-linked customer with the MOST vehicles, so
+        # the dev/demo session lands on the richest experience (and stays
+        # consistent with the same account when opened via real Telegram).
+        from app.models.vehicle import Vehicle
 
-        pending = {InvoiceStatus.DRAFT, InvoiceStatus.SENT, InvoiceStatus.VIEWED}
         rich = (await self.uow.session.execute(
             select(Customer)
-            .join(Invoice, Invoice.customer_id == Customer.id)
+            .join(Vehicle, Vehicle.customer_id == Customer.id)
             .where(
                 Customer.is_active == True,  # noqa: E712
                 Customer.telegram_id.isnot(None),
-                Invoice.kind == InvoiceKind.ESTIMATE,
-                Invoice.status.in_(pending),
+                Vehicle.is_active == True,  # noqa: E712
             )
+            .group_by(Customer.id)
+            .order_by(func.count(Vehicle.id).desc())
             .limit(1)
         )).scalar_one_or_none()
         if rich is not None:
