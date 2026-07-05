@@ -7,8 +7,11 @@ to hand to an untrusted client.
 """
 from __future__ import annotations
 
-from datetime import datetime
+import uuid
+from datetime import date, datetime
 from typing import List, Optional
+
+from pydantic import Field
 
 from pydantic import BaseModel
 
@@ -133,6 +136,26 @@ class VehicleCard(BaseModel):
 
 class VehiclesResponse(BaseModel):
     vehicles: List[VehicleCard] = []
+
+
+# ── Booking ─────────────────────────────────────────────────────────────────
+class BookingRequest(BaseModel):
+    vehicle_id: uuid.UUID
+    service: str = Field(min_length=1, max_length=120)
+    date: date
+    time: str = Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    duration_minutes: int = Field(default=60, ge=15, le=480)
+
+
+class BookingResult(BaseModel):
+    id: str
+    vehicle_label: str
+    service: str
+    date: datetime
+    time: str
+    duration_minutes: int
+    mechanic_name: Optional[str] = None
+    status: str
 
 
 # ── Billing ─────────────────────────────────────────────────────────────────

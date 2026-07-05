@@ -35,6 +35,8 @@ from app.schemas.customer_portal import (
     ActivityItem,
     AskResponse,
     BillingDoc,
+    BookingRequest,
+    BookingResult,
     BillingReceipt,
     BillingResponse,
     ConversationCard,
@@ -55,6 +57,7 @@ from app.schemas.customer_portal import (
     VehicleCard,
     VehiclesResponse,
 )
+from app.services.appointment_service import AppointmentService
 from app.services.case_service import CaseService
 from app.services.conversation_service import ConversationService
 from app.services.financial_service import FinancialService
@@ -383,6 +386,34 @@ class CustomerPortalService:
         )
 
     # ── roadside (creates a case → rides the existing event stream) ─────────
+    async def create_appointment(self, req: BookingRequest) -> BookingResult:
+        """Customer self-service booking from the Mini App.
+
+        Ownership-guarded to the customer's own vehicle, then delegated to the same
+        AppointmentService the staff use — so it emits AppointmentCreated and rides
+        the one event stream (calendar, operations, notifications, reports).
+        """
+        vehicle = await self._own_vehicle(req.vehicle_id)
+        result = await AppointmentService(self.uow).create_appointment_direct(
+            customer_id=self.customer.id,
+            vehicle_id=vehicle.id,
+            appointment_date=req.date,
+            appointment_time=req.time,
+            estimated_duration_minutes=req.duration_minutes,
+            mechanic_name=None,  # the shop assigns an advisor
+            customer_notes=req.service,
+        )
+        return BookingResult(
+            id=result["id"],
+            vehicle_label=self._vehicle_label(vehicle),
+            service=req.service,
+            date=result["appointment_date"],
+            time=result["appointment_time"],
+            duration_minutes=result["estimated_duration_minutes"],
+            mechanic_name=result.get("mechanic_name"),
+            status=result["status"],
+        )
+
     async def create_roadside(self, req: RoadsideRequest) -> RoadsideCase:
         vehicle: Vehicle | None = None
         if req.vehicle_id:

@@ -54,6 +54,20 @@ export default function HomePage() {
         <ChevronRight className="size-5 text-white/80" aria-hidden />
       </Link>
 
+      {/* Book a service — primary action */}
+      <Card href="/mini/book" className="!bg-slate-900 !ring-slate-900">
+        <div className="flex items-center gap-3">
+          <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-white/10 text-white">
+            <CalendarClock className="size-6" aria-hidden />
+          </div>
+          <div className="flex-1">
+            <p className="font-semibold text-white">{t("mini.home.book_service")}</p>
+            <p className="text-sm text-slate-300">{t("mini.home.book_service_sub")}</p>
+          </div>
+          <ChevronRight className="size-5 text-slate-400" aria-hidden />
+        </div>
+      </Card>
+
       {/* Upcoming appointment */}
       {home.next_appointment ? (
         <div>
