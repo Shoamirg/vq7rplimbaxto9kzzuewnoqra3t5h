@@ -3,6 +3,36 @@
 All notable milestones for GarageOS. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); dates are ISO-8601.
 
+## [1.0.0-core] — 2026-07-05 — Complete operational platform
+
+Every daily garage workflow now works end to end: a customer books, an advisor
+manages, a mechanic works, an invoice is generated and paid, and reports, the
+passport, and the digital twin all stay in sync — one event stream throughout.
+This closes the stabilization sprint; the create/edit/delete "dead stubs" are gone.
+
+### Added
+- **Appointments** — real create (Calendar, Appointments, sidebar, Vehicle,
+  Customer 360), edit/reschedule, and delete. Direct date/time booking (no slot
+  juggling) that emits `AppointmentCreated`.
+- **Billing** — create estimate/invoice, **edit** line items (one modal, two
+  modes), **delete** (paid docs protected), **PDF** (print-clean, with pay-QR),
+  and **Send/Share** — a public `/invoice/[id]` link, email, and Send-to-Telegram.
+- **Telegram booking** — a guided Mini App flow (vehicle → service → day → time →
+  review → confirm) that lands straight in the shop's calendar via the same
+  `AppointmentService` the staff use.
+- **CRUD everywhere** — delete for customers and vehicles (tenant-scoped soft
+  delete) with confirmation dialogs.
+
+### Fixed
+- Line-item totals: created invoices were computing **$0** (a `.get(default)` that
+  never fired because the API always sent `line_total: None`). Now correct.
+
+### Notes
+- Release gate: backend 72 tests, tsc, lint, i18n (196 keys), production build,
+  Playwright e2e 10/10 — all green.
+- Public invoice header shows a generic garage identity (branding not yet in the
+  public payload) — a v1.1 follow-up.
+
 ## [0.12.0-quality] — 2026-07-03 — Quality, brand & production hardening
 
 The "polish → production" milestone. No new business modules — the platform is
