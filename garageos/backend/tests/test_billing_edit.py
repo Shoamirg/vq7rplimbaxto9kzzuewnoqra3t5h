@@ -54,5 +54,15 @@ async def test_edit_recomputes_totals(client):
         })
         assert edited.status_code == 200, edited.text
         assert edited.json()["subtotal"] == 260   # 2*100 + 60, recomputed
+
+        # The document is shareable at a public, no-auth URL.
+        pub = await client.get(f"/api/v1/public/invoice/{inv_id}")
+        assert pub.status_code == 200, pub.text
+        assert pub.json()["code"] == doc["code"]
     finally:
         await client.delete(f"/api/v1/invoices/{inv_id}", headers=h)
+
+
+async def test_public_invoice_404_for_unknown(client):
+    resp = await client.get("/api/v1/public/invoice/00000000-0000-0000-0000-000000000000")
+    assert resp.status_code == 404

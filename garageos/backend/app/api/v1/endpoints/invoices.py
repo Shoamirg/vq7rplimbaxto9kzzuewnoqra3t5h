@@ -82,6 +82,15 @@ async def delete_document(invoice_id: uuid.UUID, uow: UnitOfWork = Depends(get_t
     return {"ok": True}
 
 
+class SendTelegramRequest(BaseModel):
+    link: str
+
+
+@router.post("/{invoice_id}/send-telegram", summary="Send the document link to the customer via Telegram")
+async def send_telegram(invoice_id: uuid.UUID, body: SendTelegramRequest, uow: UnitOfWork = Depends(get_tenant_uow)) -> dict:
+    return await InvoiceService(uow).send_telegram(invoice_id, body.link)
+
+
 @router.put("/{invoice_id}", summary="Edit an estimate or unpaid invoice (line items, notes, …)")
 async def edit_document(invoice_id: uuid.UUID, body: InvoiceEdit, uow: UnitOfWork = Depends(get_tenant_uow)) -> dict:
     payload = body.model_dump()

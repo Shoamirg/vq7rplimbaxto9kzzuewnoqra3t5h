@@ -7,7 +7,7 @@ import { AUTH_COOKIE } from "@/lib/api/constants";
 // /mini/* is the customer Mini App: a separate principal with its own customer
 // token cookie, so it must bypass the staff auth gate entirely.
 // The public marketing site + demo entry. "/" is handled as an exact match below.
-const PUBLIC_PATHS = ["/login", "/passport", "/mini", "/demo", "/pricing", "/security", "/docs", "/privacy", "/terms"];
+const PUBLIC_PATHS = ["/login", "/passport", "/invoice", "/mini", "/demo", "/pricing", "/security", "/docs", "/privacy", "/terms"];
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

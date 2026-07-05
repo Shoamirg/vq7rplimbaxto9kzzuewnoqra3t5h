@@ -24,6 +24,10 @@ from app.core.events import (
     PaymentReceived,
 )
 from app.exceptions import ConflictError, NotFoundError
+import httpx
+
+from app.core.config import settings
+from app.exceptions import ValidationError
 from app.models.customer import Customer
 from app.models.invoice import (
     Invoice,
@@ -87,6 +91,34 @@ class InvoiceService:
         if not inv:
             raise InvoiceNotFound()
         return inv
+
+    async def send_telegram(self, invoice_id: uuid.UUID, link: str) -> dict:
+        """Send the invoice/estimate link to the customer via the Telegram bot."""
+        inv = await self._get(invoice_id)
+        cust = await self.session.get(Customer, inv.customer_id)
+        if not cust or not cust.telegram_id:
+            raise ValidationError("This customer hasn't linked Telegram yet.")
+        token = settings.TELEGRAM_BOT_TOKEN
+        if not token:
+            raise ValidationError("Telegram bot is not configured.")
+        noun = "estimate" if inv.kind == InvoiceKind.ESTIMATE else "invoice"
+        text = (
+            f"Your {noun} {inv.code} is ready.\n"
+            f"Total: {inv.currency or 'USD'} {_f(inv.total):.2f}"
+            + (f" · Balance due {_f(inv.balance):.2f}" if _f(inv.balance) > 0 else " · Paid")
+            + f"\n\nView{' & pay' if _f(inv.balance) > 0 else ''}: {link}"
+        )
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                r = await client.post(
+                    f"https://api.telegram.org/bot{token}/sendMessage",
+                    json={"chat_id": cust.telegram_id, "text": text},
+                )
+        except Exception as exc:  # noqa: BLE001
+            raise ValidationError(f"Couldn't reach Telegram ({exc.__class__.__name__}).")
+        if r.status_code != 200:
+            raise ValidationError("Telegram rejected the message (is the customer's chat open with the bot?).")
+        return {"ok": True}
 
     async def delete(self, invoice_id: uuid.UUID) -> None:
         """Soft-delete an estimate or invoice. A document with recorded payments

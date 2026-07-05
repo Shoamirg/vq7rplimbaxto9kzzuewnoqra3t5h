@@ -2,8 +2,13 @@
 
 import { Fragment, useState } from "react";
 import Link from "next/link";
-import { cn } from "@garageos/design-system";
+import { Link2, Mail, Send, Share2 } from "lucide-react";
+import {
+  cn, useToast,
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+} from "@garageos/design-system";
 
+import { clientFetch, ClientApiError } from "@/lib/api/client";
 import type { InvoiceDoc, LineKind } from "@/lib/api/types";
 import { LINE_ICON, METHOD_ICON, STATUS_META, fmtDate, money } from "./shared";
 
@@ -21,6 +26,30 @@ export function DocumentView({
   onEdit: () => void;
 }) {
   const canEdit = doc.amount_paid <= 0;
+  const { toast } = useToast();
+  const noun = doc.kind === "estimate" ? "Estimate" : "Invoice";
+  const shareLink = typeof window !== "undefined" ? `${window.location.origin}/invoice/${doc.id}` : "";
+
+  const copyLink = () =>
+    navigator.clipboard.writeText(shareLink)
+      .then(() => toast({ title: "Link copied", description: "A public link to this document is on your clipboard.", variant: "success" }))
+      .catch(() => toast({ title: "Couldn't copy the link", variant: "danger" }));
+
+  const emailLink = () => {
+    const subject = encodeURIComponent(`${noun} ${doc.code}`);
+    const body = encodeURIComponent(`Here is your ${doc.kind} ${doc.code}:\n${shareLink}`);
+    window.open(`mailto:?subject=${subject}&body=${body}`);
+  };
+
+  const sendTelegram = async () => {
+    try {
+      await clientFetch(`/invoices/${doc.id}/send-telegram`, { method: "POST", body: JSON.stringify({ link: shareLink }) });
+      toast({ title: "Sent via Telegram", description: `${noun} ${doc.code} delivered to the customer.`, variant: "success" });
+    } catch (err) {
+      const hint = err instanceof ClientApiError && err.status === 422 ? "The customer may not have linked Telegram." : "Please try again.";
+      toast({ title: "Couldn't send via Telegram", description: hint, variant: "danger" });
+    }
+  };
   const isEstimate = doc.kind === "estimate";
   const accent = isEstimate ? "blue" : "emerald";
   const st = STATUS_META[doc.status];
@@ -51,6 +80,16 @@ export function DocumentView({
           </>
         )}
         <div className="flex-1" />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className={cn(ABTN, "gap-1.5")} aria-label="Share document"><Share2 className="size-3.5" /> Share</button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem icon={<Link2 className="size-4" />} onClick={copyLink}>Copy link</DropdownMenuItem>
+            <DropdownMenuItem icon={<Mail className="size-4" />} onClick={emailLink}>Email…</DropdownMenuItem>
+            <DropdownMenuItem icon={<Send className="size-4" />} onClick={sendTelegram}>Send to Telegram</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         {canEdit && <button onClick={onEdit} className={ABTN} aria-label={`Edit ${doc.kind}`}>✎ Edit</button>}
         <button onClick={() => window.print()} className={ABTN} aria-label="Print or save as PDF">🖨 PDF</button>
         <button onClick={onDelete} className={cn(ABTN, "hover:text-red-600 hover:border-red-200")} aria-label={`Delete ${doc.kind}`}>🗑 Delete</button>

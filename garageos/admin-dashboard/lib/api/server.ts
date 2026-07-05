@@ -12,6 +12,7 @@ import type {
   CustomerList,
   CurrentUser,
   FleetHealth,
+  InvoiceDoc,
   Passport,
   VehicleHealth,
   VehicleIntelligence,
@@ -81,4 +82,14 @@ export async function getPublicPassport(vehicleId: string): Promise<Passport | n
   if (res.status === 404) return null;
   if (!res.ok) throw new ApiError(`passport responded ${res.status}`, res.status);
   return (await res.json()) as Passport;
+}
+
+export async function getPublicInvoice(id: string): Promise<InvoiceDoc | null> {
+  const res = await fetch(`${apiBaseUrl()}/public/invoice/${id}`, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new ApiError(`invoice responded ${res.status}`, res.status);
+  return (await res.json()) as InvoiceDoc;
 }
