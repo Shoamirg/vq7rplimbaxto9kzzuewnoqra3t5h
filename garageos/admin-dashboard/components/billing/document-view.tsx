@@ -10,7 +10,7 @@ import { LINE_ICON, METHOD_ICON, STATUS_META, fmtDate, money } from "./shared";
 const ABTN = "text-[12.5px] font-bold px-3.5 py-2 rounded-lg border border-border bg-card text-slate-600 inline-flex items-center gap-1.5 hover:bg-muted transition-colors";
 
 export function DocumentView({
-  doc, onStatus, onSend, onConvert, onRecordPayment, onDelete,
+  doc, onStatus, onSend, onConvert, onRecordPayment, onDelete, onEdit,
 }: {
   doc: InvoiceDoc;
   onStatus: (s: string) => void;
@@ -18,7 +18,9 @@ export function DocumentView({
   onConvert: () => void;
   onRecordPayment: (amount: number, method: string) => void;
   onDelete: () => void;
+  onEdit: () => void;
 }) {
+  const canEdit = doc.amount_paid <= 0;
   const isEstimate = doc.kind === "estimate";
   const accent = isEstimate ? "blue" : "emerald";
   const st = STATUS_META[doc.status];
@@ -49,6 +51,7 @@ export function DocumentView({
           </>
         )}
         <div className="flex-1" />
+        {canEdit && <button onClick={onEdit} className={ABTN} aria-label={`Edit ${doc.kind}`}>✎ Edit</button>}
         <button className={ABTN}>🖨 PDF</button>
         <button onClick={onDelete} className={cn(ABTN, "hover:text-red-600 hover:border-red-200")} aria-label={`Delete ${doc.kind}`}>🗑 Delete</button>
       </div>

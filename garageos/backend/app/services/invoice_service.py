@@ -36,6 +36,7 @@ from app.models.invoice import (
     PaymentMethod,
     PaymentSource,
 )
+from app.models.ledger import LedgerEntry
 from app.models.notification import Notification
 from app.repositories.unit_of_work import UnitOfWork
 from app.services.vehicle_health_service import _vehicle_label
@@ -58,7 +59,7 @@ class InvoiceNotFound(NotFoundError):
 
 
 class InvoiceHasPayments(ConflictError):
-    detail = "Cannot delete a document with recorded payments. Void it instead."
+    detail = "This document has recorded payments and can't be changed. Void or refund it first."
     code = "INVOICE_HAS_PAYMENTS"
 
 
@@ -95,6 +96,58 @@ class InvoiceService:
             raise InvoiceHasPayments()
         inv.is_active = False
         await self.uow.flush()
+
+    async def update(
+        self, invoice_id: uuid.UUID, *,
+        vehicle_id: uuid.UUID | None = None, tax_rate: float | None = None,
+        due_date: date | None = None, notes: str | None = None,
+        line_items: list[dict] | None = None,
+    ) -> dict:
+        """Edit an estimate or UNPAID invoice — replace line items, update
+        vehicle/tax/notes, and recompute totals. A document with recorded payments
+        is refused (protects the ledger). For issued invoices the ledger debit is
+        kept in sync with the new total, so reports/reconciliation stay correct.
+        """
+        inv = await self._get(invoice_id)
+        if _money(inv.amount_paid) > 0:
+            raise InvoiceHasPayments()
+
+        if vehicle_id is not None:
+            inv.vehicle_id = vehicle_id
+        if tax_rate is not None:
+            inv.tax_rate = _money(tax_rate)
+        if due_date is not None:
+            inv.due_date = due_date
+        if notes is not None:
+            inv.notes = notes
+
+        if line_items is not None:
+            existing = (await self.session.execute(
+                select(InvoiceLineItem).where(InvoiceLineItem.invoice_id == inv.id))).scalars().all()
+            for it in existing:
+                await self.session.delete(it)
+            await self.session.flush()
+            items = [self._build_item(inv.id, i, n) for n, i in enumerate(line_items)]
+            for it in items:
+                self.session.add(it)
+            await self.session.flush()
+        else:
+            items = list((await self.session.execute(
+                select(InvoiceLineItem).where(InvoiceLineItem.invoice_id == inv.id))).scalars().all())
+        self._recalc(inv, items)
+        await self.session.flush()
+
+        # Keep the issued-invoice ledger debit equal to the new total.
+        if inv.kind == InvoiceKind.INVOICE:
+            led = (await self.session.execute(
+                select(LedgerEntry).where(
+                    LedgerEntry.invoice_id == inv.id,
+                    LedgerEntry.entry_type == "invoice_issued"))).scalar_one_or_none()
+            if led is not None:
+                led.amount = Decimal(str(_f(inv.total)))
+                await self.session.flush()
+
+        return await self.get_document(inv.id)
 
     # ── money ─────────────────────────────────────────────────
     def _recalc(self, inv: Invoice, items: list[InvoiceLineItem]) -> None:
@@ -169,11 +222,15 @@ class InvoiceService:
     def _build_item(self, invoice_id: uuid.UUID, data: dict, order: int) -> InvoiceLineItem:
         qty = _money(data.get("quantity", 1))
         price = _money(data.get("unit_price", 0))
+        # NB: the API schema always includes line_total (default None), so .get()
+        # can't fall back — compute qty*price whenever it's not explicitly given.
+        given_total = data.get("line_total")
+        line_total = _money(given_total) if given_total is not None else _money(qty * price)
         return InvoiceLineItem(
             service_center_id=self.sc, invoice_id=invoice_id,
             kind=data.get("kind", LineKind.PART), description=data["description"],
             quantity=qty, unit_price=price,
-            line_total=_money(data.get("line_total", qty * price)),
+            line_total=line_total,
             taxable=data.get("taxable", data.get("kind") != LineKind.DISCOUNT),
             sort_order=data.get("sort_order", order),
         )

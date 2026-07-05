@@ -48,6 +48,14 @@ class InvoiceUpdate(BaseModel):
     status: str | None = None   # approved | rejected | changes_requested | void | overdue …
 
 
+class InvoiceEdit(BaseModel):
+    vehicle_id: uuid.UUID | None = None
+    tax_rate: float | None = None
+    due_date: date | None = None
+    notes: str | None = None
+    line_items: list[LineItemIn] | None = None
+
+
 @router.get("", summary="List billing documents by workspace view")
 async def list_documents(
     uow: UnitOfWork = Depends(get_tenant_uow),
@@ -72,6 +80,14 @@ async def create_document(body: InvoiceCreate, uow: UnitOfWork = Depends(get_ten
 async def delete_document(invoice_id: uuid.UUID, uow: UnitOfWork = Depends(get_tenant_uow)) -> dict:
     await InvoiceService(uow).delete(invoice_id)
     return {"ok": True}
+
+
+@router.put("/{invoice_id}", summary="Edit an estimate or unpaid invoice (line items, notes, …)")
+async def edit_document(invoice_id: uuid.UUID, body: InvoiceEdit, uow: UnitOfWork = Depends(get_tenant_uow)) -> dict:
+    payload = body.model_dump()
+    if payload.get("line_items") is not None:
+        payload["line_items"] = [li for li in payload["line_items"]]
+    return await InvoiceService(uow).update(invoice_id, **payload)
 
 
 @router.post("/{invoice_id}/payments", status_code=status.HTTP_201_CREATED, summary="Record a payment / refund")

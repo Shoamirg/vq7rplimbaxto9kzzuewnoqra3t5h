@@ -98,6 +98,7 @@ export function NewAppointmentModal({
       })
       .catch(() => setVehicles([]))
       .finally(() => setLoadingVehicles(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customer]);
 
   const matches = useMemo(() => {

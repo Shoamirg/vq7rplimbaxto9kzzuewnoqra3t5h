@@ -19,34 +19,55 @@ const emptyLine = (): Line => ({ kind: "part", description: "", quantity: 1, uni
 
 export function NewInvoiceModal({
   kind,
+  edit,
   onClose,
   onCreated,
+  onSaved,
 }: {
-  kind: "estimate" | "invoice";
+  kind?: "estimate" | "invoice";
+  edit?: InvoiceDoc;
   onClose: () => void;
   onCreated?: (doc: InvoiceDoc) => void;
+  onSaved?: (doc: InvoiceDoc) => void;
 }) {
   const { toast } = useToast();
-  const isEstimate = kind === "estimate";
+  const docKind = edit ? edit.kind : (kind ?? "invoice");
+  const isEstimate = docKind === "estimate";
+  const isEdit = Boolean(edit);
+
+  // In edit mode the customer is fixed (shown, not searchable).
+  const editCustomer: CustomerListItem | null = edit
+    ? { id: edit.customer_id, full_name: edit.customer_name ?? "Customer", phone: null, email: null, vehicle_count: 0, lifetime_value: 0, tier: "", last_visit: null }
+    : null;
 
   const [customers, setCustomers] = useState<CustomerListItem[]>([]);
   const [query, setQuery] = useState("");
-  const [customer, setCustomer] = useState<CustomerListItem | null>(null);
+  const [customer, setCustomer] = useState<CustomerListItem | null>(editCustomer);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [vehicleId, setVehicleId] = useState("");
-  const [lines, setLines] = useState<Line[]>([emptyLine()]);
-  const [notes, setNotes] = useState("");
+  const [vehicleId, setVehicleId] = useState(edit?.vehicle_id ?? "");
+  const [lines, setLines] = useState<Line[]>(
+    edit && edit.line_items.length
+      ? edit.line_items.map((li) => ({ kind: li.kind, description: li.description, quantity: li.quantity, unit_price: li.unit_price }))
+      : [emptyLine()],
+  );
+  const [notes, setNotes] = useState(edit?.notes ?? "");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    if (isEdit) return;  // no customer search in edit mode
     clientFetch<CustomerList>("/customers?limit=200").then((r) => setCustomers(r.items)).catch(() => {});
-  }, []);
+  }, [isEdit]);
 
   useEffect(() => {
     if (!customer) { setVehicles([]); setVehicleId(""); return; }
     clientFetch<Customer360>(`/customers/${customer.id}`)
-      .then((c) => setVehicles(c.vehicles.map((v) => ({ id: v.id, label: v.label }))))
+      .then((c) => {
+        setVehicles(c.vehicles.map((v) => ({ id: v.id, label: v.label })));
+        // Preserve the edited doc's vehicle selection once vehicles load.
+        if (edit?.vehicle_id) setVehicleId(edit.vehicle_id);
+      })
       .catch(() => setVehicles([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customer]);
 
   const matches = useMemo(() => {
@@ -67,26 +88,32 @@ export function NewInvoiceModal({
   async function save() {
     if (!customer) return;
     setSaving(true);
+    const items = validLines.map((l) => ({
+      kind: l.kind, description: l.description.trim(),
+      quantity: Number(l.quantity) || 1, unit_price: Number(l.unit_price) || 0,
+    }));
     try {
-      const doc = await clientFetch<InvoiceDoc>("/invoices", {
-        method: "POST",
-        body: JSON.stringify({
-          kind,
-          customer_id: customer.id,
-          vehicle_id: vehicleId || null,
-          notes: notes.trim() || null,
-          line_items: validLines.map((l) => ({
-            kind: l.kind, description: l.description.trim(),
-            quantity: Number(l.quantity) || 1, unit_price: Number(l.unit_price) || 0,
-          })),
-        }),
-      });
-      toast({ title: isEstimate ? "Estimate created" : "Invoice created", description: customer.full_name, variant: "success" });
-      onCreated?.(doc);
+      const doc = isEdit && edit
+        ? await clientFetch<InvoiceDoc>(`/invoices/${edit.id}`, {
+            method: "PUT",
+            body: JSON.stringify({ vehicle_id: vehicleId || null, notes: notes.trim() || null, line_items: items }),
+          })
+        : await clientFetch<InvoiceDoc>("/invoices", {
+            method: "POST",
+            body: JSON.stringify({ kind: docKind, customer_id: customer.id, vehicle_id: vehicleId || null, notes: notes.trim() || null, line_items: items }),
+          });
+      const noun = isEstimate ? "Estimate" : "Invoice";
+      toast({ title: isEdit ? `${noun} updated` : `${noun} created`, description: customer.full_name, variant: "success" });
+      (isEdit ? onSaved : onCreated)?.(doc);
       onClose();
     } catch (err) {
+      const paid = err instanceof ClientApiError && err.status === 409;
       if (!(err instanceof ClientApiError && err.status === 403)) {
-        toast({ title: `Could not create ${kind}`, description: "Please check the details and try again.", variant: "danger" });
+        toast({
+          title: paid ? "Can't edit a paid document" : `Could not ${isEdit ? "update" : "create"} ${docKind}`,
+          description: paid ? "It has recorded payments. Void or refund it first." : "Please check the details and try again.",
+          variant: "danger",
+        });
       }
     } finally {
       setSaving(false);
@@ -98,11 +125,11 @@ export function NewInvoiceModal({
   return createPortal(
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div role="dialog" aria-modal="true" aria-label={`New ${kind}`}
+      <div role="dialog" aria-modal="true" aria-label={`${isEdit ? "Edit" : "New"} ${docKind}`}
         className="relative w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <h2 className="flex items-center gap-2 text-base font-bold">
-            <Receipt className={`size-4 ${isEstimate ? "text-blue-600" : "text-emerald-600"}`} /> New {kind}
+            <Receipt className={`size-4 ${isEstimate ? "text-blue-600" : "text-emerald-600"}`} /> {isEdit ? "Edit" : "New"} {docKind}{isEdit && edit ? ` · ${edit.code}` : ""}
           </h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors" aria-label="Close"><X className="size-4" /></button>
         </div>
@@ -114,7 +141,7 @@ export function NewInvoiceModal({
             {customer ? (
               <div className="flex items-center justify-between rounded-lg border border-primary/40 bg-primary/5 px-3 py-2">
                 <span className="text-sm font-medium">{customer.full_name}</span>
-                <button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => { setCustomer(null); setQuery(""); }}>Change</button>
+                {!isEdit && <button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => { setCustomer(null); setQuery(""); }}>Change</button>}
               </div>
             ) : (
               <>
@@ -177,7 +204,7 @@ export function NewInvoiceModal({
           <div className="flex gap-2">
             <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
             <Button size="sm" disabled={!canSave} onClick={save} leftIcon={saving ? <Loader2 className="size-4 animate-spin" /> : <Receipt className="size-4" />}>
-              {saving ? "Creating…" : `Create ${kind}`}
+              {saving ? "Saving…" : isEdit ? "Save changes" : `Create ${docKind}`}
             </Button>
           </div>
         </div>

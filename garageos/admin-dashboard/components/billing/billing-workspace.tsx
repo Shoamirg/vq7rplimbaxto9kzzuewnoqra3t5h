@@ -21,6 +21,7 @@ export function BillingWorkspace() {
   const [doc, setDoc] = useState<InvoiceDoc | null>(null);
   const [newKind, setNewKind] = useState<"estimate" | "invoice" | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const { toast } = useToast();
 
   const load = useCallback(async () => {
@@ -73,6 +74,14 @@ export function BillingWorkspace() {
           kind={newKind}
           onClose={() => setNewKind(null)}
           onCreated={(created) => { setActiveId(created.id); load(); }}
+        />
+      )}
+
+      {editOpen && doc && (
+        <NewInvoiceModal
+          edit={doc}
+          onClose={() => setEditOpen(false)}
+          onSaved={(updated) => { setDoc(updated); load(); setEditOpen(false); }}
         />
       )}
 
@@ -162,6 +171,7 @@ export function BillingWorkspace() {
             onConvert={() => act(() => clientFetch<InvoiceDoc>(`/invoices/${doc.id}/convert`, { method: "POST", body: JSON.stringify({}) }))}
             onRecordPayment={(amount, method) => act(() => clientFetch<InvoiceDoc>(`/invoices/${doc.id}/payments`, { method: "POST", body: JSON.stringify({ amount, method }) }))}
             onDelete={() => setConfirmDelete(true)}
+            onEdit={() => setEditOpen(true)}
           />
         ) : (
           <div className="flex-1 grid place-items-center text-muted-foreground text-sm">Select a document.</div>
