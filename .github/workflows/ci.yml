@@ -75,6 +75,9 @@ jobs:
       - name: i18n coverage
         run: npm run i18n:check
         working-directory: garageos/admin-dashboard
+      - name: i18n audit (no new hardcoded strings)
+        run: npm run i18n:audit
+        working-directory: garageos/admin-dashboard
       - name: Lint
         run: npm run lint
         working-directory: garageos/admin-dashboard
