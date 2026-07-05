@@ -52,12 +52,12 @@ export function DocumentView({
         )}
         <div className="flex-1" />
         {canEdit && <button onClick={onEdit} className={ABTN} aria-label={`Edit ${doc.kind}`}>✎ Edit</button>}
-        <button className={ABTN}>🖨 PDF</button>
+        <button onClick={() => window.print()} className={ABTN} aria-label="Print or save as PDF">🖨 PDF</button>
         <button onClick={onDelete} className={cn(ABTN, "hover:text-red-600 hover:border-red-200")} aria-label={`Delete ${doc.kind}`}>🗑 Delete</button>
       </div>
 
-      {/* the document */}
-      <div className="max-w-[820px] mx-auto bg-card border border-border rounded-2xl shadow-[0_10px_40px_-20px_rgba(0,0,0,.25)] overflow-hidden">
+      {/* the document (also the print target — see the print rules in globals.css) */}
+      <div id="print-invoice" className="max-w-[820px] mx-auto bg-card border border-border rounded-2xl shadow-[0_10px_40px_-20px_rgba(0,0,0,.25)] overflow-hidden">
         {/* header */}
         <div className="relative px-7 py-6 text-white" style={{ background: "linear-gradient(120deg,#0F172A,#1E293B)" }}>
           <div className="flex items-center gap-3">

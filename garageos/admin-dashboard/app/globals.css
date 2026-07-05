@@ -116,3 +116,27 @@ h1, h2, h3, .font-brand {
 .twin-float { animation: twin-float 5.5s var(--ease-brand, ease-in-out) infinite; }
 .twin-glow  { animation: twin-glow 5.5s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .twin-float, .twin-glow { animation: none; } }
+
+/* ---- Print an invoice/estimate as a clean PDF (window.print) ---------- */
+@media print {
+  html, body { height: auto !important; overflow: visible !important; }
+  /* Isolate the document: hide the whole app, then reveal only the invoice. */
+  body * { visibility: hidden !important; }
+  #print-invoice, #print-invoice * { visibility: visible !important; }
+  /* `fixed` escapes every ancestor's overflow/height clipping (the app shell is
+     a fixed-height, overflow-hidden flex column). */
+  #print-invoice {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  /* Print the dark invoice header + coloured badges faithfully. */
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  @page { margin: 12mm; }
+}
