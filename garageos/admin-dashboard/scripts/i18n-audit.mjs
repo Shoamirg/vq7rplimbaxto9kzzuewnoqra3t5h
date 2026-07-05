@@ -48,7 +48,6 @@ const BASELINE = new Set([
   "components/inbox/conversation-list.tsx",
   "components/inbox/queue-rail.tsx",
   "components/inbox/context-panel.tsx",
-  "components/ui/confirm-dialog.tsx",
   // Leaf/layout files with residual strings (small; translate in the sweep).
   "app/(app)/calendar/error.tsx",
   "app/(app)/customers/error.tsx",
@@ -85,7 +84,7 @@ function walk(dir, out = []) {
 }
 
 // Words that look like copy (letters + a space, or a capitalized multi-char word).
-const TEXT = />(\s*[A-Z][A-Za-z][^<>{}]*?[a-z][^<>{}]*?)</g;      // JSX text node
+const TEXT = /(?<![=])>(\s*[A-Z][A-Za-z][^<>{}]*?[a-z][^<>{}]*?)</g; // JSX text node (skip `=> Type<…>`)
 const ATTR = /\b(placeholder|aria-label|title|alt)=("([^"]*[A-Za-z]{3,}[^"]*)")/g;
 const IGNORE_TEXT = /^(https?:|www\.|[0-9.,%$/·—–-]+$)/;
 

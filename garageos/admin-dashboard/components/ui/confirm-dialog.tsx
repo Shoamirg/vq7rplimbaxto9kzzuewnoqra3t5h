@@ -5,12 +5,14 @@ import { createPortal } from "react-dom";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { Button } from "@garageos/design-system";
 
+import { useI18n } from "@/lib/i18n/context";
+
 // Reusable confirmation dialog (portaled to body so it escapes any transformed
 // ancestor). Controlled: the parent renders it when a destructive action is armed.
 export function ConfirmDialog({
   title,
   message,
-  confirmLabel = "Delete",
+  confirmLabel,
   danger = true,
   onConfirm,
   onClose,
@@ -22,6 +24,7 @@ export function ConfirmDialog({
   onConfirm: () => Promise<void> | void;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const [busy, setBusy] = useState(false);
 
   async function go() {
@@ -52,7 +55,7 @@ export function ConfirmDialog({
           </div>
         </div>
         <div className="flex items-center justify-end gap-2 mt-6">
-          <Button variant="ghost" size="sm" onClick={onClose} disabled={busy}>Cancel</Button>
+          <Button variant="ghost" size="sm" onClick={onClose} disabled={busy}>{t("common.cancel")}</Button>
           <Button
             variant={danger ? "danger" : "primary"}
             size="sm"
@@ -60,7 +63,7 @@ export function ConfirmDialog({
             disabled={busy}
             leftIcon={busy ? <Loader2 className="size-4 animate-spin" /> : undefined}
           >
-            {busy ? "Working…" : confirmLabel}
+            {busy ? t("common.working") : (confirmLabel ?? t("common.delete"))}
           </Button>
         </div>
       </div>
