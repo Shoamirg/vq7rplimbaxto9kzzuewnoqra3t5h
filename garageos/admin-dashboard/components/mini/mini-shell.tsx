@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import { AlertCircle, Loader2, WifiOff } from "lucide-react";
 
-import { ensureSession } from "@/lib/mini/client";
+import { ensureSession, MiniApiError } from "@/lib/mini/client";
 import { telegram, telegramLocale } from "@/lib/mini/telegram";
 import { useOnline } from "@/lib/mini/hooks";
 import { useI18n } from "@/lib/i18n/context";
 import { LOCALE_COOKIE } from "@/lib/i18n/dictionaries";
 import { TabBar } from "@/components/mini/tab-bar";
+import { LinkScreen } from "@/components/mini/link-screen";
 import { LogoMark, LogoTile } from "@/components/brand/logo";
 
 function hasLocaleCookie(): boolean {
@@ -20,7 +21,7 @@ function hasLocaleCookie(): boolean {
 // scrolling content + a persistent bottom tab bar. Telegram's own header sits
 // above this webview, so we don't draw one.
 export function MiniShell({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+  const [state, setState] = useState<"loading" | "ready" | "error" | "link">("loading");
   const online = useOnline();
   const { t, dir, setLocale } = useI18n();
 
@@ -36,8 +37,16 @@ export function MiniShell({ children }: { children: React.ReactNode }) {
     }
     ensureSession()
       .then(() => setState("ready"))
-      .catch(() => setState("error"));
+      // A 404 means this Telegram user isn't linked to a customer yet — offer the
+      // phone-linking screen instead of a dead-end error.
+      .catch((err) =>
+        setState(err instanceof MiniApiError && err.status === 404 ? "link" : "error"),
+      );
   }, [setLocale]);
+
+  if (state === "link") {
+    return <LinkScreen onLinked={() => setState("ready")} />;
+  }
 
   if (state === "loading") {
     return (

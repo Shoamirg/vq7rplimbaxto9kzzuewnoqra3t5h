@@ -4,12 +4,21 @@
 // silently ship. Parses the two dictionary files by locale block.
 //
 //   node scripts/check-i18n.mjs
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const FILES = ["lib/i18n/dictionaries.ts", "lib/i18n/mini-dictionary.ts", "lib/i18n/staff-dictionary.ts"];
+// Per-screen dictionaries live in lib/i18n/dicts/ (one file per screen area).
+const dictFiles = readdirSync(join(root, "lib/i18n/dicts"))
+  .filter((f) => f.endsWith(".ts"))
+  .map((f) => `lib/i18n/dicts/${f}`);
+const FILES = [
+  "lib/i18n/dictionaries.ts",
+  "lib/i18n/mini-dictionary.ts",
+  "lib/i18n/staff-dictionary.ts",
+  ...dictFiles,
+];
 const LOCALES = ["en", "ru", "uz"];
 // Plural keys legitimately differ per locale (ru has few/many, en/uz don't),
 // so compare their base name, not the exact form.

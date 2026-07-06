@@ -14,7 +14,9 @@ import { HealthGauge } from "@/components/vehicles/health-gauge";
 import { EmptyState } from "@/components/states/empty-state";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { NewAppointmentModal } from "@/components/appointments/new-appointment-modal";
+import { AddVehicleModal } from "@/components/vehicles/add-vehicle-modal";
 import { clientFetch } from "@/lib/api/client";
+import { useI18n } from "@/lib/i18n/context";
 import type { Customer360, HealthBand } from "@/lib/api/types";
 
 const BAND_TEXT: Record<HealthBand, string> = {
@@ -49,14 +51,16 @@ export function CustomerScreen({ customer }: { customer: Customer360 }) {
   const [tab, setTab] = useState<Tab>("Overview");
   const [del, setDel] = useState(false);
   const [book, setBook] = useState(false);
+  const [addVeh, setAddVeh] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+  const { t } = useI18n();
   const c = customer;
   const since = c.since ? new Date(c.since).getFullYear() : null;
 
   return (
     <div className="p-4 lg:p-6 space-y-5 animate-fade-in">
-      <Link href="/customers" className="text-xs text-muted-foreground hover:text-foreground">← Customers</Link>
+      <Link href="/customers" className="text-xs text-muted-foreground hover:text-foreground">← {t("cust.back")}</Link>
 
       {/* Header */}
       <div className="rounded-2xl border border-border bg-card p-5">
@@ -74,22 +78,23 @@ export function CustomerScreen({ customer }: { customer: Customer360 }) {
               )}
               {c.financial && (
                 <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold", CH_TONE[c.financial.commercial_health.band] ?? CH_TONE.new)}
-                  title={`Commercial Health · score ${c.financial.commercial_health.score} · risk ${c.financial.commercial_health.risk}`}>
+                  title={t("cust.header.ch_title", { score: c.financial.commercial_health.score, risk: c.financial.commercial_health.risk })}>
                   {"★".repeat(c.financial.commercial_health.stars)}{"☆".repeat(Math.max(0, 5 - c.financial.commercial_health.stars))} {c.financial.commercial_health.label}
                 </span>
               )}
             </div>
             <p className="text-sm text-muted-foreground mt-1">
-              {since ? `Customer since ${since}` : "Customer"}
+              {since ? t("cust.header.since", { year: since }) : t("cust.header.customer")}
               {c.address ? ` · ${c.address}` : ""}
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button size="sm" leftIcon={<CalendarClock className="size-4" />} onClick={() => setBook(true)}>Book</Button>
-            {c.phone && <Button variant="outline" size="sm" leftIcon={<Phone className="size-4" />}>Call</Button>}
-            {c.email && <Button variant="outline" size="sm" leftIcon={<Mail className="size-4" />}>Email</Button>}
-            {c.has_telegram && <Button variant="outline" size="sm" leftIcon={<Send className="size-4" />}>Telegram</Button>}
-            <Button variant="outline" size="sm" leftIcon={<Trash2 className="size-4" />} onClick={() => setDel(true)}>Delete</Button>
+            <Button size="sm" leftIcon={<CalendarClock className="size-4" />} onClick={() => setBook(true)}>{t("cust.action.book")}</Button>
+            <Button variant="outline" size="sm" leftIcon={<Car className="size-4" />} onClick={() => setAddVeh(true)}>{t("cust.action.add_vehicle")}</Button>
+            {c.phone && <Button variant="outline" size="sm" leftIcon={<Phone className="size-4" />}>{t("cust.action.call")}</Button>}
+            {c.email && <Button variant="outline" size="sm" leftIcon={<Mail className="size-4" />}>{t("cust.action.email")}</Button>}
+            {c.has_telegram && <Button variant="outline" size="sm" leftIcon={<Send className="size-4" />}>{t("cust.action.telegram")}</Button>}
+            <Button variant="outline" size="sm" leftIcon={<Trash2 className="size-4" />} onClick={() => setDel(true)}>{t("common.delete")}</Button>
           </div>
         </div>
 
@@ -101,20 +106,28 @@ export function CustomerScreen({ customer }: { customer: Customer360 }) {
           />
         )}
 
+        {addVeh && (
+          <AddVehicleModal
+            customerId={customer.id}
+            onClose={() => setAddVeh(false)}
+            onAdded={() => { setAddVeh(false); router.refresh(); }}
+          />
+        )}
+
         {del && (
           <ConfirmDialog
-            title="Delete this customer?"
-            message={`${c.full_name} will be archived and removed from your lists. Their vehicles and history stay in the system.`}
-            confirmLabel="Delete customer"
+            title={t("cust.delete.title")}
+            message={t("cust.delete.message", { name: c.full_name })}
+            confirmLabel={t("cust.delete.confirm")}
             onClose={() => setDel(false)}
             onConfirm={async () => {
               try {
                 await clientFetch(`/customers/${customer.id}`, { method: "DELETE" });
-                toast({ title: "Customer deleted", description: c.full_name, variant: "success" });
+                toast({ title: t("cust.toast.deleted_title"), description: c.full_name, variant: "success" });
                 router.push("/customers");
               } catch {
                 setDel(false);
-                toast({ title: "Delete failed", description: "Please try again.", variant: "danger" });
+                toast({ title: t("cust.toast.delete_failed_title"), description: t("cust.toast.try_again"), variant: "danger" });
               }
             }}
           />
@@ -122,27 +135,27 @@ export function CustomerScreen({ customer }: { customer: Customer360 }) {
 
         {/* Stat strip — business signals up front */}
         <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <Stat icon={DollarSign} label="Lifetime value" value={money(c.stats.lifetime_value)} />
-          <Stat icon={FileText} label="Outstanding" value={money(c.stats.outstanding)} valueClass={c.stats.outstanding > 0 ? "text-red-600" : undefined} />
-          <Stat icon={Receipt} label="Invoices" value={String(c.financial?.invoice_count ?? 0)} />
-          <Stat icon={Clock} label="Avg days to pay" value={c.financial?.avg_days_to_pay != null ? `${c.financial.avg_days_to_pay}` : "—"} />
-          <Stat icon={Car} label="Vehicles" value={String(c.stats.vehicle_count)} />
-          <Stat icon={Gauge} label="Avg health" value={`${c.stats.health_avg}`} valueClass={BAND_TEXT[c.stats.health_band]} />
+          <Stat icon={DollarSign} label={t("cust.stat.lifetime_value")} value={money(c.stats.lifetime_value)} />
+          <Stat icon={FileText} label={t("cust.stat.outstanding")} value={money(c.stats.outstanding)} valueClass={c.stats.outstanding > 0 ? "text-red-600" : undefined} />
+          <Stat icon={Receipt} label={t("cust.stat.invoices")} value={String(c.financial?.invoice_count ?? 0)} />
+          <Stat icon={Clock} label={t("cust.stat.avg_days_to_pay")} value={c.financial?.avg_days_to_pay != null ? `${c.financial.avg_days_to_pay}` : "—"} />
+          <Stat icon={Car} label={t("cust.stat.vehicles")} value={String(c.stats.vehicle_count)} />
+          <Stat icon={Gauge} label={t("cust.stat.avg_health")} value={`${c.stats.health_avg}`} valueClass={BAND_TEXT[c.stats.health_band]} />
         </div>
       </div>
 
       {/* Tabs */}
       <div className="border-b border-border flex items-center gap-1 overflow-x-auto">
-        {TABS.map((t) => (
+        {TABS.map((tabName) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
+            key={tabName}
+            onClick={() => setTab(tabName)}
             className={cn(
               "px-3.5 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-colors",
-              tab === t ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
+              tab === tabName ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
             )}
           >
-            {t}
+            {t(`cust.tab.${tabName.toLowerCase()}`)}
           </button>
         ))}
       </div>
@@ -153,27 +166,28 @@ export function CustomerScreen({ customer }: { customer: Customer360 }) {
       {tab === "Passports" && <Passports customer={c} />}
       {tab === "Timeline" && <Timeline customer={c} />}
       {tab === "Appointments" && <Appointments customer={c} />}
-      {tab === "Messages" && <Placeholder icon={MessageSquare} title="Conversations arrive with the Support Center" body="Telegram, chat, voice notes, and emergency threads will unify here as one conversation tied to this customer." />}
-      {tab === "Emergency" && <Placeholder icon={ShieldAlert} title="Emergency history arrives with the Emergency Center" body="Roadside cases, tow dispatches, live location, and photos will appear here, linked to this customer's timeline." />}
-      {tab === "Documents" && <Placeholder icon={FileText} title="No documents yet" body="Inspection reports, warranties, and uploads will be stored here per customer." />}
-      {tab === "Notes" && <Placeholder icon={StickyNote} title="No notes yet" body="Staff notes and preferences for this customer will be captured here." />}
+      {tab === "Messages" && <Placeholder icon={MessageSquare} title={t("cust.ph.messages_title")} body={t("cust.ph.messages_body")} />}
+      {tab === "Emergency" && <Placeholder icon={ShieldAlert} title={t("cust.ph.emergency_title")} body={t("cust.ph.emergency_body")} />}
+      {tab === "Documents" && <Placeholder icon={FileText} title={t("cust.ph.documents_title")} body={t("cust.ph.documents_body")} />}
+      {tab === "Notes" && <Placeholder icon={StickyNote} title={t("cust.ph.notes_title")} body={t("cust.ph.notes_body")} />}
     </div>
   );
 }
 
 function Financial({ customer: c }: { customer: Customer360 }) {
+  const { t } = useI18n();
   const f = c.financial;
-  if (!f) return <Placeholder icon={Receipt} title="No financial data yet" body="Estimates, invoices, and payments will appear here." />;
+  if (!f) return <Placeholder icon={Receipt} title={t("cust.fin.empty_title")} body={t("cust.fin.empty_body")} />;
   const ch = f.commercial_health;
   const kpis = [
-    { label: "Lifetime spend", value: money(f.lifetime_spend) },
-    { label: "Outstanding", value: money(f.outstanding), tone: f.outstanding > 0 ? "text-red-600" : undefined },
-    { label: "Overdue", value: `${money(f.overdue_amount)}${f.overdue_count ? ` · ${f.overdue_count}` : ""}`, tone: f.overdue_amount > 0 ? "text-red-600" : undefined },
-    { label: "Avg days to pay", value: f.avg_days_to_pay != null ? `${f.avg_days_to_pay}` : "—" },
-    { label: "Preferred method", value: f.preferred_method ? f.preferred_method.replace("_", " ") : "—" },
-    { label: "Approval rate", value: f.approval_rate != null ? `${Math.round(f.approval_rate * 100)}%` : "—" },
-    { label: "Open estimates", value: String(f.open_estimate_count) },
-    { label: "Last payment", value: f.last_payment ? `${money(f.last_payment.amount)} · ${fmtDate(f.last_payment.date)}` : "—" },
+    { label: t("cust.fin.lifetime_spend"), value: money(f.lifetime_spend) },
+    { label: t("cust.stat.outstanding"), value: money(f.outstanding), tone: f.outstanding > 0 ? "text-red-600" : undefined },
+    { label: t("cust.fin.overdue"), value: `${money(f.overdue_amount)}${f.overdue_count ? ` · ${f.overdue_count}` : ""}`, tone: f.overdue_amount > 0 ? "text-red-600" : undefined },
+    { label: t("cust.stat.avg_days_to_pay"), value: f.avg_days_to_pay != null ? `${f.avg_days_to_pay}` : "—" },
+    { label: t("cust.fin.preferred_method"), value: f.preferred_method ? f.preferred_method.replace("_", " ") : "—" },
+    { label: t("cust.fin.approval_rate"), value: f.approval_rate != null ? `${Math.round(f.approval_rate * 100)}%` : "—" },
+    { label: t("cust.fin.open_estimates"), value: String(f.open_estimate_count) },
+    { label: t("cust.fin.last_payment"), value: f.last_payment ? `${money(f.last_payment.amount)} · ${fmtDate(f.last_payment.date)}` : "—" },
   ];
   return (
     <div className="space-y-5">
@@ -184,9 +198,9 @@ function Financial({ customer: c }: { customer: Customer360 }) {
           <div className="text-lg leading-none">{"★".repeat(ch.stars)}{"☆".repeat(Math.max(0, 5 - ch.stars))}</div>
         </div>
         <div className="min-w-0">
-          <p className="text-[11px] uppercase tracking-wide font-bold opacity-70">Commercial Health</p>
+          <p className="text-[11px] uppercase tracking-wide font-bold opacity-70">{t("cust.fin.commercial_health")}</p>
           <p className="text-xl font-extrabold">{ch.label}</p>
-          <p className="text-sm opacity-80">Risk: <span className="font-semibold capitalize">{ch.risk}</span> · {f.invoice_count} invoices · avg pay {f.avg_days_to_pay ?? "—"} days</p>
+          <p className="text-sm opacity-80">{t("cust.fin.risk")}: <span className="font-semibold capitalize">{ch.risk}</span> · {f.invoice_count} {t("cust.fin.invoices")} · {t("cust.fin.avg_pay")} {f.avg_days_to_pay ?? "—"} {t("cust.fin.days")}</p>
         </div>
       </div>
 
@@ -202,8 +216,8 @@ function Financial({ customer: c }: { customer: Customer360 }) {
 
       {/* Documents */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <DocList title="Invoices" rows={f.invoices} />
-        <DocList title="Estimates" rows={f.estimates} />
+        <DocList title={t("cust.stat.invoices")} rows={f.invoices} />
+        <DocList title={t("cust.fin.estimates")} rows={f.estimates} />
         <PayList rows={f.payments} />
       </div>
     </div>
@@ -211,13 +225,14 @@ function Financial({ customer: c }: { customer: Customer360 }) {
 }
 
 function DocList({ title, rows }: { title: string; rows: any[] }) {
+  const { t } = useI18n();
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
         <span className="text-sm font-bold">{title}</span>
-        <Link href="/billing" className="text-xs text-primary hover:underline">Open →</Link>
+        <Link href="/billing" className="text-xs text-primary hover:underline">{t("cust.fin.open")} →</Link>
       </div>
-      {rows.length === 0 ? <p className="px-4 py-6 text-center text-xs text-muted-foreground">None yet.</p> : (
+      {rows.length === 0 ? <p className="px-4 py-6 text-center text-xs text-muted-foreground">{t("cust.fin.none_yet")}</p> : (
         <div className="divide-y divide-border">
           {rows.slice(0, 6).map((d: any) => (
             <Link key={d.id} href="/billing" className="flex items-center gap-2 px-4 py-2.5 hover:bg-muted/40">
@@ -236,10 +251,11 @@ function DocList({ title, rows }: { title: string; rows: any[] }) {
 }
 
 function PayList({ rows }: { rows: any[] }) {
+  const { t } = useI18n();
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
-      <div className="px-4 py-2.5 border-b border-border"><span className="text-sm font-bold">Payments</span></div>
-      {rows.length === 0 ? <p className="px-4 py-6 text-center text-xs text-muted-foreground">None yet.</p> : (
+      <div className="px-4 py-2.5 border-b border-border"><span className="text-sm font-bold">{t("cust.fin.payments")}</span></div>
+      {rows.length === 0 ? <p className="px-4 py-6 text-center text-xs text-muted-foreground">{t("cust.fin.none_yet")}</p> : (
         <div className="divide-y divide-border">
           {rows.slice(0, 6).map((p: any) => (
             <div key={p.id} className="flex items-center gap-2 px-4 py-2.5 text-sm">
@@ -267,19 +283,20 @@ function Stat({ icon: Icon, label, value, valueClass }: { icon: React.ElementTyp
 }
 
 function Overview({ customer: c }: { customer: Customer360 }) {
+  const { t } = useI18n();
   const answers = [
-    { icon: Car, label: "Vehicles", value: `${c.stats.vehicle_count} on file` },
-    { icon: Gauge, label: "Fleet health", value: `${c.stats.health_avg} · ${c.stats.health_band}` },
-    { icon: CalendarClock, label: "Next booking", value: c.stats.next_booking ? fmtDate(c.stats.next_booking) : "None scheduled" },
-    { icon: Clock, label: "Last visit", value: fmtDate(c.stats.last_visit) },
-    { icon: DollarSign, label: "Outstanding", value: c.stats.outstanding > 0 ? money(c.stats.outstanding) : "None" },
-    { icon: ShieldAlert, label: "Emergencies", value: c.stats.emergency_count > 0 ? String(c.stats.emergency_count) : "None" },
+    { icon: Car, label: t("cust.stat.vehicles"), value: t("cust.ov.on_file", { count: c.stats.vehicle_count }) },
+    { icon: Gauge, label: t("cust.ov.fleet_health"), value: `${c.stats.health_avg} · ${c.stats.health_band}` },
+    { icon: CalendarClock, label: t("cust.ov.next_booking"), value: c.stats.next_booking ? fmtDate(c.stats.next_booking) : t("cust.ov.none_scheduled") },
+    { icon: Clock, label: t("cust.card.last_visit"), value: fmtDate(c.stats.last_visit) },
+    { icon: DollarSign, label: t("cust.stat.outstanding"), value: c.stats.outstanding > 0 ? money(c.stats.outstanding) : t("cust.ov.none") },
+    { icon: ShieldAlert, label: t("cust.ov.emergencies"), value: c.stats.emergency_count > 0 ? String(c.stats.emergency_count) : t("cust.ov.none") },
   ];
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <div className="lg:col-span-2 space-y-4">
         <div className="rounded-2xl border border-border bg-card p-5">
-          <h3 className="text-sm font-semibold text-foreground mb-3">At a glance</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-3">{t("cust.ov.at_a_glance")}</h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {answers.map((a) => (
               <div key={a.label} className="flex items-start gap-2.5">
@@ -297,8 +314,8 @@ function Overview({ customer: c }: { customer: Customer360 }) {
       <div className="rounded-2xl border border-border bg-gradient-to-br from-primary/5 to-transparent p-5 h-fit">
         <div className="flex items-center gap-2 text-primary mb-2">
           <Sparkles className="size-4" />
-          <span className="text-xs font-semibold uppercase tracking-wide">AI Summary</span>
-          <Badge variant="primary" size="sm">Beta</Badge>
+          <span className="text-xs font-semibold uppercase tracking-wide">{t("cust.ov.ai_summary")}</span>
+          <Badge variant="primary" size="sm">{t("cust.ov.beta")}</Badge>
         </div>
         <p className="text-sm text-foreground/90 leading-relaxed">{c.ai_summary}</p>
       </div>
@@ -307,8 +324,9 @@ function Overview({ customer: c }: { customer: Customer360 }) {
 }
 
 function VehicleCards({ customer: c }: { customer: Customer360 }) {
+  const { t } = useI18n();
   if (c.vehicles.length === 0) {
-    return <EmptyState compact icon={Car} title="No vehicles on file" description="Add a vehicle to start tracking its health and passport." />;
+    return <EmptyState compact icon={Car} title={t("cust.veh.empty_title")} description={t("cust.veh.empty_desc")} />;
   }
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -317,10 +335,10 @@ function VehicleCards({ customer: c }: { customer: Customer360 }) {
           <HealthGauge score={v.score} band={v.band} size={72} stroke={7} />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-foreground truncate">{v.label}</p>
-            <p className="text-xs text-muted-foreground">{v.year} · {nf(v.current_km)} km</p>
+            <p className="text-xs text-muted-foreground">{v.year} · {nf(v.current_km)} {t("cust.veh.km")}</p>
             <div className="flex items-center gap-3 mt-2">
-              <Link href={`/vehicles/${v.id}`} className="text-xs text-primary hover:underline flex items-center gap-1"><Wrench className="size-3" /> Health</Link>
-              <Link href={`/passport/${v.id}`} target="_blank" className="text-xs text-primary hover:underline flex items-center gap-1"><QrCode className="size-3" /> Passport</Link>
+              <Link href={`/vehicles/${v.id}`} className="text-xs text-primary hover:underline flex items-center gap-1"><Wrench className="size-3" /> {t("cust.veh.health")}</Link>
+              <Link href={`/passport/${v.id}`} target="_blank" className="text-xs text-primary hover:underline flex items-center gap-1"><QrCode className="size-3" /> {t("cust.veh.passport")}</Link>
             </div>
           </div>
         </div>
@@ -334,20 +352,21 @@ function Vehicles({ customer: c }: { customer: Customer360 }) {
 }
 
 function Passports({ customer: c }: { customer: Customer360 }) {
-  if (c.vehicles.length === 0) return <Placeholder icon={QrCode} title="No passports yet" body="Each vehicle gets a certified passport once it's on file." />;
+  const { t } = useI18n();
+  if (c.vehicles.length === 0) return <Placeholder icon={QrCode} title={t("cust.pass.empty_title")} body={t("cust.pass.empty_body")} />;
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {c.vehicles.map((v) => (
         <Link key={v.id} href={`/passport/${v.id}`} target="_blank"
           className="rounded-2xl border border-border bg-card p-5 hover:border-primary/40 hover:shadow-sm transition-all group">
           <div className="flex items-center justify-between">
-            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600"><QrCode className="size-3.5" /> Verified</span>
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600"><QrCode className="size-3.5" /> {t("cust.pass.verified")}</span>
             <span className={cn("text-lg font-bold", BAND_TEXT[v.band])}>{Math.round(v.score)}</span>
           </div>
           <p className="mt-3 text-sm font-semibold text-foreground truncate">{v.label}</p>
           <p className="text-xs text-muted-foreground font-mono mt-0.5">{v.passport_code}</p>
           <span className="mt-3 inline-flex items-center gap-1 text-xs text-primary group-hover:gap-2 transition-all">
-            Open passport <ArrowRight className="size-3" />
+            {t("cust.pass.open")} <ArrowRight className="size-3" />
           </span>
         </Link>
       ))}
@@ -356,7 +375,8 @@ function Passports({ customer: c }: { customer: Customer360 }) {
 }
 
 function Timeline({ customer: c }: { customer: Customer360 }) {
-  if (c.timeline.length === 0) return <Placeholder icon={Clock} title="No history yet" body="Services, appointments, and messages will appear here as one continuous history." />;
+  const { t } = useI18n();
+  if (c.timeline.length === 0) return <Placeholder icon={Clock} title={t("cust.tl.empty_title")} body={t("cust.tl.empty_body")} />;
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
       <div className="relative pl-6">
@@ -391,7 +411,8 @@ const APPT_VARIANT: Record<string, string> = {
 };
 
 function Appointments({ customer: c }: { customer: Customer360 }) {
-  if (c.appointments.length === 0) return <Placeholder icon={CalendarClock} title="No appointments" body="This customer has no appointment history yet." />;
+  const { t } = useI18n();
+  if (c.appointments.length === 0) return <Placeholder icon={CalendarClock} title={t("cust.appt.empty_title")} body={t("cust.appt.empty_body")} />;
   return (
     <div className="rounded-2xl border border-border bg-card divide-y divide-border">
       {c.appointments.map((a) => (
@@ -401,10 +422,10 @@ function Appointments({ customer: c }: { customer: Customer360 }) {
             <p className="text-[11px] text-muted-foreground">{a.time}</p>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-foreground">{a.mechanic_name ?? "Unassigned"}</p>
-            <p className="text-xs text-muted-foreground">{a.duration} min{a.total_cost != null ? ` · ${money(a.total_cost)}` : ""}</p>
+            <p className="text-sm font-medium text-foreground">{a.mechanic_name ?? t("cust.appt.unassigned")}</p>
+            <p className="text-xs text-muted-foreground">{a.duration} {t("cust.appt.min")}{a.total_cost != null ? ` · ${money(a.total_cost)}` : ""}</p>
           </div>
-          <Badge variant={(APPT_VARIANT[a.status] ?? "neutral") as never} size="sm">{a.status.replace("_", " ")}</Badge>
+          <Badge variant={(APPT_VARIANT[a.status] ?? "neutral") as never} size="sm">{t(`status.${a.status}`)}</Badge>
         </div>
       ))}
     </div>

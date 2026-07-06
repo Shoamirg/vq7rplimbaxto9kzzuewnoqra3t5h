@@ -22,6 +22,7 @@ import {
 import { Badge, Button, cn, useToast } from "@garageos/design-system";
 
 import { clientFetch } from "@/lib/api/client";
+import { useI18n } from "@/lib/i18n/context";
 import { NewAppointmentButton } from "@/components/appointments/new-appointment-modal";
 import { EmptyState } from "@/components/states/empty-state";
 import type { Appointment, CalendarPayload, DueServices, VehicleHealth } from "@/lib/api/types";
@@ -83,6 +84,7 @@ type Collision = { appt: Appointment; lane: string; dur: number; conflict: Appoi
 
 export function CalendarClient({ initial, initialDate }: Props) {
   const { toast } = useToast();
+  const { t } = useI18n();
   const [view, setView] = useState<View>("Day");
   const [date, setDate] = useState(initialDate);
   const [data, setData] = useState<CalendarPayload>(initial);
@@ -165,12 +167,15 @@ export function CalendarClient({ initial, initialDate }: Props) {
         await clientFetch(`/appointments/${appt.id}`, { method: "PATCH", body: JSON.stringify(body) });
         toast({ title: toastMsg, variant: "success" });
       } catch {
-        toast({ title: "Update failed", description: "Reverting…", variant: "danger" });
+        toast({ title: t("sched.update_failed"), description: t("sched.reverting"), variant: "danger" });
         load(date);
       }
     },
-    [date, load, toast]
+    [date, load, toast, t]
   );
+
+  // Display label for a lane: the sentinel UNASSIGNED value is shown translated.
+  const laneLabel = useCallback((lane: string) => (lane === UNASSIGNED ? t("sched.unassigned") : lane), [t]);
 
   // ── Drag to move ─────────────────────────────────────────────────────────
   const onCardPointerDown = (e: React.PointerEvent, appt: Appointment) => {
@@ -228,7 +233,7 @@ export function CalendarClient({ initial, initialDate }: Props) {
       applyUpdate(
         s.appt,
         { appointment_time: minToHm(s.targetStartMin), mechanic_name: s.targetLane === UNASSIGNED ? null : s.targetLane },
-        `Moved to ${s.targetLane} · ${minToHm(s.targetStartMin)}`
+        t("sched.moved_to", { lane: laneLabel(s.targetLane), time: minToHm(s.targetStartMin) })
       );
     };
     window.addEventListener("pointermove", move);
@@ -275,7 +280,7 @@ export function CalendarClient({ initial, initialDate }: Props) {
       setResize(null);
       if (!s || s.dur === s.startDur) return;
       const appt = data.appointments.find((a) => a.id === s.apptId);
-      if (appt) applyUpdate(appt, { estimated_duration_minutes: s.dur }, `Duration set to ${s.dur} min`);
+      if (appt) applyUpdate(appt, { estimated_duration_minutes: s.dur }, t("sched.duration_set", { min: s.dur }));
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
@@ -295,11 +300,11 @@ export function CalendarClient({ initial, initialDate }: Props) {
       else if (e.key === "ArrowLeft") setDate((d) => addDays(d, -1));
       else if (e.key === "ArrowRight") setDate((d) => addDays(d, 1));
       else if (e.key.toLowerCase() === "t") setDate(todayIso);
-      else if (e.key.toLowerCase() === "n") toast({ title: "Quick booking", description: "The ⌘K booking flow is coming next.", variant: "info" });
+      else if (e.key.toLowerCase() === "n") toast({ title: t("sched.quick_booking_title"), description: t("sched.quick_booking_desc"), variant: "info" });
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [todayIso, toast]);
+  }, [todayIso, toast, t]);
 
   const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
   const nowTop = ((nowMin - START_HOUR * 60) / SLOT_MIN) * ROW_H;
@@ -309,7 +314,7 @@ export function CalendarClient({ initial, initialDate }: Props) {
     if (!collision) return;
     const { appt, lane } = collision;
     setCollision(null);
-    applyUpdate(appt, { appointment_time: minToHm(min), mechanic_name: lane === UNASSIGNED ? null : lane }, `Moved to ${lane} · ${minToHm(min)}`);
+    applyUpdate(appt, { appointment_time: minToHm(min), mechanic_name: lane === UNASSIGNED ? null : lane }, t("sched.moved_to", { lane: laneLabel(lane), time: minToHm(min) }));
   };
   const onTomorrow = () => {
     if (!collision) return;
@@ -319,7 +324,7 @@ export function CalendarClient({ initial, initialDate }: Props) {
     clientFetch(`/appointments/${appt.id}`, {
       method: "PATCH",
       body: JSON.stringify({ appointment_time: "09:00", appointment_date: `${addDays(date, 1)}T09:00:00Z` }),
-    }).then(() => toast({ title: "Moved to tomorrow 09:00", variant: "success" })).catch(() => load(date));
+    }).then(() => toast({ title: t("sched.moved_tomorrow"), variant: "success" })).catch(() => load(date));
   };
 
   const handleInspectorChanged = (action: string) => {
@@ -327,11 +332,11 @@ export function CalendarClient({ initial, initialDate }: Props) {
       const id = selected.id;
       setSelected(null);
       setExitingId(id);
-      toast({ title: "Service completed", description: "Vehicle health recalculated.", variant: "success" });
+      toast({ title: t("sched.service_completed"), description: t("sched.health_recalculated"), variant: "success" });
       setTimeout(() => { setExitingId(null); load(date); }, 340);
     } else {
       setSelected(null);
-      toast({ title: action === "cancel" ? "Appointment cancelled" : "Appointment confirmed", variant: action === "cancel" ? "warning" : "success" });
+      toast({ title: action === "cancel" ? t("sched.appt_cancelled") : t("sched.appt_confirmed"), variant: action === "cancel" ? "warning" : "success" });
       load(date);
     }
   };
@@ -341,29 +346,29 @@ export function CalendarClient({ initial, initialDate }: Props) {
       {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 lg:px-6 py-3 border-b border-border bg-background">
         <div className="flex items-center gap-3">
-          <h1 className="text-xl font-bold tracking-tight text-foreground">Calendar</h1>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">{t("nav.calendar")}</h1>
           <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
             <span className="relative flex size-2">
               <span className="absolute inline-flex size-full rounded-full bg-emerald-500 opacity-60 animate-ping" />
               <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
             </span>
-            Live
+            {t("sched.live")}
           </span>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex rounded-lg border border-border p-0.5">
             {(["Day", "Week", "Month"] as View[]).map((v) => (
               <button key={v} onClick={() => setView(v)} className={cn("px-3 py-1.5 text-sm font-medium rounded-md transition-colors", view === v ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>
-                {v}
+                {t(`sched.view_${v.toLowerCase()}`)}
               </button>
             ))}
           </div>
           <div className="flex items-center gap-1">
-            <Button variant="outline" size="sm" onClick={() => setDate(todayIso)}>Today</Button>
-            <button onClick={() => setDate(addDays(date, -1))} className="p-2 rounded-lg hover:bg-muted transition-colors" aria-label="Previous day"><ChevronLeft className="size-4" /></button>
-            <button onClick={() => setDate(addDays(date, 1))} className="p-2 rounded-lg hover:bg-muted transition-colors" aria-label="Next day"><ChevronRight className="size-4" /></button>
+            <Button variant="outline" size="sm" onClick={() => setDate(todayIso)}>{t("sched.today")}</Button>
+            <button onClick={() => setDate(addDays(date, -1))} className="p-2 rounded-lg hover:bg-muted transition-colors" aria-label={t("sched.prev_day")}><ChevronLeft className="size-4" /></button>
+            <button onClick={() => setDate(addDays(date, 1))} className="p-2 rounded-lg hover:bg-muted transition-colors" aria-label={t("sched.next_day")}><ChevronRight className="size-4" /></button>
           </div>
-          <NewAppointmentButton label="Book" presetDate={date} leftIcon={<Plus className="size-4" />} onCreated={() => load(date)} />
+          <NewAppointmentButton label={t("sched.book")} presetDate={date} leftIcon={<Plus className="size-4" />} onCreated={() => load(date)} />
         </div>
       </div>
 
@@ -371,7 +376,7 @@ export function CalendarClient({ initial, initialDate }: Props) {
         <CalendarDays className="size-4 text-muted-foreground" />
         <span className="text-sm font-medium text-foreground">{labelDate(date)}</span>
         {loading && <Loader2 className="size-3.5 text-muted-foreground animate-spin" />}
-        <span className="ml-auto text-[11px] text-muted-foreground/70 hidden md:inline">Drag to move · resize edge · <kbd className="px-1 rounded bg-muted">←</kbd>/<kbd className="px-1 rounded bg-muted">→</kbd> day · <kbd className="px-1 rounded bg-muted">T</kbd> today</span>
+        <span className="ml-auto text-[11px] text-muted-foreground/70 hidden md:inline">{t("sched.hint_drag")} · {t("sched.hint_resize")} · <kbd className="px-1 rounded bg-muted">←</kbd>/<kbd className="px-1 rounded bg-muted">→</kbd> {t("sched.hint_day")} · <kbd className="px-1 rounded bg-muted">T</kbd> {t("sched.hint_today")}</span>
       </div>
 
       {view !== "Day" ? (
@@ -380,8 +385,8 @@ export function CalendarClient({ initial, initialDate }: Props) {
         <div className="flex-1">
           <EmptyState
             icon={Users}
-            title="No mechanics to schedule yet"
-            description="The board is organised into a lane per mechanic. Add your team, then appointments can be assigned and dragged between them."
+            title={t("sched.no_mechanics_title")}
+            description={t("sched.no_mechanics_desc")}
           />
         </div>
       ) : (
@@ -433,7 +438,7 @@ export function CalendarClient({ initial, initialDate }: Props) {
                       <div key={i} className={cn("absolute left-0 right-0 border-b", i % 2 === 1 ? "border-border" : "border-border/40")} style={{ top: (i + 1) * ROW_H }} />
                     ))}
                     {appts.length === 0 && !isTarget && (
-                      <div className="absolute inset-0 grid place-items-center pointer-events-none"><span className="text-[11px] text-muted-foreground/50">Available</span></div>
+                      <div className="absolute inset-0 grid place-items-center pointer-events-none"><span className="text-[11px] text-muted-foreground/50">{t("sched.available")}</span></div>
                     )}
                     {/* drop indicator */}
                     {isTarget && (
@@ -472,7 +477,7 @@ export function CalendarClient({ initial, initialDate }: Props) {
                         >
                           <div className="flex items-center gap-1.5">
                             <Wrench className="size-3 text-muted-foreground shrink-0" />
-                            <span className="text-xs font-semibold text-foreground truncate flex-1">{a.service_type ?? "Service"}</span>
+                            <span className="text-xs font-semibold text-foreground truncate flex-1">{a.service_type ?? t("sched.service")}</span>
                             <span className={cn("size-1.5 rounded-full shrink-0", st.chip)} />
                           </div>
                           <p className="text-[11px] text-foreground/80 truncate mt-0.5">{a.vehicle_summary}</p>
@@ -511,11 +516,11 @@ export function CalendarClient({ initial, initialDate }: Props) {
         >
           <div className="flex items-center gap-1.5">
             <Wrench className="size-3 text-muted-foreground" />
-            <span className="text-xs font-semibold text-foreground truncate">{drag.appt.service_type ?? "Service"}</span>
+            <span className="text-xs font-semibold text-foreground truncate">{drag.appt.service_type ?? t("sched.service")}</span>
           </div>
           <p className="text-[11px] text-foreground/80 truncate mt-0.5">{drag.appt.vehicle_summary}</p>
           <p className={cn("text-[10px] mt-1 font-medium", drag.conflict ? "text-red-500" : "text-emerald-600")}>
-            {drag.conflict ? "Conflict" : `→ ${drag.targetLane} · ${minToHm(drag.targetStartMin)}`}
+            {drag.conflict ? t("sched.conflict") : t("sched.moved_arrow", { lane: laneLabel(drag.targetLane), time: minToHm(drag.targetStartMin) })}
           </p>
         </div>
       )}
@@ -532,52 +537,56 @@ export function CalendarClient({ initial, initialDate }: Props) {
 }
 
 function PlaceholderView({ view }: { view: View }) {
+  const { t } = useI18n();
   return (
     <div className="flex-1 grid place-items-center p-10">
       <div className="text-center max-w-sm">
         <div className="mx-auto size-12 rounded-full bg-muted grid place-items-center text-muted-foreground mb-3"><CalendarDays className="size-6" /></div>
-        <p className="text-sm font-semibold text-foreground">{view} view is coming next</p>
-        <p className="text-sm text-muted-foreground mt-1">The Day board is the operations hero. Week and Month arrive in the polish pass.</p>
+        <p className="text-sm font-semibold text-foreground">{t("sched.view_soon", { view: t(`sched.view_${view.toLowerCase()}`) })}</p>
+        <p className="text-sm text-muted-foreground mt-1">{t("sched.placeholder_desc")}</p>
       </div>
     </div>
   );
 }
 
 function CollisionPopover({ collision, onPick, onTomorrow, onClose }: { collision: Collision; onPick: (min: number) => void; onTomorrow: () => void; onClose: () => void }) {
+  const { t } = useI18n();
   const c = collision.conflict;
   const end = minToHm(hmToMin(c.appointment_time) + c.estimated_duration_minutes);
+  const laneName = collision.lane === UNASSIGNED ? t("sched.unassigned") : collision.lane;
   return (
     <>
       <div className="fixed inset-0 z-[70] bg-black/20" onClick={onClose} />
       <div className="fixed z-[71] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-80 rounded-2xl border border-border bg-background shadow-2xl p-5 animate-fade-in">
         <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
           <AlertTriangle className="size-5" />
-          <p className="text-sm font-semibold">Mechanic unavailable</p>
+          <p className="text-sm font-semibold">{t("sched.mechanic_unavailable")}</p>
         </div>
         <p className="text-sm text-muted-foreground mt-2">
-          <span className="font-medium text-foreground">{collision.lane}</span> already has {c.service_type ?? "a job"} from{" "}
+          <span className="font-medium text-foreground">{laneName}</span> {t("sched.collision_has", { job: c.service_type ?? t("sched.job_fallback") })}{" "}
           <span className="font-medium text-foreground">{c.appointment_time}–{end}</span>.
         </p>
-        <p className="text-xs font-medium text-foreground mt-4 mb-2">Suggested times</p>
+        <p className="text-xs font-medium text-foreground mt-4 mb-2">{t("sched.suggested_times")}</p>
         <div className="space-y-1.5">
           {collision.suggestions.map((m) => (
             <button key={m} onClick={() => onPick(m)} className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-border hover:border-primary/40 hover:bg-muted/50 transition-all text-sm">
               <span className="font-medium text-foreground">{minToHm(m)}</span>
-              <span className="text-xs text-muted-foreground">{collision.lane}</span>
+              <span className="text-xs text-muted-foreground">{laneName}</span>
             </button>
           ))}
           <button onClick={onTomorrow} className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-border hover:border-primary/40 hover:bg-muted/50 transition-all text-sm">
-            <span className="font-medium text-foreground">Tomorrow 09:00</span>
-            <span className="text-xs text-muted-foreground">next day</span>
+            <span className="font-medium text-foreground">{t("sched.tomorrow_0900")}</span>
+            <span className="text-xs text-muted-foreground">{t("sched.next_day_label")}</span>
           </button>
         </div>
-        <Button variant="ghost" size="sm" fullWidth className="mt-3" onClick={onClose}>Keep original</Button>
+        <Button variant="ghost" size="sm" fullWidth className="mt-3" onClick={onClose}>{t("sched.keep_original")}</Button>
       </div>
     </>
   );
 }
 
 function InspectorDrawer({ appointment, onClose, onChanged }: { appointment: Appointment; onClose: () => void; onChanged: (action: string) => void }) {
+  const { t } = useI18n();
   const [health, setHealth] = useState<VehicleHealth | null>(null);
   const [due, setDue] = useState<DueServices | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -618,47 +627,47 @@ function InspectorDrawer({ appointment, onClose, onChanged }: { appointment: App
       <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[1px]" onClick={onClose} />
       <aside className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-md bg-background border-l border-border shadow-xl flex flex-col animate-slide-in-right">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <div className="flex items-center gap-2"><span className={cn("size-2 rounded-full", st.chip)} /><span className="text-sm font-semibold text-foreground">{st.label}</span></div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors" aria-label="Close"><X className="size-4" /></button>
+          <div className="flex items-center gap-2"><span className={cn("size-2 rounded-full", st.chip)} /><span className="text-sm font-semibold text-foreground">{t(`status.${appointment.status}`)}</span></div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors" aria-label={t("sched.close")}><X className="size-4" /></button>
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           <div>
-            <p className="text-lg font-bold text-foreground">{appointment.service_type ?? "Service"}</p>
+            <p className="text-lg font-bold text-foreground">{appointment.service_type ?? t("sched.service")}</p>
             <p className="text-sm text-muted-foreground">{appointment.vehicle_summary}</p>
           </div>
           <div className="grid grid-cols-2 gap-3 text-sm">
-            <Field label="Customer" value={appointment.customer_name} />
-            <Field label="Mechanic" value={appointment.mechanic_name ?? "Unassigned"} />
-            <Field label="Time" value={`${appointment.appointment_time} · ${appointment.estimated_duration_minutes}m`} />
-            <Field label="Cost" value={appointment.total_cost != null ? `$${appointment.total_cost.toLocaleString("en-US")}` : "—"} />
+            <Field label={t("sched.customer")} value={appointment.customer_name} />
+            <Field label={t("sched.mechanic")} value={appointment.mechanic_name ?? t("sched.unassigned")} />
+            <Field label={t("sched.time")} value={`${appointment.appointment_time} · ${appointment.estimated_duration_minutes}m`} />
+            <Field label={t("sched.cost")} value={appointment.total_cost != null ? `$${appointment.total_cost.toLocaleString("en-US")}` : "—"} />
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" leftIcon={<Phone className="size-4" />} className="flex-1">Call</Button>
-            <Button variant="outline" size="sm" leftIcon={<Send className="size-4" />} className="flex-1">Telegram</Button>
+            <Button variant="outline" size="sm" leftIcon={<Phone className="size-4" />} className="flex-1">{t("sched.call")}</Button>
+            <Button variant="outline" size="sm" leftIcon={<Send className="size-4" />} className="flex-1">{t("sched.telegram")}</Button>
           </div>
           <div className="rounded-xl border border-border p-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-foreground">Vehicle Health</p>
-              <Link href={`/vehicles/${appointment.vehicle_id}`} className="text-xs text-primary hover:underline">Open →</Link>
+              <p className="text-sm font-semibold text-foreground">{t("sched.vehicle_health")}</p>
+              <Link href={`/vehicles/${appointment.vehicle_id}`} className="text-xs text-primary hover:underline">{t("sched.open")}</Link>
             </div>
             {health ? (
               <div className="flex items-center gap-4 mt-2">
                 <HealthGauge score={health.overall_score} band={health.band} size={92} stroke={9} />
-                <div className="text-sm"><p className="font-medium text-foreground capitalize">{health.band}</p><p className="text-muted-foreground">{health.urgent_count} overdue · {health.due_soon_count} due soon</p></div>
+                <div className="text-sm"><p className="font-medium text-foreground capitalize">{t(`band.${health.band}`)}</p><p className="text-muted-foreground">{t("sched.n_overdue", { count: health.urgent_count })} · {t("sched.n_due_soon", { count: health.due_soon_count })}</p></div>
               </div>
-            ) : <p className="text-xs text-muted-foreground mt-2">Loading health…</p>}
+            ) : <p className="text-xs text-muted-foreground mt-2">{t("sched.loading_health")}</p>}
             <Link href={`/passport/${appointment.vehicle_id}`} target="_blank" className="mt-3 flex items-center justify-center gap-2 rounded-lg border border-border py-2 text-xs font-medium text-foreground hover:border-primary/40 hover:bg-muted/40 transition-colors">
-              <QrCode className="size-3.5" /> View Certified Passport
+              <QrCode className="size-3.5" /> {t("sched.view_passport")}
             </Link>
           </div>
           {due && due.services.length > 0 && (
             <div className="rounded-xl border border-border p-4">
-              <p className="text-sm font-semibold text-foreground mb-2">Due Services</p>
+              <p className="text-sm font-semibold text-foreground mb-2">{t("sched.due_services")}</p>
               <div className="space-y-1.5">
                 {due.services.slice(0, 5).map((s) => (
                   <div key={s.service_type} className="flex items-center justify-between text-xs">
                     <span className="text-foreground truncate">{s.service_type}</span>
-                    <Badge variant={(s.remaining_km != null && s.remaining_km < 0) ? "danger" : "warning"} size="sm">{(s.remaining_km != null && s.remaining_km < 0) ? "Overdue" : "Due Soon"}</Badge>
+                    <Badge variant={(s.remaining_km != null && s.remaining_km < 0) ? "danger" : "warning"} size="sm">{(s.remaining_km != null && s.remaining_km < 0) ? t("sched.overdue_badge") : t("sched.due_soon_badge")}</Badge>
                   </div>
                 ))}
               </div>
@@ -666,9 +675,9 @@ function InspectorDrawer({ appointment, onClose, onChanged }: { appointment: App
           )}
         </div>
         <div className="border-t border-border p-4 flex flex-wrap gap-2">
-          {canConfirm && <Button size="sm" loading={busy === "confirm"} onClick={() => act("confirm")} leftIcon={<CheckCircle2 className="size-4" />}>Confirm</Button>}
-          {canComplete && <Button size="sm" variant="success" loading={busy === "complete"} onClick={() => act("complete")} leftIcon={<CheckCircle2 className="size-4" />}>Complete</Button>}
-          {canCancel && <Button size="sm" variant="outline" loading={busy === "cancel"} onClick={() => act("cancel")} leftIcon={<XCircle className="size-4" />}>Cancel</Button>}
+          {canConfirm && <Button size="sm" loading={busy === "confirm"} onClick={() => act("confirm")} leftIcon={<CheckCircle2 className="size-4" />}>{t("sched.confirm")}</Button>}
+          {canComplete && <Button size="sm" variant="success" loading={busy === "complete"} onClick={() => act("complete")} leftIcon={<CheckCircle2 className="size-4" />}>{t("sched.complete")}</Button>}
+          {canCancel && <Button size="sm" variant="outline" loading={busy === "cancel"} onClick={() => act("cancel")} leftIcon={<XCircle className="size-4" />}>{t("common.cancel")}</Button>}
         </div>
       </aside>
     </>

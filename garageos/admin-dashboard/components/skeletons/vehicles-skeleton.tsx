@@ -1,4 +1,7 @@
+"use client";
+
 import { Bar, CardShell } from "./skel";
+import { useI18n } from "@/lib/i18n/context";
 
 // Mirrors the vehicles grid: title + a responsive grid of vehicle cards
 // (icon chip, name, year·km, plate + health link).
@@ -23,8 +26,9 @@ function VehicleCardSkel() {
 }
 
 export function VehiclesSkeleton() {
+  const { t } = useI18n();
   return (
-    <div className="p-4 lg:p-6 space-y-6" aria-busy="true" aria-label="Loading vehicles">
+    <div className="p-4 lg:p-6 space-y-6" aria-busy="true" aria-label={t("leaf.loading_vehicles")}>
       <div className="space-y-2">
         <Bar className="h-7 w-40" />
         <Bar className="h-4 w-72 max-w-full" />

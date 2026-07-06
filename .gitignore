@@ -71,3 +71,6 @@ logs/
 **/test-results/
 **/playwright-report/
 **/.playwright/
+
+# ---- Local dev tooling (downloaded binaries) ----
+garageos/tools/

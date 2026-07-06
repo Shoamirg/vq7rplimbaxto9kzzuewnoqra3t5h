@@ -5,6 +5,7 @@ import { Bell, BellOff, PanelRightClose, Sparkles, UserCheck, Users } from "luci
 import { cn } from "@garageos/design-system";
 
 import { HealthGauge } from "@/components/vehicles/health-gauge";
+import { useI18n } from "@/lib/i18n/context";
 import type { LinkedCard, ThreadDetail } from "@/lib/api/types";
 import { roleColor } from "./shared";
 
@@ -21,11 +22,12 @@ export function ContextPanel({
   onToggleFollow: () => void;
   onCollapse: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <aside className="w-[300px] shrink-0 bg-card border-l border-border overflow-y-auto">
       <div className="flex items-center px-4 h-12 border-b border-border">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Context</span>
-        <button onClick={onCollapse} className="ml-auto text-muted-foreground hover:text-foreground" aria-label="Collapse context">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{t("inbox.context")}</span>
+        <button onClick={onCollapse} className="ml-auto text-muted-foreground hover:text-foreground" aria-label={t("inbox.collapse_context")}>
           <PanelRightClose className="size-4" />
         </button>
       </div>
@@ -35,20 +37,20 @@ export function ContextPanel({
         <div className="grid grid-cols-2 gap-2">
           <div className="rounded-xl border border-border p-2.5">
             <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1">
-              <UserCheck className="size-3" /> Assigned
+              <UserCheck className="size-3" /> {t("inbox.assigned")}
             </p>
             <p className="text-[13px] font-semibold text-foreground truncate">
-              {thread.assigned_name ?? <span className="text-muted-foreground font-normal">Unassigned</span>}
+              {thread.assigned_name ?? <span className="text-muted-foreground font-normal">{t("inbox.unassigned")}</span>}
             </p>
           </div>
           <button onClick={onToggleFollow}
             className={cn("rounded-xl border p-2.5 text-left transition-colors",
               thread.is_following ? "border-primary/40 bg-primary/5" : "border-border hover:bg-muted/50")}>
             <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1">
-              {thread.is_following ? <Bell className="size-3" /> : <BellOff className="size-3" />} Following
+              {thread.is_following ? <Bell className="size-3" /> : <BellOff className="size-3" />} {t("inbox.following")}
             </p>
             <p className={cn("text-[13px] font-semibold", thread.is_following ? "text-primary" : "text-foreground")}>
-              {thread.is_following ? "You + " + Math.max(0, thread.followers - 1) : "Follow"}
+              {thread.is_following ? t("inbox.you_plus", { n: Math.max(0, thread.followers - 1) }) : t("inbox.follow")}
             </p>
           </button>
         </div>
@@ -57,12 +59,12 @@ export function ContextPanel({
         {thread.ai_summary && (
           <div className="rounded-xl border border-indigo-200 bg-gradient-to-b from-white to-indigo-50/40 p-3">
             <p className="flex items-center gap-1.5 text-[11px] font-bold text-indigo-700 mb-2">
-              <Sparkles className="size-3.5" /> Dispatcher Copilot
+              <Sparkles className="size-3.5" /> {t("inbox.copilot")}
             </p>
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Likely read</p>
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">{t("inbox.likely_read")}</p>
             <p className="text-sm font-semibold text-foreground mt-0.5">{thread.ai_summary}</p>
             <p className="mt-2 text-[11px] text-muted-foreground">
-              Full diagnostic copilot (issue confidence, next steps, one-click dispatch) arrives in M4.
+              {t("inbox.copilot_hint")}
             </p>
           </div>
         )}
@@ -70,7 +72,7 @@ export function ContextPanel({
         {/* Linked records */}
         {thread.linked.length > 0 && (
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-2">Linked records</p>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-2">{t("inbox.linked_records")}</p>
             <div className="space-y-2">
               {thread.linked.map((c) => (
                 <Link key={c.kind} href={c.link} target={c.kind === "passport" ? "_blank" : undefined}
@@ -97,7 +99,7 @@ export function ContextPanel({
         {/* Participants — who has actually spoken */}
         <div>
           <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-2">
-            <Users className="size-3" /> Participants
+            <Users className="size-3" /> {t("inbox.participants")}
           </p>
           <div className="space-y-1.5">
             {thread.participants.map((p) => (
@@ -106,7 +108,7 @@ export function ContextPanel({
                   {p.display_name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
                 </span>
                 <span className="flex-1 truncate text-foreground">{p.display_name}</span>
-                <span className={cn("text-[10px] capitalize", roleColor(p.role))}>{p.role}</span>
+                <span className={cn("text-[10px] capitalize", roleColor(p.role))}>{t(`inbox.role.${p.role}`)}</span>
               </div>
             ))}
           </div>

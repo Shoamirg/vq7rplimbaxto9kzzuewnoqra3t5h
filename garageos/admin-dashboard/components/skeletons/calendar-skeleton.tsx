@@ -1,4 +1,7 @@
+"use client";
+
 import { Bar, Circle } from "./skel";
+import { useI18n } from "@/lib/i18n/context";
 
 // Mirrors the Operations Board: toolbar, mechanic lane headers with an
 // occupancy bar, a time gutter, and a few appointment-card placeholders
@@ -43,8 +46,9 @@ function CardSkel({ heightRem }: { heightRem: number }) {
 }
 
 export function CalendarSkeleton() {
+  const { t } = useI18n();
   return (
-    <div className="flex flex-col h-full" aria-busy="true" aria-label="Loading calendar">
+    <div className="flex flex-col h-full" aria-busy="true" aria-label={t("leaf.loading_calendar")}>
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-3 p-4 lg:px-6">
         <div className="flex items-center gap-3">

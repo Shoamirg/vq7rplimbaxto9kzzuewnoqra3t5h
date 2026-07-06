@@ -1,4 +1,7 @@
+"use client";
+
 import { Bar, Ring, CardShell } from "./skel";
+import { useI18n } from "@/lib/i18n/context";
 
 // Mirrors VehicleHealthScreen: breadcrumb, header card + passport/QR, tab row,
 // gauge + trend + at-a-glance, then the category mini-gauge row.
@@ -14,8 +17,9 @@ function CategoryGaugeSkel() {
 }
 
 export function VehicleHealthSkeleton() {
+  const { t } = useI18n();
   return (
-    <div className="p-4 lg:p-6 space-y-5" aria-busy="true" aria-label="Loading vehicle health">
+    <div className="p-4 lg:p-6 space-y-5" aria-busy="true" aria-label={t("leaf.loading_vehicle_health")}>
       <Bar className="h-4 w-56" />
 
       {/* Header card + Digital Passport */}

@@ -1,4 +1,7 @@
+"use client";
+
 import { Bar, Ring, CardShell } from "./skel";
+import { useI18n } from "@/lib/i18n/context";
 
 // Mirrors DashboardClient: header, 4 KPI cards, Fleet Health gauge + revenue
 // chart, then today's appointments + due-for-service lists.
@@ -33,8 +36,9 @@ function ListRowSkel() {
 }
 
 export function DashboardSkeleton() {
+  const { t } = useI18n();
   return (
-    <div className="p-4 lg:p-6 space-y-6" aria-busy="true" aria-label="Loading dashboard">
+    <div className="p-4 lg:p-6 space-y-6" aria-busy="true" aria-label={t("leaf.loading_dashboard")}>
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div className="space-y-2">

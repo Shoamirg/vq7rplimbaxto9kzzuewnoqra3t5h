@@ -24,7 +24,10 @@ export async function POST(req: Request) {
   const response = NextResponse.json({ ok: true });
   response.cookies.set(AUTH_COOKIE, tokens.access_token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    // Only mark Secure when explicitly serving over HTTPS. A production BUILD run
+    // over plain http://localhost must NOT set Secure, or the browser drops the
+    // cookie and the login never sticks. Set COOKIE_SECURE=true behind HTTPS.
+    secure: process.env.COOKIE_SECURE === "true",
     sameSite: "lax",
     path: "/",
     maxAge: 60 * 30, // matches backend ACCESS_TOKEN_EXPIRE_MINUTES

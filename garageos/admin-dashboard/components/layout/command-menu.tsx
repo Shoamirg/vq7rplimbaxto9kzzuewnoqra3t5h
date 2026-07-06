@@ -10,6 +10,7 @@ import { Dialog, DialogContent, cn } from "@garageos/design-system";
 
 import { clientFetch } from "@/lib/api/client";
 import type { SearchResults } from "@/lib/api/types";
+import { useI18n } from "@/lib/i18n/context";
 
 // Custom event so the top-bar search box can open the menu too.
 export const OPEN_EVENT = "garageos:command-open";
@@ -27,6 +28,7 @@ const EMPTY: SearchResults = { query: "", customers: [], vehicles: [], mechanics
 
 export function CommandMenu() {
   const router = useRouter();
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResults>(EMPTY);
@@ -86,44 +88,45 @@ export function CommandMenu() {
 
   // Quick actions (filtered by query substring on title).
   const actions: Entry[] = useMemo(() => {
+    const g = t("layout.group.actions");
     const all: Entry[] = [
-      { id: "a-appt", group: "Actions", icon: <Plus className="size-4" />, title: "New appointment", run: () => go("/calendar") },
-      { id: "a-cust", group: "Actions", icon: <Users className="size-4" />, title: "New customer", run: () => go("/customers") },
-      { id: "a-veh", group: "Actions", icon: <Car className="size-4" />, title: "New vehicle", run: () => go("/vehicles") },
-      { id: "a-cal", group: "Actions", icon: <Calendar className="size-4" />, title: "Open calendar", run: () => go("/calendar") },
-      { id: "a-dash", group: "Actions", icon: <LayoutDashboard className="size-4" />, title: "Open dashboard", run: () => go("/dashboard") },
+      { id: "a-appt", group: g, icon: <Plus className="size-4" />, title: t("action.new_appointment"), run: () => go("/calendar") },
+      { id: "a-cust", group: g, icon: <Users className="size-4" />, title: t("layout.cmd.new_customer"), run: () => go("/customers") },
+      { id: "a-veh", group: g, icon: <Car className="size-4" />, title: t("layout.cmd.new_vehicle"), run: () => go("/vehicles") },
+      { id: "a-cal", group: g, icon: <Calendar className="size-4" />, title: t("layout.cmd.open_calendar"), run: () => go("/calendar") },
+      { id: "a-dash", group: g, icon: <LayoutDashboard className="size-4" />, title: t("layout.cmd.open_dashboard"), run: () => go("/dashboard") },
     ];
     const q = query.trim().toLowerCase();
     return q ? all.filter((a) => a.title.toLowerCase().includes(q)) : all;
-  }, [query, go]);
+  }, [query, go, t]);
 
   // Live result entries.
   const resultEntries: Entry[] = useMemo(() => {
     const v: Entry[] = results.vehicles.map((x) => ({
-      id: `v-${x.id}`, group: "Vehicles",
+      id: `v-${x.id}`, group: t("nav.vehicles"),
       icon: <Car className="size-4" />, title: x.label,
       subtitle: [x.license_plate, x.year].filter(Boolean).join(" · "),
       run: () => go(`/vehicles/${x.id}`),
     }));
     const p: Entry[] = results.vehicles.map((x) => ({
-      id: `p-${x.id}`, group: "Passports",
-      icon: <QrCode className="size-4" />, title: `${x.label} — Passport`,
+      id: `p-${x.id}`, group: t("layout.group.passports"),
+      icon: <QrCode className="size-4" />, title: t("layout.passport_title", { label: x.label }),
       subtitle: x.license_plate ?? undefined,
       run: () => go(`/passport/${x.id}`, true),
     }));
     const c: Entry[] = results.customers.map((x) => ({
-      id: `c-${x.id}`, group: "Customers",
+      id: `c-${x.id}`, group: t("nav.customers"),
       icon: <Users className="size-4" />, title: x.name,
       subtitle: x.phone ?? x.email ?? undefined,
       run: () => go(`/customers/${x.id}`),
     }));
     const m: Entry[] = results.mechanics.map((x) => ({
-      id: `m-${x.id}`, group: "Mechanics",
-      icon: <Wrench className="size-4" />, title: x.name, subtitle: "Mechanic",
+      id: `m-${x.id}`, group: t("layout.group.mechanics"),
+      icon: <Wrench className="size-4" />, title: x.name, subtitle: t("layout.mechanic"),
       run: () => go("/calendar"),
     }));
     return [...v, ...c, ...p, ...m];
-  }, [results, go]);
+  }, [results, go, t]);
 
   const entries = useMemo(() => [...resultEntries, ...actions], [resultEntries, actions]);
 
@@ -163,9 +166,9 @@ export function CommandMenu() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onInputKey}
-            placeholder="Search customers, vehicles, plate, VIN, mechanic…"
+            placeholder={t("layout.search_placeholder")}
             className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/60"
-            aria-label="Global search"
+            aria-label={t("layout.global_search")}
           />
           {loading && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
         </div>
@@ -201,21 +204,21 @@ export function CommandMenu() {
 
           {query.trim() && !loading && entries.length === 0 && (
             <div className="py-10 text-center text-sm text-muted-foreground">
-              No results for “{query.trim()}”.
+              {t("layout.no_results", { query: query.trim() })}
             </div>
           )}
           {!query.trim() && (
             <p className="px-2.5 py-2 text-xs text-muted-foreground">
-              Type to search customers, vehicles, plates, VINs and staff — or pick an action.
+              {t("layout.search_hint")}
             </p>
           )}
         </div>
 
         {/* Footer hint */}
         <div className="flex items-center gap-4 border-t border-border px-4 py-2 text-[11px] text-muted-foreground">
-          <span className="flex items-center gap-1"><ArrowUp className="size-3" /><ArrowDown className="size-3" /> navigate</span>
-          <span className="flex items-center gap-1"><CornerDownLeft className="size-3" /> open</span>
-          <span className="ml-auto flex items-center gap-1"><kbd className="rounded border border-border bg-muted px-1">Esc</kbd> close</span>
+          <span className="flex items-center gap-1"><ArrowUp className="size-3" /><ArrowDown className="size-3" /> {t("layout.navigate")}</span>
+          <span className="flex items-center gap-1"><CornerDownLeft className="size-3" /> {t("layout.open")}</span>
+          <span className="ml-auto flex items-center gap-1"><kbd className="rounded border border-border bg-muted px-1">Esc</kbd> {t("layout.close")}</span>
         </div>
       </DialogContent>
     </Dialog>

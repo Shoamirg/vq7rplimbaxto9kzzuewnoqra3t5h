@@ -22,6 +22,7 @@ import {
   Wrench,
 } from "lucide-react";
 import { EmptyState } from "@/components/states/empty-state";
+import { useI18n } from "@/lib/i18n/context";
 import {
   Area,
   AreaChart,
@@ -48,8 +49,17 @@ import type {
 import { HealthGauge } from "./health-gauge";
 
 type Props = { health: VehicleHealth; timeline: VehicleTimeline };
+type Translate = (key: string, params?: Record<string, string | number>) => string;
 
 const TABS = ["Overview", "Timeline", "Services & History", "Documents", "Insights"] as const;
+
+const TAB_KEY: Record<(typeof TABS)[number], string> = {
+  "Overview": "veh.tab.overview",
+  "Timeline": "veh.tab.timeline",
+  "Services & History": "veh.tab.services",
+  "Documents": "veh.tab.documents",
+  "Insights": "veh.tab.insights",
+};
 
 // Event-stream items (from the notification engine) tinted by severity.
 const EVENT_TINT: Record<string, string> = {
@@ -72,23 +82,11 @@ const BAND_TEXT: Record<HealthBand, string> = {
   fair: "text-amber-600 dark:text-amber-400",
   poor: "text-red-600 dark:text-red-400",
 };
-const BAND_LABEL: Record<HealthBand, string> = {
-  excellent: "Excellent",
-  good: "Good",
-  fair: "Fair",
-  poor: "Poor",
-};
 const BAND_BADGE: Record<HealthBand, string> = {
   excellent: "success",
   good: "success",
   fair: "warning",
   poor: "danger",
-};
-const BAND_DESC: Record<HealthBand, string> = {
-  excellent: "This vehicle is in excellent condition. Keep up with recommended maintenance to maintain peak performance.",
-  good: "This vehicle is in good shape. A few services are approaching — plan ahead to stay on top of them.",
-  fair: "Attention needed soon. Several services are due — schedule them to avoid larger problems down the road.",
-  poor: "This vehicle needs attention. Multiple services are overdue — book a visit as soon as possible.",
 };
 
 function km(n: number | null | undefined): string {
@@ -99,18 +97,18 @@ function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
 }
 
-function dueLabel(s: HealthService): { text: string; variant: string } {
+function dueLabel(s: HealthService): { key: string; variant: string } {
   if (s.status === "overdue" || (s.remaining_km != null && s.remaining_km < 0)) {
-    return { text: "Overdue", variant: "danger" };
+    return { key: "veh.due.overdue", variant: "danger" };
   }
-  if (s.status === "due") return { text: "Due", variant: "danger" };
-  return { text: "Due Soon", variant: "warning" };
+  if (s.status === "due") return { key: "veh.due.due", variant: "danger" };
+  return { key: "veh.due.due_soon", variant: "warning" };
 }
 
-function remainingText(s: HealthService): string {
+function remainingText(s: HealthService, t: Translate): string {
   if (s.remaining_km == null) return "";
-  if (s.remaining_km < 0) return `${Math.abs(s.remaining_km).toLocaleString("en-US")} km overdue`;
-  return `in ${s.remaining_km.toLocaleString("en-US")} km`;
+  if (s.remaining_km < 0) return t("veh.km_overdue", { km: Math.abs(s.remaining_km).toLocaleString("en-US") });
+  return t("veh.km_in", { km: s.remaining_km.toLocaleString("en-US") });
 }
 
 // ── Small deterministic QR-style placeholder (real QR generation is a follow-up)
@@ -185,10 +183,11 @@ function StatItem({ icon: Icon, value, label, tone }: { icon: React.ElementType;
 }
 
 export function VehicleHealthScreen({ health, timeline }: Props) {
+  const { t } = useI18n();
   const [tab, setTab] = useState<Tab>("Overview");
   const v = health.vehicle;
   const band = health.band;
-  const title = `${v.brand} ${v.model}`.trim() || "Vehicle";
+  const title = `${v.brand} ${v.model}`.trim() || t("veh.vehicle");
 
   const serviceEvents = timeline.events.filter((e) => e.type === "service");
   const servicesCompleted = serviceEvents.length;
@@ -203,17 +202,18 @@ export function VehicleHealthScreen({ health, timeline }: Props) {
     return (rank[a.priority] ?? 3) - (rank[b.priority] ?? 3);
   });
 
-  // Illustrative trend ending at the real current score (health snapshots aren't stored yet).
-  const trend = [-14, -11, -8, -5, -2, 0].map((d, i) => ({
-    month: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"][i],
-    score: Math.max(0, Math.min(100, Math.round(health.overall_score + d))),
+  // No health snapshots are stored yet, so there is no real trend to plot —
+  // render the series flat at zero rather than fabricating an illustrative curve.
+  const trend = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"].map((month) => ({
+    month,
+    score: 0,
   }));
 
   return (
     <div className="p-4 lg:p-6 space-y-5 animate-fade-in">
       {/* Breadcrumb + header */}
       <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-        <Link href="/vehicles" className="hover:text-foreground transition-colors">Vehicles</Link>
+        <Link href="/vehicles" className="hover:text-foreground transition-colors">{t("nav.vehicles")}</Link>
         <ChevronRight className="size-3.5" />
         <span className="text-foreground font-medium">{title}{v.license_plate ? ` (${v.license_plate})` : ""}</span>
       </div>
@@ -229,7 +229,7 @@ export function VehicleHealthScreen({ health, timeline }: Props) {
                 <div>
                   <div className="flex items-center gap-2">
                     <h1 className="text-xl font-bold tracking-tight text-foreground">{title}</h1>
-                    <Badge variant={BAND_BADGE[band] as never} size="sm" dot>{BAND_LABEL[band]}</Badge>
+                    <Badge variant={BAND_BADGE[band] as never} size="sm" dot>{t(`band.${band}`)}</Badge>
                   </div>
                   {v.license_plate && (
                     <span className="inline-block mt-1 text-xs font-mono px-2 py-0.5 rounded bg-muted text-muted-foreground">{v.license_plate}</span>
@@ -237,13 +237,13 @@ export function VehicleHealthScreen({ health, timeline }: Props) {
                   <p className="text-sm text-muted-foreground mt-1.5">
                     {v.year} · {v.current_km.toLocaleString("en-US")} km
                     {v.customer_name ? ` · ${v.customer_name}` : ""}
-                    {lastServiceDate ? ` · Last service ${fmtDate(lastServiceDate)}` : ""}
+                    {lastServiceDate ? ` · ${t("veh.last_service")} ${fmtDate(lastServiceDate)}` : ""}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <Button variant="outline" size="sm" leftIcon={<Share2 className="size-4" />}>Share Report</Button>
-                <Button size="sm" leftIcon={<Calendar className="size-4" />}>Book Service</Button>
+                <Button variant="outline" size="sm" leftIcon={<Share2 className="size-4" />}>{t("veh.share_report")}</Button>
+                <Button size="sm" leftIcon={<Calendar className="size-4" />}>{t("veh.book_service")}</Button>
               </div>
             </div>
           </CardContent>
@@ -255,10 +255,10 @@ export function VehicleHealthScreen({ health, timeline }: Props) {
           <CardContent padding="md">
             <div className="flex items-start gap-3">
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-foreground">Digital Vehicle Passport</p>
-                <p className="text-xs text-muted-foreground mt-0.5">A certified, shareable record of this vehicle&apos;s health and service history.</p>
+                <p className="text-sm font-semibold text-foreground">{t("veh.digital_passport")}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("veh.digital_passport_desc")}</p>
                 <Link href={`/passport/${v.id}`} target="_blank" className="inline-block mt-3">
-                  <Button variant="outline" size="sm" leftIcon={<QrCode className="size-4" />}>Open Passport</Button>
+                  <Button variant="outline" size="sm" leftIcon={<QrCode className="size-4" />}>{t("veh.open_passport")}</Button>
                 </Link>
               </div>
               <div className="rounded-lg bg-background border border-border p-1.5 shrink-0">
@@ -271,18 +271,18 @@ export function VehicleHealthScreen({ health, timeline }: Props) {
 
       {/* Tabs */}
       <div className="border-b border-border flex items-center gap-1 overflow-x-auto">
-        {TABS.map((t) => (
+        {TABS.map((tabId) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
+            key={tabId}
+            onClick={() => setTab(tabId)}
             className={cn(
               "px-3 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
-              tab === t
+              tab === tabId
                 ? "border-primary text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             )}
           >
-            {t}
+            {t(TAB_KEY[tabId])}
           </button>
         ))}
       </div>
@@ -298,7 +298,7 @@ export function VehicleHealthScreen({ health, timeline }: Props) {
       )}
       {tab === "Timeline" && <TimelineTab timeline={timeline} />}
       {tab === "Services & History" && <ServicesTab health={health} />}
-      {tab === "Documents" && <EmptyTab icon={FileText} title="No documents yet" body="Upload inspection reports, invoices, and warranty documents to keep everything in one place." />}
+      {tab === "Documents" && <EmptyTab icon={FileText} title={t("veh.no_documents")} body={t("veh.documents_upload_hint")} />}
       {tab === "Insights" && <InsightsCard band={band} full />}
     </div>
   );
@@ -313,19 +313,20 @@ function OverviewTab({
   timeline: VehicleTimeline;
   stats: { servicesCompleted: number; totalSpent: number; kmSinceService: number | null };
 }) {
+  const { t } = useI18n();
   const band = health.band;
   return (
     <div className="space-y-4">
       {/* Score + trend + at a glance */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card>
-          <CardHeader><CardTitle>Overall Health Score</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{t("veh.overall_health")}</CardTitle></CardHeader>
           <CardContent>
             <div className="flex flex-col items-center text-center">
               <HealthGauge score={health.overall_score} band={band} />
-              <p className={cn("mt-3 text-sm font-semibold", BAND_TEXT[band])}>{BAND_LABEL[band]}</p>
-              <p className="text-xs text-muted-foreground mt-1 max-w-[240px]">{BAND_DESC[band]}</p>
-              <p className="text-[11px] text-muted-foreground/60 mt-3">Calculated {fmtDate(health.generated_at)}</p>
+              <p className={cn("mt-3 text-sm font-semibold", BAND_TEXT[band])}>{t(`band.${band}`)}</p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-[240px]">{t(`veh.band_desc.${band}`)}</p>
+              <p className="text-[11px] text-muted-foreground/60 mt-3">{t("veh.calculated", { date: fmtDate(health.generated_at) })}</p>
             </div>
           </CardContent>
         </Card>
@@ -333,8 +334,8 @@ function OverviewTab({
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Health Trend</CardTitle>
-              <Badge variant="neutral" size="sm">Illustrative</Badge>
+              <CardTitle>{t("veh.health_trend")}</CardTitle>
+              <Badge variant="neutral" size="sm">{t("veh.illustrative")}</Badge>
             </div>
           </CardHeader>
           <CardContent>
@@ -349,7 +350,7 @@ function OverviewTab({
                   </defs>
                   <XAxis dataKey="month" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
                   <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                  <Tooltip formatter={(val: number) => [`${val}/100`, "Score"]} />
+                  <Tooltip formatter={(val: number) => [`${val}/100`, t("veh.score")]} />
                   <Area type="monotone" dataKey="score" stroke="#10b981" strokeWidth={2} fill="url(#trendGrad)" />
                 </AreaChart>
               </ResponsiveContainer>
@@ -358,23 +359,23 @@ function OverviewTab({
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>At a Glance</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{t("veh.at_a_glance")}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <StatItem icon={Wrench} value={String(stats.servicesCompleted)} label="Services completed" tone="bg-primary/10 text-primary" />
-            <StatItem icon={AlertTriangle} value={String(health.urgent_count)} label="Services overdue" tone="bg-danger/10 text-danger" />
-            <StatItem icon={Clock} value={String(health.due_soon_count)} label="Due soon" tone="bg-warning/10 text-warning" />
-            <StatItem icon={DollarSign} value={`$${stats.totalSpent.toLocaleString("en-US", { maximumFractionDigits: 0 })}`} label="Total spent" tone="bg-success/10 text-success" />
-            <StatItem icon={Activity} value={km(stats.kmSinceService)} label="Since last service" tone="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" />
+            <StatItem icon={Wrench} value={String(stats.servicesCompleted)} label={t("veh.stat.services_completed")} tone="bg-primary/10 text-primary" />
+            <StatItem icon={AlertTriangle} value={String(health.urgent_count)} label={t("veh.stat.services_overdue")} tone="bg-danger/10 text-danger" />
+            <StatItem icon={Clock} value={String(health.due_soon_count)} label={t("veh.stat.due_soon")} tone="bg-warning/10 text-warning" />
+            <StatItem icon={DollarSign} value={`$${stats.totalSpent.toLocaleString("en-US", { maximumFractionDigits: 0 })}`} label={t("veh.stat.total_spent")} tone="bg-success/10 text-success" />
+            <StatItem icon={Activity} value={km(stats.kmSinceService)} label={t("veh.stat.since_service")} tone="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" />
           </CardContent>
         </Card>
       </div>
 
       {/* Category health */}
       <Card>
-        <CardHeader><CardTitle>Category Health</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("veh.category_health")}</CardTitle></CardHeader>
         <CardContent>
           {health.categories.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No maintenance categories configured for this vehicle.</p>
+            <p className="text-sm text-muted-foreground">{t("veh.no_categories")}</p>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
               {health.categories.map((c) => {
@@ -384,7 +385,7 @@ function OverviewTab({
                     <MiniRadial score={c.score} />
                     <div>
                       <p className="text-xs font-medium text-foreground leading-tight">{c.name}</p>
-                      <p className={cn("text-[11px] font-medium", BAND_TEXT[b])}>{BAND_LABEL[b]}</p>
+                      <p className={cn("text-[11px] font-medium", BAND_TEXT[b])}>{t(`band.${b}`)}</p>
                     </div>
                   </div>
                 );
@@ -399,13 +400,13 @@ function OverviewTab({
         <Card className="lg:col-span-1">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Due Services</CardTitle>
-              <Badge variant="warning" size="sm">{dueServices.length} due</Badge>
+              <CardTitle>{t("veh.due_services")}</CardTitle>
+              <Badge variant="warning" size="sm">{t("veh.count_due", { n: dueServices.length })}</Badge>
             </div>
           </CardHeader>
           <CardContent padding="none">
             {dueServices.length === 0 ? (
-              <div className="px-4 py-8 text-center text-sm text-muted-foreground">Everything is up to date. 🎉</div>
+              <div className="px-4 py-8 text-center text-sm text-muted-foreground">{t("veh.everything_up_to_date")}</div>
             ) : (
               <div className="divide-y divide-border">
                 {dueServices.slice(0, 8).map((s) => {
@@ -414,9 +415,9 @@ function OverviewTab({
                     <div key={s.service_type} className="flex items-center gap-3 px-4 py-3">
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium text-foreground truncate">{s.service_type}</p>
-                        <p className="text-xs text-muted-foreground">{remainingText(s)}</p>
+                        <p className="text-xs text-muted-foreground">{remainingText(s, t)}</p>
                       </div>
-                      <Badge variant={d.variant as never} size="sm">{d.text}</Badge>
+                      <Badge variant={d.variant as never} size="sm">{t(d.key)}</Badge>
                     </div>
                   );
                 })}
@@ -426,7 +427,7 @@ function OverviewTab({
         </Card>
 
         <Card className="lg:col-span-1">
-          <CardHeader><CardTitle>Recent Timeline</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{t("veh.recent_timeline")}</CardTitle></CardHeader>
           <CardContent padding="none">
             <TimelineList events={timeline.events.slice(0, 6)} />
           </CardContent>
@@ -435,12 +436,12 @@ function OverviewTab({
         <div className="lg:col-span-1 space-y-4">
           <InsightsCard band={band} />
           <Card>
-            <CardHeader><CardTitle>Quick Actions</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{t("veh.quick_actions")}</CardTitle></CardHeader>
             <CardContent className="space-y-2">
-              <QuickAction icon={Calendar} label="Book Appointment" />
-              <QuickAction icon={FileText} label="Service History Report" />
-              <QuickAction icon={Printer} label="Print Health Report" onClick={() => window.print()} />
-              <QuickAction icon={Download} label="Export Data" />
+              <QuickAction icon={Calendar} label={t("veh.action.book_appointment")} />
+              <QuickAction icon={FileText} label={t("veh.action.history_report")} />
+              <QuickAction icon={Printer} label={t("veh.action.print_report")} onClick={() => window.print()} />
+              <QuickAction icon={Download} label={t("veh.action.export_data")} />
             </CardContent>
           </Card>
         </div>
@@ -450,14 +451,15 @@ function OverviewTab({
 }
 
 function TimelineList({ events }: { events: VehicleTimeline["events"] }) {
+  const { t } = useI18n();
   if (events.length === 0) {
     return (
       <EmptyState
         compact
         icon={History}
-        title="No service history yet"
-        description="This vehicle hasn't been serviced here. Once you complete an appointment, every service and inspection appears here automatically — building the digital passport."
-        action={{ label: "Book first service", href: "/calendar" }}
+        title={t("veh.no_history")}
+        description={t("veh.no_history_desc")}
+        action={{ label: t("veh.book_first"), href: "/calendar" }}
       />
     );
   }
@@ -487,18 +489,20 @@ function TimelineList({ events }: { events: VehicleTimeline["events"] }) {
 }
 
 function TimelineTab({ timeline }: { timeline: VehicleTimeline }) {
+  const { t } = useI18n();
   return (
     <Card>
-      <CardHeader><CardTitle>Full Timeline</CardTitle><CardDescription>{timeline.events.length} events</CardDescription></CardHeader>
+      <CardHeader><CardTitle>{t("veh.full_timeline")}</CardTitle><CardDescription>{t("veh.count_events", { n: timeline.events.length })}</CardDescription></CardHeader>
       <CardContent padding="none"><TimelineList events={timeline.events} /></CardContent>
     </Card>
   );
 }
 
 function ServicesTab({ health }: { health: VehicleHealth }) {
+  const { t } = useI18n();
   return (
     <Card>
-      <CardHeader><CardTitle>Services &amp; History</CardTitle><CardDescription>All tracked maintenance items and their status</CardDescription></CardHeader>
+      <CardHeader><CardTitle>{t("veh.tab.services")}</CardTitle><CardDescription>{t("veh.services_history_desc")}</CardDescription></CardHeader>
       <CardContent padding="none">
         <div className="divide-y divide-border">
           {health.services.map((s) => {
@@ -509,13 +513,13 @@ function ServicesTab({ health }: { health: VehicleHealth }) {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-foreground truncate">{s.service_type}</p>
                   <p className="text-xs text-muted-foreground truncate">
-                    {s.interval_km ? `Every ${s.interval_km.toLocaleString("en-US")} km` : ""}
-                    {s.last_performed_km != null ? ` · last at ${s.last_performed_km.toLocaleString("en-US")} km` : ""}
+                    {s.interval_km ? t("veh.every_km", { km: s.interval_km.toLocaleString("en-US") }) : ""}
+                    {s.last_performed_km != null ? ` · ${t("veh.last_at_km", { km: s.last_performed_km.toLocaleString("en-US") })}` : ""}
                   </p>
                 </div>
                 <div className="text-right">
                   <p className={cn("text-sm font-semibold", BAND_TEXT[b])}>{Math.round(s.health_score)}</p>
-                  <p className="text-xs text-muted-foreground">{remainingText(s) || "on track"}</p>
+                  <p className="text-xs text-muted-foreground">{remainingText(s, t) || t("veh.on_track")}</p>
                 </div>
               </div>
             );
@@ -527,6 +531,7 @@ function ServicesTab({ health }: { health: VehicleHealth }) {
 }
 
 function InsightsCard({ band, full = false }: { band: HealthBand; full?: boolean }) {
+  const { t } = useI18n();
   const positive = band === "excellent" || band === "good";
   return (
     <Card className="relative overflow-hidden">
@@ -536,23 +541,21 @@ function InsightsCard({ band, full = false }: { band: HealthBand; full?: boolean
           <div className="size-7 rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400 grid place-items-center">
             <Sparkles className="size-4" />
           </div>
-          <CardTitle>AI Insights</CardTitle>
-          <Badge variant="neutral" size="sm">Beta</Badge>
+          <CardTitle>{t("veh.ai_insights")}</CardTitle>
+          <Badge variant="neutral" size="sm">{t("veh.beta")}</Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-2.5">
         <p className="text-sm text-foreground">
-          {positive
-            ? "This vehicle is well maintained — service intervals are being met."
-            : "Several services are overdue. Prioritizing them will restore this vehicle's health score."}
+          {positive ? t("veh.insight_positive") : t("veh.insight_negative")}
         </p>
         <ul className="space-y-1.5 text-xs text-muted-foreground">
-          <li className="flex items-center gap-2"><CheckCircle2 className="size-3.5 text-success shrink-0" /> Oil change intervals are on schedule</li>
-          <li className="flex items-center gap-2"><CheckCircle2 className="size-3.5 text-success shrink-0" /> Brake health is within range</li>
-          <li className="flex items-center gap-2"><AlertTriangle className="size-3.5 text-warning shrink-0" /> Consider a transmission fluid check next visit</li>
+          <li className="flex items-center gap-2"><CheckCircle2 className="size-3.5 text-success shrink-0" /> {t("veh.insight_oil")}</li>
+          <li className="flex items-center gap-2"><CheckCircle2 className="size-3.5 text-success shrink-0" /> {t("veh.insight_brake")}</li>
+          <li className="flex items-center gap-2"><AlertTriangle className="size-3.5 text-warning shrink-0" /> {t("veh.insight_transmission")}</li>
         </ul>
         {full && (
-          <Button variant="outline" size="sm" className="mt-1" leftIcon={<Sparkles className="size-4" />}>Ask GarageOS AI</Button>
+          <Button variant="outline" size="sm" className="mt-1" leftIcon={<Sparkles className="size-4" />}>{t("veh.ask_ai")}</Button>
         )}
       </CardContent>
     </Card>

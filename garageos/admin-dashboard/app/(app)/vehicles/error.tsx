@@ -1,12 +1,14 @@
 "use client";
 
 import { ErrorState } from "@/components/states/error-state";
+import { useI18n } from "@/lib/i18n/context";
 
 export default function VehiclesError({ reset }: { error: Error; reset: () => void }) {
+  const { t } = useI18n();
   return (
     <ErrorState
-      title="The vehicle list couldn't load"
-      description="We couldn't fetch your fleet just now. Retry, or check your connection — your vehicles are safe."
+      title={t("leaf.vehicles_error_title")}
+      description={t("leaf.vehicles_error_desc")}
       onRetry={reset}
     />
   );

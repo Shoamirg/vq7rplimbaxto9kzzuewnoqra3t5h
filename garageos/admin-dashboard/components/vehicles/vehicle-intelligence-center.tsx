@@ -27,6 +27,7 @@ import { useToast } from "@garageos/design-system";
 import { NewAppointmentModal } from "@/components/appointments/new-appointment-modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { clientFetch } from "@/lib/api/client";
+import { useI18n } from "@/lib/i18n/context";
 import type { VehicleIntelligence } from "@/lib/api/types";
 
 const BAND_COLOR: Record<string, string> = {
@@ -144,6 +145,7 @@ export function VehicleIntelligenceCenter({ data }: { data: VehicleIntelligence 
   const [book, setBook] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+  const { t } = useI18n();
   const tier = passport.tier;
 
   return (
@@ -151,20 +153,20 @@ export function VehicleIntelligenceCenter({ data }: { data: VehicleIntelligence 
       {/* Top bar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="text-sm text-muted-foreground">
-          <Link href="/vehicles" className="hover:text-foreground">Vehicles</Link>
+          <Link href="/vehicles" className="hover:text-foreground">{t("nav.vehicles")}</Link>
           <span className="mx-1.5">›</span>
           <b className="font-brand text-foreground">{v.brand} {v.model}</b>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link href={`/passport/${v.id}`} target="_blank"
             className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 px-4 py-2 text-sm font-bold text-amber-950 transition hover:brightness-105">
-            <Star className="size-4" /> View Passport
+            <Star className="size-4" /> {t("veh.view_passport")}
           </Link>
           <button onClick={() => setBook(true)} className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white transition hover:bg-slate-800">
-            <CalendarClock className="size-4" /> Book service
+            <CalendarClock className="size-4" /> {t("veh.book_service")}
           </button>
           <button onClick={() => setDel(true)} className="inline-flex items-center gap-1.5 rounded-xl border border-border px-4 py-2 text-sm font-bold text-muted-foreground transition hover:text-red-600 hover:border-red-200">
-            <Trash2 className="size-4" /> Delete
+            <Trash2 className="size-4" /> {t("common.delete")}
           </button>
         </div>
       </div>
@@ -172,18 +174,18 @@ export function VehicleIntelligenceCenter({ data }: { data: VehicleIntelligence 
       {book && <NewAppointmentModal onClose={() => setBook(false)} onCreated={() => setBook(false)} />}
       {del && (
         <ConfirmDialog
-          title="Delete this vehicle?"
-          message={`${v.brand} ${v.model} will be archived and removed from your lists. Its owner and history stay in the system.`}
-          confirmLabel="Delete vehicle"
+          title={t("veh.delete_title")}
+          message={t("veh.delete_message", { name: `${v.brand} ${v.model}` })}
+          confirmLabel={t("veh.delete_confirm")}
           onClose={() => setDel(false)}
           onConfirm={async () => {
             try {
               await clientFetch(`/vehicles/${v.id}`, { method: "DELETE" });
-              toast({ title: "Vehicle deleted", description: `${v.brand} ${v.model}`, variant: "success" });
+              toast({ title: t("veh.toast_deleted"), description: `${v.brand} ${v.model}`, variant: "success" });
               router.push("/vehicles");
             } catch {
               setDel(false);
-              toast({ title: "Delete failed", description: "Please try again.", variant: "danger" });
+              toast({ title: t("veh.toast_delete_failed"), description: t("veh.toast_try_again"), variant: "danger" });
             }
           }}
         />
@@ -191,10 +193,10 @@ export function VehicleIntelligenceCenter({ data }: { data: VehicleIntelligence 
 
       {/* Tabs */}
       <div className="flex gap-1 rounded-2xl bg-muted p-1 text-sm font-semibold sm:w-fit">
-        {TABS.map((t) => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`flex-1 rounded-xl px-4 py-1.5 capitalize transition sm:flex-none ${tab === t ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}>
-            {t}
+        {TABS.map((tabId) => (
+          <button key={tabId} onClick={() => setTab(tabId)}
+            className={`flex-1 rounded-xl px-4 py-1.5 capitalize transition sm:flex-none ${tab === tabId ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}>
+            {t(`veh.tab.${tabId}`)}
           </button>
         ))}
       </div>
@@ -218,7 +220,7 @@ export function VehicleIntelligenceCenter({ data }: { data: VehicleIntelligence 
                 <div>
                   {tier && (
                     <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-400/10 px-2.5 py-1 font-brand text-[11px] font-bold uppercase tracking-[0.14em] text-amber-200">
-                      <Star className="size-3" /> {tier} Certified
+                      <Star className="size-3" /> {t("veh.certified", { tier })}
                     </span>
                   )}
                   <h1 className="font-brand mt-2 text-3xl font-extrabold tracking-tight">{v.brand} {v.model}</h1>
@@ -240,7 +242,7 @@ export function VehicleIntelligenceCenter({ data }: { data: VehicleIntelligence 
                   <div className="flex-1">
                     <p className="font-semibold">{active.name}</p>
                     <p className="text-xs text-slate-400">
-                      {active.score < 75 ? "Inspect at the next visit — lowest-scoring system." : "In good condition. No action needed."}
+                      {active.score < 75 ? t("veh.inspect_next") : t("veh.good_condition")}
                     </p>
                   </div>
                   <div className="text-right">
@@ -250,10 +252,10 @@ export function VehicleIntelligenceCenter({ data }: { data: VehicleIntelligence 
                 </div>
               ) : (
                 <div className="relative z-[2] mt-1 grid grid-cols-4 gap-2">
-                  <Vital k="Mileage" val={v.mileage ? `${(v.mileage / 1000).toFixed(0)}k km` : "—"} />
-                  <Vital k="Compliance" val={`${passport.compliance}%`} />
-                  <Vital k="Owned" val={`${passport.vitals.ownership_years}y`} />
-                  <Vital k="Lifetime" val={money(passport.vitals.total_spent)} />
+                  <Vital k={t("veh.mileage")} val={v.mileage ? `${(v.mileage / 1000).toFixed(0)}k km` : "—"} />
+                  <Vital k={t("veh.compliance")} val={`${passport.compliance}%`} />
+                  <Vital k={t("veh.owned")} val={`${passport.vitals.ownership_years}y`} />
+                  <Vital k={t("veh.lifetime")} val={money(passport.vitals.total_spent)} />
                 </div>
               )}
             </div>
@@ -274,14 +276,14 @@ export function VehicleIntelligenceCenter({ data }: { data: VehicleIntelligence 
         </>
       )}
 
-      {tab === "timeline" && <Panel title="Service Timeline"><TimelineCard events={timeline} /></Panel>}
+      {tab === "timeline" && <Panel title={t("veh.service_timeline")}><TimelineCard events={timeline} /></Panel>}
       {tab === "passport" && <div className="grid gap-5 lg:grid-cols-2"><PassportCard passport={passport} vehicleId={v.id} large /><SpecsCard v={v} /></div>}
       {tab === "documents" && (
-        <Panel title="Documents">
+        <Panel title={t("veh.documents")}>
           <div className="grid place-items-center rounded-2xl border border-dashed border-border py-14 text-center">
             <FileText className="size-8 text-muted-foreground/40" />
-            <p className="mt-2 font-medium text-foreground">No documents yet</p>
-            <p className="text-sm text-muted-foreground">Invoices, inspection reports, and warranties will appear here.</p>
+            <p className="mt-2 font-medium text-foreground">{t("veh.no_documents")}</p>
+            <p className="text-sm text-muted-foreground">{t("veh.documents_hint")}</p>
           </div>
         </Panel>
       )}
@@ -307,14 +309,15 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 }
 
 function IdentityCard({ v, tier }: { v: VehicleIntelligence["identity"]; tier: string | null }) {
+  const { t } = useI18n();
   const rows: [string, string | number | null][] = [
-    ["Owner", v.owner_name], ["VIN", v.vin], ["Plate", v.plate],
-    ["Mileage", v.mileage ? `${v.mileage.toLocaleString()} km` : null],
-    ["Passport", tier ? `${tier} Certified` : "—"],
+    [t("veh.owner"), v.owner_name], [t("veh.vin"), v.vin], [t("veh.plate"), v.plate],
+    [t("veh.mileage"), v.mileage ? `${v.mileage.toLocaleString()} km` : null],
+    [t("veh.passport"), tier ? t("veh.certified", { tier }) : "—"],
   ];
   return (
     <Card>
-      <CardTitle>Identity</CardTitle>
+      <CardTitle>{t("veh.identity")}</CardTitle>
       <div className="divide-y divide-border">
         {rows.filter(([, val]) => val).map(([k, val]) => (
           <div key={k} className="flex items-center justify-between py-2 text-sm">
@@ -328,15 +331,16 @@ function IdentityCard({ v, tier }: { v: VehicleIntelligence["identity"]; tier: s
 }
 
 function CommercialCard({ c }: { c: NonNullable<VehicleIntelligence["commercial"]> }) {
+  const { t } = useI18n();
   return (
     <Card>
-      <CardTitle right={<span className="text-amber-500">{"★".repeat(c.stars)}<span className="text-slate-300">{"★".repeat(5 - c.stars)}</span></span>}>Commercial</CardTitle>
+      <CardTitle right={<span className="text-amber-500">{"★".repeat(c.stars)}<span className="text-slate-300">{"★".repeat(5 - c.stars)}</span></span>}>{t("veh.commercial")}</CardTitle>
       <p className="text-sm font-semibold capitalize text-foreground">{c.label}</p>
       <div className="mt-3 grid grid-cols-2 gap-3">
-        <Metric k="Outstanding" val={money(c.outstanding)} tone={c.outstanding > 0 ? "amber" : "green"} />
-        <Metric k="Lifetime" val={money(c.lifetime_value)} />
-        <Metric k="Avg. pay" val={c.avg_days_to_pay != null ? `${c.avg_days_to_pay}d` : "—"} />
-        <Metric k="Prefers" val={c.preferred_method ? c.preferred_method[0].toUpperCase() + c.preferred_method.slice(1) : "—"} />
+        <Metric k={t("veh.metric.outstanding")} val={money(c.outstanding)} tone={c.outstanding > 0 ? "amber" : "green"} />
+        <Metric k={t("veh.lifetime")} val={money(c.lifetime_value)} />
+        <Metric k={t("veh.metric.avg_pay")} val={c.avg_days_to_pay != null ? `${c.avg_days_to_pay}d` : "—"} />
+        <Metric k={t("veh.metric.prefers")} val={c.preferred_method ? c.preferred_method[0].toUpperCase() + c.preferred_method.slice(1) : "—"} />
       </div>
     </Card>
   );
@@ -350,9 +354,10 @@ function Metric({ k, val, tone }: { k: string; val: string; tone?: "amber" | "gr
 }
 
 function AiSummaryCard({ predictions }: { predictions: VehicleIntelligence["predictions"] }) {
+  const { t } = useI18n();
   return (
     <Card>
-      <CardTitle right={<span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-700"><Sparkles className="size-3" /> AI</span>}>GarageOS AI</CardTitle>
+      <CardTitle right={<span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-700"><Sparkles className="size-3" /> {t("veh.ai")}</span>}>{t("veh.garageos_ai")}</CardTitle>
       <div className="space-y-3">
         {predictions.map((p, i) => {
           const I = PRED_ICON[p.icon] ?? Activity;
@@ -372,10 +377,11 @@ function AiSummaryCard({ predictions }: { predictions: VehicleIntelligence["pred
 }
 
 function TimelineCard({ events, compact }: { events: VehicleIntelligence["timeline"]; compact?: boolean }) {
+  const { t } = useI18n();
   const list = compact ? events.slice(0, 6) : events;
   return (
     <Card>
-      <CardTitle right={compact ? <Link href="#" className="text-xs font-semibold text-primary">History →</Link> : undefined}>Timeline</CardTitle>
+      <CardTitle right={compact ? <Link href="#" className="text-xs font-semibold text-primary">{t("veh.history")} →</Link> : undefined}>{t("veh.timeline")}</CardTitle>
       <ol className="relative ml-1 border-l border-border">
         {list.map((e, i) => {
           const dot = e.type?.includes("service") ? "bg-green-500" : e.severity === "info" ? "bg-blue-500" : "bg-slate-300";
@@ -396,23 +402,24 @@ function TimelineCard({ events, compact }: { events: VehicleIntelligence["timeli
 }
 
 function OwnerCard({ owner, commercial }: { owner: NonNullable<VehicleIntelligence["owner_context"]>; commercial: VehicleIntelligence["commercial"] }) {
+  const { t } = useI18n();
   return (
     <Card>
-      <CardTitle>Owner</CardTitle>
+      <CardTitle>{t("veh.owner")}</CardTitle>
       <div className="flex items-center gap-3">
         <div className="grid size-11 place-items-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 font-bold text-white">
           {(owner.name ?? "?").split(" ").map((p) => p[0]).slice(0, 2).join("")}
         </div>
         <div>
           <p className="font-semibold text-foreground">{owner.name}</p>
-          <p className="text-xs text-muted-foreground">{owner.vehicle_count} vehicles{owner.spend_tier ? ` · ${owner.spend_tier}` : ""}{commercial ? ` · ${commercial.label}` : ""}</p>
+          <p className="text-xs text-muted-foreground">{t("veh.vehicles_count", { n: owner.vehicle_count })}{owner.spend_tier ? ` · ${owner.spend_tier}` : ""}{commercial ? ` · ${commercial.label}` : ""}</p>
         </div>
       </div>
       {owner.id && (
         <div className="mt-3 grid grid-cols-3 gap-2">
           <OwnerLink href={`/customers/${owner.id}`} icon={<Car className="size-4" />} label="360" />
-          <OwnerLink href="/billing" icon={<Receipt className="size-4" />} label="Billing" />
-          <OwnerLink href="/inbox" icon={<MessageSquare className="size-4" />} label="Chat" />
+          <OwnerLink href="/billing" icon={<Receipt className="size-4" />} label={t("veh.link.billing")} />
+          <OwnerLink href="/inbox" icon={<MessageSquare className="size-4" />} label={t("veh.link.chat")} />
         </div>
       )}
     </Card>
@@ -423,11 +430,12 @@ function OwnerLink({ href, icon, label }: { href: string; icon: React.ReactNode;
 }
 
 function PassportCard({ passport, vehicleId, large }: { passport: VehicleIntelligence["passport"]; vehicleId: string; large?: boolean }) {
+  const { t } = useI18n();
   return (
     <div className="relative overflow-hidden rounded-3xl p-5 text-white shadow-xl" style={{ background: "linear-gradient(150deg,#12203b,#0B1220)" }}>
       <div className="pointer-events-none absolute -right-8 -top-8 size-32 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(217,163,34,.25), transparent)" }} />
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="font-brand text-[15px] font-extrabold">Certified Passport</h3>
+        <h3 className="font-brand text-[15px] font-extrabold">{t("veh.certified_passport")}</h3>
         {passport.tier && <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-200"><Star className="size-3" /> {passport.tier}</span>}
       </div>
       <div className="flex items-center gap-4">
@@ -439,13 +447,13 @@ function PassportCard({ passport, vehicleId, large }: { passport: VehicleIntelli
               <span key={h.label} className="rounded-full bg-white/[0.08] px-2 py-0.5 text-[10px] text-slate-300">{h.label}</span>
             ))}
           </div>
-          <Link href={`/passport/${vehicleId}`} target="_blank" className="mt-2 inline-block text-xs font-bold text-amber-300">Share &amp; download →</Link>
+          <Link href={`/passport/${vehicleId}`} target="_blank" className="mt-2 inline-block text-xs font-bold text-amber-300">{t("veh.share_download")} →</Link>
         </div>
       </div>
       {large && (
         <div className="mt-4 grid grid-cols-2 gap-2 border-t border-white/10 pt-4 text-sm">
-          <div><span className="text-slate-500">Compliance</span><div className="font-brand font-bold">{passport.compliance}%</div></div>
-          <div><span className="text-slate-500">Services</span><div className="font-brand font-bold">{passport.vitals.services_completed}</div></div>
+          <div><span className="text-slate-500">{t("veh.compliance")}</span><div className="font-brand font-bold">{passport.compliance}%</div></div>
+          <div><span className="text-slate-500">{t("veh.services")}</span><div className="font-brand font-bold">{passport.vitals.services_completed}</div></div>
         </div>
       )}
     </div>
@@ -453,13 +461,14 @@ function PassportCard({ passport, vehicleId, large }: { passport: VehicleIntelli
 }
 
 function SpecsCard({ v }: { v: VehicleIntelligence["identity"] }) {
+  const { t } = useI18n();
   const specs: [string, string | number | null][] = [
-    ["Engine", v.engine], ["Transmission", v.transmission], ["Color", v.color],
-    ["Year", v.year], ["VIN", v.vin ? `${v.vin.slice(0, 5)}…${v.vin.slice(-4)}` : null],
+    [t("veh.spec.engine"), v.engine], [t("veh.spec.transmission"), v.transmission], [t("veh.spec.color"), v.color],
+    [t("veh.spec.year"), v.year], [t("veh.vin"), v.vin ? `${v.vin.slice(0, 5)}…${v.vin.slice(-4)}` : null],
   ];
   return (
     <Card>
-      <CardTitle>Specifications</CardTitle>
+      <CardTitle>{t("veh.specifications")}</CardTitle>
       <div className="grid grid-cols-2 gap-2.5">
         {specs.filter(([, val]) => val).map(([k, val]) => (
           <div key={k} className="rounded-xl bg-muted/50 p-3">
@@ -473,19 +482,20 @@ function SpecsCard({ v }: { v: VehicleIntelligence["identity"] }) {
 }
 
 function MaintenanceCard({ items }: { items: VehicleIntelligence["maintenance"] }) {
+  const { t } = useI18n();
   return (
     <Card>
-      <CardTitle>Next Maintenance</CardTitle>
+      <CardTitle>{t("veh.next_maintenance")}</CardTitle>
       {items.length === 0 ? (
         <div className="grid place-items-center py-8 text-center">
           <ShieldCheck className="size-7 text-green-500" />
-          <p className="mt-2 text-sm font-medium text-foreground">All up to date</p>
-          <p className="text-xs text-muted-foreground">No services due right now.</p>
+          <p className="mt-2 text-sm font-medium text-foreground">{t("veh.all_up_to_date")}</p>
+          <p className="text-xs text-muted-foreground">{t("veh.no_services_due")}</p>
         </div>
       ) : (
         <ul className="divide-y divide-border">
           {items.map((m, i) => {
-            const when = m.remaining_days != null ? `${m.remaining_days} days` : m.remaining_km != null ? `${m.remaining_km.toLocaleString()} km` : "soon";
+            const when = m.remaining_days != null ? t("veh.days", { n: m.remaining_days }) : m.remaining_km != null ? `${m.remaining_km.toLocaleString()} km` : t("veh.soon");
             const tone = m.status === "overdue" ? "text-red-600" : m.status === "due_soon" ? "text-amber-600" : "text-muted-foreground";
             return (
               <li key={i} className="flex items-center gap-3 py-2.5">

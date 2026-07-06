@@ -9,6 +9,7 @@ import {
 } from "@garageos/design-system";
 
 import { clientFetch, ClientApiError } from "@/lib/api/client";
+import { useI18n } from "@/lib/i18n/context";
 import type { InvoiceDoc, LineKind } from "@/lib/api/types";
 import { LINE_ICON, METHOD_ICON, STATUS_META, fmtDate, money } from "./shared";
 
@@ -27,27 +28,29 @@ export function DocumentView({
 }) {
   const canEdit = doc.amount_paid <= 0;
   const { toast } = useToast();
-  const noun = doc.kind === "estimate" ? "Estimate" : "Invoice";
+  const { t } = useI18n();
+  const noun = doc.kind === "estimate" ? t("bill.estimate") : t("bill.invoice");
+  const nounLc = doc.kind === "estimate" ? t("bill.estimate_lc") : t("bill.invoice_lc");
   const shareLink = typeof window !== "undefined" ? `${window.location.origin}/invoice/${doc.id}` : "";
 
   const copyLink = () =>
     navigator.clipboard.writeText(shareLink)
-      .then(() => toast({ title: "Link copied", description: "A public link to this document is on your clipboard.", variant: "success" }))
-      .catch(() => toast({ title: "Couldn't copy the link", variant: "danger" }));
+      .then(() => toast({ title: t("bill.link_copied"), description: t("bill.link_copied_desc"), variant: "success" }))
+      .catch(() => toast({ title: t("bill.copy_failed"), variant: "danger" }));
 
   const emailLink = () => {
     const subject = encodeURIComponent(`${noun} ${doc.code}`);
-    const body = encodeURIComponent(`Here is your ${doc.kind} ${doc.code}:\n${shareLink}`);
+    const body = encodeURIComponent(t("bill.email_body", { kind: nounLc, code: doc.code, link: shareLink }));
     window.open(`mailto:?subject=${subject}&body=${body}`);
   };
 
   const sendTelegram = async () => {
     try {
       await clientFetch(`/invoices/${doc.id}/send-telegram`, { method: "POST", body: JSON.stringify({ link: shareLink }) });
-      toast({ title: "Sent via Telegram", description: `${noun} ${doc.code} delivered to the customer.`, variant: "success" });
+      toast({ title: t("bill.sent_telegram"), description: t("bill.sent_telegram_desc", { noun, code: doc.code }), variant: "success" });
     } catch (err) {
-      const hint = err instanceof ClientApiError && err.status === 422 ? "The customer may not have linked Telegram." : "Please try again.";
-      toast({ title: "Couldn't send via Telegram", description: hint, variant: "danger" });
+      const hint = err instanceof ClientApiError && err.status === 422 ? t("bill.telegram_hint") : t("bill.try_again");
+      toast({ title: t("bill.telegram_failed"), description: hint, variant: "danger" });
     }
   };
   const isEstimate = doc.kind === "estimate";
@@ -56,8 +59,8 @@ export function DocumentView({
   const [payOpen, setPayOpen] = useState(false);
 
   const groups: { kind: LineKind; label: string }[] = [
-    { kind: "labor", label: "Labour" }, { kind: "part", label: "Parts" },
-    { kind: "fee", label: "Fees" }, { kind: "discount", label: "Discounts" },
+    { kind: "labor", label: t("bill.group_labor") }, { kind: "part", label: t("bill.group_parts") },
+    { kind: "fee", label: t("bill.group_fees") }, { kind: "discount", label: t("bill.group_discounts") },
   ];
 
   return (
@@ -66,33 +69,33 @@ export function DocumentView({
       <div className="max-w-[820px] mx-auto mb-3 flex items-center gap-2 flex-wrap">
         {isEstimate ? (
           <>
-            <button onClick={onSend} className={cn(ABTN, "bg-blue-600 text-white border-blue-600 hover:bg-blue-700")}>✉ Send</button>
-            {doc.status !== "approved" && <button onClick={() => onStatus("approved")} className={cn(ABTN, "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700")}>✓ Approve</button>}
-            {doc.status !== "rejected" && <button onClick={() => onStatus("rejected")} className={cn(ABTN, "text-red-600")}>✕ Reject</button>}
-            <button onClick={() => onStatus("changes_requested")} className={ABTN}>✎ Request changes</button>
-            {doc.status === "approved" && <button onClick={onConvert} className={cn(ABTN, "bg-slate-900 text-white border-slate-900 hover:bg-slate-800")}>→ Convert to invoice</button>}
+            <button onClick={onSend} className={cn(ABTN, "bg-blue-600 text-white border-blue-600 hover:bg-blue-700")}>✉ {t("bill.send")}</button>
+            {doc.status !== "approved" && <button onClick={() => onStatus("approved")} className={cn(ABTN, "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700")}>✓ {t("bill.approve")}</button>}
+            {doc.status !== "rejected" && <button onClick={() => onStatus("rejected")} className={cn(ABTN, "text-red-600")}>✕ {t("bill.reject")}</button>}
+            <button onClick={() => onStatus("changes_requested")} className={ABTN}>✎ {t("bill.request_changes")}</button>
+            {doc.status === "approved" && <button onClick={onConvert} className={cn(ABTN, "bg-slate-900 text-white border-slate-900 hover:bg-slate-800")}>→ {t("bill.convert")}</button>}
           </>
         ) : (
           <>
-            <button onClick={onSend} className={cn(ABTN, "bg-blue-600 text-white border-blue-600 hover:bg-blue-700")}>✉ Send</button>
-            {doc.balance > 0 && <button onClick={() => setPayOpen(true)} className={cn(ABTN, "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700")}>＋ Record payment</button>}
-            <Link href={`/passport/${doc.vehicle_id}`} target="_blank" className={ABTN}>🏅 Attach passport</Link>
+            <button onClick={onSend} className={cn(ABTN, "bg-blue-600 text-white border-blue-600 hover:bg-blue-700")}>✉ {t("bill.send")}</button>
+            {doc.balance > 0 && <button onClick={() => setPayOpen(true)} className={cn(ABTN, "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700")}>＋ {t("bill.record_payment")}</button>}
+            <Link href={`/passport/${doc.vehicle_id}`} target="_blank" className={ABTN}>🏅 {t("bill.attach_passport")}</Link>
           </>
         )}
         <div className="flex-1" />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className={cn(ABTN, "gap-1.5")} aria-label="Share document"><Share2 className="size-3.5" /> Share</button>
+            <button className={cn(ABTN, "gap-1.5")} aria-label={t("bill.share")}><Share2 className="size-3.5" /> {t("bill.share")}</button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem icon={<Link2 className="size-4" />} onClick={copyLink}>Copy link</DropdownMenuItem>
-            <DropdownMenuItem icon={<Mail className="size-4" />} onClick={emailLink}>Email…</DropdownMenuItem>
-            <DropdownMenuItem icon={<Send className="size-4" />} onClick={sendTelegram}>Send to Telegram</DropdownMenuItem>
+            <DropdownMenuItem icon={<Link2 className="size-4" />} onClick={copyLink}>{t("bill.copy_link")}</DropdownMenuItem>
+            <DropdownMenuItem icon={<Mail className="size-4" />} onClick={emailLink}>{t("bill.email")}</DropdownMenuItem>
+            <DropdownMenuItem icon={<Send className="size-4" />} onClick={sendTelegram}>{t("bill.send_telegram")}</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        {canEdit && <button onClick={onEdit} className={ABTN} aria-label={`Edit ${doc.kind}`}>✎ Edit</button>}
-        <button onClick={() => window.print()} className={ABTN} aria-label="Print or save as PDF">🖨 PDF</button>
-        <button onClick={onDelete} className={cn(ABTN, "hover:text-red-600 hover:border-red-200")} aria-label={`Delete ${doc.kind}`}>🗑 Delete</button>
+        {canEdit && <button onClick={onEdit} className={ABTN} aria-label={t("bill.edit_aria", { kind: nounLc })}>✎ {t("bill.edit")}</button>}
+        <button onClick={() => window.print()} className={ABTN} aria-label={t("bill.print_aria")}>🖨 PDF</button>
+        <button onClick={onDelete} className={cn(ABTN, "hover:text-red-600 hover:border-red-200")} aria-label={t("bill.delete_aria", { kind: nounLc })}>🗑 {t("common.delete")}</button>
       </div>
 
       {/* the document (also the print target — see the print rules in globals.css) */}
@@ -103,16 +106,16 @@ export function DocumentView({
             <span className={cn("grid size-11 place-items-center rounded-xl text-lg font-extrabold", isEstimate ? "bg-blue-600" : "bg-emerald-600")}>G</span>
             <div>
               <p className="text-[17px] font-extrabold">GarageOS Demo Workshop</p>
-              <p className="text-[11.5px] text-slate-400">Precision Auto Care · Tashkent · +998 71 200 7000</p>
+              <p className="text-[11.5px] text-slate-400">{t("bill.workshop_tagline")}</p>
             </div>
             <div className="ml-auto text-right">
               <p className={cn("text-2xl font-extrabold tracking-wide", isEstimate ? "text-blue-300" : "text-emerald-300")}>
-                {isEstimate ? "ESTIMATE" : "INVOICE"}
+                {isEstimate ? t("bill.estimate_upper") : t("bill.invoice_upper")}
               </p>
               <p className="font-mono text-[13px] text-slate-300 mt-0.5">{doc.code}</p>
               <span className={cn("inline-flex items-center gap-1.5 mt-1.5 text-[11px] font-extrabold uppercase tracking-wide px-2.5 py-1 rounded-full",
                 isEstimate ? "bg-blue-500/20 text-blue-200" : doc.status === "paid" ? "bg-emerald-500/20 text-emerald-200" : doc.is_overdue ? "bg-red-500/20 text-red-200" : "bg-amber-500/20 text-amber-200")}>
-                ● {isEstimate ? "Pending approval" : st.label}
+                ● {isEstimate ? t("bill.pending_approval") : st.label}
               </span>
             </div>
           </div>
@@ -120,21 +123,21 @@ export function DocumentView({
 
         {/* meta */}
         <div className="flex flex-wrap gap-7 px-7 py-5 border-b border-border">
-          <Meta label="Billed to">
+          <Meta label={t("bill.billed_to")}>
             <p className="text-sm font-bold">{doc.customer?.name ?? doc.customer_name}</p>
             <p className="text-xs text-muted-foreground mt-0.5">{doc.customer?.phone ?? ""} {doc.customer?.email ? "· " + doc.customer.email : ""}</p>
-            {doc.customer && <Link href={`/customers/${doc.customer_id}`} className="text-[11px] text-primary hover:underline">Customer 360 →</Link>}
+            {doc.customer && <Link href={`/customers/${doc.customer_id}`} className="text-[11px] text-primary hover:underline">{t("bill.customer_360")}</Link>}
           </Meta>
-          <Meta label="Vehicle">
+          <Meta label={t("bill.vehicle")}>
             <p className="text-sm font-bold">{doc.vehicle_label ?? "—"}</p>
-            {doc.vehicle_id && <Link href={`/vehicles/${doc.vehicle_id}`} className="text-[11px] text-primary hover:underline">Vehicle →</Link>}
+            {doc.vehicle_id && <Link href={`/vehicles/${doc.vehicle_id}`} className="text-[11px] text-primary hover:underline">{t("bill.vehicle_link")}</Link>}
           </Meta>
           <div className="min-w-[180px]">
-            <Row k={isEstimate ? "Created" : "Issued"} v={fmtDate(doc.issued_at ?? doc.created_at)} />
-            {!isEstimate && <Row k="Due" v={fmtDate(doc.due_date)} danger={doc.is_overdue} />}
-            {doc.appointment_id && <Row k="Appointment" v="linked" />}
-            {doc.case_id && <Row k="Case" v="linked" />}
-            {doc.source_estimate_id && <Row k="From estimate" v="✓" />}
+            <Row k={isEstimate ? t("bill.created") : t("bill.issued")} v={fmtDate(doc.issued_at ?? doc.created_at)} />
+            {!isEstimate && <Row k={t("bill.due")} v={fmtDate(doc.due_date)} danger={doc.is_overdue} />}
+            {doc.appointment_id && <Row k={t("bill.appointment")} v={t("bill.linked")} />}
+            {doc.case_id && <Row k={t("bill.case")} v={t("bill.linked")} />}
+            {doc.source_estimate_id && <Row k={t("bill.from_estimate")} v="✓" />}
           </div>
         </div>
 
@@ -143,10 +146,10 @@ export function DocumentView({
           <table className="w-full border-collapse">
             <thead>
               <tr className="text-[9.5px] uppercase tracking-wide text-muted-foreground font-bold">
-                <th className="text-left py-2.5 border-b border-border">Description</th>
-                <th className="text-right py-2.5 border-b border-border w-24">Qty / Hrs</th>
-                <th className="text-right py-2.5 border-b border-border w-24">Rate</th>
-                <th className="text-right py-2.5 border-b border-border w-28">Amount</th>
+                <th className="text-left py-2.5 border-b border-border">{t("bill.col_description")}</th>
+                <th className="text-right py-2.5 border-b border-border w-24">{t("bill.col_qty_hrs")}</th>
+                <th className="text-right py-2.5 border-b border-border w-24">{t("bill.col_rate")}</th>
+                <th className="text-right py-2.5 border-b border-border w-28">{t("bill.col_amount")}</th>
               </tr>
             </thead>
             <tbody>
@@ -159,7 +162,7 @@ export function DocumentView({
                     {rows.map((l) => (
                       <tr key={l.id} className="text-[13px] border-b border-slate-100">
                         <td className="py-2 font-semibold">{l.description}</td>
-                        <td className="py-2 text-right font-mono">{g.kind === "labor" ? `${l.quantity} h` : l.quantity}</td>
+                        <td className="py-2 text-right font-mono">{g.kind === "labor" ? `${l.quantity} ${t("bill.hours_short")}` : l.quantity}</td>
                         <td className="py-2 text-right font-mono text-muted-foreground">{money(l.unit_price)}</td>
                         <td className={cn("py-2 text-right font-mono", g.kind === "discount" && "text-emerald-600")}>{g.kind === "discount" ? "−" : ""}{money(l.line_total)}</td>
                       </tr>
@@ -174,17 +177,17 @@ export function DocumentView({
         {/* totals */}
         <div className="flex justify-end px-7 py-4">
           <div className="w-[280px]">
-            <TRow k="Subtotal" v={money(doc.subtotal)} />
-            {doc.discount_total > 0 && <TRow k="Discount" v={"−" + money(doc.discount_total)} green />}
-            <TRow k={`VAT (${doc.tax_rate}%)`} v={money(doc.tax_total)} />
+            <TRow k={t("bill.subtotal")} v={money(doc.subtotal)} />
+            {doc.discount_total > 0 && <TRow k={t("bill.discount")} v={"−" + money(doc.discount_total)} green />}
+            <TRow k={t("bill.vat", { rate: doc.tax_rate })} v={money(doc.tax_total)} />
             <div className="flex justify-between text-lg font-extrabold border-t-2 border-border mt-1 pt-2.5">
-              <span>Total</span><span className="font-mono">{money(doc.total)}</span>
+              <span>{t("bill.total")}</span><span className="font-mono">{money(doc.total)}</span>
             </div>
             {!isEstimate && (
               <>
-                <TRow k="Paid" v={"−" + money(doc.amount_paid)} />
+                <TRow k={t("bill.paid")} v={"−" + money(doc.amount_paid)} />
                 <div className={cn("flex justify-between text-base font-extrabold", doc.balance > 0 ? "text-red-600" : "text-emerald-600")}>
-                  <span>{doc.balance > 0 ? "Balance due" : "Paid in full"}</span><span className="font-mono">{money(doc.balance)}</span>
+                  <span>{doc.balance > 0 ? t("bill.balance_due") : t("bill.paid_in_full")}</span><span className="font-mono">{money(doc.balance)}</span>
                 </div>
               </>
             )}
@@ -195,8 +198,8 @@ export function DocumentView({
         {!isEstimate && (
           <div className="flex flex-wrap gap-6 px-7 py-5 border-t border-border bg-muted/20">
             <div className="flex-1 min-w-[240px]">
-              <p className="text-[9.5px] uppercase tracking-wide text-muted-foreground font-bold mb-2">Payment history</p>
-              {doc.payments.length === 0 && <p className="text-xs text-muted-foreground">No payments yet.</p>}
+              <p className="text-[9.5px] uppercase tracking-wide text-muted-foreground font-bold mb-2">{t("bill.payment_history")}</p>
+              {doc.payments.length === 0 && <p className="text-xs text-muted-foreground">{t("bill.no_payments")}</p>}
               {doc.payments.map((p) => (
                 <div key={p.id} className="flex items-center gap-2.5 py-1.5 border-b border-dashed border-border last:border-0 text-[12.5px]">
                   <span className="grid size-6 place-items-center rounded-md bg-muted text-sm">{METHOD_ICON[p.method]}</span>
@@ -211,8 +214,8 @@ export function DocumentView({
             {doc.balance > 0 && (
               <div className="text-center">
                 <div className="size-[110px] mx-auto rounded-xl border-[6px] border-slate-900" style={{ background: "repeating-linear-gradient(0deg,#0B1220 0 4px,transparent 4px 8px),repeating-linear-gradient(90deg,#0B1220 0 4px,transparent 4px 8px)", backgroundSize: "8px 8px" }} />
-                <p className="text-[11px] font-semibold text-muted-foreground mt-2">Scan to pay {money(doc.balance)}</p>
-                <p className="text-[10px] text-muted-foreground/70">Visa · Apple Pay · Bank</p>
+                <p className="text-[11px] font-semibold text-muted-foreground mt-2">{t("bill.scan_to_pay")} {money(doc.balance)}</p>
+                <p className="text-[10px] text-muted-foreground/70">{t("bill.pay_methods")}</p>
               </div>
             )}
           </div>
@@ -220,9 +223,9 @@ export function DocumentView({
 
         {/* financial timeline */}
         <div className="px-7 py-5 border-t border-border">
-          <p className="text-[9.5px] uppercase tracking-wide text-muted-foreground font-bold mb-3">Financial timeline</p>
+          <p className="text-[9.5px] uppercase tracking-wide text-muted-foreground font-bold mb-3">{t("bill.financial_timeline")}</p>
           {doc.timeline.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No activity yet.</p>
+            <p className="text-xs text-muted-foreground">{t("bill.no_activity")}</p>
           ) : (
             <div className="relative pl-5">
               <span className="absolute left-1.5 top-1 bottom-1 w-px bg-border" />
@@ -265,21 +268,22 @@ function TRow({ k, v, green }: { k: string; v: string; green?: boolean }) {
 function PayModal({ balance, onClose, onSubmit }: { balance: number; onClose: () => void; onSubmit: (amount: number, method: string) => void }) {
   const [amount, setAmount] = useState(balance.toFixed(2));
   const [method, setMethod] = useState("card");
+  const { t } = useI18n();
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40" onClick={onClose}>
       <div className="w-[360px] rounded-2xl bg-card border border-border p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <p className="text-base font-bold mb-3">Record payment</p>
-        <label className="text-xs font-semibold text-muted-foreground">Amount</label>
+        <p className="text-base font-bold mb-3">{t("bill.record_payment")}</p>
+        <label className="text-xs font-semibold text-muted-foreground">{t("bill.amount")}</label>
         <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal"
           className="w-full mt-1 mb-3 rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-1 focus:ring-primary" />
-        <label className="text-xs font-semibold text-muted-foreground">Method</label>
+        <label className="text-xs font-semibold text-muted-foreground">{t("bill.method")}</label>
         <select value={method} onChange={(e) => setMethod(e.target.value)} className="w-full mt-1 mb-4 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none">
-          <option value="card">Card</option><option value="cash">Cash</option>
-          <option value="bank_transfer">Bank transfer</option><option value="online">Online</option>
+          <option value="card">{t("bill.method_card")}</option><option value="cash">{t("bill.method_cash")}</option>
+          <option value="bank_transfer">{t("bill.method_bank")}</option><option value="online">{t("bill.method_online")}</option>
         </select>
         <div className="flex gap-2 justify-end">
-          <button onClick={onClose} className="px-3 py-2 text-sm font-semibold text-muted-foreground">Cancel</button>
-          <button onClick={() => onSubmit(parseFloat(amount) || 0, method)} className="px-4 py-2 text-sm font-bold rounded-lg bg-emerald-600 text-white">Record {money(parseFloat(amount) || 0)}</button>
+          <button onClick={onClose} className="px-3 py-2 text-sm font-semibold text-muted-foreground">{t("common.cancel")}</button>
+          <button onClick={() => onSubmit(parseFloat(amount) || 0, method)} className="px-4 py-2 text-sm font-bold rounded-lg bg-emerald-600 text-white">{t("bill.record")} {money(parseFloat(amount) || 0)}</button>
         </div>
       </div>
     </div>

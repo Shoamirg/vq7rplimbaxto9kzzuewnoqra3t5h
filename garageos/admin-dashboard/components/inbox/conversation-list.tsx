@@ -3,6 +3,7 @@
 import { Search } from "lucide-react";
 import { cn } from "@garageos/design-system";
 
+import { useI18n } from "@/lib/i18n/context";
 import type { InboxItem } from "@/lib/api/types";
 import { CHANNEL_META, PRIORITY_STYLE, STATUS_STYLE, fmtTimer, relTime } from "./shared";
 
@@ -20,6 +21,7 @@ export function ConversationList({
   now: number;
   loadedAt: number;
 }) {
+  const { t } = useI18n();
   return (
     <div className="w-[380px] shrink-0 bg-card border-r border-border flex flex-col">
       <div className="h-12 flex items-center gap-2 px-4 border-b border-border shrink-0">
@@ -29,14 +31,14 @@ export function ConversationList({
       <div className="px-3 py-2 border-b border-border">
         <div className="flex items-center gap-2 rounded-lg bg-muted/60 px-2.5">
           <Search className="size-3.5 text-muted-foreground" />
-          <input value={q} onChange={(e) => onQ(e.target.value)} placeholder="Filter this queue…"
+          <input value={q} onChange={(e) => onQ(e.target.value)} placeholder={t("inbox.filter_placeholder")}
             className="flex-1 bg-transparent py-2 text-xs text-foreground outline-none placeholder:text-muted-foreground" />
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto">
         {items.length === 0 && (
-          <p className="px-4 py-10 text-center text-sm text-muted-foreground">Nothing here — inbox zero. 🎉</p>
+          <p className="px-4 py-10 text-center text-sm text-muted-foreground">{t("inbox.inbox_zero")}</p>
         )}
         {items.map((c) => {
           const ch = c.last_channel ? CHANNEL_META[c.last_channel] : null;
@@ -51,10 +53,10 @@ export function ConversationList({
                 active ? "bg-primary/5 border-l-primary" : unread > 0 ? "border-l-primary/60 hover:bg-muted/40" : "border-l-transparent hover:bg-muted/40")}>
               <div className="flex items-center gap-2">
                 <span className={cn("text-[13.5px] text-foreground truncate", unread > 0 ? "font-bold" : "font-semibold")}>
-                  {c.customer_name ?? c.subject ?? "Conversation"}
+                  {c.customer_name ?? c.subject ?? t("inbox.conversation")}
                 </span>
                 <span className={cn("text-[9px] font-bold uppercase tracking-wide px-1.5 py-px rounded", PRIORITY_STYLE[c.priority])}>
-                  {c.priority === "high" ? "HIGH" : c.priority === "medium" ? "MED" : "LOW"}
+                  {c.priority === "high" ? t("inbox.priority.high") : c.priority === "medium" ? t("inbox.priority.medium") : t("inbox.priority.low")}
                 </span>
                 <span className="ml-auto text-[11px] text-muted-foreground shrink-0">{relTime(c.last_activity_at)}</span>
               </div>
@@ -72,7 +74,7 @@ export function ConversationList({
               <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                 {ch && (
                   <span className={cn("inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-px rounded-full border", ch.cls)}>
-                    {ch.icon} {ch.label}
+                    {ch.icon} {t(`inbox.channel.${c.last_channel}`)}
                   </span>
                 )}
                 {c.ai_summary && (

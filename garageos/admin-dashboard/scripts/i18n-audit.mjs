@@ -26,49 +26,10 @@ const SKIP = [
 ];
 // Files known to still need translation (the backlog). The ratchet fails only
 // for staff files NOT listed here. Remove entries as they're localized.
-const BASELINE = new Set([
-  "components/calendar/calendar-client.tsx",
-  "components/appointments/appointments-list.tsx",
-  "components/appointments/new-appointment-modal.tsx",
-  "components/appointments/edit-appointment-modal.tsx",
-  "components/operations/operations-console.tsx",
-  "components/operations/case-detail.tsx",
-  "components/operations/conversation-pane.tsx",
-  "components/customers/customer-screen.tsx",
-  "components/customers/customers-list.tsx",
-  "components/vehicles/vehicle-intelligence-center.tsx",
-  "components/vehicles/vehicle-health-screen.tsx",
-  "components/billing/billing-workspace.tsx",
-  "components/billing/document-view.tsx",
-  "components/billing/new-invoice-modal.tsx",
-  "components/billing/public-invoice.tsx",
-  "components/reports/reports-workspace.tsx",
-  "components/inbox/inbox-workspace.tsx",
-  "components/inbox/thread-view.tsx",
-  "components/inbox/conversation-list.tsx",
-  "components/inbox/queue-rail.tsx",
-  "components/inbox/context-panel.tsx",
-  // Leaf/layout files with residual strings (small; translate in the sweep).
-  "app/(app)/calendar/error.tsx",
-  "app/(app)/customers/error.tsx",
-  "app/(app)/customers/loading.tsx",
-  "app/(app)/dashboard/error.tsx",
-  "app/(app)/vehicles/[id]/error.tsx",
-  "app/(app)/vehicles/error.tsx",
-  "app/(app)/vehicles/page.tsx",
-  "components/layout/command-menu.tsx",
-  "components/layout/notification-bell.tsx",
-  "components/layout/sidebar.tsx",
-  "components/layout/top-bar.tsx",
-  "components/passport/passport-actions.tsx",
-  "components/passport/passport-document.tsx",
-  "components/passport/passport-verified.tsx",
-  "components/reports/charts.tsx",
-  "components/skeletons/calendar-skeleton.tsx",
-  "components/skeletons/dashboard-skeleton.tsx",
-  "components/skeletons/vehicle-health-skeleton.tsx",
-  "components/skeletons/vehicles-skeleton.tsx",
-]);
+// Emptied 2026-07-06 — the full EN/RU/UZ sweep localized every screen. The
+// ratchet now enforces zero hardcoded strings across the whole staff app; any
+// new violation fails CI. Keep it empty.
+const BASELINE = new Set([]);
 
 function walk(dir, out = []) {
   let entries;
@@ -98,6 +59,7 @@ function violations(src) {
     while ((m = TEXT.exec(line))) {
       const txt = m[1].trim();
       if (txt.length < 3 || IGNORE_TEXT.test(txt) || !/[a-z]/.test(txt)) continue;
+      if (/^GarageOS/.test(txt)) continue; // brand / proper noun — intentionally not translated
       hits.push({ line: i + 1, kind: "text", txt });
     }
     ATTR.lastIndex = 0;

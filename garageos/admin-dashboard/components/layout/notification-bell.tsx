@@ -9,6 +9,7 @@ import {
 
 import { clientFetch } from "@/lib/api/client";
 import type { NotificationFeed, NotificationItem, NotificationSeverity } from "@/lib/api/types";
+import { useI18n } from "@/lib/i18n/context";
 
 const SEVERITY_DOT: Record<NotificationSeverity, string> = {
   critical: "bg-red-600", high: "bg-red-500", medium: "bg-amber-500", low: "bg-blue-500", info: "bg-slate-400",
@@ -34,6 +35,7 @@ const FILTERS = ["all", "appointment", "vehicle", "passport", "customer"] as con
 
 export function NotificationBell() {
   const router = useRouter();
+  const { t } = useI18n();
   const [feed, setFeed] = useState<NotificationFeed>({ items: [], unread_count: 0 });
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("all");
   const [open, setOpen] = useState(false);
@@ -75,7 +77,7 @@ export function NotificationBell() {
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <button className="relative p-2 rounded-lg hover:bg-muted transition-colors" aria-label="Notifications">
+        <button className="relative p-2 rounded-lg hover:bg-muted transition-colors" aria-label={t("layout.notifications")}>
           <Bell className="size-4 text-muted-foreground" />
           {feed.unread_count > 0 && (
             <span className="absolute -top-0.5 -right-0.5 grid min-w-[16px] h-4 place-items-center rounded-full bg-danger px-1 text-[9px] font-bold text-white">
@@ -88,10 +90,10 @@ export function NotificationBell() {
         {/* Header */}
         <div className="flex items-center justify-between px-3 py-2.5 border-b border-border">
           <p className="text-sm font-semibold text-foreground">
-            Notifications {feed.unread_count > 0 && <span className="text-muted-foreground font-normal">· {feed.unread_count} new</span>}
+            {t("layout.notifications")} {feed.unread_count > 0 && <span className="text-muted-foreground font-normal">· {t("layout.n_new", { n: feed.unread_count })}</span>}
           </p>
           <button onClick={markAllRead} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
-            <Check className="size-3" /> Mark all read
+            <Check className="size-3" /> {t("layout.mark_all_read")}
           </button>
         </div>
 
@@ -106,7 +108,7 @@ export function NotificationBell() {
                 filter === f ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
               )}
             >
-              {f}
+              {t(`layout.filter.${f}`)}
             </button>
           ))}
         </div>
@@ -116,7 +118,7 @@ export function NotificationBell() {
           {feed.items.length === 0 ? (
             <div className="py-10 text-center text-sm text-muted-foreground">
               <Bell className="size-7 mx-auto mb-2 opacity-40" />
-              You&apos;re all caught up.
+              {t("layout.all_caught_up")}
             </div>
           ) : (
             feed.items.map((n) => {

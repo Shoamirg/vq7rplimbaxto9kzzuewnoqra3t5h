@@ -6,17 +6,19 @@ import { Search, Radio } from "lucide-react";
 import { cn } from "@garageos/design-system";
 
 import { clientFetch } from "@/lib/api/client";
+import { useI18n } from "@/lib/i18n/context";
 import type { CaseDetail, CaseList, CaseListItem, CaseMechanic, CaseSeverity, CaseType } from "@/lib/api/types";
 import { CaseDetailPanel } from "./case-detail";
 import { ConversationPane } from "./conversation-pane";
 import { SEV_BAR, SEV_TEXT, TYPE_ICON, fmtTimer } from "./shared";
 
-const TYPES: { key: string; label: string }[] = [
-  { key: "all", label: "All" }, { key: "emergency", label: "Emergency" }, { key: "support", label: "Support" },
-  { key: "towing", label: "Towing" }, { key: "warranty", label: "Warranty" }, { key: "vip", label: "VIP" },
+const TYPES: { key: string; labelKey: string }[] = [
+  { key: "all", labelKey: "ops.type.all" }, { key: "emergency", labelKey: "ops.type.emergency" }, { key: "support", labelKey: "ops.type.support" },
+  { key: "towing", labelKey: "ops.type.towing" }, { key: "warranty", labelKey: "ops.type.warranty" }, { key: "vip", labelKey: "ops.type.vip" },
 ];
 
 export function OperationsConsole() {
+  const { t } = useI18n();
   const [cases, setCases] = useState<CaseListItem[]>([]);
   const [activeCount, setActiveCount] = useState(0);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -89,8 +91,8 @@ export function OperationsConsole() {
           <div className="flex items-center gap-2 mb-3">
             <span className="grid size-8 place-items-center rounded-lg bg-red-600 text-white text-sm">🛰️</span>
             <div className="flex-1">
-              <p className="text-sm font-bold text-white">Operations</p>
-              <p className="text-[11px] text-slate-400 flex items-center gap-1"><Radio className="size-3 text-red-400" /> {activeCount} active</p>
+              <p className="text-sm font-bold text-white">{t("ops.title")}</p>
+              <p className="text-[11px] text-slate-400 flex items-center gap-1"><Radio className="size-3 text-red-400" /> {t("ops.active_count", { n: activeCount })}</p>
             </div>
           </div>
           {/* group toggle */}
@@ -98,27 +100,27 @@ export function OperationsConsole() {
             {(["active", "resolved"] as const).map((g) => (
               <button key={g} onClick={() => { setGroup(g); setActiveId(null); }}
                 className={cn("flex-1 py-1.5 text-xs font-medium rounded-md capitalize transition-colors",
-                  group === g ? "bg-slate-700 text-white" : "text-slate-400")}>{g}</button>
+                  group === g ? "bg-slate-700 text-white" : "text-slate-400")}>{t(`ops.group.${g}`)}</button>
             ))}
           </div>
           {/* search */}
           <div className="flex items-center gap-2 rounded-lg bg-slate-800 px-2.5">
             <Search className="size-3.5 text-slate-500" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search cases…"
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("ops.search_placeholder")}
               className="flex-1 bg-transparent py-2 text-xs text-white outline-none placeholder:text-slate-500" />
           </div>
           {/* type filters */}
           <div className="flex flex-wrap gap-1 mt-2">
-            {TYPES.map((t) => (
-              <button key={t.key} onClick={() => setType(t.key)}
+            {TYPES.map((ty) => (
+              <button key={ty.key} onClick={() => setType(ty.key)}
                 className={cn("px-2 py-0.5 rounded-full text-[11px] transition-colors",
-                  type === t.key ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-400 hover:text-white")}>{t.label}</button>
+                  type === ty.key ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-400 hover:text-white")}>{t(ty.labelKey)}</button>
             ))}
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto py-1">
-          {filtered.length === 0 && <p className="px-4 py-8 text-center text-xs text-slate-500">No cases.</p>}
+          {filtered.length === 0 && <p className="px-4 py-8 text-center text-xs text-slate-500">{t("ops.no_cases")}</p>}
           {filtered.map((c) => {
             const isNew = !seen.current.has(c.id);
             seen.current.add(c.id);
@@ -148,8 +150,8 @@ export function OperationsConsole() {
                 </div>
                 <div className="flex items-center gap-2 mt-2">
                   <span className="font-mono text-[10px] text-slate-500">{c.code}</span>
-                  {c.assigned_user_id && <span className="text-[10px] text-emerald-400">● assigned</span>}
-                  {c.sla_breached && <span className="text-[10px] text-red-400 font-semibold ml-auto">SLA breached</span>}
+                  {c.assigned_user_id && <span className="text-[10px] text-emerald-400">● {t("ops.assigned_dot")}</span>}
+                  {c.sla_breached && <span className="text-[10px] text-red-400 font-semibold ml-auto">{t("ops.sla_breached")}</span>}
                 </div>
                 {c.is_open && (
                   <div className="h-1 rounded-full bg-slate-700 overflow-hidden mt-2">
@@ -167,7 +169,7 @@ export function OperationsConsole() {
       <main className="flex-1 overflow-y-auto bg-muted/30">
         {detail
           ? <CaseDetailPanel detail={detail} mechanics={mechanics} now={now} onAssign={(id) => mutate({ assigned_user_id: id })} onStatus={(s) => mutate({ status: s })} />
-          : <div className="grid h-full place-items-center text-sm text-muted-foreground">Select a case to view details.</div>}
+          : <div className="grid h-full place-items-center text-sm text-muted-foreground">{t("ops.select_case_details")}</div>}
       </main>
 
       {/* Right conversation */}

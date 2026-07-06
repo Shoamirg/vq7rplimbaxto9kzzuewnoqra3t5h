@@ -2,10 +2,13 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, Car, Star, ArrowRight } from "lucide-react";
-import { cn } from "@garageos/design-system";
+import { useRouter } from "next/navigation";
+import { Search, Car, Star, ArrowRight, UserPlus } from "lucide-react";
+import { Button, cn } from "@garageos/design-system";
 
 import { EmptyState } from "@/components/states/empty-state";
+import { NewCustomerModal } from "@/components/customers/new-customer-modal";
+import { useI18n } from "@/lib/i18n/context";
 import type { CustomerListItem } from "@/lib/api/types";
 
 const money = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
@@ -21,7 +24,10 @@ const TIER_CLASS: Record<string, string> = {
 };
 
 export function CustomersList({ customers }: { customers: CustomerListItem[] }) {
+  const { t } = useI18n();
+  const router = useRouter();
   const [q, setQ] = useState("");
+  const [addOpen, setAddOpen] = useState(false);
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
     if (!s) return customers;
@@ -34,22 +40,38 @@ export function CustomersList({ customers }: { customers: CustomerListItem[] }) 
     <div className="p-4 lg:p-6 space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Customers</h1>
-          <p className="text-sm text-muted-foreground mt-1">{customers.length} customers · sorted by lifetime value.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">{t("cust.list.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t("cust.list.subtitle", { count: customers.length })}</p>
         </div>
-        <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 max-w-xs w-full">
-          <Search className="size-4 text-muted-foreground shrink-0" />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search name, phone, email…"
-            className="flex-1 bg-transparent py-2.5 text-sm outline-none text-foreground placeholder:text-muted-foreground/50"
-          />
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 flex-1 sm:max-w-xs">
+            <Search className="size-4 text-muted-foreground shrink-0" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={t("cust.list.search_placeholder")}
+              className="flex-1 bg-transparent py-2.5 text-sm outline-none text-foreground placeholder:text-muted-foreground/50"
+            />
+          </div>
+          <Button size="sm" onClick={() => setAddOpen(true)} leftIcon={<UserPlus className="size-4" />}>
+            {t("customers.new.button")}
+          </Button>
         </div>
       </div>
 
+      {addOpen && (
+        <NewCustomerModal
+          onClose={() => setAddOpen(false)}
+          onCreated={(c) => { setAddOpen(false); router.push(`/customers/${c.id}`); }}
+        />
+      )}
+
       {filtered.length === 0 ? (
-        <EmptyState icon={Car} title="No customers found" description="Try a different search term." />
+        <EmptyState
+          icon={Car}
+          title={customers.length === 0 ? t("cust.list.empty_title") : t("cust.list.no_results_title")}
+          description={customers.length === 0 ? t("cust.list.empty_desc") : t("cust.list.no_results_desc")}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {filtered.map((c) => (
@@ -68,15 +90,15 @@ export function CustomersList({ customers }: { customers: CustomerListItem[] }) 
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground truncate">{c.phone ?? c.email ?? "No contact"}</p>
+                  <p className="text-xs text-muted-foreground truncate">{c.phone ?? c.email ?? t("cust.card.no_contact")}</p>
                 </div>
                 <ArrowRight className="size-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
               </div>
               <div className="mt-3 flex items-center justify-between text-xs">
-                <span className="text-muted-foreground flex items-center gap-1"><Car className="size-3" /> {c.vehicle_count} vehicle{c.vehicle_count !== 1 ? "s" : ""}</span>
+                <span className="text-muted-foreground flex items-center gap-1"><Car className="size-3" /> {t("cust.card.vehicles", { count: c.vehicle_count })}</span>
                 <span className="font-semibold text-foreground">{money(c.lifetime_value)}</span>
               </div>
-              <p className="mt-1 text-[11px] text-muted-foreground">Last visit {fmtDate(c.last_visit)}</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">{t("cust.card.last_visit")} {fmtDate(c.last_visit)}</p>
             </Link>
           ))}
         </div>

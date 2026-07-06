@@ -5,18 +5,19 @@ import { useSearchParams } from "next/navigation";
 import { Inbox as InboxIcon } from "lucide-react";
 
 import { clientFetch } from "@/lib/api/client";
+import { useI18n } from "@/lib/i18n/context";
 import type { Channel, InboxCounts, InboxItem, InboxResponse, ThreadDetail } from "@/lib/api/types";
 import { ConversationList } from "./conversation-list";
 import { ContextPanel } from "./context-panel";
 import { QueueRail } from "./queue-rail";
 import { ThreadView } from "./thread-view";
-import { VIEWS } from "./shared";
 
 type ComposerTab = "reply" | "note" | "announcement";
 
 // The Unified Inbox — one client-side workspace. Queues ↔ list ↔ thread swap
 // via state, never a navigation, so switching is instant. Keyboard-first.
 export function InboxWorkspace() {
+  const { t } = useI18n();
   const [view, setView] = useState("needs_reply");
   const [channel, setChannel] = useState<Channel | null>(null);
   const [type, setType] = useState("all");
@@ -144,7 +145,7 @@ export function InboxWorkspace() {
     return () => window.removeEventListener("keydown", onKey);
   }, [filtered, activeId, thread, selectThread, toggleFollow]);
 
-  const viewLabel = VIEWS.find((v) => v.key === view)?.label ?? "Inbox";
+  const viewLabel = t(`inbox.view.${view}`);
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -170,8 +171,8 @@ export function InboxWorkspace() {
         <div className="flex-1 grid place-items-center text-muted-foreground">
           <div className="text-center">
             <InboxIcon className="size-10 mx-auto mb-3 opacity-30" />
-            <p className="text-sm">Select a conversation — or enjoy inbox zero.</p>
-            <p className="text-xs mt-1 text-muted-foreground/70">j / k to move · r reply · i note · f follow · [ ] context</p>
+            <p className="text-sm">{t("inbox.empty_title")}</p>
+            <p className="text-xs mt-1 text-muted-foreground/70">{t("inbox.empty_hint")}</p>
           </div>
         </div>
       )}

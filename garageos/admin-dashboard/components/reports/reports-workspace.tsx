@@ -7,6 +7,7 @@ import { Check, Download, ShieldCheck } from "lucide-react";
 import { cn } from "@garageos/design-system";
 
 import { clientFetch } from "@/lib/api/client";
+import { useI18n } from "@/lib/i18n/context";
 import type { ReportKpi, ReportResponse, ReportSection } from "@/lib/api/types";
 import { AreaChart, BarRows, Donut, Funnel, Sparkline, money, moneyK } from "./charts";
 
@@ -41,6 +42,7 @@ function fmtKpi(k: ReportKpi): string {
 }
 
 export function ReportsWorkspace() {
+  const { t } = useI18n();
   const params = useSearchParams();
   const [report, setReport] = useState(params.get("report") === "commercial" ? "commercial" : "executive");
   const [period, setPeriod] = useState("30d");
@@ -58,44 +60,44 @@ export function ReportsWorkspace() {
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center gap-3 px-5 h-14 border-b border-border bg-card shrink-0">
-        <span className="font-bold text-foreground">Reports</span>
+        <span className="font-bold text-foreground">{t("nav.reports")}</span>
         <div className="flex gap-1 ml-2">
           {Object.entries(VIEWS).map(([k, v]) => (
             <button key={k} onClick={() => setView(k)}
               className={cn("text-xs font-semibold px-2.5 py-1 rounded-full border transition-colors",
-                view === k ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted")}>{v.label}</button>
+                view === k ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted")}>{t("rep.view." + k)}</button>
           ))}
         </div>
         <div className="ml-auto flex items-center rounded-lg border border-border bg-muted/40 p-0.5">
           {PERIODS.map((p) => (
             <button key={p.key} onClick={() => setPeriod(p.key)}
               className={cn("text-xs font-semibold px-3 py-1.5 rounded-md transition-colors",
-                period === p.key ? "bg-card shadow-sm text-foreground" : "text-muted-foreground")}>{p.label}</button>
+                period === p.key ? "bg-card shadow-sm text-foreground" : "text-muted-foreground")}>{t("rep.period." + p.key)}</button>
           ))}
         </div>
-        <button className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-border text-slate-600 inline-flex items-center gap-1.5"><Download className="size-3.5" /> Export</button>
+        <button className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-border text-slate-600 inline-flex items-center gap-1.5"><Download className="size-3.5" /> {t("common.export")}</button>
       </div>
 
       <div className="flex-1 flex overflow-hidden">
         <nav className="w-48 shrink-0 bg-slate-900 text-slate-300 overflow-y-auto py-3">
-          <p className="px-4 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">Reports</p>
+          <p className="px-4 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">{t("nav.reports")}</p>
           {CATEGORIES.map((c) => (
             <button key={c.key} disabled={!c.live} onClick={() => c.live && setReport(c.key)}
               className={cn("w-full flex items-center gap-2.5 mx-2 my-0.5 px-2.5 py-2 rounded-lg text-[13px] text-left",
                 report === c.key ? "bg-blue-600/20 text-white" : c.live ? "text-slate-300 hover:bg-slate-800" : "text-slate-500")}
               style={{ width: "calc(100% - 16px)" }}>
               <span className="w-4 text-center">{c.icon}</span>
-              <span className="flex-1">{c.label}</span>
-              {!c.live && <span className="text-[9px] uppercase tracking-wide text-slate-600">soon</span>}
+              <span className="flex-1">{t("rep.cat." + c.key)}</span>
+              {!c.live && <span className="text-[9px] uppercase tracking-wide text-slate-600">{t("rep.soon")}</span>}
             </button>
           ))}
         </nav>
 
         <div className="flex-1 overflow-y-auto p-5 lg:p-6">
-          {!data ? <p className="text-sm text-muted-foreground">Loading…</p> : (
+          {!data ? <p className="text-sm text-muted-foreground">{t("rep.loading")}</p> : (
             <>
               <h1 className="text-xl font-extrabold">{data.title}</h1>
-              <p className="text-sm text-muted-foreground mb-4">Every metric drills into the work behind it.</p>
+              <p className="text-sm text-muted-foreground mb-4">{t("rep.subtitle")}</p>
 
               <div className="flex gap-2 flex-wrap mb-4">
                 {data.questions.map((q) => (
@@ -178,18 +180,19 @@ function InsightCard({ ins }: { ins: { tone: string; label: string; text: string
 }
 
 function Reconciliation({ r }: { r: import("@/lib/api/types").ReportReconciliation }) {
+  const { t } = useI18n();
   return (
     <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4 mb-6 flex items-center gap-5 flex-wrap">
       <div className="flex items-center gap-2">
         <ShieldCheck className="size-5 text-emerald-600" />
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-700">Commercial Integrity</p>
+          <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-700">{t("rep.integrity")}</p>
           <p className="text-sm font-bold text-foreground">{r.status}</p>
         </div>
       </div>
       <div className="text-center px-3 border-l border-emerald-200">
         <p className="text-lg font-extrabold tabular-nums">{r.ledger_entries.toLocaleString("en-US")}</p>
-        <p className="text-[10px] text-muted-foreground">ledger entries</p>
+        <p className="text-[10px] text-muted-foreground">{t("rep.ledger_entries")}</p>
       </div>
       <div className="flex flex-wrap gap-x-5 gap-y-1">
         {r.checks.map((c) => (
@@ -199,18 +202,19 @@ function Reconciliation({ r }: { r: import("@/lib/api/types").ReportReconciliati
         ))}
       </div>
       <span className="ml-auto text-[11px] text-muted-foreground font-mono">
-        debit {money(r.debit)} − credit {money(r.credit)} = {money(r.outstanding)}
+        {t("rep.debit")} {money(r.debit)} − {t("rep.credit")} {money(r.credit)} = {money(r.outstanding)}
       </span>
     </div>
   );
 }
 
 function ChartCard({ title, drill, children }: { title: string; drill: string; children: React.ReactNode }) {
+  const { t } = useI18n();
   return (
     <div className="rounded-2xl border border-border bg-card p-4 h-full">
       <div className="flex items-center mb-3">
         <span className="text-[13.5px] font-bold">{title}</span>
-        <Link href={drill} className="ml-auto text-[11px] font-semibold text-primary hover:underline">Open →</Link>
+        <Link href={drill} className="ml-auto text-[11px] font-semibold text-primary hover:underline">{t("rep.open")} →</Link>
       </div>
       {children}
     </div>

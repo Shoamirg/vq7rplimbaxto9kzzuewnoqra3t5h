@@ -13,6 +13,7 @@ import {
 } from "@garageos/design-system";
 
 import { clientFetch } from "@/lib/api/client";
+import { useI18n } from "@/lib/i18n/context";
 import { NewAppointmentButton } from "@/components/appointments/new-appointment-modal";
 import { EditAppointmentModal } from "@/components/appointments/edit-appointment-modal";
 import type {
@@ -91,6 +92,7 @@ function plateOf(summary: string): { name: string; plate: string | null } {
 
 export function AppointmentsList() {
   const { toast } = useToast();
+  const { t } = useI18n();
   const router = useRouter();
   const [tab, setTab] = useState("all");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
@@ -122,10 +124,10 @@ export function AppointmentsList() {
   const act = useCallback(async (id: string, action: "confirm" | "cancel") => {
     try {
       await clientFetch(`/appointments/${id}/${action}`, { method: "PATCH", body: JSON.stringify({}) });
-      toast({ title: action === "confirm" ? "Appointment confirmed" : "Appointment cancelled", variant: "success" });
+      toast({ title: action === "confirm" ? t("sched.appt_confirmed") : t("sched.appt_cancelled"), variant: "success" });
       load(); loadStats();
-    } catch { toast({ title: "Action failed", variant: "danger" }); }
-  }, [load, loadStats, toast]);
+    } catch { toast({ title: t("sched.action_failed"), variant: "danger" }); }
+  }, [load, loadStats, toast, t]);
 
   const bulkAct = useCallback(async (action: "confirm" | "cancel") => {
     const ids = [...selected];
@@ -133,9 +135,9 @@ export function AppointmentsList() {
     const results = await Promise.allSettled(
       ids.map((id) => clientFetch(`/appointments/${id}/${action}`, { method: "PATCH", body: JSON.stringify({}) })));
     const ok = results.filter((r) => r.status === "fulfilled").length;
-    toast({ title: `${ok}/${ids.length} ${action === "confirm" ? "confirmed" : "cancelled"}`, variant: ok ? "success" : "danger" });
+    toast({ title: action === "confirm" ? t("sched.bulk_confirmed", { ok, total: ids.length }) : t("sched.bulk_cancelled", { ok, total: ids.length }), variant: ok ? "success" : "danger" });
     setSelected(new Set()); load(); loadStats();
-  }, [selected, load, loadStats, toast]);
+  }, [selected, load, loadStats, toast, t]);
 
   const rows = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -154,11 +156,11 @@ export function AppointmentsList() {
   });
 
   const KPIS = stats ? [
-    { label: "Today", value: stats.today_count, tone: "text-foreground" },
-    { label: "Waiting confirmation", value: stats.pending_count, tone: "text-amber-600" },
-    { label: "Confirmed", value: stats.confirmed_count, tone: "text-blue-600" },
-    { label: "Completed", value: stats.completed_count, tone: "text-emerald-600" },
-    { label: "Cancelled", value: stats.cancelled_count, tone: "text-red-600" },
+    { label: t("sched.today"), value: stats.today_count, tone: "text-foreground" },
+    { label: t("sched.waiting_confirmation"), value: stats.pending_count, tone: "text-amber-600" },
+    { label: t("status.confirmed"), value: stats.confirmed_count, tone: "text-blue-600" },
+    { label: t("status.completed"), value: stats.completed_count, tone: "text-emerald-600" },
+    { label: t("status.cancelled"), value: stats.cancelled_count, tone: "text-red-600" },
   ] : [];
 
   return (
@@ -166,10 +168,10 @@ export function AppointmentsList() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Appointments</h1>
-          <p className="text-sm text-muted-foreground mt-1">Your operational queue — filter, action, and jump into any record.</p>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">{t("nav.appointments")}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t("sched.appts_subtitle")}</p>
         </div>
-        <NewAppointmentButton label="New Appointment" onCreated={() => { load(); loadStats(); }} />
+        <NewAppointmentButton label={t("action.new_appointment")} onCreated={() => { load(); loadStats(); }} />
       </div>
 
       {/* KPI strip */}
@@ -185,21 +187,21 @@ export function AppointmentsList() {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex flex-wrap items-center gap-1 rounded-lg border border-border bg-card p-1">
-          {STATUS_TABS.map((t) => {
-            const count = t.statKey && stats ? stats[t.statKey] : undefined;
+          {STATUS_TABS.map((tabDef) => {
+            const count = tabDef.statKey && stats ? stats[tabDef.statKey] : undefined;
             return (
-              <button key={t.key} onClick={() => { setTab(t.key); setPage(1); }}
+              <button key={tabDef.key} onClick={() => { setTab(tabDef.key); setPage(1); }}
                 className={cn("px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5",
-                  tab === t.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted")}>
-                {t.label}
-                {count != null && <span className={cn("text-[11px] font-bold rounded-full px-1.5", tab === t.key ? "bg-white/20" : "bg-muted")}>{count}</span>}
+                  tab === tabDef.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted")}>
+                {tabDef.key === "all" ? t("sched.tab_all") : t(`status.${tabDef.key}`)}
+                {count != null && <span className={cn("text-[11px] font-bold rounded-full px-1.5", tab === tabDef.key ? "bg-white/20" : "bg-muted")}>{count}</span>}
               </button>
             );
           })}
         </div>
         <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 ml-auto">
           <Search className="size-4 text-muted-foreground" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search customer, vehicle, service…"
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("sched.search_placeholder")}
             className="bg-transparent py-2 text-sm text-foreground outline-none w-56 placeholder:text-muted-foreground" />
         </div>
       </div>
@@ -211,7 +213,7 @@ export function AppointmentsList() {
           <button key={d.key} onClick={() => { setDateFilter(d.key); setPage(1); }}
             className={cn("px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
               dateFilter === d.key ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground hover:bg-muted")}>
-            {d.label}
+            {t(`sched.date_${d.key}`)}
           </button>
         ))}
       </div>
@@ -219,11 +221,11 @@ export function AppointmentsList() {
       {/* Bulk action bar */}
       {selected.size > 0 && (
         <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2.5 animate-fade-in">
-          <span className="text-sm font-semibold text-foreground">{selected.size} selected</span>
+          <span className="text-sm font-semibold text-foreground">{t("sched.n_selected", { count: selected.size })}</span>
           <div className="flex items-center gap-2 ml-auto">
-            <Button size="sm" variant="outline" leftIcon={<CheckCheck className="size-4" />} onClick={() => bulkAct("confirm")}>Confirm</Button>
-            <Button size="sm" variant="outline" leftIcon={<X className="size-4" />} onClick={() => bulkAct("cancel")}>Cancel</Button>
-            <button onClick={() => setSelected(new Set())} className="text-xs text-muted-foreground hover:text-foreground">Clear</button>
+            <Button size="sm" variant="outline" leftIcon={<CheckCheck className="size-4" />} onClick={() => bulkAct("confirm")}>{t("sched.confirm")}</Button>
+            <Button size="sm" variant="outline" leftIcon={<X className="size-4" />} onClick={() => bulkAct("cancel")}>{t("common.cancel")}</Button>
+            <button onClick={() => setSelected(new Set())} className="text-xs text-muted-foreground hover:text-foreground">{t("sched.clear")}</button>
           </div>
         </div>
       )}
@@ -231,9 +233,9 @@ export function AppointmentsList() {
       {/* Table */}
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         <div className={cn("grid gap-3 px-4 py-2.5 border-b border-border bg-muted/40 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground items-center", GRID)}>
-          <input type="checkbox" checked={allSelected} onChange={toggleAll} className="size-4 accent-[hsl(var(--primary))]" aria-label="Select all" />
-          <span>Customer</span><span>Vehicle</span><span>Service</span><span>When</span><span>Mechanic</span>
-          <span className="text-center">Health</span><span className="text-center">Billing</span><span className="text-center">Duration</span><span className="text-right pr-1">Status</span>
+          <input type="checkbox" checked={allSelected} onChange={toggleAll} className="size-4 accent-[hsl(var(--primary))]" aria-label={t("sched.select_all")} />
+          <span>{t("sched.customer")}</span><span>{t("sched.vehicle")}</span><span>{t("sched.service")}</span><span>{t("sched.when")}</span><span>{t("sched.mechanic")}</span>
+          <span className="text-center">{t("sched.health")}</span><span className="text-center">{t("sched.billing")}</span><span className="text-center">{t("sched.duration")}</span><span className="text-right pr-1">{t("sched.status")}</span>
         </div>
 
         {loading && (
@@ -247,7 +249,7 @@ export function AppointmentsList() {
         {!loading && rows.length === 0 && (
           <div className="py-16 text-center">
             <CalendarPlus className="size-8 mx-auto text-muted-foreground/40 mb-2" />
-            <p className="text-sm text-muted-foreground">No appointments match these filters.</p>
+            <p className="text-sm text-muted-foreground">{t("sched.no_appts")}</p>
           </div>
         )}
 
@@ -263,7 +265,7 @@ export function AppointmentsList() {
       {/* Pagination */}
       {data && data.total_pages > 1 && (
         <div className="flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">Page {data.page} of {data.total_pages} · {data.total} total</p>
+          <p className="text-xs text-muted-foreground">{t("sched.pagination", { page: data.page, pages: data.total_pages, total: data.total })}</p>
           <div className="flex items-center gap-1">
             <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="grid size-8 place-items-center rounded-lg border border-border disabled:opacity-40 hover:bg-muted"><ChevronLeft className="size-4" /></button>
             <button disabled={page >= data.total_pages} onClick={() => setPage((p) => p + 1)} className="grid size-8 place-items-center rounded-lg border border-border disabled:opacity-40 hover:bg-muted"><ChevronRight className="size-4" /></button>
@@ -292,6 +294,7 @@ function Row({
   onEdit: (a: Appointment) => void;
   router: ReturnType<typeof useRouter>;
 }) {
+  const { t } = useI18n();
   const date = new Date(a.appointment_date).toLocaleDateString("en-US", { month: "short", day: "numeric" });
   const { name: vehName, plate } = plateOf(a.vehicle_summary);
   const canConfirm = a.status === "pending";
@@ -300,7 +303,7 @@ function Row({
   return (
     <div className={cn("grid gap-3 px-4 py-3 items-center transition-colors", GRID,
       selected ? "bg-primary/5" : "hover:bg-muted/30")}>
-      <input type="checkbox" checked={selected} onChange={onToggle} className="size-4 accent-[hsl(var(--primary))]" aria-label="Select row" />
+      <input type="checkbox" checked={selected} onChange={onToggle} className="size-4 accent-[hsl(var(--primary))]" aria-label={t("sched.select_row")} />
       <div className="flex items-center gap-2 min-w-0">
         <span className="grid size-8 place-items-center rounded-full bg-primary/10 text-primary text-[11px] font-bold shrink-0">
           {a.customer_name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "?"}
@@ -311,16 +314,16 @@ function Row({
         <span className="text-sm text-foreground/90 truncate block group-hover:text-primary group-hover:underline">{vehName || "—"}</span>
         {plate && <span className="text-[11px] font-mono text-muted-foreground">{plate}</span>}
       </Link>
-      <span className="text-sm text-muted-foreground truncate flex items-center gap-1.5"><Wrench className="size-3.5 shrink-0 text-muted-foreground/60" />{a.service_type ?? "General service"}</span>
+      <span className="text-sm text-muted-foreground truncate flex items-center gap-1.5"><Wrench className="size-3.5 shrink-0 text-muted-foreground/60" />{a.service_type ?? t("common.general_service")}</span>
       <span className="text-sm text-foreground/90 flex items-center gap-1.5"><Clock className="size-3.5 shrink-0 text-muted-foreground/60" /><span className="tabular-nums">{date} · {a.appointment_time}</span></span>
       <span className="text-sm text-muted-foreground truncate flex items-center gap-1.5">
-        {a.mechanic_name ? <><User className="size-3.5 shrink-0 text-muted-foreground/60" />{a.mechanic_name}</> : <span className="text-muted-foreground/50">Unassigned</span>}
+        {a.mechanic_name ? <><User className="size-3.5 shrink-0 text-muted-foreground/60" />{a.mechanic_name}</> : <span className="text-muted-foreground/50">{t("sched.unassigned")}</span>}
       </span>
       <span className="flex justify-center">
         {a.health_score != null && a.health_band ? (
           <Link href={`/vehicles/${a.vehicle_id}`}
             className={cn("inline-flex items-center justify-center min-w-[34px] px-1.5 py-0.5 rounded-md border text-[12px] font-bold tabular-nums hover:opacity-80", HEALTH_COLOR[a.health_band] ?? "text-muted-foreground bg-muted border-border")}
-            title={`Health ${a.health_score} · ${a.health_band}`}>
+            title={t("sched.health_title", { score: a.health_score, band: t(`band.${a.health_band}`) })}>
             {Math.round(a.health_score)}
           </Link>
         ) : <span className="text-muted-foreground/40 text-sm">—</span>}
@@ -328,7 +331,7 @@ function Row({
       <span className="flex justify-center"><BillingPill b={a.billing} vid={a.vehicle_id} /></span>
       <span className="text-sm text-muted-foreground text-center tabular-nums">{fmtDuration(a.estimated_duration_minutes)}</span>
       <div className="flex items-center justify-end gap-2">
-        <Badge variant={STATUS_BADGE[a.status]} size="sm" className="capitalize">{a.status.replace("_", " ")}</Badge>
+        <Badge variant={STATUS_BADGE[a.status]} size="sm" className="capitalize">{t(`status.${a.status}`)}</Badge>
         <RowActions a={a} canConfirm={canConfirm} canCancel={canCancel} onAct={onAct} onEdit={onEdit} router={router} />
       </div>
     </div>
@@ -336,13 +339,14 @@ function Row({
 }
 
 function BillingPill({ b, vid }: { b: import("@/lib/api/types").AppointmentBilling | null | undefined; vid: string }) {
+  const { t } = useI18n();
   if (!b) return <span className="text-muted-foreground/40 text-sm">—</span>;
   const bal = "$" + b.balance.toLocaleString("en-US", { maximumFractionDigits: 0 });
   let cls = "text-slate-500 bg-slate-100 border-slate-200", label = b.status as string;
   if (b.kind === "estimate") {
     cls = b.status === "approved" ? "text-emerald-600 bg-emerald-50 border-emerald-200" : "text-purple-600 bg-purple-50 border-purple-200";
-    label = "Est";
-  } else if (b.status === "paid") { cls = "text-emerald-600 bg-emerald-50 border-emerald-200"; label = "Paid"; }
+    label = t("sched.billing_est");
+  } else if (b.status === "paid") { cls = "text-emerald-600 bg-emerald-50 border-emerald-200"; label = t("sched.billing_paid"); }
   else if (b.status === "overdue") { cls = "text-red-600 bg-red-50 border-red-200"; label = bal; }
   else if (b.status === "partial") { cls = "text-amber-600 bg-amber-50 border-amber-200"; label = bal; }
   else { cls = "text-blue-600 bg-blue-50 border-blue-200"; label = bal; }  // issued
@@ -364,22 +368,23 @@ function RowActions({
   onEdit: (a: Appointment) => void;
   router: ReturnType<typeof useRouter>;
 }) {
+  const { t } = useI18n();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="grid size-7 place-items-center rounded-lg border border-border text-muted-foreground hover:bg-muted" aria-label="Actions">
+        <button className="grid size-7 place-items-center rounded-lg border border-border text-muted-foreground hover:bg-muted" aria-label={t("sched.actions")}>
           <MoreHorizontal className="size-4" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52">
-        {canConfirm && <DropdownMenuItem icon={<Check className="size-4" />} onClick={() => onAct(a.id, "confirm")}>Confirm</DropdownMenuItem>}
-        {canCancel && <DropdownMenuItem icon={<X className="size-4" />} destructive onClick={() => onAct(a.id, "cancel")}>Cancel</DropdownMenuItem>}
+        {canConfirm && <DropdownMenuItem icon={<Check className="size-4" />} onClick={() => onAct(a.id, "confirm")}>{t("sched.confirm")}</DropdownMenuItem>}
+        {canCancel && <DropdownMenuItem icon={<X className="size-4" />} destructive onClick={() => onAct(a.id, "cancel")}>{t("common.cancel")}</DropdownMenuItem>}
         {(canConfirm || canCancel) && <DropdownMenuSeparator />}
-        <DropdownMenuItem icon={<User className="size-4" />} onClick={() => router.push(`/customers/${a.customer_id}`)}>Open Customer 360</DropdownMenuItem>
-        <DropdownMenuItem icon={<Wrench className="size-4" />} onClick={() => router.push(`/vehicles/${a.vehicle_id}`)}>Open Vehicle</DropdownMenuItem>
-        <DropdownMenuItem icon={<QrCode className="size-4" />} onClick={() => window.open(`/passport/${a.vehicle_id}`, "_blank")}>Open Passport</DropdownMenuItem>
+        <DropdownMenuItem icon={<User className="size-4" />} onClick={() => router.push(`/customers/${a.customer_id}`)}>{t("sched.open_customer")}</DropdownMenuItem>
+        <DropdownMenuItem icon={<Wrench className="size-4" />} onClick={() => router.push(`/vehicles/${a.vehicle_id}`)}>{t("sched.open_vehicle")}</DropdownMenuItem>
+        <DropdownMenuItem icon={<QrCode className="size-4" />} onClick={() => window.open(`/passport/${a.vehicle_id}`, "_blank")}>{t("sched.open_passport")}</DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem icon={<CalendarClock className="size-4" />} onClick={() => onEdit(a)}>Edit / reschedule</DropdownMenuItem>
+        <DropdownMenuItem icon={<CalendarClock className="size-4" />} onClick={() => onEdit(a)}>{t("sched.edit_reschedule")}</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
