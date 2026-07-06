@@ -5,6 +5,8 @@ from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from app.models.customer import Customer
+from app.models.vehicle import Vehicle
+from app.models.vehicle_model import VehicleModel
 from app.repositories.base import TenantScopedRepository
 
 
@@ -60,7 +62,15 @@ class CustomerRepository(TenantScopedRepository[Customer]):
                 Customer.id == customer_id,
                 Customer.is_active == True,
             )
-        ).options(selectinload(Customer.vehicles))
+        ).options(
+            # Eager-load the full chain the serializer walks
+            # (customer -> vehicles -> vehicle_model -> brand); otherwise
+            # accessing v.vehicle_model.brand.name triggers a lazy load in the
+            # async context and raises MissingGreenlet.
+            selectinload(Customer.vehicles)
+            .selectinload(Vehicle.vehicle_model)
+            .selectinload(VehicleModel.brand)
+        )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
