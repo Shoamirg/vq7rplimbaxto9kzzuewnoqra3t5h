@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {
+  Award,
   Bell,
   CalendarClock,
   ChevronRight,
@@ -50,6 +51,25 @@ export default function HomePage() {
         <div className="flex-1">
           <p className="text-lg font-bold leading-tight">{t("mini.home.sos_title")}</p>
           <p className="text-sm text-white/85">{t("mini.home.sos_sub")}</p>
+        </div>
+        <ChevronRight className="size-5 text-white/80" aria-hidden />
+      </Link>
+
+      {/* Bonus points — earned on every completed job */}
+      <Link
+        href="/mini/me"
+        onClick={() => haptic("light")}
+        aria-label={t("mini.home.bonus_title")}
+        className="flex items-center gap-4 rounded-3xl bg-gradient-to-br from-amber-400 to-orange-500 p-4 text-white shadow-[0_12px_32px_-14px_rgba(245,158,11,0.7)] transition motion-safe:active:scale-[0.99]"
+      >
+        <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-white/20">
+          <Award className="size-7" aria-hidden />
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-medium text-white/85">{t("mini.home.bonus_title")}</p>
+          <p className="text-2xl font-bold leading-tight tabular-nums">
+            {fmt.number(home.loyalty_points)} <span className="text-base font-semibold">{t("mini.home.bonus_unit")}</span>
+          </p>
         </div>
         <ChevronRight className="size-5 text-white/80" aria-hidden />
       </Link>

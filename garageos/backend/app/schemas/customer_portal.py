@@ -113,6 +113,7 @@ class HomeResponse(BaseModel):
     greeting: str
     garage: GarageIdentity
     sos_available: bool = True
+    loyalty_points: int = 0
     outstanding_balance: float = 0.0
     outstanding_invoice: Optional[HomeInvoice] = None
     next_appointment: Optional[HomeAppointment] = None

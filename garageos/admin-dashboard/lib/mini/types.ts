@@ -61,6 +61,7 @@ export interface HomeResponse {
   greeting: string;
   garage: GarageIdentity;
   sos_available: boolean;
+  loyalty_points: number;
   outstanding_balance: number;
   outstanding_invoice?: HomeInvoice | null;
   next_appointment?: HomeAppointment | null;

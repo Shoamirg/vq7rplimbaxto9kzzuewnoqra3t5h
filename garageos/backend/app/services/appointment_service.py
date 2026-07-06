@@ -50,6 +50,12 @@ def serialize_appointment(a) -> dict:
     }
 
 
+# Loyalty/bonus earning on job completion. Points = spend × rate, floored so
+# every completed job rewards the customer even when no cost was recorded.
+_LOYALTY_EARN_RATE = 0.10
+_LOYALTY_MIN_POINTS = 10
+
+
 class AppointmentService:
     """Manages appointment lifecycle: slot generation → reservation → confirm → complete."""
 
@@ -341,6 +347,14 @@ class AppointmentService:
             performed_date=datetime.now(timezone.utc),
             cost=total_cost,
         )
+
+        # Bonus points — the customer earns loyalty on every completed job
+        # (10% of spend, floored at a flat reward so free/no-cost jobs still count).
+        points_earned = max(
+            _LOYALTY_MIN_POINTS, round((total_cost or 0) * _LOYALTY_EARN_RATE)
+        )
+        await self.customer_repo.add_loyalty_points(appointment.customer_id, points_earned)
+
         await self.uow.flush()
 
         # Recalculate vehicle health; surface any maintenance-due events.
