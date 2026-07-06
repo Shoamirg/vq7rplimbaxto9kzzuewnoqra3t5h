@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     # Telegram
     TELEGRAM_BOT_TOKEN: Optional[str] = None
     TELEGRAM_WEBHOOK_URL: Optional[str] = None
+    # Shared secret the bot presents when forwarding customer chat messages to
+    # the /telegram/ingest endpoint (bot ↔ backend trust, not a user token).
+    TELEGRAM_WEBHOOK_SECRET: Optional[str] = None
 
     # Rate limiting (Redis-backed, fixed window). Degrades open if Redis is down.
     RATE_LIMIT_ENABLED: bool = True

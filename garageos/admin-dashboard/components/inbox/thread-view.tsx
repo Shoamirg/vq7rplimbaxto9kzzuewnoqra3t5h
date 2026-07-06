@@ -8,14 +8,57 @@ import {
 } from "lucide-react";
 import { cn } from "@garageos/design-system";
 
-import type { ConvMessage, ThreadDetail } from "@/lib/api/types";
+import { useI18n } from "@/lib/i18n/context";
+import type { ConvAttachment, ConvMessage, ThreadDetail } from "@/lib/api/types";
 import { CHANNEL_META, CONV_TYPE_ICON, activityIcon, relTime, roleColor } from "./shared";
 
 type ComposerTab = "reply" | "note" | "announcement";
 
+// Renders a message attachment: photos inline, voice as a player, location as a
+// map link, everything else as a labelled chip/link. Telegram media loads via
+// the token-guarded /api/media route.
+function AttachmentView({ attachment: a, side }: { attachment: ConvAttachment; side: string }) {
+  const align = side === "me" ? "ml-auto" : "";
+  if (a.kind === "photo" && a.url) {
+    return (
+      <a href={a.url} target="_blank" rel="noopener noreferrer" className={cn("mt-1 block max-w-[220px] overflow-hidden rounded-xl border border-border", align)}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={a.url} alt={a.label} className="block h-auto w-full object-cover" loading="lazy" />
+      </a>
+    );
+  }
+  if (a.kind === "voice" && a.url) {
+    return (
+      <div className={cn("mt-1 inline-flex items-center gap-2 rounded-xl border border-border bg-card px-2.5 py-2", align)}>
+        <span className="text-sm">🎤</span>
+        <audio controls src={a.url} className="h-8 max-w-[220px]" />
+      </div>
+    );
+  }
+  const inner = (
+    <span className={cn("mt-1 inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-[12.5px]", align)}>
+      <span className="grid size-7 place-items-center rounded-lg bg-muted text-sm">
+        {a.kind === "location" ? "📍" : a.kind === "document" ? "📄" : "📎"}
+      </span>
+      <span className="font-medium text-foreground">{a.label}</span>
+    </span>
+  );
+  return a.url ? (
+    <a href={a.url} target="_blank" rel="noopener noreferrer" className="block">{inner}</a>
+  ) : (
+    <div>{inner}</div>
+  );
+}
+
 const QUICK_ACTIONS = [
-  "📞 Call", "🚗 Share ETA", "🏅 Share Passport", "📅 Book Appt",
-  "🆘 Create Emergency", "🧾 Generate Estimate", "📷 Request Photos", "📍 Request Location",
+  { key: "call", icon: "📞" },
+  { key: "share_eta", icon: "🚗" },
+  { key: "share_passport", icon: "🏅" },
+  { key: "book_appt", icon: "📅" },
+  { key: "create_emergency", icon: "🆘" },
+  { key: "generate_estimate", icon: "🧾" },
+  { key: "request_photos", icon: "📷" },
+  { key: "request_location", icon: "📍" },
 ];
 
 // Column 3 — the conversation. Activity interleaves the event stream with
@@ -35,13 +78,15 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
   { thread, mode, onMode, composerTab, onComposerTab, onSend, onStatus, onToggleFollow, contextOpen, onOpenContext },
   composerRef,
 ) {
+  const { t } = useI18n();
   const [text, setText] = useState("");
   const ch = thread.last_channel ? CHANNEL_META[thread.last_channel] : CHANNEL_META.web;
+  const channelLabel = t(`inbox.channel.${thread.last_channel ?? "web"}`);
 
   const send = () => {
-    const t = text.trim();
-    if (!t) return;
-    onSend(t, composerTab);
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    onSend(trimmed, composerTab);
     setText("");
   };
 
@@ -55,7 +100,7 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
           </span>
           <div className="min-w-0">
             <p className="text-[15px] font-bold text-foreground truncate">
-              {thread.customer_name ?? thread.subject ?? "Conversation"}
+              {thread.customer_name ?? thread.subject ?? t("inbox.conversation")}
             </p>
             <p className="text-xs text-muted-foreground truncate">
               {[thread.vehicle_label, thread.case_code, thread.subject].filter(Boolean).join(" · ")}
@@ -65,24 +110,24 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
             {thread.case_id && (
               <Link href={`/operations?case=${thread.case_id}`}
                 className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 inline-flex items-center gap-1">
-                <Siren className="size-3.5" /> Open case <ArrowUpRight className="size-3" />
+                <Siren className="size-3.5" /> {t("inbox.open_case")} <ArrowUpRight className="size-3" />
               </Link>
             )}
             <button onClick={onToggleFollow}
               className={cn("text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-colors",
                 thread.is_following ? "border-primary/40 bg-primary/5 text-primary" : "border-border text-slate-600 hover:bg-muted")}>
-              {thread.is_following ? "Following ✓" : "Follow"}
+              {thread.is_following ? `${t("inbox.following")} ✓` : t("inbox.follow")}
             </button>
             <button onClick={() => onStatus("snoozed")}
               className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-border text-amber-600 hover:bg-muted inline-flex items-center gap-1">
-              <Moon className="size-3.5" /> Snooze
+              <Moon className="size-3.5" /> {t("inbox.snooze")}
             </button>
             <button onClick={() => onStatus("resolved")}
               className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 inline-flex items-center gap-1">
-              <Check className="size-3.5" /> Resolve
+              <Check className="size-3.5" /> {t("inbox.resolve")}
             </button>
             {!contextOpen && (
-              <button onClick={onOpenContext} className="p-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted" aria-label="Open context">
+              <button onClick={onOpenContext} className="p-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted" aria-label={t("inbox.open_context")}>
                 <PanelRightOpen className="size-4" />
               </button>
             )}
@@ -92,7 +137,7 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
         {/* Linked pills */}
         <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
           <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border border-border">
-            {CONV_TYPE_ICON[thread.conv_type]} <span className="capitalize">{thread.conv_type}</span>
+            {CONV_TYPE_ICON[thread.conv_type]} <span className="capitalize">{t(`inbox.type.${thread.conv_type}`)}</span>
           </span>
           {thread.linked.map((c) => (
             <Link key={c.kind} href={c.link} target={c.kind === "passport" ? "_blank" : undefined}
@@ -108,11 +153,11 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
             <button key={m} onClick={() => onMode(m)}
               className={cn("text-[13px] font-semibold px-3 py-2 border-b-2 -mb-px capitalize transition-colors",
                 mode === m ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
-              {m}
+              {t(`inbox.mode.${m}`)}
             </button>
           ))}
           <span className="ml-auto text-[11px] text-muted-foreground pb-1.5">
-            Activity = every event + message · Messages = human replies
+            {t("inbox.mode_hint")}
           </span>
         </div>
       </div>
@@ -137,16 +182,16 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
               : <EventLine key={i} icon={activityIcon(a)} title={a.title} detail={a.detail} date={a.date} />
           ))}
         {mode === "messages" && thread.messages.length === 0 && (
-          <p className="text-center text-sm text-muted-foreground py-8">No messages yet.</p>
+          <p className="text-center text-sm text-muted-foreground py-8">{t("inbox.no_messages")}</p>
         )}
       </div>
 
       {/* Quick actions */}
       <div className="flex gap-1.5 px-4 py-2 bg-card border-t border-border overflow-x-auto shrink-0">
         {QUICK_ACTIONS.map((a) => (
-          <span key={a} className={cn("text-[11.5px] font-semibold px-2.5 py-1.5 rounded-lg border whitespace-nowrap",
-            a.includes("Emergency") ? "border-red-200 bg-red-50 text-red-600" : "border-border text-slate-600")}>
-            {a}
+          <span key={a.key} className={cn("text-[11.5px] font-semibold px-2.5 py-1.5 rounded-lg border whitespace-nowrap",
+            a.key === "create_emergency" ? "border-red-200 bg-red-50 text-red-600" : "border-border text-slate-600")}>
+            {a.icon} {t(`inbox.quick.${a.key}`)}
           </span>
         ))}
       </div>
@@ -155,25 +200,25 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
       {thread.ai_summary && composerTab === "reply" && (
         <div className="mx-4 mb-1 flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50/50 px-3 py-2 shrink-0">
           <Sparkles className="size-3.5 text-indigo-600 shrink-0" />
-          <span className="text-[10px] font-bold uppercase tracking-wide text-indigo-600 shrink-0">Suggested</span>
+          <span className="text-[10px] font-bold uppercase tracking-wide text-indigo-600 shrink-0">{t("inbox.suggested")}</span>
           <span className="text-[12.5px] text-slate-700 flex-1 truncate">
-            A technician is on the way — you&apos;ll get an update shortly.
+            {t("inbox.suggested_reply")}
           </span>
-          <button onClick={() => setText("A technician is on the way — you'll get an update shortly.")}
-            className="text-[11px] font-bold text-white bg-indigo-600 rounded-md px-2.5 py-1 shrink-0">Insert</button>
+          <button onClick={() => setText(t("inbox.suggested_reply"))}
+            className="text-[11px] font-bold text-white bg-indigo-600 rounded-md px-2.5 py-1 shrink-0">{t("inbox.insert")}</button>
         </div>
       )}
 
       {/* Composer */}
       <div className="bg-card border-t border-border p-3 shrink-0">
         <div className="flex gap-1.5 mb-2">
-          {([["reply", "Reply"], ["note", "Internal note"], ["announcement", "Announcement"]] as const).map(([k, label]) => (
+          {(["reply", "note", "announcement"] as const).map((k) => (
             <button key={k} onClick={() => onComposerTab(k)}
               className={cn("text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors",
                 composerTab === k
                   ? k === "note" ? "bg-amber-100 text-amber-700" : k === "announcement" ? "bg-purple-100 text-purple-700" : "bg-primary/10 text-primary"
                   : "text-muted-foreground hover:text-foreground")}>
-              {label}
+              {t(`inbox.composer.${k}`)}
             </button>
           ))}
         </div>
@@ -183,7 +228,7 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); } }}
           rows={2}
-          placeholder={composerTab === "note" ? "Internal note — @mention a teammate…" : `Reply to ${thread.customer_name ?? "customer"}…`}
+          placeholder={composerTab === "note" ? t("inbox.note_placeholder") : t("inbox.reply_placeholder", { name: thread.customer_name ?? t("inbox.customer") })}
           className={cn("w-full resize-none rounded-lg border px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary",
             composerTab === "note" ? "border-amber-200 bg-amber-50/40" : "border-border bg-background")}
         />
@@ -194,11 +239,11 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
             </button>
           ))}
           <span className="ml-auto text-[11px] text-muted-foreground">
-            {composerTab === "note" ? "🔒 Internal" : `Sending via ${ch.icon} ${ch.label}`}
+            {composerTab === "note" ? `🔒 ${t("inbox.internal")}` : `${t("inbox.sending_via")} ${ch.icon} ${channelLabel}`}
           </span>
           <button onClick={send} disabled={!text.trim()}
             className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground text-[13px] font-bold px-4 py-2 rounded-lg disabled:opacity-40">
-            {composerTab === "announcement" ? <Megaphone className="size-4" /> : <Send className="size-4" />} Send
+            {composerTab === "announcement" ? <Megaphone className="size-4" /> : <Send className="size-4" />} {t("inbox.send")}
           </button>
         </div>
       </div>
@@ -214,11 +259,12 @@ function bubbleSide(role: string): "them" | "me" | "mech" {
 }
 
 function MessageBubble({ m }: { m: ConvMessage }) {
+  const { t } = useI18n();
   const side = bubbleSide(m.author_role);
   if (m.is_internal && m.kind === "note") {
     return (
       <div className="mx-auto w-[88%] rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
-        <p className="text-[10px] font-bold uppercase tracking-wide text-amber-700 mb-1">🔒 Internal note</p>
+        <p className="text-[10px] font-bold uppercase tracking-wide text-amber-700 mb-1">🔒 {t("inbox.composer.note")}</p>
         <p className="text-[13px] text-amber-900 whitespace-pre-wrap">{renderMentions(m.body)}</p>
       </div>
     );
@@ -226,7 +272,7 @@ function MessageBubble({ m }: { m: ConvMessage }) {
   return (
     <div className={cn("max-w-[74%]", side === "me" ? "ml-auto" : "")}>
       <p className={cn("text-[10px] font-bold mb-1 px-1", side === "me" ? "text-primary text-right" : roleColor(m.author_role))}>
-        {m.author_name ?? m.author_role}
+        {m.author_name ?? t(`inbox.role.${m.author_role}`)}
       </p>
       {m.body && (
         <div className={cn("px-3 py-2 rounded-2xl text-[13px] leading-relaxed",
@@ -237,12 +283,7 @@ function MessageBubble({ m }: { m: ConvMessage }) {
         </div>
       )}
       {m.attachments.map((a) => (
-        <div key={a.id} className={cn("mt-1 inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-[12.5px]", side === "me" && "ml-auto")}>
-          <span className="grid size-7 place-items-center rounded-lg bg-muted text-sm">
-            {a.kind === "photo" ? "📷" : a.kind === "location" ? "📍" : a.kind === "voice" ? "🎤" : "📄"}
-          </span>
-          <span className="font-medium text-foreground">{a.label}</span>
-        </div>
+        <AttachmentView key={a.id} attachment={a} side={side} />
       ))}
       <p className={cn("text-[10px] text-muted-foreground mt-1 px-1", side === "me" && "text-right")}>{relTime(m.created_at)}</p>
     </div>
