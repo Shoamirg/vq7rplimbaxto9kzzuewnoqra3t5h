@@ -1,0 +1,13 @@
+# Keep the repo-root build context (used by the dashboard image) small and
+# prevent host node_modules/.next from clobbering what the image installs.
+**/node_modules
+**/.next
+**/.git
+**/.turbo
+**/test-results
+**/playwright-report
+**/__pycache__
+**/*.pyc
+**/.venv
+**/.env.local
+**/npm-debug.log*
