@@ -40,6 +40,14 @@ class Appointment(BaseModelMixin, ServiceCenterMixin, Base):
         nullable=True,
     )
     mechanic_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # The mechanic's user account (the Mechanic Workspace queries "my jobs" by
+    # this). mechanic_name is kept as a denormalised label / legacy fallback.
+    mechanic_user_id: Mapped[UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     appointment_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
     appointment_time: Mapped[str] = mapped_column(String(10), nullable=False)  # HH:MM format
     estimated_duration_minutes: Mapped[int] = mapped_column(Integer, default=60)

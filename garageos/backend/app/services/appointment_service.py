@@ -62,6 +62,26 @@ class AppointmentService:
         self.customer_repo = CustomerRepository(uow.session, sc)
         self.service_record_repo = ServiceRecordRepository(uow.session, sc)
 
+    async def _resolve_mechanic_user_id(self, name: str | None):
+        """Map a mechanic *name* to their user account so the Mechanic Workspace
+        can find the job. Returns None when the name is blank or unmatched."""
+        if not name:
+            return None
+        from sqlalchemy import select
+        from app.models.role import Role
+        from app.models.user import User
+        stmt = (
+            select(User.id)
+            .join(Role, Role.id == User.role_id)
+            .where(
+                User.service_center_id == self.uow.service_center_id,
+                User.full_name == name,
+                Role.name == "mechanic",
+                User.is_active.is_(True),
+            )
+        )
+        return (await self.uow.session.execute(stmt)).scalar_one_or_none()
+
     async def generate_slots(
         self,
         service_center_id: uuid.UUID,
@@ -160,6 +180,7 @@ class AppointmentService:
             vehicle_id=vehicle_id,
             maintenance_rule_id=maintenance_rule_id,
             mechanic_name=slot.mechanic_name,
+            mechanic_user_id=await self._resolve_mechanic_user_id(slot.mechanic_name),
             appointment_date=slot.slot_date,
             appointment_time=slot.start_time,
             estimated_duration_minutes=slot.duration_minutes,
@@ -213,6 +234,7 @@ class AppointmentService:
             vehicle_id=vehicle_id,
             maintenance_rule_id=maintenance_rule_id,
             mechanic_name=mechanic_name,
+            mechanic_user_id=await self._resolve_mechanic_user_id(mechanic_name),
             appointment_date=appt_dt,
             appointment_time=appointment_time,
             estimated_duration_minutes=estimated_duration_minutes,
@@ -245,6 +267,23 @@ class AppointmentService:
             vehicle_id=appointment.vehicle_id,
             service_center_id=self.uow.service_center_id,
         ))
+        await self.uow.flush()
+        return await self.get_appointment(appointment_id)
+
+    async def start_appointment(self, appointment_id: uuid.UUID) -> dict:
+        """Mechanic begins the job: confirmed → in_progress (idempotent)."""
+        appointment = await self.appointment_repo.get_by_id(appointment_id)
+        if not appointment:
+            raise AppointmentNotFound()
+        if appointment.status == AppointmentStatus.IN_PROGRESS:
+            return await self.get_appointment(appointment_id)
+        if appointment.status not in (
+            AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED,
+        ):
+            raise AppointmentStateError(
+                f"Cannot start an appointment in status '{appointment.status}'"
+            )
+        appointment.status = AppointmentStatus.IN_PROGRESS
         await self.uow.flush()
         return await self.get_appointment(appointment_id)
 
@@ -393,6 +432,7 @@ class AppointmentService:
         appointment.appointment_date = new_slot.slot_date
         appointment.appointment_time = new_slot.start_time
         appointment.mechanic_name = new_slot.mechanic_name
+        appointment.mechanic_user_id = await self._resolve_mechanic_user_id(new_slot.mechanic_name)
         appointment.estimated_duration_minutes = new_slot.duration_minutes
         appointment.status = AppointmentStatus.RESCHEDULED
         await self.uow.session.flush()
@@ -632,6 +672,7 @@ class AppointmentService:
         appointment.appointment_date = new_slot.slot_date
         appointment.appointment_time = new_slot.start_time
         appointment.mechanic_name = new_slot.mechanic_name
+        appointment.mechanic_user_id = await self._resolve_mechanic_user_id(new_slot.mechanic_name)
         appointment.estimated_duration_minutes = new_slot.duration_minutes
         await self.uow.flush()
         return await self.get_appointment(appointment_id)
@@ -656,6 +697,7 @@ class AppointmentService:
             appointment.appointment_time = appointment_time
         if mechanic_name is not None:
             appointment.mechanic_name = mechanic_name
+            appointment.mechanic_user_id = await self._resolve_mechanic_user_id(mechanic_name)
         if estimated_duration_minutes is not None:
             appointment.estimated_duration_minutes = estimated_duration_minutes
         if notes is not None:
