@@ -130,6 +130,20 @@ if (offenders.length) {
 }
 
 const total = offenders.reduce((s, o) => s + o.hits.length, 0);
+
+// Localization progress — measured against the sweep's starting point so the
+// number visibly falls toward zero, one commit at a time.
+const START = { files: 41, strings: 297 };
+const doneFiles = Math.max(0, START.files - BASELINE.size);
+const doneStrings = Math.max(0, START.strings - baselineCount);
+const pct = START.strings ? (doneStrings / START.strings) * 100 : 100;
+const BAR = 28;
+const filled = Math.round((pct / 100) * BAR);
+console.log(`\nLocalization progress`);
+console.log(`  ${"█".repeat(filled)}${"░".repeat(BAR - filled)}  ${pct.toFixed(1)}%`);
+console.log(`  Files:   ${doneFiles} / ${START.files} done  (${BASELINE.size} remaining)`);
+console.log(`  Strings: ${doneStrings} / ${START.strings} done  (${baselineCount} in backlog)`);
+
 console.log(`\n${offenders.length ? "✗" : "✓"} i18n audit: ${total} new violation(s) in ${offenders.length} file(s); ${baselineCount} in the baseline backlog (${BASELINE.size} files).`);
 if (offenders.length && !all) {
   console.log("Wrap visible strings in t()/tp(), or (if a staff screen is next in the localization queue) add it to BASELINE in scripts/i18n-audit.mjs.");
