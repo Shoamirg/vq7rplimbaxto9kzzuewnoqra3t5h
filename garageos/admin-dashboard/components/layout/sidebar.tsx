@@ -24,6 +24,7 @@ import {
 import { cn } from "@garageos/design-system";
 
 import { useI18n } from "@/lib/i18n/context";
+import { useCanManageTeam } from "@/lib/auth/context";
 import { NewAppointmentModal } from "@/components/appointments/new-appointment-modal";
 
 // ─── Navigation ───────────────────────────────────────────────
@@ -34,6 +35,7 @@ interface NavItem {
   href: string;
   icon: React.ReactNode;
   badge?: string | number;
+  adminOnly?: boolean; // hidden unless the user can manage the tenant
 }
 interface NavSection {
   key: string; // section.* translation key
@@ -74,7 +76,7 @@ const NAV_SECTIONS: NavSection[] = [
 ];
 
 const bottomNav: NavItem[] = [
-  { key: "nav.settings", href: "/settings", icon: <Settings className="size-5" /> },
+  { key: "nav.settings", href: "/settings", icon: <Settings className="size-5" />, adminOnly: true },
   { key: "nav.support", href: "/support", icon: <HelpCircle className="size-5" /> },
 ];
 
@@ -95,6 +97,8 @@ function initials(name?: string): string {
 // ─── Sidebar Component ────────────────────────────────────────
 export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand }) {
   const { t } = useI18n();
+  const canManageTeam = useCanManageTeam();
+  const visibleBottomNav = bottomNav.filter((item) => !item.adminOnly || canManageTeam);
   const brandName = branding?.name ?? "GarageOS";
   const brandMono = branding?.monogram ?? "G";
   const brandTagline = branding?.tagline ?? t("brand.tagline");
@@ -125,7 +129,7 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
       <button
         onClick={() => setMobileOpen(true)}
         className="fixed top-3 left-3 z-30 lg:hidden p-2 rounded-lg bg-background border border-border shadow-sm"
-        aria-label="Open sidebar"
+        aria-label={t("layout.open_sidebar")}
       >
         <ChevronRight className="size-5" />
       </button>
@@ -227,7 +231,7 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
 
         {/* Bottom Navigation */}
         <div className="px-3 py-2 border-t border-sidebar-muted space-y-0.5">
-          {bottomNav.map((item) => {
+          {visibleBottomNav.map((item) => {
             const active = isActive(item.href);
             return (
               <Link
@@ -277,7 +281,7 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
               {initials(user?.name)}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-sidebar-foreground truncate">{user?.name ?? "Signed in"}</p>
+              <p className="text-sm font-medium text-sidebar-foreground truncate">{user?.name ?? t("layout.signed_in")}</p>
               <p className="text-xs text-sidebar-foreground/50 truncate">{user?.email ?? ""}</p>
             </div>
           </div>
