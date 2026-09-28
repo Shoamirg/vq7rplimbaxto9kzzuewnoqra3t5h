@@ -148,9 +148,9 @@ export function AppointmentsList() {
     const results = await Promise.allSettled(
       ids.map((id) => clientFetch(`/appointments/${id}/${action}`, { method: "PATCH", body: JSON.stringify({}) })));
     const ok = results.filter((r) => r.status === "fulfilled").length;
-    toast({ title: `${ok}/${ids.length} ${action === "confirm" ? "confirmed" : "cancelled"}`, variant: ok ? "success" : "danger" });
+    toast({ title: t("work.bulk_result", { done: ok, total: ids.length, action: t(action === "confirm" ? "work.confirmed" : "work.cancelled") }), variant: ok ? "success" : "danger" });
     setSelected(new Set()); load(); loadStats();
-  }, [selected, load, loadStats, toast]);
+  }, [selected, load, loadStats, toast, t]);
 
   const openInvoice = useCallback(async (appointment: Appointment) => {
     try {
@@ -247,11 +247,11 @@ export function AppointmentsList() {
       {/* Bulk action bar */}
       {selected.size > 0 && (
         <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2.5 animate-fade-in">
-          <span className="text-sm font-semibold text-foreground">{selected.size} selected</span>
+          <span className="text-sm font-semibold text-foreground">{t("work.bulk_selected", { count: selected.size })}</span>
           <div className="flex items-center gap-2 ml-auto">
-            <Button size="sm" variant="outline" leftIcon={<CheckCheck className="size-4" />} onClick={() => bulkAct("confirm")}>Confirm</Button>
-            <Button size="sm" variant="outline" leftIcon={<X className="size-4" />} onClick={() => bulkAct("cancel")}>Cancel</Button>
-            <button onClick={() => setSelected(new Set())} className="text-xs text-muted-foreground hover:text-foreground">Clear</button>
+            <Button size="sm" variant="outline" leftIcon={<CheckCheck className="size-4" />} onClick={() => bulkAct("confirm")}>{t("work.confirm")}</Button>
+            <Button size="sm" variant="outline" leftIcon={<X className="size-4" />} onClick={() => bulkAct("cancel")}>{t("common.cancel")}</Button>
+            <button onClick={() => setSelected(new Set())} className="text-xs text-muted-foreground hover:text-foreground">{t("work.bulk_clear")}</button>
           </div>
         </div>
       )}

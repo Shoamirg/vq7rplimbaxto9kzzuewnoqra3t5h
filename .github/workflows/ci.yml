@@ -48,6 +48,8 @@ jobs:
       - run: pip install -r requirements.txt
       - name: Apply migrations
         run: alembic upgrade head
+      - name: Verify service work on migrated schema before seeding
+        run: python -m pytest tests/test_service_work_api.py -q
       - name: Seed demo data
         # Integration tests log in as the seeded demo admin and assert against real
         # tenant data; seed before pytest so those (and the audit/auth tests) pass.

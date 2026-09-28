@@ -24,6 +24,7 @@ import { Badge, Button, cn, useToast } from "@garageos/design-system";
 import { clientFetch } from "@/lib/api/client";
 import { useI18n } from "@/lib/i18n/context";
 import { NewAppointmentButton } from "@/components/appointments/new-appointment-modal";
+import { CompleteWorkModal } from "@/components/appointments/complete-work-modal";
 import { EmptyState } from "@/components/states/empty-state";
 import type { Appointment, CalendarPayload, DueServices, VehicleHealth } from "@/lib/api/types";
 import { HealthGauge } from "@/components/vehicles/health-gauge";
@@ -461,6 +462,7 @@ export function CalendarClient({ initial, initialDate }: Props) {
                       return (
                         <div
                           key={a.id}
+                          data-testid={`calendar-appointment-${a.id}`}
                           onPointerDown={(e) => onCardPointerDown(e, a)}
                           className={cn(
                             "absolute left-1 right-1 rounded-lg border border-l-4 p-2 text-left overflow-hidden bg-card group",
@@ -585,6 +587,7 @@ function InspectorDrawer({ appointment, onClose, onChanged }: { appointment: App
   const [health, setHealth] = useState<VehicleHealth | null>(null);
   const [due, setDue] = useState<DueServices | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [showComplete, setShowComplete] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -601,15 +604,17 @@ function InspectorDrawer({ appointment, onClose, onChanged }: { appointment: App
   }, [appointment.vehicle_id]);
 
   const act = async (action: "confirm" | "start" | "cancel" | "complete") => {
+    if (action === "complete") {
+      setShowComplete(true);
+      return;
+    }
     if (action === "start" && !appointment.mechanic_name?.trim()) {
       toast({ title: t("work.assign_first"), variant: "warning" });
       return;
     }
     setBusy(action);
     try {
-      const init: RequestInit = { method: "PATCH" };
-      if (action === "complete") init.body = JSON.stringify({});
-      await clientFetch(`/appointments/${appointment.id}/${action}`, init);
+      await clientFetch(`/appointments/${appointment.id}/${action}`, { method: "PATCH" });
       onChanged(action);
     } catch {
       toast({ title: t("work.failed"), variant: "danger" });
@@ -682,6 +687,9 @@ function InspectorDrawer({ appointment, onClose, onChanged }: { appointment: App
           {canCancel && <Button size="sm" variant="outline" loading={busy === "cancel"} onClick={() => act("cancel")} leftIcon={<XCircle className="size-4" />}>{t("work.cancel")}</Button>}
         </div>
       </aside>
+      {showComplete && <CompleteWorkModal appointment={appointment}
+        onClose={() => setShowComplete(false)}
+        onCompleted={() => { setShowComplete(false); onChanged("complete"); }} />}
     </>
   );
 }

@@ -31,27 +31,27 @@ export function DocumentView({
   const { t, fmt } = useI18n();
   const money = (n: number) => formatMoney(n, doc.currency);
   const fmtDate = (iso: string | null) => fmt.date(iso);
-  const noun = doc.kind === "estimate" ? "Estimate" : "Invoice";
+  const noun = t(doc.kind === "estimate" ? "public.estimate" : "public.invoice");
   const shareLink = typeof window !== "undefined" ? `${window.location.origin}/invoice/${doc.id}` : "";
 
   const copyLink = () =>
     navigator.clipboard.writeText(shareLink)
-      .then(() => toast({ title: "Link copied", description: "A public link to this document is on your clipboard.", variant: "success" }))
-      .catch(() => toast({ title: "Couldn't copy the link", variant: "danger" }));
+      .then(() => toast({ title: t("billing.link_copied"), description: t("billing.link_copied_hint"), variant: "success" }))
+      .catch(() => toast({ title: t("billing.copy_failed"), variant: "danger" }));
 
   const emailLink = () => {
     const subject = encodeURIComponent(`${noun} ${doc.code}`);
-    const body = encodeURIComponent(`Here is your ${doc.kind} ${doc.code}:\n${shareLink}`);
+    const body = encodeURIComponent(`${t("billing.email_body", { kind: noun, code: doc.code })}\n${shareLink}`);
     window.open(`mailto:?subject=${subject}&body=${body}`);
   };
 
   const sendTelegram = async () => {
     try {
       await clientFetch(`/invoices/${doc.id}/send-telegram`, { method: "POST", body: JSON.stringify({ link: shareLink }) });
-      toast({ title: "Sent via Telegram", description: `${noun} ${doc.code} delivered to the customer.`, variant: "success" });
+      toast({ title: t("billing.telegram_sent"), description: t("billing.telegram_delivered", { kind: noun, code: doc.code }), variant: "success" });
     } catch (err) {
-      const hint = err instanceof ClientApiError && err.status === 422 ? "The customer may not have linked Telegram." : "Please try again.";
-      toast({ title: "Couldn't send via Telegram", description: hint, variant: "danger" });
+      const hint = err instanceof ClientApiError && err.status === 422 ? t("billing.telegram_unlinked") : t("billing.try_again");
+      toast({ title: t("billing.telegram_failed"), description: hint, variant: "danger" });
     }
   };
   const isEstimate = doc.kind === "estimate";
@@ -70,10 +70,10 @@ export function DocumentView({
         {isEstimate ? (
           <>
             <button onClick={onSend} className={cn(ABTN, "bg-blue-600 text-white border-blue-600 hover:bg-blue-700")}>✉ {t("billing.send")}</button>
-            {doc.status !== "approved" && <button onClick={() => onStatus("approved")} className={cn(ABTN, "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700")}>✓ Approve</button>}
-            {doc.status !== "rejected" && <button onClick={() => onStatus("rejected")} className={cn(ABTN, "text-red-600")}>✕ Reject</button>}
-            <button onClick={() => onStatus("changes_requested")} className={ABTN}>✎ Request changes</button>
-            {doc.status === "approved" && <button onClick={onConvert} className={cn(ABTN, "bg-slate-900 text-white border-slate-900 hover:bg-slate-800")}>→ Convert to invoice</button>}
+            {doc.status !== "approved" && <button onClick={() => onStatus("approved")} className={cn(ABTN, "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700")}>✓ {t("billing.approve")}</button>}
+            {doc.status !== "rejected" && <button onClick={() => onStatus("rejected")} className={cn(ABTN, "text-red-600")}>✕ {t("billing.reject")}</button>}
+            <button onClick={() => onStatus("changes_requested")} className={ABTN}>✎ {t("billing.request_changes")}</button>
+            {doc.status === "approved" && <button onClick={onConvert} className={cn(ABTN, "bg-slate-900 text-white border-slate-900 hover:bg-slate-800")}>→ {t("billing.convert_to_invoice")}</button>}
           </>
         ) : (
           <>
@@ -94,7 +94,7 @@ export function DocumentView({
           </DropdownMenuContent>
         </DropdownMenu>
         {canEdit && <button onClick={onEdit} className={ABTN} aria-label={t("billing.edit")}>✎ {t("billing.edit")}</button>}
-        <button onClick={() => window.print()} className={ABTN} aria-label="Print or save as PDF">🖨 PDF</button>
+        <button onClick={() => window.print()} className={ABTN} aria-label={t("public.print")}>🖨 PDF</button>
         {!(doc.kind === "invoice" && doc.appointment_id) && (
           <button onClick={onDelete} className={cn(ABTN, "hover:text-red-600 hover:border-red-200")} aria-label={t("billing.delete")}>🗑 {t("billing.delete")}</button>
         )}
@@ -128,18 +128,18 @@ export function DocumentView({
           <Meta label={t("public.billed_to")}>
             <p className="text-sm font-bold">{doc.customer?.name ?? doc.customer_name}</p>
             <p className="text-xs text-muted-foreground mt-0.5">{doc.customer?.phone ?? ""} {doc.customer?.email ? "· " + doc.customer.email : ""}</p>
-            {doc.customer && <Link href={`/customers/${doc.customer_id}`} className="text-[11px] text-primary hover:underline">Customer 360 →</Link>}
+            {doc.customer && <Link href={`/customers/${doc.customer_id}`} className="text-[11px] text-primary hover:underline">{t("billing.customer_360")} →</Link>}
           </Meta>
           <Meta label={t("work.vehicle")}>
             <p className="text-sm font-bold">{doc.vehicle_label ?? "—"}</p>
-            {doc.vehicle_id && <Link href={`/vehicles/${doc.vehicle_id}`} className="text-[11px] text-primary hover:underline">Vehicle →</Link>}
+            {doc.vehicle_id && <Link href={`/vehicles/${doc.vehicle_id}`} className="text-[11px] text-primary hover:underline">{t("work.vehicle")} →</Link>}
           </Meta>
           <div className="min-w-[180px]">
             <Row k={isEstimate ? t("public.created") : t("billing.issued")} v={fmtDate(doc.issued_at ?? doc.created_at)} />
             {!isEstimate && <Row k={t("public.due")} v={fmtDate(doc.due_date)} danger={doc.is_overdue} />}
             {doc.appointment_id && <Row k={t("billing.appointment")} v={t("billing.linked")} />}
-            {doc.case_id && <Row k="Case" v="linked" />}
-            {doc.source_estimate_id && <Row k="From estimate" v="✓" />}
+            {doc.case_id && <Row k={t("billing.case")} v={t("billing.linked")} />}
+            {doc.source_estimate_id && <Row k={t("billing.from_estimate")} v="✓" />}
           </div>
         </div>
 
@@ -278,10 +278,10 @@ function PayModal({ balance, currency, onClose, onSubmit }: { balance: number; c
         <label className="text-xs font-semibold text-muted-foreground">{t("public.amount")}</label>
         <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal"
           className="w-full mt-1 mb-3 rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-1 focus:ring-primary" />
-        <label className="text-xs font-semibold text-muted-foreground">Method</label>
+        <label className="text-xs font-semibold text-muted-foreground">{t("billing.payment_method")}</label>
         <select value={method} onChange={(e) => setMethod(e.target.value)} className="w-full mt-1 mb-4 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none">
-          <option value="card">Card</option><option value="cash">Cash</option>
-          <option value="bank_transfer">Bank transfer</option><option value="online">Online</option>
+          <option value="card">{t("billing.method_card")}</option><option value="cash">{t("billing.method_cash")}</option>
+          <option value="bank_transfer">{t("billing.method_bank")}</option><option value="online">{t("billing.method_online")}</option>
         </select>
         <div className="flex gap-2 justify-end">
           <button onClick={onClose} className="px-3 py-2 text-sm font-semibold text-muted-foreground">{t("common.cancel")}</button>

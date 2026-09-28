@@ -89,14 +89,14 @@ export function BillingWorkspace() {
 
       {confirmDelete && doc && (
         <ConfirmDialog
-          title={`Delete this ${doc.kind}?`}
-          message={`${doc.code} will be archived and removed from your billing lists. This can't be undone from here.`}
-          confirmLabel={`Delete ${doc.kind}`}
+          title={t("billing.delete_title", { kind: t(doc.kind === "estimate" ? "public.estimate" : "public.invoice") })}
+          message={t("billing.delete_message", { code: doc.code })}
+          confirmLabel={t("billing.delete")}
           onClose={() => setConfirmDelete(false)}
           onConfirm={async () => {
             try {
               await clientFetch(`/invoices/${doc.id}`, { method: "DELETE" });
-              toast({ title: `${doc.kind === "estimate" ? "Estimate" : "Invoice"} deleted`, description: doc.code, variant: "success" });
+              toast({ title: t("billing.deleted"), description: doc.code, variant: "success" });
               setConfirmDelete(false);
               setActiveId(null); setDoc(null);
               load();
@@ -104,8 +104,8 @@ export function BillingWorkspace() {
               setConfirmDelete(false);
               const paid = err instanceof ClientApiError && err.status === 409;
               toast({
-                title: paid ? "Can't delete a paid document" : "Delete failed",
-                description: paid ? "This invoice has recorded payments. Void it instead." : "Please try again.",
+                title: paid ? t("billing.delete_protected") : t("billing.delete_failed"),
+                description: paid ? t("billing.delete_protected_hint") : t("billing.try_again"),
                 variant: "danger",
               });
             }

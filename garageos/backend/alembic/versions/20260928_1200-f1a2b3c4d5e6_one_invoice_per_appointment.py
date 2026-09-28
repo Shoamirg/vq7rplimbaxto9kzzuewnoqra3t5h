@@ -56,6 +56,67 @@ def upgrade() -> None:
         for column in ("id", "service_center_id", "code", "kind", "status", "customer_id", "vehicle_id", "due_date"):
             op.create_index(f"ix_invoices_{column}", "invoices", [column])
 
+    if not sa.inspect(op.get_bind()).has_table("invoice_line_items"):
+        op.create_table(
+            "invoice_line_items",
+            sa.Column("id", sa.UUID(), primary_key=True),
+            sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+            sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+            sa.Column("is_active", sa.Boolean(), nullable=False),
+            sa.Column("service_center_id", sa.UUID(), sa.ForeignKey("service_centers.id", ondelete="CASCADE"), nullable=False),
+            sa.Column("invoice_id", sa.UUID(), sa.ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False),
+            sa.Column("kind", sa.String(16), nullable=False),
+            sa.Column("description", sa.String(255), nullable=False),
+            sa.Column("quantity", sa.Numeric(10, 2), nullable=False),
+            sa.Column("unit_price", sa.Numeric(10, 2), nullable=False),
+            sa.Column("line_total", sa.Numeric(10, 2), nullable=False),
+            sa.Column("taxable", sa.Boolean(), nullable=False),
+            sa.Column("sort_order", sa.Integer(), nullable=False),
+        )
+        for column in ("id", "service_center_id", "invoice_id"):
+            op.create_index(f"ix_invoice_line_items_{column}", "invoice_line_items", [column])
+
+    if not sa.inspect(op.get_bind()).has_table("invoice_payments"):
+        op.create_table(
+            "invoice_payments",
+            sa.Column("id", sa.UUID(), primary_key=True),
+            sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+            sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+            sa.Column("is_active", sa.Boolean(), nullable=False),
+            sa.Column("service_center_id", sa.UUID(), sa.ForeignKey("service_centers.id", ondelete="CASCADE"), nullable=False),
+            sa.Column("invoice_id", sa.UUID(), sa.ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False),
+            sa.Column("kind", sa.String(16), nullable=False),
+            sa.Column("method", sa.String(16), nullable=False),
+            sa.Column("source", sa.String(16), nullable=False),
+            sa.Column("amount", sa.Numeric(10, 2), nullable=False),
+            sa.Column("reference", sa.String(120)),
+            sa.Column("received_at", sa.DateTime(timezone=True), nullable=False),
+            sa.Column("note", sa.String(255)),
+            sa.Column("created_by_user_id", sa.UUID(), sa.ForeignKey("users.id", ondelete="SET NULL")),
+        )
+        for column in ("id", "service_center_id", "invoice_id"):
+            op.create_index(f"ix_invoice_payments_{column}", "invoice_payments", [column])
+
+    if not sa.inspect(op.get_bind()).has_table("ledger_entries"):
+        op.create_table(
+            "ledger_entries",
+            sa.Column("id", sa.UUID(), primary_key=True),
+            sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+            sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+            sa.Column("is_active", sa.Boolean(), nullable=False),
+            sa.Column("service_center_id", sa.UUID(), sa.ForeignKey("service_centers.id", ondelete="CASCADE"), nullable=False),
+            sa.Column("customer_id", sa.UUID(), sa.ForeignKey("customers.id", ondelete="CASCADE")),
+            sa.Column("invoice_id", sa.UUID(), sa.ForeignKey("invoices.id", ondelete="SET NULL")),
+            sa.Column("entry_type", sa.String(24), nullable=False),
+            sa.Column("direction", sa.String(8), nullable=False),
+            sa.Column("amount", sa.Numeric(10, 2), nullable=False),
+            sa.Column("currency", sa.String(3), nullable=False),
+            sa.Column("description", sa.String(255)),
+            sa.Column("occurred_at", sa.DateTime(timezone=True), nullable=False),
+        )
+        for column in ("id", "service_center_id", "customer_id", "invoice_id", "entry_type"):
+            op.create_index(f"ix_ledger_entries_{column}", "ledger_entries", [column])
+
     # Older versions allowed several active invoices for one appointment.
     # Keep the newest linked and preserve every older document/ledger entry,
     # but detach the extra invoice from the appointment before indexing.
@@ -73,11 +134,14 @@ def upgrade() -> None:
         FROM ranked AS r
         WHERE i.id = r.id AND r.rank > 1
     """))
-    op.create_index(
-        "uq_invoices_final_appointment", "invoices",
-        ["service_center_id", "appointment_id"], unique=True,
-        postgresql_where=sa.text("kind = 'invoice' AND appointment_id IS NOT NULL AND is_active = true"),
-    )
+    if "uq_invoices_final_appointment" not in {
+        index["name"] for index in sa.inspect(op.get_bind()).get_indexes("invoices")
+    }:
+        op.create_index(
+            "uq_invoices_final_appointment", "invoices",
+            ["service_center_id", "appointment_id"], unique=True,
+            postgresql_where=sa.text("kind = 'invoice' AND appointment_id IS NOT NULL AND is_active = true"),
+        )
     op.execute(sa.text("""
         WITH ranked AS (
             SELECT id, row_number() OVER (
@@ -91,10 +155,13 @@ def upgrade() -> None:
         FROM ranked AS r
         WHERE s.id = r.id AND r.rank > 1
     """))
-    op.create_index(
-        "uq_service_records_appointment", "service_records", ["appointment_id"],
-        unique=True, postgresql_where=sa.text("appointment_id IS NOT NULL"),
-    )
+    if "uq_service_records_appointment" not in {
+        index["name"] for index in sa.inspect(op.get_bind()).get_indexes("service_records")
+    }:
+        op.create_index(
+            "uq_service_records_appointment", "service_records", ["appointment_id"],
+            unique=True, postgresql_where=sa.text("appointment_id IS NOT NULL"),
+        )
 
 
 def downgrade() -> None:

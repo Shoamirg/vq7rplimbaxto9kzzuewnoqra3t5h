@@ -85,3 +85,59 @@ test("staff completes service work and shows one Uzbek UZS invoice", async ({ pa
   await page.getByText("Hisob yaratish / ochish", { exact: true }).click();
   await expect(page).toHaveURL(invoiceUrl);
 });
+
+test("calendar completion records the performed work in vehicle history", async ({ page }) => {
+  const login = await page.request.post("/api/auth/login", { data: CREDS });
+  expect(login.ok()).toBeTruthy();
+  await page.context().addCookies([{ name: "garageos_locale", value: "uz", url: "http://localhost:3001" }]);
+
+  const customers = await page.request.get("/api/proxy/customers?limit=200");
+  const customer = (await customers.json()).items.find((item: { vehicle_count: number }) => item.vehicle_count > 0);
+  const detail = await page.request.get(`/api/proxy/customers/${customer.id}`);
+  const vehicleId = (await detail.json()).vehicles[0].id;
+  const mechanics = await page.request.get("/api/proxy/cases/mechanics");
+  const mechanicName = (await mechanics.json())[0].name;
+  const date = new Date().toISOString().slice(0, 10);
+  const nextDate = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+  const calendar = await page.request.get(`/api/proxy/calendar?start=${date}&end=${nextDate}`);
+  expect(calendar.ok()).toBeTruthy();
+  const scheduled = (await calendar.json()).appointments as {
+    mechanic_name: string | null; appointment_time: string; estimated_duration_minutes: number;
+  }[];
+  const minutes = (value: string) => Number(value.slice(0, 2)) * 60 + Number(value.slice(3, 5));
+  const start = Array.from({ length: 19 }, (_, index) => 480 + index * 30).find((candidate) =>
+    !scheduled.some((item) => item.mechanic_name === mechanicName &&
+      candidate < minutes(item.appointment_time) + item.estimated_duration_minutes &&
+      candidate + 60 > minutes(item.appointment_time)));
+  expect(start).toBeDefined();
+  const appointmentTime = `${String(Math.floor(start! / 60)).padStart(2, "0")}:${String(start! % 60).padStart(2, "0")}`;
+
+  const created = await page.request.post("/api/proxy/appointments/direct", { data: {
+    customer_id: customer.id, vehicle_id: vehicleId,
+    appointment_date: date, appointment_time: appointmentTime,
+    estimated_duration_minutes: 60, mechanic_name: mechanicName,
+  } });
+  expect(created.ok(), await created.text()).toBeTruthy();
+  const appointmentId = (await created.json()).id;
+  expect((await page.request.patch(`/api/proxy/appointments/${appointmentId}/confirm`)).ok()).toBeTruthy();
+  expect((await page.request.patch(`/api/proxy/appointments/${appointmentId}/start`)).ok()).toBeTruthy();
+
+  await page.goto("/calendar");
+  await page.getByTestId(`calendar-appointment-${appointmentId}`).click();
+  await page.getByRole("button", { name: "Ishni tugatish" }).click();
+  await expect(page.getByRole("dialog", { name: "Ishni tugatish" })).toBeVisible();
+  await page.locator("#complete-service-type").fill("Moy almashtirish");
+  await page.locator("#complete-notes").fill("Dvigatel moyi va filtri almashtirildi");
+  const completionPromise = page.waitForResponse((response) =>
+    response.url().includes(`/api/proxy/appointments/${appointmentId}/complete`) && response.request().method() === "PATCH");
+  await page.getByRole("dialog", { name: "Ishni tugatish" }).getByRole("button", { name: "Ishni tugatish" }).click();
+  const completion = await completionPromise;
+  expect(completion.ok(), await completion.text()).toBeTruthy();
+
+  const appointment = await page.request.get(`/api/proxy/appointments/${appointmentId}`);
+  expect((await appointment.json()).status).toBe("completed");
+  const timeline = await page.request.get(`/api/proxy/vehicles/${vehicleId}/timeline`);
+  const events = (await timeline.json()).events;
+  expect(events.some((event: { title: string; detail?: string }) =>
+    event.title.includes("Moy almashtirish") || event.detail?.includes("Moy almashtirish"))).toBeTruthy();
+});
