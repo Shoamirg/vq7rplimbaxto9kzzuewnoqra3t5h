@@ -95,6 +95,11 @@ chmod +x scripts/restore-test.sh
 #   30 3 * * 0  cd /opt/garageos && ./scripts/restore-test.sh >> /var/log/garageos-restore-test.log 2>&1
 ```
 
+The restore test reads `POSTGRES_USER` from `.env.prod` so the throwaway
+database has the same role as the plain SQL dump. For a local dump without
+`.env.prod`, set `POSTGRES_USER` when running the test. `ENV_FILE` can point to
+a different environment file.
+
 ## 6. Security & reliability (M2)
 
 These controls are on by default and configured in `.env.prod`:

@@ -18,8 +18,20 @@ BACKUP_DIR="${BACKUP_DIR:-./backups}"
 PG_IMAGE="${PG_IMAGE:-postgres:16-alpine}"    # match docker-compose.prod.yml
 CONTAINER="garageos-restore-test-$$"
 TEST_DB="restore_verify"
-TEST_USER="verify"
 TEST_PASS="verify"
+
+# Plain pg_dump SQL includes OWNER TO statements. Restore as the source DB
+# role, which the throwaway container creates as its superuser.
+ENV_FILE="${ENV_FILE:-.env.prod}"
+if [[ -f "${ENV_FILE}" ]]; then
+  # shellcheck disable=SC1090
+  set -a; source "${ENV_FILE}"; set +a
+fi
+TEST_USER="${POSTGRES_USER:-}"
+if [[ -z "${TEST_USER}" ]]; then
+  echo "[restore-test] FAIL: set POSTGRES_USER or provide ENV_FILE with the source database role" >&2
+  exit 1
+fi
 
 # Core tables that must exist and (mostly) contain rows after a real restore.
 REQUIRED_TABLES=(service_centers users customers vehicles appointments invoices)
@@ -48,7 +60,9 @@ docker run -d --rm --name "${CONTAINER}" \
 
 echo -n "[restore-test] waiting for readiness"
 for _ in $(seq 1 30); do
-  if docker exec "${CONTAINER}" pg_isready -U "${TEST_USER}" -d "${TEST_DB}" >/dev/null 2>&1; then
+  # The image briefly starts a socket-only server while initializing. TCP is
+  # available only after the final server starts, so do not race its restart.
+  if docker exec "${CONTAINER}" pg_isready -h 127.0.0.1 -U "${TEST_USER}" -d "${TEST_DB}" >/dev/null 2>&1; then
     ready=1; break
   fi
   echo -n "."; sleep 1

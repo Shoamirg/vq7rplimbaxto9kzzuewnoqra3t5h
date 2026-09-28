@@ -3,10 +3,17 @@ import { test, expect } from "@playwright/test";
 // Customer journey — the Telegram Mini App in a browser (dev sign-in, no
 // Telegram). Walks Home → Vehicles → Passport → Billing → Messages → Roadside.
 
+test.beforeEach(async ({ request }) => {
+  // Compile and verify the dev sign-in route before the first Mini App render.
+  // A cold Next dev compile must not be mistaken for a customer-facing failure.
+  const auth = await request.post("/api/mini/auth", { data: { init_data: "" } });
+  expect(auth.ok(), await auth.text()).toBeTruthy();
+});
+
 test("mini home authenticates and renders the essentials", async ({ page }) => {
   await page.goto("/mini", { waitUntil: "networkidle" });
   // SOS is the anchor of Home; its presence means auth + data both worked.
-  await expect(page.locator('a[href="/mini/roadside"]')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('a[href="/mini/roadside"]')).toBeVisible({ timeout: 30_000 });
   // Bottom tab bar is the persistent chrome.
   await expect(page.locator('a[href="/mini/vehicles"]')).toBeVisible();
 });
@@ -14,6 +21,7 @@ test("mini home authenticates and renders the essentials", async ({ page }) => {
 test("vehicles list shows cars and opens a passport", async ({ page }) => {
   await page.goto("/mini", { waitUntil: "networkidle" });
   await page.locator('a[href="/mini/vehicles"]').click();
+  await expect(page).toHaveURL(/\/mini\/vehicles$/);
   const cards = page.locator('a[href^="/mini/vehicles/"]');
   await expect(cards.first()).toBeVisible({ timeout: 20_000 });
   expect(await cards.count(), "linked customer should have vehicles").toBeGreaterThanOrEqual(1);
