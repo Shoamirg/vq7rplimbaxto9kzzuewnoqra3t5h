@@ -15,6 +15,47 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # The historical initial migration predates billing. Existing demo DBs
+    # acquired this table through init_db(), while a clean Alembic replay has
+    # not reached the seeder yet. Create the current billing parent table when
+    # absent so the constraint below works in both paths.
+    if not sa.inspect(op.get_bind()).has_table("invoices"):
+        op.create_table(
+            "invoices",
+            sa.Column("id", sa.UUID(), primary_key=True),
+            sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+            sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+            sa.Column("is_active", sa.Boolean(), nullable=False),
+            sa.Column("service_center_id", sa.UUID(), sa.ForeignKey("service_centers.id", ondelete="CASCADE"), nullable=False),
+            sa.Column("code", sa.String(24), nullable=False),
+            sa.Column("kind", sa.String(16), nullable=False),
+            sa.Column("status", sa.String(24), nullable=False),
+            sa.Column("customer_id", sa.UUID(), sa.ForeignKey("customers.id", ondelete="CASCADE"), nullable=False),
+            sa.Column("vehicle_id", sa.UUID(), sa.ForeignKey("vehicles.id", ondelete="SET NULL")),
+            sa.Column("appointment_id", sa.UUID(), sa.ForeignKey("appointments.id", ondelete="SET NULL")),
+            sa.Column("case_id", sa.UUID(), sa.ForeignKey("operational_cases.id", ondelete="SET NULL")),
+            sa.Column("source_estimate_id", sa.UUID(), sa.ForeignKey("invoices.id", ondelete="SET NULL")),
+            sa.Column("work_order_id", sa.UUID()),
+            sa.Column("currency", sa.String(3), nullable=False),
+            sa.Column("tax_rate", sa.Numeric(5, 2), nullable=False),
+            sa.Column("subtotal", sa.Numeric(10, 2), nullable=False),
+            sa.Column("discount_total", sa.Numeric(10, 2), nullable=False),
+            sa.Column("tax_total", sa.Numeric(10, 2), nullable=False),
+            sa.Column("total", sa.Numeric(10, 2), nullable=False),
+            sa.Column("amount_paid", sa.Numeric(10, 2), nullable=False),
+            sa.Column("balance", sa.Numeric(10, 2), nullable=False),
+            sa.Column("notes", sa.Text()),
+            sa.Column("terms", sa.Text()),
+            sa.Column("issued_at", sa.DateTime(timezone=True)),
+            sa.Column("due_date", sa.Date()),
+            sa.Column("viewed_at", sa.DateTime(timezone=True)),
+            sa.Column("approved_at", sa.DateTime(timezone=True)),
+            sa.Column("paid_at", sa.DateTime(timezone=True)),
+            sa.Column("created_by_user_id", sa.UUID(), sa.ForeignKey("users.id", ondelete="SET NULL")),
+        )
+        for column in ("id", "service_center_id", "code", "kind", "status", "customer_id", "vehicle_id", "due_date"):
+            op.create_index(f"ix_invoices_{column}", "invoices", [column])
+
     # Older versions allowed several active invoices for one appointment.
     # Keep the newest linked and preserve every older document/ledger entry,
     # but detach the extra invoice from the appointment before indexing.
