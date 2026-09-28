@@ -7,6 +7,29 @@ Last verified: 2026-07-03 (Commercial Operations, merge `95b6b9b`, tag `v0.9.0-c
 
 ---
 
+## Local Uzbek service-work flow (verified 2026-09-28)
+
+With the local API and dashboard running, sign in as `admin@demo.garageos.app`
+using the demo password above and select Oʻzbek in the language menu.
+
+1. Click **Yangi qabul**. Choose a demo customer, one of their vehicles, a date,
+   and a mechanic. Save the appointment.
+2. Open **Qabullar**. Use the date filters or search for the customer, plate,
+   vehicle model, or service. Search covers all pages of matching appointments.
+3. From the row's **Amallar** menu, choose **Tasdiqlash**, then **Ishni boshlash**.
+   A mechanic must be assigned before work can start.
+4. Choose **Ishni tugatish** and record the performed service. It appears in the
+   vehicle's service history.
+5. Choose **Hisob yaratish / ochish**. Add UZS prices for labor and parts, then
+   save. The public invoice opens with customer, vehicle, line items, total, and
+   **Chop etish / PDF saqlash**. Repeating the action opens the same invoice.
+
+The queue's billing column shows a document only when it belongs to that exact
+appointment. An invoice from an earlier visit by the same vehicle does not count.
+This focused flow is separate from the broader regression checklist below.
+
+---
+
 ## 0. Prerequisites
 
 | Service | Command | URL |

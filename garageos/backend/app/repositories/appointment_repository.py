@@ -2,9 +2,13 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime
 from typing import Optional, Sequence
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, or_
 from sqlalchemy.orm import selectinload
 from app.models.appointment import Appointment, AppointmentStatus
+from app.models.brand import Brand
+from app.models.customer import Customer
+from app.models.maintenance_rule import MaintenanceRule
+from app.models.service_record import ServiceRecord
 from app.models.vehicle import Vehicle
 from app.models.vehicle_model import VehicleModel
 from app.repositories.base import TenantScopedRepository
@@ -57,6 +61,7 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
         date_from: Optional[date] = None,
         date_to: Optional[date] = None,
         overdue: bool = False,
+        q: Optional[str] = None,
         skip: int = 0,
         limit: int = 50,
     ) -> tuple[Sequence[Appointment], int]:
@@ -78,6 +83,26 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
                 Appointment.appointment_date < datetime.combine(date.today(), datetime.min.time()),
                 Appointment.status.in_([AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED]),
             )
+        if q and q.strip():
+            pattern = f"%{q.strip()}%"
+            base = base.where(or_(
+                Appointment.customer.has(Customer.full_name.ilike(pattern)),
+                Appointment.vehicle.has(or_(
+                    Vehicle.license_plate.ilike(pattern),
+                    Vehicle.vin.ilike(pattern),
+                    Vehicle.vehicle_model.has(or_(
+                        VehicleModel.name.ilike(pattern),
+                        VehicleModel.brand.has(Brand.name.ilike(pattern)),
+                    )),
+                )),
+                Appointment.maintenance_rule.has(MaintenanceRule.service_type.ilike(pattern)),
+                select(ServiceRecord.id).where(
+                    ServiceRecord.service_center_id == self.service_center_id,
+                    ServiceRecord.appointment_id == Appointment.id,
+                    ServiceRecord.service_type.ilike(pattern),
+                    ServiceRecord.is_active.is_(True),
+                ).exists(),
+            ))
 
         total = await self.session.scalar(select(func.count()).select_from(base.subquery()))
 

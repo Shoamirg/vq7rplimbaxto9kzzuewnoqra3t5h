@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -100,6 +100,7 @@ export function AppointmentsList() {
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
   const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
+  const [search, setSearch] = useState("");
   const [data, setData] = useState<AppointmentListResponse | null>(null);
   const [stats, setStats] = useState<AppointmentStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -107,23 +108,33 @@ export function AppointmentsList() {
   const [invoicing, setInvoicing] = useState<Appointment | null>(null);
   const [completing, setCompleting] = useState<Appointment | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const latestLoad = useRef(0);
 
   const loadStats = useCallback(() => {
     clientFetch<AppointmentStats>("/appointments/stats").then(setStats).catch(() => {});
   }, []);
 
   const load = useCallback(async () => {
+    const loadId = ++latestLoad.current;
     setLoading(true);
     const qs = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE), ...dateParams(dateFilter) });
     if (tab !== "all") qs.set("status", tab);
+    if (search) qs.set("q", search);
     try {
-      setData(await clientFetch<AppointmentListResponse>(`/appointments?${qs.toString()}`));
-    } catch { /* keep */ } finally { setLoading(false); }
-  }, [tab, page, dateFilter]);
+      const result = await clientFetch<AppointmentListResponse>(`/appointments?${qs.toString()}`);
+      if (loadId === latestLoad.current) setData(result);
+    } catch { /* keep */ } finally {
+      if (loadId === latestLoad.current) setLoading(false);
+    }
+  }, [tab, page, dateFilter, search]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => { loadStats(); }, [loadStats]);
   useEffect(() => { setSelected(new Set()); }, [tab, dateFilter, page]);
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(q.trim()), 250);
+    return () => clearTimeout(timer);
+  }, [q]);
 
   const act = useCallback(async (id: string, action: "confirm" | "start" | "complete" | "cancel") => {
     const appointment = data?.items.find((item) => item.id === id);
@@ -165,15 +176,7 @@ export function AppointmentsList() {
     }
   }, [router, toast, t]);
 
-  const rows = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    const items = data?.items ?? [];
-    if (!s) return items;
-    return items.filter((a) =>
-      a.customer_name.toLowerCase().includes(s) ||
-      a.vehicle_summary.toLowerCase().includes(s) ||
-      (a.service_type ?? "").toLowerCase().includes(s));
-  }, [q, data]);
+  const rows = data?.items ?? [];
 
   const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
   const toggleAll = () => setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.id)));
@@ -227,7 +230,7 @@ export function AppointmentsList() {
         </div>
         <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 ml-auto">
           <Search className="size-4 text-muted-foreground" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("work.search")}
+          <input value={q} maxLength={100} onChange={(e) => { setQ(e.target.value); setPage(1); }} placeholder={t("work.search")}
             className="bg-transparent py-2 text-sm text-foreground outline-none w-56 placeholder:text-muted-foreground" />
         </div>
       </div>

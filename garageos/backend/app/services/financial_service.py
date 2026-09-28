@@ -132,20 +132,16 @@ class FinancialService:
                 "received_at": p.received_at.isoformat() if p.received_at else None}
 
     # ── quick figure for the appointment row (bounded) ────────
-    async def invoice_for_appointment(
-        self, appointment_id: uuid.UUID, vehicle_id: uuid.UUID | None = None) -> dict | None:
-        """The billing signal for an appointment row: the directly-linked
-        document if any, else the vehicle's most recent one (an operational
-        "does this vehicle owe / have a pending estimate" cue)."""
+    async def invoice_for_appointment(self, appointment_id: uuid.UUID) -> dict | None:
+        """Return only a document linked to this appointment.
+
+        A vehicle can have several visits; showing its latest invoice on every
+        visit incorrectly presents an earlier bill as this visit's bill.
+        """
         i = (await self.session.execute(
             select(Invoice).where(
                 Invoice.service_center_id == self.sc, Invoice.appointment_id == appointment_id,
                 Invoice.is_active.is_(True)).order_by(Invoice.created_at.desc()).limit(1))).scalar_one_or_none()
-        if not i and vehicle_id is not None:
-            i = (await self.session.execute(
-                select(Invoice).where(
-                    Invoice.service_center_id == self.sc, Invoice.vehicle_id == vehicle_id,
-                    Invoice.is_active.is_(True)).order_by(Invoice.created_at.desc()).limit(1))).scalar_one_or_none()
         if not i:
             return None
         overdue = i.kind == InvoiceKind.INVOICE and _f(i.balance) > 0 and i.due_date and i.due_date < date.today()

@@ -490,11 +490,13 @@ class AppointmentService:
         date_from: Optional[date] = None,
         date_to: Optional[date] = None,
         overdue: bool = False,
+        q: Optional[str] = None,
         skip: int = 0,
         limit: int = 50,
     ) -> dict:
         items, total = await self.appointment_repo.list_detailed(
             status=status, date_from=date_from, date_to=date_to, overdue=overdue,
+            q=q,
             skip=skip, limit=limit,
         )
         # Enrich each row with a lightweight health score. Computed per unique
@@ -518,7 +520,7 @@ class AppointmentService:
                     health_cache[vid] = (None, None)
             row["health_score"], row["health_band"] = health_cache[vid]
             # Billing status closes the operational loop (paid? estimate? overdue?).
-            row["billing"] = await financial.invoice_for_appointment(a.id, a.vehicle_id)
+            row["billing"] = await financial.invoice_for_appointment(a.id)
             serialized.append(row)
         return {"items": serialized, "total": total}
 

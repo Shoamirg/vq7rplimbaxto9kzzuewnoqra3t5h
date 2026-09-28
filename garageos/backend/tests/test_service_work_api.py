@@ -101,6 +101,9 @@ async def test_assigned_service_work_starts_and_completes_once(session):
             event["type"] == "service" and event["id"] == record_id
             for event in timeline.json()["events"]
         )
+        search = await client.get("/api/v1/appointments", params={"q": "Diagnostika"})
+        assert search.status_code == 200, search.text
+        assert any(item["id"] == appointment_id for item in search.json()["items"])
 
         savepoint = await session.begin_nested()
         session.add(ServiceRecord(
@@ -220,6 +223,18 @@ async def test_completed_work_has_one_linked_uzs_invoice(session):
         assert lookup.status_code == 200, lookup.text
         assert lookup.json()["id"] == doc["id"]
 
+        next_visit = await client.post("/api/v1/appointments/direct", json={
+            "customer_id": str(customer.id), "vehicle_id": str(vehicle.id),
+            "appointment_date": date(2030, 5, 6).isoformat(),
+            "appointment_time": "10:00", "mechanic_name": "Demo mechanic",
+        })
+        assert next_visit.status_code == 201, next_visit.text
+        rows = await client.get("/api/v1/appointments?date_from=2030-05-04&date_to=2030-05-06")
+        assert rows.status_code == 200, rows.text
+        by_id = {item["id"]: item for item in rows.json()["items"]}
+        assert by_id[appointment_id]["billing"]["id"] == doc["id"]
+        assert by_id[next_visit.json()["id"]]["billing"] is None
+
         savepoint = await session.begin_nested()
         session.add(Invoice(
             service_center_id=center.id, code="INV-DUPLICATE", kind=InvoiceKind.INVOICE,
@@ -229,6 +244,42 @@ async def test_completed_work_has_one_linked_uzs_invoice(session):
         with pytest.raises(IntegrityError):
             await session.flush()
         await savepoint.rollback()
+
+
+async def test_appointment_search_filters_before_pagination(session):
+    center, customer, vehicle = await _tenant(session)
+    hidden_customer = Customer(service_center_id=center.id, full_name="Hidden Page Customer")
+    session.add(hidden_customer)
+    await session.flush()
+    hidden_vehicle = Vehicle(
+        service_center_id=center.id, customer_id=hidden_customer.id,
+        vehicle_model_id=vehicle.vehicle_model_id, license_plate="SEARCH777",
+        year=2021, current_km=5000,
+    )
+    session.add(hidden_vehicle)
+    await session.flush()
+
+    async with _api_for(session, center.id) as client:
+        newer = await client.post("/api/v1/appointments/direct", json={
+            "customer_id": str(customer.id), "vehicle_id": str(vehicle.id),
+            "appointment_date": "2030-05-09", "appointment_time": "10:00",
+        })
+        older = await client.post("/api/v1/appointments/direct", json={
+            "customer_id": str(hidden_customer.id), "vehicle_id": str(hidden_vehicle.id),
+            "appointment_date": "2030-05-08", "appointment_time": "10:00",
+        })
+        assert newer.status_code == older.status_code == 201
+
+        first_page = await client.get("/api/v1/appointments?page_size=1")
+        assert first_page.json()["items"][0]["id"] == newer.json()["id"]
+        for query in ("Hidden Page Customer", "search777", "Test car"):
+            found = await client.get("/api/v1/appointments", params={"q": query, "page_size": 1})
+            assert found.status_code == 200, found.text
+            if query == "Test car":
+                assert found.json()["total"] == 2
+            else:
+                assert found.json()["total"] == 1
+                assert found.json()["items"][0]["id"] == older.json()["id"]
 
 
 async def test_invoice_cannot_use_another_tenants_appointment(session):
