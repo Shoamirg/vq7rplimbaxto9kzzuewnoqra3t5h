@@ -15,7 +15,7 @@ events via the existing notification engine — no separate timeline table.
 import uuid
 from decimal import Decimal
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Integer, Numeric, String, Text, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -84,6 +84,13 @@ class PaymentSource:
 
 class Invoice(BaseModelMixin, ServiceCenterMixin, Base):
     __tablename__ = "invoices"
+    __table_args__ = (
+        Index(
+            "uq_invoices_final_appointment", "service_center_id", "appointment_id",
+            unique=True,
+            postgresql_where=text("kind = 'invoice' AND appointment_id IS NOT NULL AND is_active = true"),
+        ),
+    )
 
     code: Mapped[str] = mapped_column(String(24), nullable=False, index=True)  # EST-/INV-YYYY-NNNNNN
     kind: Mapped[str] = mapped_column(String(16), nullable=False, default=InvoiceKind.INVOICE, index=True)

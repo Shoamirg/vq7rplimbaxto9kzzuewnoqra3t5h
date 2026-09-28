@@ -27,6 +27,7 @@ from app.schemas.appointment import (
     MoveAppointmentRequest,
 )
 from app.services.appointment_service import AppointmentService
+from app.services.invoice_service import InvoiceService
 
 router = APIRouter()
 
@@ -82,6 +83,14 @@ async def get_appointment(
     uow: UnitOfWork = Depends(get_tenant_uow),
 ) -> dict:
     return await AppointmentService(uow).get_appointment(appointment_id)
+
+
+@router.get("/{appointment_id}/invoice", summary="Get the final invoice linked to an appointment")
+async def get_appointment_invoice(
+    appointment_id: uuid.UUID,
+    uow: UnitOfWork = Depends(get_tenant_uow),
+) -> dict:
+    return await InvoiceService(uow).get_for_appointment(appointment_id)
 
 
 # --- Booking lifecycle (write) ------------------------------------------------
@@ -147,6 +156,14 @@ async def confirm_appointment(
     return await AppointmentService(uow).confirm_appointment(appointment_id)
 
 
+@router.patch("/{appointment_id}/start", summary="Start assigned service work")
+async def start_appointment(
+    appointment_id: uuid.UUID,
+    uow: UnitOfWork = Depends(get_tenant_uow),
+) -> dict:
+    return await AppointmentService(uow).start_appointment(appointment_id)
+
+
 @router.patch("/{appointment_id}/cancel", summary="Cancel an appointment (frees its slot)")
 async def cancel_appointment(
     appointment_id: uuid.UUID,
@@ -168,6 +185,7 @@ async def complete_appointment(
         odometer_km=body.odometer_km,
         total_cost=body.total_cost,
         notes=body.notes,
+        service_type=body.service_type,
     )
 
 

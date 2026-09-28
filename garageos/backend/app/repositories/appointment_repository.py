@@ -23,7 +23,7 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
         .selectinload(VehicleModel.brand),
     )
 
-    async def get_with_slot(self, appointment_id: uuid.UUID) -> Optional[Appointment]:
+    async def get_with_slot(self, appointment_id: uuid.UUID, *, for_update: bool = False) -> Optional[Appointment]:
         """Tenant-scoped fetch with the linked slot loaded (for cancel/reschedule)."""
         stmt = self._scope(
             select(Appointment).where(
@@ -31,10 +31,12 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
                 Appointment.is_active == True,
             )
         ).options(selectinload(Appointment.slot))
+        if for_update:
+            stmt = stmt.with_for_update(of=Appointment)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_detailed(self, appointment_id: uuid.UUID) -> Optional[Appointment]:
+    async def get_detailed(self, appointment_id: uuid.UUID, *, for_update: bool = False) -> Optional[Appointment]:
         """Tenant-scoped fetch by id with customer + vehicle relations loaded."""
         stmt = self._scope(
             select(Appointment).where(
@@ -42,6 +44,8 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
                 Appointment.is_active == True,
             )
         ).options(*self._DETAIL_OPTIONS)
+        if for_update:
+            stmt = stmt.with_for_update(of=Appointment)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 

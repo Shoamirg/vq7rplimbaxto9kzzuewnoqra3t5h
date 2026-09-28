@@ -28,7 +28,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const shellUser = { name: user.full_name, email: user.email, role: user.role };
   const cookieStore = await cookies();
   const cookieLocale = cookieStore.get(LOCALE_COOKIE)?.value;
-  const initialLocale = isLocale(cookieLocale) ? cookieLocale : "en";
+  const initialLocale = isLocale(cookieLocale) ? cookieLocale : "uz";
   const isDemo = Boolean(cookieStore.get(DEMO_COOKIE)?.value);
 
   return (

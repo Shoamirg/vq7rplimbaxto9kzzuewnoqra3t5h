@@ -13,7 +13,7 @@ from app.repositories.unit_of_work import UnitOfWork
 from app.services.maintenance_service import MaintenanceService
 from app.models.appointment import AppointmentStatus
 from app.models.appointment_slot import AppointmentSlot, AppointmentSlotStatus
-from app.core.events import AppointmentCreated, AppointmentConfirmed, \
+from app.core.events import AppointmentCreated, AppointmentConfirmed, AppointmentStarted, \
     AppointmentCompleted, AppointmentCancelled, MileageUpdated
 from app.exceptions import (
     AppointmentNotFound, SlotUnavailable, AppointmentConflict, AppointmentStateError,
@@ -51,7 +51,7 @@ def serialize_appointment(a) -> dict:
 
 
 class AppointmentService:
-    """Manages appointment lifecycle: slot generation → reservation → confirm → complete."""
+    """Manages appointment lifecycle: book → confirm → start → complete."""
 
     def __init__(self, uow: UnitOfWork):
         self.uow = uow
@@ -248,6 +248,25 @@ class AppointmentService:
         await self.uow.flush()
         return await self.get_appointment(appointment_id)
 
+    async def start_appointment(self, appointment_id: uuid.UUID) -> dict:
+        appointment = await self.appointment_repo.get_detailed(appointment_id, for_update=True)
+        if not appointment:
+            raise AppointmentNotFound()
+        if appointment.status != AppointmentStatus.CONFIRMED:
+            raise AppointmentStateError(
+                f"Cannot start an appointment in status '{appointment.status}'"
+            )
+        if not (appointment.mechanic_name or "").strip():
+            raise AppointmentStateError("Assign a mechanic before starting service work")
+        appointment.status = AppointmentStatus.IN_PROGRESS
+        self.uow.add_event(AppointmentStarted(
+            aggregate_id=appointment_id,
+            appointment_id=appointment_id,
+            service_center_id=self.uow.service_center_id,
+        ))
+        await self.uow.flush()
+        return await self.get_appointment(appointment_id)
+
     async def complete_appointment(
         self,
         appointment_id: uuid.UUID,
@@ -255,6 +274,7 @@ class AppointmentService:
         odometer_km: Optional[int] = None,
         total_cost: Optional[float] = None,
         notes: Optional[str] = None,
+        service_type: Optional[str] = None,
     ) -> dict:
         """Complete an appointment and drive the core value chain.
 
@@ -264,11 +284,13 @@ class AppointmentService:
         consistent (customer notifications) are emitted as domain events and
         handled after commit — that is where Telegram/email hook in.
         """
-        appointment = await self.appointment_repo.get_detailed(appointment_id)
+        appointment = await self.appointment_repo.get_detailed(appointment_id, for_update=True)
         if not appointment:
             raise AppointmentNotFound()
-        if appointment.status == AppointmentStatus.COMPLETED:
-            raise AppointmentStateError("Appointment is already completed")
+        if appointment.status != AppointmentStatus.IN_PROGRESS:
+            raise AppointmentStateError(
+                f"Cannot complete an appointment in status '{appointment.status}'"
+            )
 
         appointment.status = AppointmentStatus.COMPLETED
         appointment.total_cost = total_cost
@@ -277,7 +299,8 @@ class AppointmentService:
 
         vehicle = appointment.vehicle
         rule = appointment.maintenance_rule
-        service_type = rule.service_type if rule else "General Service"
+        recorded_type = (service_type or "").strip() or (rule.service_type if rule else "General Service")
+        description = (notes or "").strip() or (rule.description if rule else None)
         performed_km = (
             odometer_km if odometer_km is not None
             else (vehicle.current_km if vehicle else 0)
@@ -296,8 +319,8 @@ class AppointmentService:
         record = await self.service_record_repo.create(
             vehicle_id=appointment.vehicle_id,
             appointment_id=appointment.id,
-            service_type=service_type,
-            description=rule.description if rule else None,
+            service_type=recorded_type,
+            description=description,
             performed_km=performed_km,
             performed_date=datetime.now(timezone.utc),
             cost=total_cost,
@@ -331,10 +354,14 @@ class AppointmentService:
         appointment_id: uuid.UUID,
         reason: Optional[str] = None,
     ) -> dict:
-        appointment = await self.appointment_repo.get_with_slot(appointment_id)
+        appointment = await self.appointment_repo.get_with_slot(appointment_id, for_update=True)
         if not appointment:
             raise AppointmentNotFound()
-        if appointment.status in (AppointmentStatus.CANCELLED, AppointmentStatus.COMPLETED):
+        if appointment.status in (
+            AppointmentStatus.IN_PROGRESS,
+            AppointmentStatus.CANCELLED,
+            AppointmentStatus.COMPLETED,
+        ):
             raise AppointmentStateError(
                 f"Cannot cancel an appointment in status '{appointment.status}'"
             )
@@ -363,19 +390,12 @@ class AppointmentService:
         appointment_id: uuid.UUID,
         new_slot_id: uuid.UUID,
     ) -> dict:
-        # Load appointment with slot relationship
-        from sqlalchemy.orm import selectinload
-        from sqlalchemy import select as sa_select
-        from app.models.appointment import Appointment
-
-        stmt = sa_select(Appointment).options(
-            selectinload(Appointment.slot)
-        ).where(Appointment.id == appointment_id)
-        result = await self.uow.session.execute(stmt)
-        appointment = result.scalar_one_or_none()
+        appointment = await self.appointment_repo.get_with_slot(appointment_id, for_update=True)
 
         if not appointment:
             raise AppointmentNotFound()
+        if appointment.status not in (AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED):
+            raise AppointmentStateError("Only pending or confirmed appointments can be rescheduled")
 
         # Release old slot
         if appointment.slot:
@@ -610,10 +630,10 @@ class AppointmentService:
 
     # --- Calendar drag/drop -------------------------------------------------
     async def move_appointment(self, appointment_id: uuid.UUID, new_slot_id: uuid.UUID) -> dict:
-        appointment = await self.appointment_repo.get_with_slot(appointment_id)
+        appointment = await self.appointment_repo.get_with_slot(appointment_id, for_update=True)
         if not appointment:
             raise AppointmentNotFound()
-        if appointment.status in (AppointmentStatus.COMPLETED, AppointmentStatus.CANCELLED):
+        if appointment.status not in (AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED):
             raise AppointmentStateError(
                 f"Cannot move an appointment in status '{appointment.status}'"
             )
@@ -647,9 +667,11 @@ class AppointmentService:
         notes: Optional[str] = None,
     ) -> dict:
         """Partial update used by the calendar board (drag-to-move, resize)."""
-        appointment = await self.appointment_repo.get_by_id(appointment_id)
+        appointment = await self.appointment_repo.get_detailed(appointment_id, for_update=True)
         if not appointment:
             raise AppointmentNotFound()
+        if appointment.status not in (AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED):
+            raise AppointmentStateError("Only pending or confirmed appointments can be edited")
         if appointment_date is not None:
             appointment.appointment_date = appointment_date
         if appointment_time is not None:
@@ -664,9 +686,11 @@ class AppointmentService:
         return await self.get_appointment(appointment_id)
 
     async def assign_mechanic(self, appointment_id: uuid.UUID, mechanic_name: str) -> dict:
-        appointment = await self.appointment_repo.get_with_slot(appointment_id)
+        appointment = await self.appointment_repo.get_with_slot(appointment_id, for_update=True)
         if not appointment:
             raise AppointmentNotFound()
+        if appointment.status not in (AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED):
+            raise AppointmentStateError("Mechanic assignment is closed after service work starts")
         appointment.mechanic_name = mechanic_name
         if appointment.slot:
             appointment.slot.mechanic_name = mechanic_name

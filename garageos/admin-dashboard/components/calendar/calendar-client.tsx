@@ -22,6 +22,7 @@ import {
 import { Badge, Button, cn, useToast } from "@garageos/design-system";
 
 import { clientFetch } from "@/lib/api/client";
+import { useI18n } from "@/lib/i18n/context";
 import { NewAppointmentButton } from "@/components/appointments/new-appointment-modal";
 import { EmptyState } from "@/components/states/empty-state";
 import type { Appointment, CalendarPayload, DueServices, VehicleHealth } from "@/lib/api/types";
@@ -41,13 +42,13 @@ const BOARD_H = ROWS * ROW_H;
 const UNASSIGNED = "Unassigned";
 const DRAG_THRESHOLD = 4;
 
-const STATUS_STYLE: Record<string, { bar: string; chip: string; label: string; variant: string }> = {
-  pending: { bar: "border-l-amber-500 bg-amber-500/5", chip: "bg-amber-500", label: "Pending", variant: "warning" },
-  confirmed: { bar: "border-l-blue-500 bg-blue-500/5", chip: "bg-blue-500", label: "Confirmed", variant: "info" },
-  in_progress: { bar: "border-l-primary bg-primary/5", chip: "bg-primary", label: "In Progress", variant: "primary" },
-  completed: { bar: "border-l-emerald-500 bg-emerald-500/5", chip: "bg-emerald-500", label: "Completed", variant: "success" },
-  cancelled: { bar: "border-l-red-500 bg-red-500/5 opacity-60", chip: "bg-red-500", label: "Cancelled", variant: "danger" },
-  rescheduled: { bar: "border-l-muted-foreground bg-muted/30", chip: "bg-muted-foreground", label: "Rescheduled", variant: "neutral" },
+const STATUS_STYLE: Record<string, { bar: string; chip: string }> = {
+  pending: { bar: "border-l-amber-500 bg-amber-500/5", chip: "bg-amber-500" },
+  confirmed: { bar: "border-l-blue-500 bg-blue-500/5", chip: "bg-blue-500" },
+  in_progress: { bar: "border-l-primary bg-primary/5", chip: "bg-primary" },
+  completed: { bar: "border-l-emerald-500 bg-emerald-500/5", chip: "bg-emerald-500" },
+  cancelled: { bar: "border-l-red-500 bg-red-500/5 opacity-60", chip: "bg-red-500" },
+  rescheduled: { bar: "border-l-muted-foreground bg-muted/30", chip: "bg-muted-foreground" },
 };
 
 const hmToMin = (hm: string): number => {
@@ -83,6 +84,7 @@ type Collision = { appt: Appointment; lane: string; dur: number; conflict: Appoi
 
 export function CalendarClient({ initial, initialDate }: Props) {
   const { toast } = useToast();
+  const { t } = useI18n();
   const [view, setView] = useState<View>("Day");
   const [date, setDate] = useState(initialDate);
   const [data, setData] = useState<CalendarPayload>(initial);
@@ -327,11 +329,11 @@ export function CalendarClient({ initial, initialDate }: Props) {
       const id = selected.id;
       setSelected(null);
       setExitingId(id);
-      toast({ title: "Service completed", description: "Vehicle health recalculated.", variant: "success" });
+      toast({ title: t("work.completed"), variant: "success" });
       setTimeout(() => { setExitingId(null); load(date); }, 340);
     } else {
       setSelected(null);
-      toast({ title: action === "cancel" ? "Appointment cancelled" : "Appointment confirmed", variant: action === "cancel" ? "warning" : "success" });
+      toast({ title: t(action === "cancel" ? "work.cancelled" : action === "start" ? "work.started" : "work.confirmed"), variant: action === "cancel" ? "warning" : "success" });
       load(date);
     }
   };
@@ -399,7 +401,7 @@ export function CalendarClient({ initial, initialDate }: Props) {
                   <div key={lane} className="w-56 shrink-0 border-r border-border px-3 py-2">
                     <div className="flex items-center gap-1.5">
                       <span className={cn("size-2 rounded-full", heat)} />
-                      <span className="text-sm font-semibold text-foreground truncate flex-1">{lane}</span>
+                      <span className="text-sm font-semibold text-foreground truncate flex-1">{lane === UNASSIGNED ? t("work.unassigned") : lane}</span>
                       <span className="text-xs font-medium tabular-nums text-muted-foreground">{pct}%</span>
                     </div>
                     <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden">
@@ -455,7 +457,7 @@ export function CalendarClient({ initial, initialDate }: Props) {
                       const top = ((startMin - START_HOUR * 60) / SLOT_MIN) * ROW_H;
                       const height = Math.max(ROW_H - 6, (dur / SLOT_MIN) * ROW_H - 6);
                       const st = STATUS_STYLE[a.status] ?? STATUS_STYLE.pending;
-                      const locked = a.status === "completed" || a.status === "cancelled";
+                      const locked = a.status !== "pending" && a.status !== "confirmed";
                       return (
                         <div
                           key={a.id}
@@ -578,6 +580,8 @@ function CollisionPopover({ collision, onPick, onTomorrow, onClose }: { collisio
 }
 
 function InspectorDrawer({ appointment, onClose, onChanged }: { appointment: Appointment; onClose: () => void; onChanged: (action: string) => void }) {
+  const { t, fmt } = useI18n();
+  const { toast } = useToast();
   const [health, setHealth] = useState<VehicleHealth | null>(null);
   const [due, setDue] = useState<DueServices | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -596,7 +600,11 @@ function InspectorDrawer({ appointment, onClose, onChanged }: { appointment: App
     return () => { alive = false; };
   }, [appointment.vehicle_id]);
 
-  const act = async (action: "confirm" | "cancel" | "complete") => {
+  const act = async (action: "confirm" | "start" | "cancel" | "complete") => {
+    if (action === "start" && !appointment.mechanic_name?.trim()) {
+      toast({ title: t("work.assign_first"), variant: "warning" });
+      return;
+    }
     setBusy(action);
     try {
       const init: RequestInit = { method: "PATCH" };
@@ -604,33 +612,35 @@ function InspectorDrawer({ appointment, onClose, onChanged }: { appointment: App
       await clientFetch(`/appointments/${appointment.id}/${action}`, init);
       onChanged(action);
     } catch {
+      toast({ title: t("work.failed"), variant: "danger" });
       setBusy(null);
     }
   };
 
   const st = STATUS_STYLE[appointment.status] ?? STATUS_STYLE.pending;
   const canConfirm = appointment.status === "pending";
-  const canComplete = ["pending", "confirmed", "in_progress"].includes(appointment.status);
-  const canCancel = !["completed", "cancelled"].includes(appointment.status);
+  const canStart = appointment.status === "confirmed";
+  const canComplete = appointment.status === "in_progress";
+  const canCancel = appointment.status === "pending" || appointment.status === "confirmed";
 
   return (
     <>
       <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[1px]" onClick={onClose} />
       <aside className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-md bg-background border-l border-border shadow-xl flex flex-col animate-slide-in-right">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <div className="flex items-center gap-2"><span className={cn("size-2 rounded-full", st.chip)} /><span className="text-sm font-semibold text-foreground">{st.label}</span></div>
+          <div className="flex items-center gap-2"><span className={cn("size-2 rounded-full", st.chip)} /><span className="text-sm font-semibold text-foreground">{t(`status.${appointment.status}`)}</span></div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors" aria-label="Close"><X className="size-4" /></button>
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           <div>
-            <p className="text-lg font-bold text-foreground">{appointment.service_type ?? "Service"}</p>
+            <p className="text-lg font-bold text-foreground">{appointment.service_type ?? t("common.general_service")}</p>
             <p className="text-sm text-muted-foreground">{appointment.vehicle_summary}</p>
           </div>
           <div className="grid grid-cols-2 gap-3 text-sm">
-            <Field label="Customer" value={appointment.customer_name} />
-            <Field label="Mechanic" value={appointment.mechanic_name ?? "Unassigned"} />
-            <Field label="Time" value={`${appointment.appointment_time} · ${appointment.estimated_duration_minutes}m`} />
-            <Field label="Cost" value={appointment.total_cost != null ? `$${appointment.total_cost.toLocaleString("en-US")}` : "—"} />
+            <Field label={t("work.customer")} value={appointment.customer_name} />
+            <Field label={t("work.mechanic")} value={appointment.mechanic_name ?? t("work.unassigned")} />
+            <Field label={t("work.when")} value={`${appointment.appointment_time} · ${appointment.estimated_duration_minutes}m`} />
+            <Field label={t("work.billing")} value={appointment.total_cost != null ? fmt.money(appointment.total_cost, "UZS") : "—"} />
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" leftIcon={<Phone className="size-4" />} className="flex-1">Call</Button>
@@ -666,9 +676,10 @@ function InspectorDrawer({ appointment, onClose, onChanged }: { appointment: App
           )}
         </div>
         <div className="border-t border-border p-4 flex flex-wrap gap-2">
-          {canConfirm && <Button size="sm" loading={busy === "confirm"} onClick={() => act("confirm")} leftIcon={<CheckCircle2 className="size-4" />}>Confirm</Button>}
-          {canComplete && <Button size="sm" variant="success" loading={busy === "complete"} onClick={() => act("complete")} leftIcon={<CheckCircle2 className="size-4" />}>Complete</Button>}
-          {canCancel && <Button size="sm" variant="outline" loading={busy === "cancel"} onClick={() => act("cancel")} leftIcon={<XCircle className="size-4" />}>Cancel</Button>}
+          {canConfirm && <Button size="sm" loading={busy === "confirm"} onClick={() => act("confirm")} leftIcon={<CheckCircle2 className="size-4" />}>{t("work.confirm")}</Button>}
+          {canStart && <Button size="sm" loading={busy === "start"} onClick={() => act("start")} leftIcon={<Wrench className="size-4" />}>{t("work.start")}</Button>}
+          {canComplete && <Button size="sm" variant="success" loading={busy === "complete"} onClick={() => act("complete")} leftIcon={<CheckCircle2 className="size-4" />}>{t("work.complete")}</Button>}
+          {canCancel && <Button size="sm" variant="outline" loading={busy === "cancel"} onClick={() => act("cancel")} leftIcon={<XCircle className="size-4" />}>{t("work.cancel")}</Button>}
         </div>
       </aside>
     </>

@@ -5,6 +5,7 @@ import { FileText } from "lucide-react";
 import { cn, useToast } from "@garageos/design-system";
 
 import { clientFetch, ClientApiError } from "@/lib/api/client";
+import { useI18n } from "@/lib/i18n/context";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { BillingCounts, BillingKpis, BillingResponse, InvoiceDoc, InvoiceListItem } from "@/lib/api/types";
 import { DocumentView } from "./document-view";
@@ -23,6 +24,7 @@ export function BillingWorkspace() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const { toast } = useToast();
+  const { t } = useI18n();
 
   const load = useCallback(async () => {
     try {
@@ -48,24 +50,24 @@ export function BillingWorkspace() {
     } catch { /* keep */ }
   }, [activeId, load]);
 
-  const title = VIEWS.find((v) => v.key === view)?.label ?? "Billing";
+  const title = t(`billing.${view}`);
 
   return (
     <div className="h-full flex flex-col">
       {/* KPI header */}
       <div className="flex items-center gap-3 px-5 h-14 border-b border-border bg-card shrink-0">
         <FileText className="size-5 text-primary" />
-        <span className="font-bold text-foreground">Billing</span>
+        <span className="font-bold text-foreground">{t("billing.title")}</span>
         {kpis && (
           <div className="flex items-center gap-5 ml-4">
-            <Kpi k="Outstanding" v={money(kpis.outstanding)} tone="text-red-600" />
-            <Kpi k="Overdue" v={money(kpis.overdue)} tone="text-amber-600" />
-            <Kpi k="Paid · this month" v={money(kpis.paid_this_month)} tone="text-emerald-600" />
+            <Kpi k={t("billing.outstanding")} v={money(kpis.outstanding, kpis.currency)} tone="text-red-600" />
+            <Kpi k={t("billing.overdue")} v={money(kpis.overdue, kpis.currency)} tone="text-amber-600" />
+            <Kpi k={t("billing.paid_month")} v={money(kpis.paid_this_month, kpis.currency)} tone="text-emerald-600" />
           </div>
         )}
         <div className="ml-auto flex gap-2">
-          <button onClick={() => setNewKind("estimate")} className="text-sm font-semibold px-3 py-1.5 rounded-lg border border-border text-slate-600 hover:bg-muted">＋ Estimate</button>
-          <button onClick={() => setNewKind("invoice")} className="text-sm font-semibold px-3 py-1.5 rounded-lg bg-primary text-primary-foreground">＋ Invoice</button>
+          <button onClick={() => setNewKind("estimate")} className="text-sm font-semibold px-3 py-1.5 rounded-lg border border-border text-slate-600 hover:bg-muted">＋ {t("public.estimate")}</button>
+          <button onClick={() => setNewKind("invoice")} className="text-sm font-semibold px-3 py-1.5 rounded-lg bg-primary text-primary-foreground">＋ {t("public.invoice")}</button>
         </div>
       </div>
 
@@ -114,7 +116,7 @@ export function BillingWorkspace() {
       <div className="flex-1 flex overflow-hidden">
         {/* rail */}
         <nav className="w-52 shrink-0 bg-slate-900 text-slate-300 overflow-y-auto py-2">
-          <p className="px-4 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">Documents</p>
+          <p className="px-4 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">{t("billing.documents")}</p>
           {VIEWS.map((v) => {
             const n = v.count && counts ? counts[v.count as keyof BillingCounts] : undefined;
             const active = view === v.key;
@@ -124,7 +126,7 @@ export function BillingWorkspace() {
                 className={cn("flex items-center gap-2.5 mx-2 my-0.5 px-2.5 py-2 rounded-lg text-[13px] transition-colors",
                   active ? "bg-blue-600/20 text-white" : "hover:bg-slate-800")}>
                 <span className="w-4 text-center">{v.icon}</span>
-                <span className="flex-1 text-left truncate">{v.label}</span>
+                <span className="flex-1 text-left truncate">{t(`billing.${v.key}`)}</span>
                 {n ? <span className={cn("text-[11px] font-bold rounded-full px-1.5", active ? "bg-blue-600 text-white" : alert && n > 0 ? "bg-red-600 text-white" : "bg-slate-950 text-slate-400")}>{n}</span> : null}
               </button>
             );
@@ -135,7 +137,7 @@ export function BillingWorkspace() {
         <div className="w-[380px] shrink-0 bg-card border-r border-border flex flex-col">
           <div className="h-11 flex items-center px-4 border-b border-border"><span className="text-sm font-bold flex-1">{title}</span><span className="text-xs text-muted-foreground">{items.length}</span></div>
           <div className="flex-1 overflow-y-auto">
-            {items.length === 0 && <p className="px-4 py-10 text-center text-sm text-muted-foreground">Nothing here yet.</p>}
+            {items.length === 0 && <p className="px-4 py-10 text-center text-sm text-muted-foreground">{t("billing.empty")}</p>}
             {items.map((d) => {
               const st = STATUS_META[d.status];
               const active = activeId === d.id;
@@ -144,16 +146,16 @@ export function BillingWorkspace() {
                   className={cn("w-full text-left px-4 py-3 border-b border-border/70 border-l-[3px] transition-colors",
                     active ? "bg-primary/5 border-l-primary" : "border-l-transparent hover:bg-muted/40")}>
                   <div className="flex items-center gap-2">
-                    <span className={cn("text-[9px] font-extrabold uppercase tracking-wide px-1.5 py-px rounded", d.kind === "estimate" ? "text-purple-600 bg-purple-50" : "text-blue-600 bg-blue-50")}>{d.kind}</span>
+                    <span className={cn("text-[9px] font-extrabold uppercase tracking-wide px-1.5 py-px rounded", d.kind === "estimate" ? "text-purple-600 bg-purple-50" : "text-blue-600 bg-blue-50")}>{t(`public.${d.kind}`)}</span>
                     <span className="font-mono text-[11.5px] font-bold text-slate-600">{d.code}</span>
-                    <span className="ml-auto font-mono text-[14px] font-extrabold">{money(d.total)}</span>
+                    <span className="ml-auto font-mono text-[14px] font-extrabold">{money(d.total, d.currency)}</span>
                   </div>
                   <p className="text-[13.5px] font-bold mt-1.5">{d.customer_name ?? "—"}</p>
                   <p className="text-[11.5px] text-muted-foreground truncate">{d.vehicle_label ?? ""}</p>
                   <div className="flex items-center gap-2 mt-2">
-                    <span className={cn("text-[10.5px] font-bold px-2 py-0.5 rounded", st.cls)}>{st.label}</span>
-                    {d.kind === "invoice" && d.balance > 0 && <span className="text-[11px] text-muted-foreground">Balance {money(d.balance)}{d.due_date ? ` · due ${new Date(d.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}</span>}
-                    {d.kind === "invoice" && d.balance <= 0 && <span className="text-[11px] text-muted-foreground">{d.paid_at ? "Paid" : ""}</span>}
+                    <span className={cn("text-[10.5px] font-bold px-2 py-0.5 rounded", st.cls)}>{t(`public.status_${d.status}`)}</span>
+                    {d.kind === "invoice" && d.balance > 0 && <span className="text-[11px] text-muted-foreground">{t("public.balance")} {money(d.balance, d.currency)}{d.due_date ? ` · ${t("public.due")} ${new Date(d.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}</span>}
+                    {d.kind === "invoice" && d.balance <= 0 && <span className="text-[11px] text-muted-foreground">{d.paid_at ? t("public.status_paid") : ""}</span>}
                     {d.kind === "estimate" && <span className="text-[11px] text-muted-foreground">{relTime(d.created_at)}</span>}
                   </div>
                 </button>
@@ -174,7 +176,7 @@ export function BillingWorkspace() {
             onEdit={() => setEditOpen(true)}
           />
         ) : (
-          <div className="flex-1 grid place-items-center text-muted-foreground text-sm">Select a document.</div>
+          <div className="flex-1 grid place-items-center text-muted-foreground text-sm">{t("billing.select")}</div>
         )}
       </div>
     </div>

@@ -12,32 +12,35 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
 } from "@garageos/design-system";
 
-import { clientFetch } from "@/lib/api/client";
+import { clientFetch, ClientApiError } from "@/lib/api/client";
+import { useI18n } from "@/lib/i18n/context";
+import { NewInvoiceModal } from "@/components/billing/new-invoice-modal";
 import { NewAppointmentButton } from "@/components/appointments/new-appointment-modal";
 import { EditAppointmentModal } from "@/components/appointments/edit-appointment-modal";
+import { CompleteWorkModal } from "@/components/appointments/complete-work-modal";
 import type {
-  Appointment, AppointmentListResponse, AppointmentStats, AppointmentStatus,
+  Appointment, AppointmentListResponse, AppointmentStats, AppointmentStatus, InvoiceDoc,
 } from "@/lib/api/types";
 
 // Appointments = operational management queue (Calendar owns scheduling). Real
 // data, KPI strip, date + status filters, per-row launchpad into every module,
 // and bulk actions.
-const STATUS_TABS: { key: string; label: string; statKey?: keyof AppointmentStats }[] = [
-  { key: "all", label: "All" },
-  { key: "pending", label: "Pending", statKey: "pending_count" },
-  { key: "confirmed", label: "Confirmed", statKey: "confirmed_count" },
-  { key: "in_progress", label: "In progress" },
-  { key: "completed", label: "Completed", statKey: "completed_count" },
-  { key: "cancelled", label: "Cancelled", statKey: "cancelled_count" },
+const STATUS_TABS: { key: string; labelKey: string; statKey?: keyof AppointmentStats }[] = [
+  { key: "all", labelKey: "work.all" },
+  { key: "pending", labelKey: "status.pending", statKey: "pending_count" },
+  { key: "confirmed", labelKey: "status.confirmed", statKey: "confirmed_count" },
+  { key: "in_progress", labelKey: "status.in_progress" },
+  { key: "completed", labelKey: "status.completed", statKey: "completed_count" },
+  { key: "cancelled", labelKey: "status.cancelled", statKey: "cancelled_count" },
 ];
 
 type DateFilter = "all" | "today" | "tomorrow" | "week" | "overdue";
-const DATE_FILTERS: { key: DateFilter; label: string }[] = [
-  { key: "all", label: "All dates" },
-  { key: "today", label: "Today" },
-  { key: "tomorrow", label: "Tomorrow" },
-  { key: "week", label: "This week" },
-  { key: "overdue", label: "Overdue" },
+const DATE_FILTERS: { key: DateFilter; labelKey: string }[] = [
+  { key: "all", labelKey: "work.all_dates" },
+  { key: "today", labelKey: "work.today" },
+  { key: "tomorrow", labelKey: "work.tomorrow" },
+  { key: "week", labelKey: "work.this_week" },
+  { key: "overdue", labelKey: "work.overdue" },
 ];
 
 const STATUS_BADGE: Record<AppointmentStatus, "warning" | "info" | "primary" | "success" | "danger" | "neutral"> = {
@@ -91,6 +94,7 @@ function plateOf(summary: string): { name: string; plate: string | null } {
 
 export function AppointmentsList() {
   const { toast } = useToast();
+  const { t } = useI18n();
   const router = useRouter();
   const [tab, setTab] = useState("all");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
@@ -100,6 +104,8 @@ export function AppointmentsList() {
   const [stats, setStats] = useState<AppointmentStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Appointment | null>(null);
+  const [invoicing, setInvoicing] = useState<Appointment | null>(null);
+  const [completing, setCompleting] = useState<Appointment | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const loadStats = useCallback(() => {
@@ -119,13 +125,22 @@ export function AppointmentsList() {
   useEffect(() => { loadStats(); }, [loadStats]);
   useEffect(() => { setSelected(new Set()); }, [tab, dateFilter, page]);
 
-  const act = useCallback(async (id: string, action: "confirm" | "cancel") => {
+  const act = useCallback(async (id: string, action: "confirm" | "start" | "complete" | "cancel") => {
+    const appointment = data?.items.find((item) => item.id === id);
+    if (action === "complete") {
+      if (appointment) setCompleting(appointment);
+      return;
+    }
+    if (action === "start" && !appointment?.mechanic_name?.trim()) {
+      toast({ title: t("work.assign_first"), variant: "warning" });
+      return;
+    }
     try {
       await clientFetch(`/appointments/${id}/${action}`, { method: "PATCH", body: JSON.stringify({}) });
-      toast({ title: action === "confirm" ? "Appointment confirmed" : "Appointment cancelled", variant: "success" });
+      toast({ title: t(`work.${action === "confirm" ? "confirmed" : action === "start" ? "started" : "cancelled"}`), variant: "success" });
       load(); loadStats();
-    } catch { toast({ title: "Action failed", variant: "danger" }); }
-  }, [load, loadStats, toast]);
+    } catch { toast({ title: t("work.failed"), variant: "danger" }); }
+  }, [data, load, loadStats, toast, t]);
 
   const bulkAct = useCallback(async (action: "confirm" | "cancel") => {
     const ids = [...selected];
@@ -136,6 +151,19 @@ export function AppointmentsList() {
     toast({ title: `${ok}/${ids.length} ${action === "confirm" ? "confirmed" : "cancelled"}`, variant: ok ? "success" : "danger" });
     setSelected(new Set()); load(); loadStats();
   }, [selected, load, loadStats, toast]);
+
+  const openInvoice = useCallback(async (appointment: Appointment) => {
+    try {
+      const invoice = await clientFetch<InvoiceDoc>(`/appointments/${appointment.id}/invoice`);
+      router.push(`/invoice/${invoice.id}`);
+    } catch (error) {
+      if (error instanceof ClientApiError && error.status === 404) {
+        setInvoicing(appointment);
+      } else {
+        toast({ title: t("work.invoice_failed"), variant: "danger" });
+      }
+    }
+  }, [router, toast, t]);
 
   const rows = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -154,11 +182,11 @@ export function AppointmentsList() {
   });
 
   const KPIS = stats ? [
-    { label: "Today", value: stats.today_count, tone: "text-foreground" },
-    { label: "Waiting confirmation", value: stats.pending_count, tone: "text-amber-600" },
-    { label: "Confirmed", value: stats.confirmed_count, tone: "text-blue-600" },
-    { label: "Completed", value: stats.completed_count, tone: "text-emerald-600" },
-    { label: "Cancelled", value: stats.cancelled_count, tone: "text-red-600" },
+    { label: t("work.today"), value: stats.today_count, tone: "text-foreground" },
+    { label: t("work.waiting"), value: stats.pending_count, tone: "text-amber-600" },
+    { label: t("status.confirmed"), value: stats.confirmed_count, tone: "text-blue-600" },
+    { label: t("status.completed"), value: stats.completed_count, tone: "text-emerald-600" },
+    { label: t("status.cancelled"), value: stats.cancelled_count, tone: "text-red-600" },
   ] : [];
 
   return (
@@ -166,10 +194,10 @@ export function AppointmentsList() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Appointments</h1>
-          <p className="text-sm text-muted-foreground mt-1">Your operational queue — filter, action, and jump into any record.</p>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">{t("work.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t("work.subtitle")}</p>
         </div>
-        <NewAppointmentButton label="New Appointment" onCreated={() => { load(); loadStats(); }} />
+        <NewAppointmentButton label={t("action.new_appointment")} onCreated={() => { load(); loadStats(); }} />
       </div>
 
       {/* KPI strip */}
@@ -185,21 +213,21 @@ export function AppointmentsList() {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex flex-wrap items-center gap-1 rounded-lg border border-border bg-card p-1">
-          {STATUS_TABS.map((t) => {
-            const count = t.statKey && stats ? stats[t.statKey] : undefined;
+          {STATUS_TABS.map((tabItem) => {
+            const count = tabItem.statKey && stats ? stats[tabItem.statKey] : undefined;
             return (
-              <button key={t.key} onClick={() => { setTab(t.key); setPage(1); }}
+              <button key={tabItem.key} onClick={() => { setTab(tabItem.key); setPage(1); }}
                 className={cn("px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5",
-                  tab === t.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted")}>
-                {t.label}
-                {count != null && <span className={cn("text-[11px] font-bold rounded-full px-1.5", tab === t.key ? "bg-white/20" : "bg-muted")}>{count}</span>}
+                  tab === tabItem.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted")}>
+                {t(tabItem.labelKey)}
+                {count != null && <span className={cn("text-[11px] font-bold rounded-full px-1.5", tab === tabItem.key ? "bg-white/20" : "bg-muted")}>{count}</span>}
               </button>
             );
           })}
         </div>
         <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 ml-auto">
           <Search className="size-4 text-muted-foreground" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search customer, vehicle, service…"
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("work.search")}
             className="bg-transparent py-2 text-sm text-foreground outline-none w-56 placeholder:text-muted-foreground" />
         </div>
       </div>
@@ -211,7 +239,7 @@ export function AppointmentsList() {
           <button key={d.key} onClick={() => { setDateFilter(d.key); setPage(1); }}
             className={cn("px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
               dateFilter === d.key ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground hover:bg-muted")}>
-            {d.label}
+            {t(d.labelKey)}
           </button>
         ))}
       </div>
@@ -232,8 +260,8 @@ export function AppointmentsList() {
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         <div className={cn("grid gap-3 px-4 py-2.5 border-b border-border bg-muted/40 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground items-center", GRID)}>
           <input type="checkbox" checked={allSelected} onChange={toggleAll} className="size-4 accent-[hsl(var(--primary))]" aria-label="Select all" />
-          <span>Customer</span><span>Vehicle</span><span>Service</span><span>When</span><span>Mechanic</span>
-          <span className="text-center">Health</span><span className="text-center">Billing</span><span className="text-center">Duration</span><span className="text-right pr-1">Status</span>
+          <span>{t("work.customer")}</span><span>{t("work.vehicle")}</span><span>{t("work.service")}</span><span>{t("work.when")}</span><span>{t("work.mechanic")}</span>
+          <span className="text-center">{t("work.health")}</span><span className="text-center">{t("work.billing")}</span><span className="text-center">{t("work.duration")}</span><span className="text-right pr-1">{t("work.status")}</span>
         </div>
 
         {loading && (
@@ -247,14 +275,14 @@ export function AppointmentsList() {
         {!loading && rows.length === 0 && (
           <div className="py-16 text-center">
             <CalendarPlus className="size-8 mx-auto text-muted-foreground/40 mb-2" />
-            <p className="text-sm text-muted-foreground">No appointments match these filters.</p>
+            <p className="text-sm text-muted-foreground">{t("work.empty")}</p>
           </div>
         )}
 
         {!loading && rows.length > 0 && (
           <div className="divide-y divide-border">
             {rows.map((a) => (
-              <Row key={a.id} a={a} selected={selected.has(a.id)} onToggle={() => toggleOne(a.id)} onAct={act} onEdit={setEditing} router={router} />
+              <Row key={a.id} a={a} selected={selected.has(a.id)} onToggle={() => toggleOne(a.id)} onAct={act} onEdit={setEditing} onInvoice={openInvoice} router={router} />
             ))}
           </div>
         )}
@@ -278,27 +306,43 @@ export function AppointmentsList() {
           onSaved={() => { setEditing(null); load(); loadStats(); }}
         />
       )}
+      {invoicing && (
+        <NewInvoiceModal
+          appointment={invoicing}
+          onClose={() => setInvoicing(null)}
+          onCreated={(doc) => { setInvoicing(null); load(); router.push(`/invoice/${doc.id}`); }}
+        />
+      )}
+      {completing && (
+        <CompleteWorkModal
+          appointment={completing}
+          onClose={() => setCompleting(null)}
+          onCompleted={() => { setCompleting(null); load(); loadStats(); }}
+        />
+      )}
     </div>
   );
 }
 
 function Row({
-  a, selected, onToggle, onAct, onEdit, router,
+  a, selected, onToggle, onAct, onEdit, onInvoice, router,
 }: {
   a: Appointment;
   selected: boolean;
   onToggle: () => void;
-  onAct: (id: string, action: "confirm" | "cancel") => void;
+  onAct: (id: string, action: "confirm" | "start" | "complete" | "cancel") => void;
   onEdit: (a: Appointment) => void;
+  onInvoice: (a: Appointment) => void;
   router: ReturnType<typeof useRouter>;
 }) {
-  const date = new Date(a.appointment_date).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const { t, fmt } = useI18n();
+  const date = fmt.date(a.appointment_date, { month: "short", day: "numeric" });
   const { name: vehName, plate } = plateOf(a.vehicle_summary);
   const canConfirm = a.status === "pending";
   const canCancel = a.status === "pending" || a.status === "confirmed";
 
   return (
-    <div className={cn("grid gap-3 px-4 py-3 items-center transition-colors", GRID,
+    <div data-testid={`appointment-row-${a.id}`} className={cn("grid gap-3 px-4 py-3 items-center transition-colors", GRID,
       selected ? "bg-primary/5" : "hover:bg-muted/30")}>
       <input type="checkbox" checked={selected} onChange={onToggle} className="size-4 accent-[hsl(var(--primary))]" aria-label="Select row" />
       <div className="flex items-center gap-2 min-w-0">
@@ -311,10 +355,10 @@ function Row({
         <span className="text-sm text-foreground/90 truncate block group-hover:text-primary group-hover:underline">{vehName || "—"}</span>
         {plate && <span className="text-[11px] font-mono text-muted-foreground">{plate}</span>}
       </Link>
-      <span className="text-sm text-muted-foreground truncate flex items-center gap-1.5"><Wrench className="size-3.5 shrink-0 text-muted-foreground/60" />{a.service_type ?? "General service"}</span>
+      <span className="text-sm text-muted-foreground truncate flex items-center gap-1.5"><Wrench className="size-3.5 shrink-0 text-muted-foreground/60" />{a.service_type ?? t("common.general_service")}</span>
       <span className="text-sm text-foreground/90 flex items-center gap-1.5"><Clock className="size-3.5 shrink-0 text-muted-foreground/60" /><span className="tabular-nums">{date} · {a.appointment_time}</span></span>
       <span className="text-sm text-muted-foreground truncate flex items-center gap-1.5">
-        {a.mechanic_name ? <><User className="size-3.5 shrink-0 text-muted-foreground/60" />{a.mechanic_name}</> : <span className="text-muted-foreground/50">Unassigned</span>}
+        {a.mechanic_name ? <><User className="size-3.5 shrink-0 text-muted-foreground/60" />{a.mechanic_name}</> : <span className="text-muted-foreground/50">{t("work.unassigned")}</span>}
       </span>
       <span className="flex justify-center">
         {a.health_score != null && a.health_band ? (
@@ -328,21 +372,22 @@ function Row({
       <span className="flex justify-center"><BillingPill b={a.billing} vid={a.vehicle_id} /></span>
       <span className="text-sm text-muted-foreground text-center tabular-nums">{fmtDuration(a.estimated_duration_minutes)}</span>
       <div className="flex items-center justify-end gap-2">
-        <Badge variant={STATUS_BADGE[a.status]} size="sm" className="capitalize">{a.status.replace("_", " ")}</Badge>
-        <RowActions a={a} canConfirm={canConfirm} canCancel={canCancel} onAct={onAct} onEdit={onEdit} router={router} />
+        <Badge variant={STATUS_BADGE[a.status]} size="sm">{t(`status.${a.status}`)}</Badge>
+        <RowActions a={a} canConfirm={canConfirm} canCancel={canCancel} onAct={onAct} onEdit={onEdit} onInvoice={onInvoice} router={router} />
       </div>
     </div>
   );
 }
 
 function BillingPill({ b, vid }: { b: import("@/lib/api/types").AppointmentBilling | null | undefined; vid: string }) {
+  const { t, fmt } = useI18n();
   if (!b) return <span className="text-muted-foreground/40 text-sm">—</span>;
-  const bal = "$" + b.balance.toLocaleString("en-US", { maximumFractionDigits: 0 });
+  const bal = fmt.money(b.balance, b.currency);
   let cls = "text-slate-500 bg-slate-100 border-slate-200", label = b.status as string;
   if (b.kind === "estimate") {
     cls = b.status === "approved" ? "text-emerald-600 bg-emerald-50 border-emerald-200" : "text-purple-600 bg-purple-50 border-purple-200";
-    label = "Est";
-  } else if (b.status === "paid") { cls = "text-emerald-600 bg-emerald-50 border-emerald-200"; label = "Paid"; }
+    label = t("work.estimate_short");
+  } else if (b.status === "paid") { cls = "text-emerald-600 bg-emerald-50 border-emerald-200"; label = t("public.status_paid"); }
   else if (b.status === "overdue") { cls = "text-red-600 bg-red-50 border-red-200"; label = bal; }
   else if (b.status === "partial") { cls = "text-amber-600 bg-amber-50 border-amber-200"; label = bal; }
   else { cls = "text-blue-600 bg-blue-50 border-blue-200"; label = bal; }  // issued
@@ -355,31 +400,36 @@ function BillingPill({ b, vid }: { b: import("@/lib/api/types").AppointmentBilli
 }
 
 function RowActions({
-  a, canConfirm, canCancel, onAct, onEdit, router,
+  a, canConfirm, canCancel, onAct, onEdit, onInvoice, router,
 }: {
   a: Appointment;
   canConfirm: boolean;
   canCancel: boolean;
-  onAct: (id: string, action: "confirm" | "cancel") => void;
+  onAct: (id: string, action: "confirm" | "start" | "complete" | "cancel") => void;
   onEdit: (a: Appointment) => void;
+  onInvoice: (a: Appointment) => void;
   router: ReturnType<typeof useRouter>;
 }) {
+  const { t } = useI18n();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="grid size-7 place-items-center rounded-lg border border-border text-muted-foreground hover:bg-muted" aria-label="Actions">
+        <button className="grid size-7 place-items-center rounded-lg border border-border text-muted-foreground hover:bg-muted" aria-label={t("work.actions")}>
           <MoreHorizontal className="size-4" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52">
-        {canConfirm && <DropdownMenuItem icon={<Check className="size-4" />} onClick={() => onAct(a.id, "confirm")}>Confirm</DropdownMenuItem>}
-        {canCancel && <DropdownMenuItem icon={<X className="size-4" />} destructive onClick={() => onAct(a.id, "cancel")}>Cancel</DropdownMenuItem>}
-        {(canConfirm || canCancel) && <DropdownMenuSeparator />}
-        <DropdownMenuItem icon={<User className="size-4" />} onClick={() => router.push(`/customers/${a.customer_id}`)}>Open Customer 360</DropdownMenuItem>
-        <DropdownMenuItem icon={<Wrench className="size-4" />} onClick={() => router.push(`/vehicles/${a.vehicle_id}`)}>Open Vehicle</DropdownMenuItem>
-        <DropdownMenuItem icon={<QrCode className="size-4" />} onClick={() => window.open(`/passport/${a.vehicle_id}`, "_blank")}>Open Passport</DropdownMenuItem>
+        {canConfirm && <DropdownMenuItem icon={<Check className="size-4" />} onClick={() => onAct(a.id, "confirm")}>{t("work.confirm")}</DropdownMenuItem>}
+        {a.status === "confirmed" && <DropdownMenuItem icon={<Wrench className="size-4" />} onClick={() => onAct(a.id, "start")}>{t("work.start")}</DropdownMenuItem>}
+        {a.status === "in_progress" && <DropdownMenuItem icon={<CheckCheck className="size-4" />} onClick={() => onAct(a.id, "complete")}>{t("work.complete")}</DropdownMenuItem>}
+        {a.status === "completed" && <DropdownMenuItem icon={<QrCode className="size-4" />} onClick={() => onInvoice(a)}>{t("work.invoice_action")}</DropdownMenuItem>}
+        {canCancel && <DropdownMenuItem icon={<X className="size-4" />} destructive onClick={() => onAct(a.id, "cancel")}>{t("work.cancel")}</DropdownMenuItem>}
+        {(canConfirm || canCancel || a.status === "in_progress") && <DropdownMenuSeparator />}
+        <DropdownMenuItem icon={<User className="size-4" />} onClick={() => router.push(`/customers/${a.customer_id}`)}>{t("work.open_customer")}</DropdownMenuItem>
+        <DropdownMenuItem icon={<Wrench className="size-4" />} onClick={() => router.push(`/vehicles/${a.vehicle_id}`)}>{t("work.open_vehicle")}</DropdownMenuItem>
+        <DropdownMenuItem icon={<QrCode className="size-4" />} onClick={() => window.open(`/passport/${a.vehicle_id}`, "_blank")}>{t("work.open_passport")}</DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem icon={<CalendarClock className="size-4" />} onClick={() => onEdit(a)}>Edit / reschedule</DropdownMenuItem>
+        {(a.status === "pending" || a.status === "confirmed") && <DropdownMenuItem icon={<CalendarClock className="size-4" />} onClick={() => onEdit(a)}>{t("work.edit")}</DropdownMenuItem>}
       </DropdownMenuContent>
     </DropdownMenu>
   );

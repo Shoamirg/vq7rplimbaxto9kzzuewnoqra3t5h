@@ -6,6 +6,7 @@ import { CalendarPlus, Loader2, Search, X } from "lucide-react";
 import { Button, useToast } from "@garageos/design-system";
 
 import { clientFetch, ClientApiError } from "@/lib/api/client";
+import { useI18n } from "@/lib/i18n/context";
 import type { CaseMechanic, Customer360, CustomerList, CustomerListItem } from "@/lib/api/types";
 
 const FIELD = "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
@@ -59,6 +60,7 @@ export function NewAppointmentModal({
   preset?: { id: string; name: string; vehicleId?: string };
 }) {
   const { toast } = useToast();
+  const { t } = useI18n();
 
   // When opened from a customer/vehicle context, the customer is pre-selected.
   const presetCustomer: CustomerListItem | null = preset
@@ -127,13 +129,13 @@ export function NewAppointmentModal({
           customer_notes: notes.trim() || null,
         }),
       });
-      toast({ title: "Appointment booked", description: `${customer.full_name} · ${date} ${time}`, variant: "success" });
+      toast({ title: t("appointment.booked"), description: `${customer.full_name} · ${date} ${time}`, variant: "success" });
       onCreated?.();
       onClose();
     } catch (err) {
       // A read-only demo session already shows its own toast; avoid a duplicate.
       if (!(err instanceof ClientApiError && err.status === 403)) {
-        toast({ title: "Could not book appointment", description: "Please check the details and try again.", variant: "danger" });
+        toast({ title: t("appointment.book_failed"), variant: "danger" });
       }
     } finally {
       setSaving(false);
@@ -145,27 +147,27 @@ export function NewAppointmentModal({
   return createPortal(
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div role="dialog" aria-modal="true" aria-label="New appointment"
+      <div role="dialog" aria-modal="true" aria-label={t("appointment.new")}
         className="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <h2 className="flex items-center gap-2 text-base font-bold"><CalendarPlus className="size-4 text-primary" /> New appointment</h2>
+          <h2 className="flex items-center gap-2 text-base font-bold"><CalendarPlus className="size-4 text-primary" /> {t("appointment.new")}</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors" aria-label="Close"><X className="size-4" /></button>
         </div>
 
         <div className="p-5 space-y-4">
           {/* Customer */}
           <div>
-            <label className={LABEL} htmlFor="appt-customer">Customer</label>
+            <label className={LABEL} htmlFor="appt-customer">{t("work.customer")}</label>
             {customer ? (
               <div className="flex items-center justify-between rounded-lg border border-primary/40 bg-primary/5 px-3 py-2">
                 <span className="text-sm font-medium">{customer.full_name}</span>
-                <button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => { setCustomer(null); setQuery(""); }}>Change</button>
+                <button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => { setCustomer(null); setQuery(""); }}>{t("invoice.change")}</button>
               </div>
             ) : (
               <>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                  <input id="appt-customer" className={`${FIELD} pl-9`} placeholder="Search customers…" value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
+                  <input id="appt-customer" className={`${FIELD} pl-9`} placeholder={t("invoice.search_customer")} value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
                 </div>
                 {matches.length > 0 && (
                   <div className="mt-1.5 max-h-44 overflow-y-auto rounded-lg border border-border divide-y divide-border">
@@ -183,9 +185,9 @@ export function NewAppointmentModal({
 
           {/* Vehicle */}
           <div>
-            <label className={LABEL} htmlFor="appt-vehicle">Vehicle</label>
+            <label className={LABEL} htmlFor="appt-vehicle">{t("work.vehicle")}</label>
             <select id="appt-vehicle" className={FIELD} value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} disabled={!customer || loadingVehicles}>
-              <option value="">{!customer ? "Pick a customer first" : loadingVehicles ? "Loading…" : vehicles.length ? "Select a vehicle" : "No vehicles on file"}</option>
+              <option value="">{!customer ? t("appointment.pick_customer") : loadingVehicles ? t("appointment.loading") : vehicles.length ? t("appointment.select_vehicle") : t("appointment.no_vehicles")}</option>
               {vehicles.map((v) => (<option key={v.id} value={v.id}>{v.label}</option>))}
             </select>
           </div>
@@ -193,11 +195,11 @@ export function NewAppointmentModal({
           {/* Date / time */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={LABEL} htmlFor="appt-date">Date</label>
+              <label className={LABEL} htmlFor="appt-date">{t("appointment.date")}</label>
               <input id="appt-date" type="date" className={FIELD} value={date} onChange={(e) => setDate(e.target.value)} />
             </div>
             <div>
-              <label className={LABEL} htmlFor="appt-time">Time</label>
+              <label className={LABEL} htmlFor="appt-time">{t("appointment.time")}</label>
               <input id="appt-time" type="time" className={FIELD} value={time} onChange={(e) => setTime(e.target.value)} />
             </div>
           </div>
@@ -205,15 +207,15 @@ export function NewAppointmentModal({
           {/* Duration / mechanic */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={LABEL} htmlFor="appt-duration">Duration</label>
+              <label className={LABEL} htmlFor="appt-duration">{t("appointment.duration")}</label>
               <select id="appt-duration" className={FIELD} value={duration} onChange={(e) => setDuration(Number(e.target.value))}>
                 {DURATIONS.map((d) => (<option key={d} value={d}>{d} min</option>))}
               </select>
             </div>
             <div>
-              <label className={LABEL} htmlFor="appt-mechanic">Mechanic</label>
+              <label className={LABEL} htmlFor="appt-mechanic">{t("work.mechanic")}</label>
               <select id="appt-mechanic" className={FIELD} value={mechanic} onChange={(e) => setMechanic(e.target.value)}>
-                <option value="">Unassigned</option>
+                <option value="">{t("work.unassigned")}</option>
                 {mechanics.map((m) => (<option key={m.id} value={m.name}>{m.name}</option>))}
               </select>
             </div>
@@ -221,15 +223,15 @@ export function NewAppointmentModal({
 
           {/* Notes */}
           <div>
-            <label className={LABEL} htmlFor="appt-notes">Service / notes <span className="font-normal text-muted-foreground">(optional)</span></label>
-            <textarea id="appt-notes" className={`${FIELD} resize-none`} rows={2} placeholder="e.g. Oil change and brake inspection" value={notes} onChange={(e) => setNotes(e.target.value)} />
+            <label className={LABEL} htmlFor="appt-notes">{t("appointment.notes")} <span className="font-normal text-muted-foreground">({t("invoice.vehicle_optional")})</span></label>
+            <textarea id="appt-notes" className={`${FIELD} resize-none`} rows={2} placeholder={t("appointment.notes_hint")} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
         </div>
 
         <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
-          <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
+          <Button variant="ghost" size="sm" onClick={onClose}>{t("common.cancel")}</Button>
           <Button size="sm" disabled={!canSave} onClick={save} leftIcon={saving ? <Loader2 className="size-4 animate-spin" /> : <CalendarPlus className="size-4" />}>
-            {saving ? "Booking…" : "Book appointment"}
+            {saving ? t("appointment.booking") : t("appointment.book")}
           </Button>
         </div>
       </div>

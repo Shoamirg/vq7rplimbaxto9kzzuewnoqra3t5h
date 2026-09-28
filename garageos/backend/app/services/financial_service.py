@@ -150,5 +150,6 @@ class FinancialService:
             return None
         overdue = i.kind == InvoiceKind.INVOICE and _f(i.balance) > 0 and i.due_date and i.due_date < date.today()
         return {"id": str(i.id), "code": i.code, "kind": i.kind,
+                "currency": i.currency,
                 "status": "overdue" if overdue else i.status,
                 "total": _f(i.total), "balance": _f(i.balance)}

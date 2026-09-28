@@ -130,6 +130,16 @@ cd ../admin-dashboard && npm install && npm run dev
 
 The seed creates a demo service center with its customers, vehicles, appointments, about 12 months of invoice history, and staff accounts (the default demo password is set in `backend/app/seeds/mechanics.py`).
 
+### Try the local Uzbek service-work demo
+
+Sign in to the staff dashboard with the seeded demo administrator (`admin@demo.garageos.app`, password `demo1234`). New browser sessions default to Uzbek. In **Navbatlar**, create an appointment for an existing customer and vehicle, then:
+
+1. Confirm the appointment and assign a mechanic.
+2. Start the work, then complete it by entering the performed service (for example, `Diagnostika`) and optional details. The completed work appears in the vehicle history.
+3. Use **Hisob yaratish / ochish** on the completed appointment. Enter a line description and its price in UZS, create the invoice, and show or print its public invoice page. Repeating the action opens the existing invoice.
+
+For local testing, the API serves on `http://127.0.0.1:8000` and the dashboard uses `http://localhost:3000` by default. If port 3000 is occupied, start the dashboard with `npm run dev -- -p 3001` and open `http://localhost:3001/appointments`.
+
 ### Useful commands
 
 ```bash

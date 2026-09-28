@@ -127,6 +127,7 @@ class AppointmentCompleteRequest(BaseModel):
     odometer_km: int | None = Field(default=None, ge=0)
     total_cost: float | None = Field(default=None, ge=0)
     notes: str | None = None
+    service_type: str | None = Field(default=None, max_length=100)
 
 
 class SlotGenerateRequest(BaseModel):

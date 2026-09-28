@@ -1,8 +1,11 @@
 import type { InvoiceStatus, LineKind, PaymentMethodT } from "@/lib/api/types";
 
 export function money(n: number | null | undefined, currency = "USD"): string {
-  const sign = currency === "USD" ? "$" : "";
-  return sign + (n ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return new Intl.NumberFormat("en-US", {
+    style: "currency", currency, currencyDisplay: currency === "USD" ? "symbol" : "code",
+    minimumFractionDigits: currency === "UZS" ? 0 : 2,
+    maximumFractionDigits: currency === "UZS" ? 0 : 2,
+  }).format(n ?? 0);
 }
 
 // Status → label + pill styling. Estimate statuses lean blue/purple; invoice

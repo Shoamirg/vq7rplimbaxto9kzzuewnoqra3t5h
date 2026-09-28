@@ -41,6 +41,7 @@ export interface AppointmentBilling {
   code: string;
   kind: InvoiceKind;
   status: InvoiceStatus;
+  currency: string;
   total: number;
   balance: number;
 }
@@ -622,6 +623,7 @@ export interface BillingCounts {
 }
 
 export interface BillingKpis {
+  currency: string;
   outstanding: number; overdue: number; paid_this_month: number;
 }
 

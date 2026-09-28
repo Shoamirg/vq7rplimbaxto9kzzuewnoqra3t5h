@@ -23,12 +23,13 @@ from app.core.events import (
     InvoicePaid,
     PaymentReceived,
 )
-from app.exceptions import ConflictError, NotFoundError
+from app.exceptions import AppointmentNotFound, AppointmentStateError, ConflictError, NotFoundError
 import httpx
 
 from app.core.config import settings
 from app.exceptions import ValidationError
 from app.models.customer import Customer
+from app.models.appointment import Appointment, AppointmentStatus
 from app.models.invoice import (
     Invoice,
     InvoiceKind,
@@ -65,6 +66,21 @@ class InvoiceNotFound(NotFoundError):
 class InvoiceHasPayments(ConflictError):
     detail = "This document has recorded payments and can't be changed. Void or refund it first."
     code = "INVOICE_HAS_PAYMENTS"
+
+
+class LinkedInvoiceCannotDelete(ConflictError):
+    detail = "A completed service work invoice must remain linked to its appointment"
+    code = "LINKED_INVOICE_CANNOT_DELETE"
+
+
+class InvoiceLinkMismatch(ValidationError):
+    detail = "Invoice customer and vehicle must match the appointment"
+    code = "INVOICE_LINK_MISMATCH"
+
+
+class InvoiceNeedsLineItems(ValidationError):
+    detail = "Add at least one priced line item to the service work invoice"
+    code = "INVOICE_NEEDS_LINE_ITEMS"
 
 
 class InvoiceService:
@@ -124,6 +140,8 @@ class InvoiceService:
         """Soft-delete an estimate or invoice. A document with recorded payments
         cannot be deleted (protects the ledger) — void it instead."""
         inv = await self._get(invoice_id)
+        if inv.kind == InvoiceKind.INVOICE and inv.appointment_id is not None:
+            raise LinkedInvoiceCannotDelete()
         if _money(inv.amount_paid) > 0:
             raise InvoiceHasPayments()
         inv.is_active = False
@@ -145,6 +163,8 @@ class InvoiceService:
             raise InvoiceHasPayments()
 
         if vehicle_id is not None:
+            if inv.kind == InvoiceKind.INVOICE and inv.appointment_id is not None and vehicle_id != inv.vehicle_id:
+                raise InvoiceLinkMismatch()
             inv.vehicle_id = vehicle_id
         if tax_rate is not None:
             inv.tax_rate = _money(tax_rate)
@@ -210,12 +230,41 @@ class InvoiceService:
         due_date: date | None = None, notes: str | None = None,
         source_estimate_id: uuid.UUID | None = None,
     ) -> dict:
+        if appointment_id is not None:
+            # Lock the parent row so two staff clicks cannot both pass the
+            # existence check before either invoice is committed.
+            appointment = (await self.session.execute(
+                select(Appointment).where(
+                    Appointment.id == appointment_id,
+                    Appointment.service_center_id == self.sc,
+                ).with_for_update()
+            )).scalar_one_or_none()
+            if appointment is None:
+                raise AppointmentNotFound()
+            if kind == InvoiceKind.INVOICE:
+                if appointment.status != AppointmentStatus.COMPLETED:
+                    raise AppointmentStateError("Complete service work before creating its invoice")
+                if customer_id != appointment.customer_id or vehicle_id != appointment.vehicle_id:
+                    raise InvoiceLinkMismatch()
+                existing = (await self.session.execute(
+                    select(Invoice).where(
+                        Invoice.service_center_id == self.sc,
+                        Invoice.appointment_id == appointment_id,
+                        Invoice.kind == InvoiceKind.INVOICE,
+                        Invoice.is_active.is_(True),
+                    ).limit(1)
+                )).scalar_one_or_none()
+                if existing is not None:
+                    return await self.get_document(existing.id)
+                if not line_items:
+                    raise InvoiceNeedsLineItems()
         code = await self._next_code(kind)
         inv = Invoice(
             service_center_id=self.sc, code=code, kind=kind,
             status=InvoiceStatus.DRAFT if kind == InvoiceKind.ESTIMATE else InvoiceStatus.ISSUED,
             customer_id=customer_id, vehicle_id=vehicle_id, appointment_id=appointment_id,
             case_id=case_id, source_estimate_id=source_estimate_id,
+            currency="UZS",
             tax_rate=_money(tax_rate) if tax_rate is not None else _DEFAULT_TAX,
             due_date=due_date, notes=notes,
         )
@@ -384,22 +433,30 @@ class InvoiceService:
 
     async def kpis(self) -> dict:
         sc = self.sc
+        # Demo KPIs are UZS-only: legacy USD invoices remain readable as USD,
+        # but their amounts must not be summed into the UZS headline.
+        currency = "UZS"
         outstanding = await self.session.scalar(
             select(func.coalesce(func.sum(Invoice.balance), 0)).where(
                 Invoice.service_center_id == sc, Invoice.is_active.is_(True),
+                Invoice.currency == currency,
                 Invoice.kind == InvoiceKind.INVOICE,
                 Invoice.status.in_([InvoiceStatus.ISSUED, InvoiceStatus.PARTIAL, InvoiceStatus.OVERDUE])))
         overdue = await self.session.scalar(
             select(func.coalesce(func.sum(Invoice.balance), 0)).where(
                 Invoice.service_center_id == sc, Invoice.is_active.is_(True),
+                Invoice.currency == currency,
                 Invoice.kind == InvoiceKind.INVOICE, Invoice.balance > 0,
                 or_(Invoice.status == InvoiceStatus.OVERDUE, Invoice.due_date < date.today())))
         month_start = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         paid_month = await self.session.scalar(
-            select(func.coalesce(func.sum(Payment.amount), 0)).where(
+            select(func.coalesce(func.sum(Payment.amount), 0)).join(
+                Invoice, Payment.invoice_id == Invoice.id).where(
                 Payment.service_center_id == sc, Payment.received_at >= month_start,
+                Invoice.service_center_id == sc, Invoice.currency == currency,
                 Payment.kind != PaymentKind.REFUND))
         return {
+            "currency": currency,
             "outstanding": _f(outstanding), "overdue": _f(overdue),
             "paid_this_month": _f(paid_month),
         }
@@ -428,6 +485,27 @@ class InvoiceService:
             for p in pays]
         data["timeline"] = await self._timeline(inv.id)
         return data
+
+    async def get_for_appointment(self, appointment_id: uuid.UUID) -> dict:
+        appointment = (await self.session.execute(
+            select(Appointment.id).where(
+                Appointment.id == appointment_id,
+                Appointment.service_center_id == self.sc,
+            )
+        )).scalar_one_or_none()
+        if appointment is None:
+            raise AppointmentNotFound()
+        invoice = (await self.session.execute(
+            select(Invoice).where(
+                Invoice.service_center_id == self.sc,
+                Invoice.appointment_id == appointment_id,
+                Invoice.kind == InvoiceKind.INVOICE,
+                Invoice.is_active.is_(True),
+            ).limit(1)
+        )).scalar_one_or_none()
+        if invoice is None:
+            raise InvoiceNotFound()
+        return await self.get_document(invoice.id)
 
     async def _timeline(self, invoice_id: uuid.UUID) -> list:
         rows = (await self.session.execute(
