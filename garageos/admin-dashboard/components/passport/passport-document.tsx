@@ -3,6 +3,7 @@
 import { Fragment, type CSSProperties } from "react";
 import type { HealthBand, Passport } from "@/lib/api/types";
 import { useI18n } from "@/lib/i18n/context";
+import { formatDate, formatNumber } from "@/lib/i18n/format";
 import "./passport.css";
 
 // Translator function shapes (mirrors useI18n's t / tp) so the module-scope
@@ -53,12 +54,17 @@ function assessment(p: Passport, t: Tr, tp: Tpl): { lead: string; rest: string }
   };
 }
 
-const nf = (n: number) => n.toLocaleString("en-US");
-const money = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
-const shortDate = (iso: string) =>
-  new Date(iso).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
-const monthYear = (iso: string) =>
-  new Date(iso).toLocaleDateString("en-US", { month: "short", year: "numeric" });
+// Number/date formatters bound to the active UI language.
+function useFmt() {
+  const { locale } = useI18n();
+  return {
+    nf: (n: number) => formatNumber(locale, n),
+    shortDate: (iso: string) =>
+      formatDate(locale, iso, { day: "numeric", month: "short", year: "numeric" }),
+    monthYear: (iso: string) =>
+      formatDate(locale, iso, { month: "short", year: "numeric" }),
+  };
+}
 
 function monogram(name: string): string {
   return name.split(" ").filter(Boolean).slice(0, 1).map((w) => w[0]?.toUpperCase()).join("") || "G";
@@ -66,7 +72,7 @@ function monogram(name: string): string {
 function initials(name: string): string {
   return name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "•";
 }
-function remaining(u: Passport["upcoming"][number], t: Tr): string {
+function remaining(u: Passport["upcoming"][number], t: Tr, nf: (n: number) => string): string {
   if (u.remaining_km != null && u.remaining_km > 0) return t("pass.remaining.km", { km: nf(u.remaining_km) });
   if (u.remaining_km != null && u.remaining_km <= 0) return t("pass.remaining.overdue");
   if (u.remaining_days != null) return t("pass.remaining.days", { days: u.remaining_days });
@@ -85,6 +91,7 @@ export function PassportDocument({
   verifyUrl: string;
 }) {
   const { t, tp } = useI18n();
+  const { nf, shortDate, monthYear } = useFmt();
   const p = passport;
   const band = p.health.band;
   const { accent, soft } = ACCENT[band];
@@ -199,7 +206,7 @@ export function PassportDocument({
             {p.upcoming.map((u, i) => (
               <div key={i} className="pp-due">
                 <span className={`pp-pill ${PILL[u.status]}`}>{t(`pass.pill.${u.status}`)}</span>
-                {u.service_type} · {remaining(u, t)}
+                {u.service_type} · {remaining(u, t, nf)}
               </div>
             ))}
           </div>
@@ -261,6 +268,7 @@ export function PassportDocument({
 
 function Timeline({ passport }: { passport: Passport }) {
   const { t } = useI18n();
+  const { monthYear } = useFmt();
   // Build a compact flow: registered → recent services → today.
   const hist = [...passport.history].reverse(); // oldest first
   const steps: { title: string; date: string; kind: "mut" | "" | "now" }[] = [];

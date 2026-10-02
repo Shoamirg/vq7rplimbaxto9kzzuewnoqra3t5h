@@ -9,11 +9,13 @@ import { Button, cn } from "@garageos/design-system";
 import { EmptyState } from "@/components/states/empty-state";
 import { NewCustomerModal } from "@/components/customers/new-customer-modal";
 import { useI18n } from "@/lib/i18n/context";
+import type { Locale } from "@/lib/i18n/dictionaries";
+import { formatDate, formatNumber } from "@/lib/i18n/format";
 import type { CustomerListItem } from "@/lib/api/types";
 
-const money = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
-const fmtDate = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" }) : "—";
+const money = (n: number, locale: Locale) => `$${formatNumber(locale, Math.round(n))}`;
+const fmtDate = (iso: string | null, locale: Locale) =>
+  iso ? formatDate(locale, iso, { day: "numeric", month: "short", year: "numeric" }) : "—";
 const monogram = (name: string) => name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "?";
 
 const TIER_CLASS: Record<string, string> = {
@@ -24,7 +26,7 @@ const TIER_CLASS: Record<string, string> = {
 };
 
 export function CustomersList({ customers }: { customers: CustomerListItem[] }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const router = useRouter();
   const [q, setQ] = useState("");
   const [addOpen, setAddOpen] = useState(false);
@@ -86,7 +88,7 @@ export function CustomersList({ customers }: { customers: CustomerListItem[] }) 
                     <p className="text-sm font-semibold text-foreground truncate">{c.full_name}</p>
                     {c.tier !== "Standard" && (
                       <span className={cn("inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold", TIER_CLASS[c.tier])}>
-                        <Star className="size-2.5 fill-current" />{c.tier}
+                        <Star className="size-2.5 fill-current" />{c.tier in TIER_CLASS ? t(`cust.tier.${c.tier}`) : c.tier}
                       </span>
                     )}
                   </div>
@@ -96,9 +98,9 @@ export function CustomersList({ customers }: { customers: CustomerListItem[] }) 
               </div>
               <div className="mt-3 flex items-center justify-between text-xs">
                 <span className="text-muted-foreground flex items-center gap-1"><Car className="size-3" /> {t("cust.card.vehicles", { count: c.vehicle_count })}</span>
-                <span className="font-semibold text-foreground">{money(c.lifetime_value)}</span>
+                <span className="font-semibold text-foreground">{money(c.lifetime_value, locale)}</span>
               </div>
-              <p className="mt-1 text-[11px] text-muted-foreground">{t("cust.card.last_visit")} {fmtDate(c.last_visit)}</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">{t("cust.card.last_visit")} {fmtDate(c.last_visit, locale)}</p>
             </Link>
           ))}
         </div>

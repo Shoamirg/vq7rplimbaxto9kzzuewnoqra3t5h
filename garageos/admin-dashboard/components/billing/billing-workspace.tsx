@@ -11,7 +11,8 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { BillingCounts, BillingKpis, BillingResponse, InvoiceDoc, InvoiceListItem } from "@/lib/api/types";
 import { DocumentView } from "./document-view";
 import { NewInvoiceModal } from "./new-invoice-modal";
-import { STATUS_META, VIEWS, money, relTime } from "./shared";
+import { formatDate } from "@/lib/i18n/format";
+import { STATUS_META, VIEWS, relTime, useBillingFmt } from "./shared";
 
 // The Commercial workspace — rail (views) ↔ queue ↔ document, swapped by state.
 export function BillingWorkspace() {
@@ -26,6 +27,7 @@ export function BillingWorkspace() {
   const [editOpen, setEditOpen] = useState(false);
   const { toast } = useToast();
   const { t } = useI18n();
+  const { money, locale } = useBillingFmt();
   const searchParams = useSearchParams();
 
   // Open a specific document when deep-linked (e.g. from a notification:
@@ -165,7 +167,7 @@ export function BillingWorkspace() {
                   <p className="text-[11.5px] text-muted-foreground truncate">{d.vehicle_label ?? ""}</p>
                   <div className="flex items-center gap-2 mt-2">
                     <span className={cn("text-[10.5px] font-bold px-2 py-0.5 rounded", st.cls)}>{st.label}</span>
-                    {d.kind === "invoice" && d.balance > 0 && <span className="text-[11px] text-muted-foreground">{t("bill.balance")} {money(d.balance)}{d.due_date ? ` · ${t("bill.due_short")} ${new Date(d.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}</span>}
+                    {d.kind === "invoice" && d.balance > 0 && <span className="text-[11px] text-muted-foreground">{t("bill.balance")} {money(d.balance)}{d.due_date ? ` · ${t("bill.due_short")} ${formatDate(locale, d.due_date, { month: "short", day: "numeric" })}` : ""}</span>}
                     {d.kind === "invoice" && d.balance <= 0 && <span className="text-[11px] text-muted-foreground">{d.paid_at ? t("bill.paid") : ""}</span>}
                     {d.kind === "estimate" && <span className="text-[11px] text-muted-foreground">{relTime(d.created_at)}</span>}
                   </div>

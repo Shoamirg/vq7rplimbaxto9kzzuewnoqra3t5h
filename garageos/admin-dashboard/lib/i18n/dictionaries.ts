@@ -36,6 +36,9 @@ export const LOCALE_META: Record<Locale, { label: string; native: string; flag: 
   uz: { label: "Uzbek", native: "Oʻzbek", flag: "🇺🇿" },
 };
 
+// BCP-47 tags for Intl formatting (our short codes -> real locales).
+export const INTL_LOCALE: Record<Locale, string> = { en: "en-US", ru: "ru-RU", uz: "uz-Latn-UZ" };
+
 type Dict = Record<string, string>;
 
 export const DICTIONARIES: Record<Locale, Dict> = {

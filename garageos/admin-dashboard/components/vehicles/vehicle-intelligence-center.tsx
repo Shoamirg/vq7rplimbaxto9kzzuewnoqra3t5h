@@ -28,14 +28,22 @@ import { NewAppointmentModal } from "@/components/appointments/new-appointment-m
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { clientFetch } from "@/lib/api/client";
 import { useI18n } from "@/lib/i18n/context";
+import { formatDate, formatMoney, formatNumber } from "@/lib/i18n/format";
 import type { VehicleIntelligence } from "@/lib/api/types";
 
 const BAND_COLOR: Record<string, string> = {
   excellent: "#16A34A", good: "#2563EB", fair: "#F59E0B", poor: "#DC2626",
 };
 const bandColor = (b: string) => BAND_COLOR[b] ?? "#64748B";
-const money = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n || 0);
-const dateFmt = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—");
+// Number/money/date formatters bound to the active UI language.
+function useFmt() {
+  const { locale } = useI18n();
+  return {
+    nf: (n: number) => formatNumber(locale, n),
+    money: (n: number) => formatMoney(locale, n, "USD", { maximumFractionDigits: 0 }),
+    dateFmt: (iso?: string | null) => (iso ? formatDate(locale, iso, { month: "short", day: "numeric", year: "numeric" }) : "—"),
+  };
+}
 
 // subsystem → hotspot position (% of stage) + icon
 const SYS_POS: Record<string, { x: number; y: number }> = {
@@ -146,6 +154,7 @@ export function VehicleIntelligenceCenter({ data }: { data: VehicleIntelligence 
   const router = useRouter();
   const { toast } = useToast();
   const { t } = useI18n();
+  const { money, nf } = useFmt();
   const tier = passport.tier;
 
   return (
@@ -225,7 +234,7 @@ export function VehicleIntelligenceCenter({ data }: { data: VehicleIntelligence 
                   )}
                   <h1 className="font-brand mt-2 text-3xl font-extrabold tracking-tight">{v.brand} {v.model}</h1>
                   <p className="mt-1 text-sm text-slate-400">
-                    {[v.year, v.plate, v.engine, v.mileage ? `${v.mileage.toLocaleString()} km` : null].filter(Boolean).join(" · ")}
+                    {[v.year, v.plate, v.engine, v.mileage ? `${nf(v.mileage)} km` : null].filter(Boolean).join(" · ")}
                   </p>
                 </div>
                 <Ring score={health.overall_score} band={health.band} />
@@ -310,9 +319,10 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 
 function IdentityCard({ v, tier }: { v: VehicleIntelligence["identity"]; tier: string | null }) {
   const { t } = useI18n();
+  const { nf } = useFmt();
   const rows: [string, string | number | null][] = [
     [t("veh.owner"), v.owner_name], [t("veh.vin"), v.vin], [t("veh.plate"), v.plate],
-    [t("veh.mileage"), v.mileage ? `${v.mileage.toLocaleString()} km` : null],
+    [t("veh.mileage"), v.mileage ? `${nf(v.mileage)} km` : null],
     [t("veh.passport"), tier ? t("veh.certified", { tier }) : "—"],
   ];
   return (
@@ -332,6 +342,7 @@ function IdentityCard({ v, tier }: { v: VehicleIntelligence["identity"]; tier: s
 
 function CommercialCard({ c }: { c: NonNullable<VehicleIntelligence["commercial"]> }) {
   const { t } = useI18n();
+  const { money } = useFmt();
   return (
     <Card>
       <CardTitle right={<span className="text-amber-500">{"★".repeat(c.stars)}<span className="text-slate-300">{"★".repeat(5 - c.stars)}</span></span>}>{t("veh.commercial")}</CardTitle>
@@ -378,6 +389,7 @@ function AiSummaryCard({ predictions }: { predictions: VehicleIntelligence["pred
 
 function TimelineCard({ events, compact }: { events: VehicleIntelligence["timeline"]; compact?: boolean }) {
   const { t } = useI18n();
+  const { money, dateFmt, nf } = useFmt();
   const list = compact ? events.slice(0, 6) : events;
   return (
     <Card>
@@ -392,7 +404,7 @@ function TimelineCard({ events, compact }: { events: VehicleIntelligence["timeli
                 <p className="text-[13px] font-semibold text-foreground">{e.title}</p>
                 {e.cost != null ? <span className="font-brand text-xs font-bold text-foreground">{money(e.cost)}</span> : null}
               </div>
-              <p className="text-[11px] text-muted-foreground">{dateFmt(e.date)}{e.km ? ` · ${e.km.toLocaleString()} km` : ""}</p>
+              <p className="text-[11px] text-muted-foreground">{dateFmt(e.date)}{e.km ? ` · ${nf(e.km)} km` : ""}</p>
             </li>
           );
         })}
@@ -483,6 +495,7 @@ function SpecsCard({ v }: { v: VehicleIntelligence["identity"] }) {
 
 function MaintenanceCard({ items }: { items: VehicleIntelligence["maintenance"] }) {
   const { t } = useI18n();
+  const { nf } = useFmt();
   return (
     <Card>
       <CardTitle>{t("veh.next_maintenance")}</CardTitle>
@@ -495,7 +508,7 @@ function MaintenanceCard({ items }: { items: VehicleIntelligence["maintenance"] 
       ) : (
         <ul className="divide-y divide-border">
           {items.map((m, i) => {
-            const when = m.remaining_days != null ? t("veh.days", { n: m.remaining_days }) : m.remaining_km != null ? `${m.remaining_km.toLocaleString()} km` : t("veh.soon");
+            const when = m.remaining_days != null ? t("veh.days", { n: m.remaining_days }) : m.remaining_km != null ? `${nf(m.remaining_km)} km` : t("veh.soon");
             const tone = m.status === "overdue" ? "text-red-600" : m.status === "due_soon" ? "text-amber-600" : "text-muted-foreground";
             return (
               <li key={i} className="flex items-center gap-3 py-2.5">

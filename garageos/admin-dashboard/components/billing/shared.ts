@@ -1,8 +1,21 @@
 import type { InvoiceStatus, LineKind, PaymentMethodT } from "@/lib/api/types";
+import { useI18n } from "@/lib/i18n/context";
+import type { Locale } from "@/lib/i18n/dictionaries";
+import { formatDate, formatNumber } from "@/lib/i18n/format";
 
-export function money(n: number | null | undefined, currency = "USD"): string {
+export function money(n: number | null | undefined, currency = "USD", locale: Locale = "en"): string {
   const sign = currency === "USD" ? "$" : "";
-  return sign + (n ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return sign + formatNumber(locale, n ?? 0, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// money/fmtDate bound to the active UI language — use inside components.
+export function useBillingFmt() {
+  const { locale } = useI18n();
+  return {
+    locale,
+    money: (n: number | null | undefined, currency = "USD") => money(n, currency, locale),
+    fmtDate: (iso: string | null) => fmtDate(iso, locale),
+  };
 }
 
 // Status → label + pill styling. Estimate statuses lean blue/purple; invoice
@@ -41,9 +54,9 @@ export const VIEWS: { key: string; label: string; icon: string; count: string | 
   { key: "recurring", label: "Recurring", icon: "🔁", count: "recurring" },
 ];
 
-export function fmtDate(iso: string | null): string {
+export function fmtDate(iso: string | null, locale: Locale = "en"): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return formatDate(locale, iso, { month: "short", day: "numeric", year: "numeric" });
 }
 
 export function relTime(iso: string | null): string {

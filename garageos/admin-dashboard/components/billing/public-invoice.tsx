@@ -2,11 +2,15 @@
 
 import type { InvoiceDoc, LineKind } from "@/lib/api/types";
 import { useI18n } from "@/lib/i18n/context";
+import type { Locale } from "@/lib/i18n/dictionaries";
+import { formatDate, formatMoney } from "@/lib/i18n/format";
 
-const money = (n: number, ccy = "USD") =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: ccy || "USD" }).format(n || 0);
-const fmtDate = (iso?: string | null) =>
-  iso ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
+// Money/date formatters bound to the active UI language.
+const makeFmt = (locale: Locale) => ({
+  money: (n: number, ccy = "USD") => formatMoney(locale, n, ccy || "USD"),
+  fmtDate: (iso?: string | null) =>
+    iso ? formatDate(locale, iso, { month: "short", day: "numeric", year: "numeric" }) : "—",
+});
 
 const GROUPS: { kind: LineKind; labelKey: string }[] = [
   { kind: "labor", labelKey: "bill.group_labor" }, { kind: "part", labelKey: "bill.group_parts" },
@@ -16,7 +20,8 @@ const GROUPS: { kind: LineKind; labelKey: string }[] = [
 // Customer-facing, read-only invoice/estimate. Rendered standalone at /invoice/[id]
 // (no app shell) so it's clean to view on a phone and to print/save as PDF.
 export function PublicInvoice({ doc }: { doc: InvoiceDoc }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const { money, fmtDate } = makeFmt(locale);
   const isEstimate = doc.kind === "estimate";
   const accent = isEstimate ? "#2563eb" : "#16a34a";
   const nounLc = isEstimate ? t("bill.estimate_lc") : t("bill.invoice_lc");

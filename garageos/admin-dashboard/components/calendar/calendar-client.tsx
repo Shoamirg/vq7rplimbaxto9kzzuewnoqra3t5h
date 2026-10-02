@@ -23,6 +23,8 @@ import { Badge, Button, cn, useToast } from "@garageos/design-system";
 
 import { clientFetch } from "@/lib/api/client";
 import { useI18n } from "@/lib/i18n/context";
+import type { Locale } from "@/lib/i18n/dictionaries";
+import { formatDate, formatNumber } from "@/lib/i18n/format";
 import { NewAppointmentButton } from "@/components/appointments/new-appointment-modal";
 import { EmptyState } from "@/components/states/empty-state";
 import type { Appointment, CalendarPayload, DueServices, VehicleHealth } from "@/lib/api/types";
@@ -60,8 +62,8 @@ const minToHm = (min: number): string =>
 const isoDay = (d: Date): string => d.toISOString().slice(0, 10);
 const addDays = (iso: string, days: number): string =>
   isoDay(new Date(new Date(iso + "T00:00:00Z").getTime() + days * 86_400_000));
-const labelDate = (iso: string): string =>
-  new Date(iso + "T00:00:00Z").toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long" });
+const labelDate = (iso: string, locale: Locale): string =>
+  formatDate(locale, iso + "T00:00:00Z", { weekday: "long", day: "numeric", month: "long" });
 
 type DragSession = {
   apptId: string;
@@ -84,7 +86,7 @@ type Collision = { appt: Appointment; lane: string; dur: number; conflict: Appoi
 
 export function CalendarClient({ initial, initialDate }: Props) {
   const { toast } = useToast();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [view, setView] = useState<View>("Day");
   const [date, setDate] = useState(initialDate);
   const [data, setData] = useState<CalendarPayload>(initial);
@@ -374,7 +376,7 @@ export function CalendarClient({ initial, initialDate }: Props) {
 
       <div className="px-4 lg:px-6 py-2 border-b border-border flex items-center gap-2">
         <CalendarDays className="size-4 text-muted-foreground" />
-        <span className="text-sm font-medium text-foreground">{labelDate(date)}</span>
+        <span className="text-sm font-medium text-foreground">{labelDate(date, locale)}</span>
         {loading && <Loader2 className="size-3.5 text-muted-foreground animate-spin" />}
         <span className="ml-auto text-[11px] text-muted-foreground/70 hidden md:inline">{t("sched.hint_drag")} · {t("sched.hint_resize")} · <kbd className="px-1 rounded bg-muted">←</kbd>/<kbd className="px-1 rounded bg-muted">→</kbd> {t("sched.hint_day")} · <kbd className="px-1 rounded bg-muted">T</kbd> {t("sched.hint_today")}</span>
       </div>
@@ -586,7 +588,7 @@ function CollisionPopover({ collision, onPick, onTomorrow, onClose }: { collisio
 }
 
 function InspectorDrawer({ appointment, onClose, onChanged }: { appointment: Appointment; onClose: () => void; onChanged: (action: string) => void }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [health, setHealth] = useState<VehicleHealth | null>(null);
   const [due, setDue] = useState<DueServices | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -639,7 +641,7 @@ function InspectorDrawer({ appointment, onClose, onChanged }: { appointment: App
             <Field label={t("sched.customer")} value={appointment.customer_name} />
             <Field label={t("sched.mechanic")} value={appointment.mechanic_name ?? t("sched.unassigned")} />
             <Field label={t("sched.time")} value={`${appointment.appointment_time} · ${appointment.estimated_duration_minutes}m`} />
-            <Field label={t("sched.cost")} value={appointment.total_cost != null ? `$${appointment.total_cost.toLocaleString("en-US")}` : "—"} />
+            <Field label={t("sched.cost")} value={appointment.total_cost != null ? `$${formatNumber(locale, appointment.total_cost)}` : "—"} />
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" leftIcon={<Phone className="size-4" />} className="flex-1">{t("sched.call")}</Button>

@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { EmptyState } from "@/components/states/empty-state";
 import { useI18n } from "@/lib/i18n/context";
+import { formatDate, formatNumber } from "@/lib/i18n/format";
 import {
   Area,
   AreaChart,
@@ -89,12 +90,20 @@ const BAND_BADGE: Record<HealthBand, string> = {
   poor: "danger",
 };
 
-function km(n: number | null | undefined): string {
-  return n == null ? "—" : `${n.toLocaleString("en-US")} km`;
-}
-
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
+// Number/date formatters bound to the active UI language.
+function useFmt() {
+  const { locale } = useI18n();
+  const nf = (n: number, opts?: Intl.NumberFormatOptions) => formatNumber(locale, n, opts);
+  return {
+    nf,
+    km: (n: number | null | undefined) => (n == null ? "—" : `${nf(n)} km`),
+    fmtDate: (iso: string) => formatDate(locale, iso, { day: "numeric", month: "short", year: "numeric" }),
+    remainingText: (s: HealthService, t: Translate) => {
+      if (s.remaining_km == null) return "";
+      if (s.remaining_km < 0) return t("veh.km_overdue", { km: nf(Math.abs(s.remaining_km)) });
+      return t("veh.km_in", { km: nf(s.remaining_km) });
+    },
+  };
 }
 
 function dueLabel(s: HealthService): { key: string; variant: string } {
@@ -103,12 +112,6 @@ function dueLabel(s: HealthService): { key: string; variant: string } {
   }
   if (s.status === "due") return { key: "veh.due.due", variant: "danger" };
   return { key: "veh.due.due_soon", variant: "warning" };
-}
-
-function remainingText(s: HealthService, t: Translate): string {
-  if (s.remaining_km == null) return "";
-  if (s.remaining_km < 0) return t("veh.km_overdue", { km: Math.abs(s.remaining_km).toLocaleString("en-US") });
-  return t("veh.km_in", { km: s.remaining_km.toLocaleString("en-US") });
 }
 
 // ── Small deterministic QR-style placeholder (real QR generation is a follow-up)
@@ -184,6 +187,7 @@ function StatItem({ icon: Icon, value, label, tone }: { icon: React.ElementType;
 
 export function VehicleHealthScreen({ health, timeline }: Props) {
   const { t } = useI18n();
+  const { nf, fmtDate } = useFmt();
   const [tab, setTab] = useState<Tab>("Overview");
   const v = health.vehicle;
   const band = health.band;
@@ -235,7 +239,7 @@ export function VehicleHealthScreen({ health, timeline }: Props) {
                     <span className="inline-block mt-1 text-xs font-mono px-2 py-0.5 rounded bg-muted text-muted-foreground">{v.license_plate}</span>
                   )}
                   <p className="text-sm text-muted-foreground mt-1.5">
-                    {v.year} · {v.current_km.toLocaleString("en-US")} km
+                    {v.year} · {nf(v.current_km)} km
                     {v.customer_name ? ` · ${v.customer_name}` : ""}
                     {lastServiceDate ? ` · ${t("veh.last_service")} ${fmtDate(lastServiceDate)}` : ""}
                   </p>
@@ -314,6 +318,7 @@ function OverviewTab({
   stats: { servicesCompleted: number; totalSpent: number; kmSinceService: number | null };
 }) {
   const { t } = useI18n();
+  const { nf, km, fmtDate, remainingText } = useFmt();
   const band = health.band;
   return (
     <div className="space-y-4">
@@ -364,7 +369,7 @@ function OverviewTab({
             <StatItem icon={Wrench} value={String(stats.servicesCompleted)} label={t("veh.stat.services_completed")} tone="bg-primary/10 text-primary" />
             <StatItem icon={AlertTriangle} value={String(health.urgent_count)} label={t("veh.stat.services_overdue")} tone="bg-danger/10 text-danger" />
             <StatItem icon={Clock} value={String(health.due_soon_count)} label={t("veh.stat.due_soon")} tone="bg-warning/10 text-warning" />
-            <StatItem icon={DollarSign} value={`$${stats.totalSpent.toLocaleString("en-US", { maximumFractionDigits: 0 })}`} label={t("veh.stat.total_spent")} tone="bg-success/10 text-success" />
+            <StatItem icon={DollarSign} value={`$${nf(stats.totalSpent, { maximumFractionDigits: 0 })}`} label={t("veh.stat.total_spent")} tone="bg-success/10 text-success" />
             <StatItem icon={Activity} value={km(stats.kmSinceService)} label={t("veh.stat.since_service")} tone="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" />
           </CardContent>
         </Card>
@@ -452,6 +457,7 @@ function OverviewTab({
 
 function TimelineList({ events }: { events: VehicleTimeline["events"] }) {
   const { t } = useI18n();
+  const { nf, fmtDate } = useFmt();
   if (events.length === 0) {
     return (
       <EmptyState
@@ -478,7 +484,7 @@ function TimelineList({ events }: { events: VehicleTimeline["events"] }) {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground truncate">{e.title}</p>
               <p className="text-xs text-muted-foreground">
-                {fmtDate(e.date)}{e.km != null ? ` · ${e.km.toLocaleString("en-US")} km` : ""}{e.cost != null ? ` · $${e.cost.toLocaleString("en-US")}` : ""}
+                {fmtDate(e.date)}{e.km != null ? ` · ${nf(e.km)} km` : ""}{e.cost != null ? ` · $${nf(e.cost)}` : ""}
               </p>
             </div>
           </div>
@@ -500,6 +506,7 @@ function TimelineTab({ timeline }: { timeline: VehicleTimeline }) {
 
 function ServicesTab({ health }: { health: VehicleHealth }) {
   const { t } = useI18n();
+  const { nf, remainingText } = useFmt();
   return (
     <Card>
       <CardHeader><CardTitle>{t("veh.tab.services")}</CardTitle><CardDescription>{t("veh.services_history_desc")}</CardDescription></CardHeader>
@@ -513,8 +520,8 @@ function ServicesTab({ health }: { health: VehicleHealth }) {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-foreground truncate">{s.service_type}</p>
                   <p className="text-xs text-muted-foreground truncate">
-                    {s.interval_km ? t("veh.every_km", { km: s.interval_km.toLocaleString("en-US") }) : ""}
-                    {s.last_performed_km != null ? ` · ${t("veh.last_at_km", { km: s.last_performed_km.toLocaleString("en-US") })}` : ""}
+                    {s.interval_km ? t("veh.every_km", { km: nf(s.interval_km) }) : ""}
+                    {s.last_performed_km != null ? ` · ${t("veh.last_at_km", { km: nf(s.last_performed_km) })}` : ""}
                   </p>
                 </div>
                 <div className="text-right">

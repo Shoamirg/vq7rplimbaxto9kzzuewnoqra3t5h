@@ -3,6 +3,7 @@
 import type { CSSProperties } from "react";
 import type { HealthBand, Passport } from "@/lib/api/types";
 import { useI18n } from "@/lib/i18n/context";
+import { formatDate } from "@/lib/i18n/format";
 
 const ACCENT: Record<HealthBand, { accent: string; soft: string }> = {
   excellent: { accent: "#0E8A5F", soft: "#E8F2EC" },
@@ -14,10 +15,10 @@ const ACCENT: Record<HealthBand, { accent: string; soft: string }> = {
 // Trust-first landing header — like checking a luxury-watch certificate. Shown
 // above the document so the first impression is authenticity, not just data.
 export function PassportVerified({ passport }: { passport: Passport }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { accent, soft } = ACCENT[passport.health.band];
   const style = { "--accent": accent, "--accent-soft": soft } as CSSProperties;
-  const verifiedOn = new Date(passport.issued_at).toLocaleDateString("en-US", {
+  const verifiedOn = formatDate(locale, passport.issued_at, {
     month: "long",
     year: "numeric",
   });

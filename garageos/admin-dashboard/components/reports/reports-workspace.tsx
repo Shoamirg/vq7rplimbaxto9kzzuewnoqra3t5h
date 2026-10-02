@@ -8,8 +8,9 @@ import { cn } from "@garageos/design-system";
 
 import { clientFetch } from "@/lib/api/client";
 import { useI18n } from "@/lib/i18n/context";
+import { formatNumber } from "@/lib/i18n/format";
 import type { ReportKpi, ReportResponse, ReportSection } from "@/lib/api/types";
-import { AreaChart, BarRows, Donut, Funnel, Sparkline, money, moneyK } from "./charts";
+import { AreaChart, BarRows, Donut, Funnel, Sparkline, money as moneyFmt, moneyK as moneyKFmt } from "./charts";
 
 const PERIODS = [
   { key: "today", label: "Today" }, { key: "7d", label: "7 days" },
@@ -32,13 +33,21 @@ const CATEGORIES = [
   { key: "technicians", label: "Technicians", icon: "🔧", live: false },
 ];
 
-function fmtKpi(k: ReportKpi): string {
-  const v = k.value;
-  if (typeof v === "string") return v;
-  if (k.format === "money") return money(v);
-  if (k.format === "pct") return `${v}%`;
-  if (k.format === "days") return `${v} days`;
-  return v.toLocaleString("en-US");
+// Number/money formatters bound to the active UI language.
+function useFmt() {
+  const { locale } = useI18n();
+  const nf = (n: number) => formatNumber(locale, n);
+  const money = (n: number) => moneyFmt(n, locale);
+  const moneyK = (n: number) => moneyKFmt(n, locale);
+  const fmtKpi = (k: ReportKpi): string => {
+    const v = k.value;
+    if (typeof v === "string") return v;
+    if (k.format === "money") return money(v);
+    if (k.format === "pct") return `${v}%`;
+    if (k.format === "days") return `${v} days`;
+    return nf(v);
+  };
+  return { nf, money, moneyK, fmtKpi };
 }
 
 export function ReportsWorkspace() {
@@ -141,16 +150,18 @@ export function ReportsWorkspace() {
 }
 
 function SectionChart({ s }: { s: ReportSection }) {
+  const { nf, money, moneyK } = useFmt();
   if (s.kind === "area") return <AreaChart series={s.data} />;
   if (s.kind === "donut") return <Donut dist={s.data.dist} center={s.data.center} />;
   if (s.kind === "funnel") return <Funnel stages={s.data} />;
   const d = s.data;
   const color = d.color === "amber" ? "#D97706" : d.color === "green" ? "#059669" : "#2563EB";
-  const fmt = d.fmt === "money" ? money : d.fmt === "moneyK" ? moneyK : (n: number) => n.toLocaleString("en-US");
+  const fmt = d.fmt === "money" ? money : d.fmt === "moneyK" ? moneyK : nf;
   return <BarRows rows={d.rows} color={color} fmt={fmt} bandColors={!!d.bandColors} />;
 }
 
 function KpiCard({ k }: { k: ReportKpi }) {
+  const { fmtKpi } = useFmt();
   const d = k.delta;
   return (
     <Link href={k.drill} className="rounded-2xl border border-border bg-card p-3.5 hover:border-primary/40 hover:shadow-[0_6px_20px_-14px_rgba(37,99,235,.5)] transition-all relative group">
@@ -181,6 +192,7 @@ function InsightCard({ ins }: { ins: { tone: string; label: string; text: string
 
 function Reconciliation({ r }: { r: import("@/lib/api/types").ReportReconciliation }) {
   const { t } = useI18n();
+  const { nf, money } = useFmt();
   return (
     <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4 mb-6 flex items-center gap-5 flex-wrap">
       <div className="flex items-center gap-2">
@@ -191,7 +203,7 @@ function Reconciliation({ r }: { r: import("@/lib/api/types").ReportReconciliati
         </div>
       </div>
       <div className="text-center px-3 border-l border-emerald-200">
-        <p className="text-lg font-extrabold tabular-nums">{r.ledger_entries.toLocaleString("en-US")}</p>
+        <p className="text-lg font-extrabold tabular-nums">{nf(r.ledger_entries)}</p>
         <p className="text-[10px] text-muted-foreground">{t("rep.ledger_entries")}</p>
       </div>
       <div className="flex flex-wrap gap-x-5 gap-y-1">

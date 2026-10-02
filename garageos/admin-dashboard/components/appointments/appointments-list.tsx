@@ -14,6 +14,7 @@ import {
 
 import { clientFetch } from "@/lib/api/client";
 import { useI18n } from "@/lib/i18n/context";
+import { formatDate, formatNumber } from "@/lib/i18n/format";
 import { NewAppointmentButton } from "@/components/appointments/new-appointment-modal";
 import { EditAppointmentModal } from "@/components/appointments/edit-appointment-modal";
 import type {
@@ -294,8 +295,8 @@ function Row({
   onEdit: (a: Appointment) => void;
   router: ReturnType<typeof useRouter>;
 }) {
-  const { t } = useI18n();
-  const date = new Date(a.appointment_date).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const { t, locale } = useI18n();
+  const date = formatDate(locale, a.appointment_date, { month: "short", day: "numeric" });
   const { name: vehName, plate } = plateOf(a.vehicle_summary);
   const canConfirm = a.status === "pending";
   const canCancel = a.status === "pending" || a.status === "confirmed";
@@ -339,9 +340,9 @@ function Row({
 }
 
 function BillingPill({ b, vid }: { b: import("@/lib/api/types").AppointmentBilling | null | undefined; vid: string }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   if (!b) return <span className="text-muted-foreground/40 text-sm">—</span>;
-  const bal = "$" + b.balance.toLocaleString("en-US", { maximumFractionDigits: 0 });
+  const bal = "$" + formatNumber(locale, b.balance, { maximumFractionDigits: 0 });
   let cls = "text-slate-500 bg-slate-100 border-slate-200", label = b.status as string;
   if (b.kind === "estimate") {
     cls = b.status === "approved" ? "text-emerald-600 bg-emerald-50 border-emerald-200" : "text-purple-600 bg-purple-50 border-purple-200";

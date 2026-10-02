@@ -31,7 +31,7 @@ function Field({ icon, label, value }: { icon: React.ReactNode; label: string; v
 }
 
 export function JobDetail({ jobId }: { jobId: string }) {
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
   const router = useRouter();
   const { toast } = useToast();
   const [job, setJob] = useState<JobDetailData | null>(null);
@@ -118,7 +118,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
         {job.customer_name && <Field icon={<User className="size-4" />} label={t("workshop.customer")} value={job.customer_name} />}
         {job.customer_phone && <Field icon={<Phone className="size-4" />} label={t("workshop.phone")} value={job.customer_phone} />}
         {job.license_plate && <Field icon={<Car className="size-4" />} label={t("workshop.plate")} value={job.license_plate} />}
-        {job.current_km != null && <Field icon={<Gauge className="size-4" />} label={t("workshop.odometer")} value={`${job.current_km.toLocaleString()} km`} />}
+        {job.current_km != null && <Field icon={<Gauge className="size-4" />} label={t("workshop.odometer")} value={`${fmt.number(job.current_km)} km`} />}
         {job.estimated_duration_minutes != null && <Field icon={<Clock className="size-4" />} label={t("workshop.duration")} value={`${job.estimated_duration_minutes} min`} />}
       </div>
 

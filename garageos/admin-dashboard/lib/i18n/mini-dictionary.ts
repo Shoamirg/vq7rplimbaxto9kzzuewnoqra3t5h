@@ -142,6 +142,8 @@ export const MINI_DICTIONARY: Record<Locale, Record<string, string>> = {
     // plurals
     "mini.days_left.one": "{count} day left",
     "mini.days_left.other": "{count} days left",
+    "mini.book.today": "Today",
+    "mini.book.tomorrow": "Tomorrow",
   },
 
   ru: {
@@ -272,6 +274,8 @@ export const MINI_DICTIONARY: Record<Locale, Record<string, string>> = {
     "mini.days_left.few": "осталось {count} дня",
     "mini.days_left.many": "осталось {count} дней",
     "mini.days_left.other": "осталось {count} дня",
+    "mini.book.today": "Сегодня",
+    "mini.book.tomorrow": "Завтра",
   },
 
   uz: {
@@ -400,5 +404,7 @@ export const MINI_DICTIONARY: Record<Locale, Record<string, string>> = {
     "mini.me.garage": "Avtoservis",
     "mini.days_left.one": "{count} kun qoldi",
     "mini.days_left.other": "{count} kun qoldi",
+    "mini.book.today": "Bugun",
+    "mini.book.tomorrow": "Ertaga",
   },
 };

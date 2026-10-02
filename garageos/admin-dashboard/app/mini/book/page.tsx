@@ -10,6 +10,9 @@ import {
 import { miniFetch } from "@/lib/mini/client";
 import { haptic } from "@/lib/mini/telegram";
 import { Card, HealthRing, Loading, ScreenError, ScreenHeader } from "@/components/mini/ui";
+import { useI18n } from "@/lib/i18n/context";
+import type { Locale } from "@/lib/i18n/dictionaries";
+import { formatDate } from "@/lib/i18n/format";
 
 type Vehicle = { id: string; label: string; health_score: number; band: string; plate?: string | null };
 type BookingResult = { id: string; vehicle_label: string; service: string; date: string; time: string; duration_minutes: number; mechanic_name: string | null; status: string };
@@ -24,15 +27,15 @@ const SERVICES = [
 ];
 const TIMES = ["09:00", "10:30", "13:00", "15:30"];
 
-function nextDays(n: number) {
+function nextDays(n: number, locale: Locale, t: (key: string) => string) {
   const out: { iso: string; label: string; sub: string }[] = [];
   const base = new Date();
   for (let i = 0; i < n; i++) {
     const d = new Date(base);
     d.setDate(base.getDate() + i);
     const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    const label = i === 0 ? "Today" : i === 1 ? "Tomorrow" : d.toLocaleDateString("en-US", { weekday: "long" });
-    out.push({ iso, label, sub: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) });
+    const label = i === 0 ? t("mini.book.today") : i === 1 ? t("mini.book.tomorrow") : formatDate(locale, d, { weekday: "long" });
+    out.push({ iso, label, sub: formatDate(locale, d, { month: "short", day: "numeric" }) });
   }
   return out;
 }
@@ -40,6 +43,7 @@ function nextDays(n: number) {
 type Step = "vehicle" | "service" | "date" | "time" | "review" | "done";
 
 export default function BookPage() {
+  const { t, locale } = useI18n();
   const [vehicles, setVehicles] = useState<Vehicle[] | null>(null);
   const [error, setError] = useState(false);
   const [step, setStep] = useState<Step>("vehicle");
@@ -50,7 +54,7 @@ export default function BookPage() {
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<BookingResult | null>(null);
 
-  const days = useMemo(() => nextDays(5), []);
+  const days = useMemo(() => nextDays(5, locale, t), [locale, t]);
 
   useEffect(() => {
     miniFetch<{ vehicles: Vehicle[] }>("/vehicles").then((r) => setVehicles(r.vehicles)).catch(() => setError(true));
@@ -87,7 +91,7 @@ export default function BookPage() {
         <h1 className="text-xl font-bold text-slate-900">Appointment booked</h1>
         <p className="text-sm text-slate-500 mt-1">{result.vehicle_label} · {result.service}</p>
         <Card className="mt-5 text-left">
-          <Row k="When" v={`${prettyDate(result.date)} · ${result.time}`} />
+          <Row k="When" v={`${prettyDate(result.date, locale)} · ${result.time}`} />
           <Row k="Duration" v={`${result.duration_minutes} min`} />
           <Row k="Advisor" v={result.mechanic_name ?? "Assigned by the shop"} />
           <Row k="Status" v="Pending confirmation" />
@@ -233,9 +237,8 @@ function Row({ k, v }: { k: string; v: string }) {
   );
 }
 
-function prettyDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+function prettyDate(iso: string, locale: Locale): string {
+  return formatDate(locale, iso, { weekday: "long", month: "short", day: "numeric" });
 }
 
 function buildIcs(r: BookingResult): string {

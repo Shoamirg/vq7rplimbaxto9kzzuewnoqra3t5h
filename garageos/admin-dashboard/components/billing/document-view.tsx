@@ -11,7 +11,7 @@ import {
 import { clientFetch, ClientApiError } from "@/lib/api/client";
 import { useI18n } from "@/lib/i18n/context";
 import type { InvoiceDoc, LineKind } from "@/lib/api/types";
-import { LINE_ICON, METHOD_ICON, STATUS_META, fmtDate, money } from "./shared";
+import { LINE_ICON, METHOD_ICON, STATUS_META, useBillingFmt } from "./shared";
 
 const ABTN = "text-[12.5px] font-bold px-3.5 py-2 rounded-lg border border-border bg-card text-slate-600 inline-flex items-center gap-1.5 hover:bg-muted transition-colors";
 
@@ -29,6 +29,7 @@ export function DocumentView({
   const canEdit = doc.amount_paid <= 0;
   const { toast } = useToast();
   const { t } = useI18n();
+  const { money, fmtDate } = useBillingFmt();
   const noun = doc.kind === "estimate" ? t("bill.estimate") : t("bill.invoice");
   const nounLc = doc.kind === "estimate" ? t("bill.estimate_lc") : t("bill.invoice_lc");
   const shareLink = typeof window !== "undefined" ? `${window.location.origin}/invoice/${doc.id}` : "";
@@ -269,6 +270,7 @@ function PayModal({ balance, onClose, onSubmit }: { balance: number; onClose: ()
   const [amount, setAmount] = useState(balance.toFixed(2));
   const [method, setMethod] = useState("card");
   const { t } = useI18n();
+  const { money } = useBillingFmt();
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40" onClick={onClose}>
       <div className="w-[360px] rounded-2xl bg-card border border-border p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>

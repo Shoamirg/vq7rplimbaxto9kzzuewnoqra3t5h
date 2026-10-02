@@ -8,6 +8,7 @@ import { ArrowLeft, ImageIcon, Send } from "lucide-react";
 import { miniFetch } from "@/lib/mini/client";
 import { haptic } from "@/lib/mini/telegram";
 import { useI18n } from "@/lib/i18n/context";
+import { formatTime } from "@/lib/i18n/format";
 import type { ThreadMessage, ThreadResponse } from "@/lib/mini/types";
 import { ListSkeleton } from "@/components/mini/ui";
 
@@ -15,7 +16,7 @@ export default function ThreadPage() {
   const params = useParams<{ id: string }>();
   const { t, locale } = useI18n();
   const fmtTime = (iso?: string | null) =>
-    iso ? new Date(iso).toLocaleTimeString(locale === "en" ? "en-US" : locale, { hour: "numeric", minute: "2-digit" }) : "";
+    iso ? formatTime(locale, iso, { hour: "numeric", minute: "2-digit" }) : "";
   const [thread, setThread] = useState<ThreadResponse | null>(null);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);

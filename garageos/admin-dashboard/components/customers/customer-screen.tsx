@@ -17,6 +17,7 @@ import { NewAppointmentModal } from "@/components/appointments/new-appointment-m
 import { AddVehicleModal } from "@/components/vehicles/add-vehicle-modal";
 import { clientFetch } from "@/lib/api/client";
 import { useI18n } from "@/lib/i18n/context";
+import { formatDate, formatNumber } from "@/lib/i18n/format";
 import type { Customer360, HealthBand } from "@/lib/api/types";
 
 const BAND_TEXT: Record<HealthBand, string> = {
@@ -41,10 +42,16 @@ const CH_TONE: Record<string, string> = {
   new: "text-slate-500 bg-slate-100 border-slate-200",
 };
 
-const nf = (n: number) => n.toLocaleString("en-US");
-const money = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
-const fmtDate = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" }) : "—";
+// Number/money/date formatters bound to the active UI language.
+function useFmt() {
+  const { locale } = useI18n();
+  return {
+    nf: (n: number) => formatNumber(locale, n),
+    money: (n: number) => `$${formatNumber(locale, Math.round(n))}`,
+    fmtDate: (iso: string | null) =>
+      iso ? formatDate(locale, iso, { day: "numeric", month: "short", year: "numeric" }) : "—",
+  };
+}
 const monogram = (name: string) => name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "?";
 
 export function CustomerScreen({ customer }: { customer: Customer360 }) {
@@ -55,6 +62,7 @@ export function CustomerScreen({ customer }: { customer: Customer360 }) {
   const router = useRouter();
   const { toast } = useToast();
   const { t } = useI18n();
+  const { money } = useFmt();
   const c = customer;
   const since = c.since ? new Date(c.since).getFullYear() : null;
 
@@ -176,6 +184,7 @@ export function CustomerScreen({ customer }: { customer: Customer360 }) {
 
 function Financial({ customer: c }: { customer: Customer360 }) {
   const { t } = useI18n();
+  const { money, fmtDate } = useFmt();
   const f = c.financial;
   if (!f) return <Placeholder icon={Receipt} title={t("cust.fin.empty_title")} body={t("cust.fin.empty_body")} />;
   const ch = f.commercial_health;
@@ -226,6 +235,7 @@ function Financial({ customer: c }: { customer: Customer360 }) {
 
 function DocList({ title, rows }: { title: string; rows: any[] }) {
   const { t } = useI18n();
+  const { money } = useFmt();
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
@@ -252,6 +262,7 @@ function DocList({ title, rows }: { title: string; rows: any[] }) {
 
 function PayList({ rows }: { rows: any[] }) {
   const { t } = useI18n();
+  const { money, fmtDate } = useFmt();
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
       <div className="px-4 py-2.5 border-b border-border"><span className="text-sm font-bold">{t("cust.fin.payments")}</span></div>
@@ -284,6 +295,7 @@ function Stat({ icon: Icon, label, value, valueClass }: { icon: React.ElementTyp
 
 function Overview({ customer: c }: { customer: Customer360 }) {
   const { t } = useI18n();
+  const { money, fmtDate } = useFmt();
   const answers = [
     { icon: Car, label: t("cust.stat.vehicles"), value: t("cust.ov.on_file", { count: c.stats.vehicle_count }) },
     { icon: Gauge, label: t("cust.ov.fleet_health"), value: `${c.stats.health_avg} · ${c.stats.health_band}` },
@@ -325,6 +337,7 @@ function Overview({ customer: c }: { customer: Customer360 }) {
 
 function VehicleCards({ customer: c }: { customer: Customer360 }) {
   const { t } = useI18n();
+  const { nf } = useFmt();
   if (c.vehicles.length === 0) {
     return <EmptyState compact icon={Car} title={t("cust.veh.empty_title")} description={t("cust.veh.empty_desc")} />;
   }
@@ -376,6 +389,7 @@ function Passports({ customer: c }: { customer: Customer360 }) {
 
 function Timeline({ customer: c }: { customer: Customer360 }) {
   const { t } = useI18n();
+  const { money, fmtDate } = useFmt();
   if (c.timeline.length === 0) return <Placeholder icon={Clock} title={t("cust.tl.empty_title")} body={t("cust.tl.empty_body")} />;
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
@@ -412,6 +426,7 @@ const APPT_VARIANT: Record<string, string> = {
 
 function Appointments({ customer: c }: { customer: Customer360 }) {
   const { t } = useI18n();
+  const { money, fmtDate } = useFmt();
   if (c.appointments.length === 0) return <Placeholder icon={CalendarClock} title={t("cust.appt.empty_title")} body={t("cust.appt.empty_body")} />;
   return (
     <div className="rounded-2xl border border-border bg-card divide-y divide-border">

@@ -5,6 +5,7 @@ import { Car, ChevronRight, Gauge } from "lucide-react";
 
 import { ApiError, getVehicles } from "@/lib/api/server";
 import { LOCALE_COOKIE, isLocale, translate } from "@/lib/i18n/dictionaries";
+import { formatNumber } from "@/lib/i18n/format";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +48,7 @@ export default async function VehiclesPage() {
               {v.brand} {v.model}
             </p>
             <p className="text-xs text-muted-foreground">
-              {v.year} · {v.current_km.toLocaleString("en-US")} km
+              {v.year} · {formatNumber(locale, v.current_km)} km
             </p>
             <div className="mt-2 flex items-center justify-between">
               {v.license_plate ? (

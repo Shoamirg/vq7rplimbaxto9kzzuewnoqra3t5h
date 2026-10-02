@@ -1,7 +1,9 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 
+import { formatDate, formatMoney, formatNumber } from "./format";
 import {
   LOCALE_COOKIE,
   type Locale,
@@ -29,19 +31,11 @@ type I18nValue = {
 
 const I18nContext = createContext<I18nValue | null>(null);
 
-// BCP-47 tags for Intl formatting (our short codes -> real locales).
-const INTL_LOCALE: Record<Locale, string> = { en: "en-US", ru: "ru-RU", uz: "uz-Latn-UZ" };
-
 function makeFormatters(locale: Locale) {
-  const tag = INTL_LOCALE[locale] ?? "en-US";
   return {
-    date: (iso?: string | null, opts?: Intl.DateTimeFormatOptions) => {
-      if (!iso) return "";
-      return new Date(iso).toLocaleDateString(tag, opts ?? { month: "short", day: "numeric", year: "numeric" });
-    },
-    money: (n: number, currency = "USD") =>
-      new Intl.NumberFormat(tag, { style: "currency", currency }).format(n || 0),
-    number: (n: number) => new Intl.NumberFormat(tag).format(n || 0),
+    date: (iso?: string | null, opts?: Intl.DateTimeFormatOptions) => (iso ? formatDate(locale, iso, opts) : ""),
+    money: (n: number, currency = "USD") => formatMoney(locale, n, currency),
+    number: (n: number) => formatNumber(locale, n),
   };
 }
 
@@ -54,17 +48,40 @@ export function I18nProvider({
   initialLocale?: Locale;
   children: React.ReactNode;
 }) {
+  const router = useRouter();
   const [locale, setLocaleState] = useState<Locale>(initialLocale);
+  const [isSwitching, startSwitch] = useTransition();
+  // Ref keeps setLocale's identity stable (consumers list it in effect deps).
+  const localeRef = useRef(locale);
 
-  const setLocale = useCallback((l: Locale) => {
-    setLocaleState(l);
-    if (typeof document !== "undefined") {
+  const setLocale = useCallback(
+    (l: Locale) => {
+      if (l === localeRef.current) return;
+      localeRef.current = l;
+      setLocaleState(l);
+      if (typeof document === "undefined") return;
       // 1-year cookie so the server can pre-render the right language next visit.
       document.cookie = `${LOCALE_COOKIE}=${l}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
-      document.documentElement.lang = l;
-      document.documentElement.dir = textDirection(l);
-    }
-  }, []);
+      // Client components re-render instantly from state; Server Components
+      // (e.g. the vehicles page) only re-translate on a fresh server render.
+      // Refresh in a transition so the old UI stays put until the new one lands.
+      startSwitch(() => router.refresh());
+    },
+    [router],
+  );
+
+  // The root layout hardcodes <html lang="en"> (it stays static); keep lang/dir
+  // in sync with the active locale on first paint and on every switch.
+  useEffect(() => {
+    document.documentElement.lang = locale;
+    document.documentElement.dir = textDirection(locale);
+  }, [locale]);
+
+  // Dim <main> while server sections catch up so the swap reads as one fade,
+  // not a half-translated page (see globals.css `[data-locale-switching]`).
+  useEffect(() => {
+    document.documentElement.toggleAttribute("data-locale-switching", isSwitching);
+  }, [isSwitching]);
 
   const value = useMemo<I18nValue>(
     () => ({

@@ -4,12 +4,14 @@
 // control, and a lean bundle. Enough for almost every GarageOS report.
 
 import { useI18n } from "@/lib/i18n/context";
+import type { Locale } from "@/lib/i18n/dictionaries";
+import { formatNumber } from "@/lib/i18n/format";
 
-export function money(n: number): string {
-  return "$" + Math.round(n).toLocaleString("en-US");
+export function money(n: number, locale: Locale = "en"): string {
+  return "$" + formatNumber(locale, Math.round(n));
 }
-export function moneyK(n: number): string {
-  return n >= 1000 ? "$" + (n / 1000).toFixed(1) + "k" : money(n);
+export function moneyK(n: number, locale: Locale = "en"): string {
+  return n >= 1000 ? "$" + formatNumber(locale, n / 1000, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + "k" : money(n, locale);
 }
 
 // Small inline sparkline (bars).
