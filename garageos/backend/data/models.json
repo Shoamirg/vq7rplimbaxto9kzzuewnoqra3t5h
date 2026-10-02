@@ -49,5 +49,10 @@
 
   { "brand": "Chevrolet", "name": "Cruze", "year_start": 2011, "year_end": 2019, "engine_options": "1.4L Turbo, 1.8L" },
   { "brand": "Chevrolet", "name": "Malibu", "year_start": 2013, "year_end": null, "engine_options": "1.5L Turbo, 2.0L Turbo" },
-  { "brand": "Chevrolet", "name": "Captiva", "year_start": 2011, "year_end": 2018, "engine_options": "2.4L, 2.2L D" }
+  { "brand": "Chevrolet", "name": "Captiva", "year_start": 2011, "year_end": 2018, "engine_options": "2.4L, 2.2L D" },
+  { "brand": "Chevrolet", "name": "Cobalt" },
+  { "brand": "Chevrolet", "name": "Spark" },
+  { "brand": "Chevrolet", "name": "Nexia" },
+  { "brand": "Chevrolet", "name": "Gentra" },
+  { "brand": "Chevrolet", "name": "Damas" }
 ]

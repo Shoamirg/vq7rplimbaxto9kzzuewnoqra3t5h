@@ -16,7 +16,7 @@ test("staff completes service work and shows one Uzbek UZS invoice", async ({ pa
   await page.goto("/appointments");
   await page.getByRole("button", { name: "Yangi qabul" }).last().click();
   await expect(page.getByRole("dialog", { name: "Yangi navbat" })).toBeVisible();
-  await page.getByPlaceholder("Mijozlarni qidiring…").fill(customer.full_name);
+  await page.getByRole("dialog", { name: "Yangi navbat" }).getByRole("textbox", { name: "Ism, telefon yoki pochta bo‘yicha qidirish…" }).fill(customer.full_name);
   await page.getByRole("dialog", { name: "Yangi navbat" }).getByRole("button", { name: customer.full_name }).first().click();
   await expect(page.locator("#appt-vehicle option")).not.toHaveCount(1);
   await page.locator("#appt-vehicle").selectOption({ index: 1 });

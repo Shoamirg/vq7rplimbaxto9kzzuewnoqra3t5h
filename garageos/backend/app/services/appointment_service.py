@@ -62,6 +62,19 @@ class AppointmentService:
         self.customer_repo = CustomerRepository(uow.session, sc)
         self.service_record_repo = ServiceRecordRepository(uow.session, sc)
 
+    async def _check_schedule(self, when, time, duration, mechanic, *, exclude_id=None):
+        conflicts = await self.appointment_repo.find_conflicting(
+            self.uow.service_center_id, when, time, duration,
+            exclude_id=exclude_id, mechanic_name=mechanic,
+        )
+        if conflicts:
+            raise AppointmentConflict()
+
+    @staticmethod
+    def _at_time(when, time):
+        day = when.date() if isinstance(when, datetime) else when
+        return datetime.combine(day, datetime.strptime(time, "%H:%M").time(), tzinfo=timezone.utc)
+
     async def generate_slots(
         self,
         service_center_id: uuid.UUID,
@@ -73,6 +86,7 @@ class AppointmentService:
     ) -> List[dict]:
         """Pre-generate available time slots for a given date."""
         mechanics = mechanic_names or [None]
+        await self.appointment_repo.lock_schedule()
         created = []
 
         for mechanic in mechanics:
@@ -135,9 +149,11 @@ class AppointmentService:
         """
         sc = self.uow.service_center_id
 
+        await self.appointment_repo.lock_schedule()
         if not await self.customer_repo.get_by_id(customer_id):
             raise CustomerNotFound()
-        if not await self.vehicle_repo.get_by_id(vehicle_id):
+        vehicle = await self.vehicle_repo.get_by_id(vehicle_id)
+        if not vehicle or vehicle.customer_id != customer_id:
             raise VehicleNotFound(vehicle_id)
 
         slot = await self.slot_repo.get_by_id(slot_id)
@@ -145,11 +161,9 @@ class AppointmentService:
             raise SlotUnavailable()
 
         # Conflict detection: the mechanic/time must not already be taken.
-        conflicts = await self.appointment_repo.find_conflicting(
-            sc, slot.slot_date, slot.start_time, slot.duration_minutes
+        await self._check_schedule(
+            slot.slot_date, slot.start_time, slot.duration_minutes, slot.mechanic_name
         )
-        if conflicts:
-            raise AppointmentConflict()
 
         # Reserve then book the slot.
         slot.status = AppointmentSlotStatus.RESERVED
@@ -197,15 +211,22 @@ class AppointmentService:
         repos (a customer/vehicle from another tenant simply won't be found).
         """
         sc = self.uow.service_center_id
+        await self.appointment_repo.lock_schedule()
         if not await self.customer_repo.get_by_id(customer_id):
             raise CustomerNotFound()
-        if not await self.vehicle_repo.get_by_id(vehicle_id):
+        vehicle = await self.vehicle_repo.get_by_id(vehicle_id)
+        if not vehicle or vehicle.customer_id != customer_id:
             raise VehicleNotFound(vehicle_id)
 
         hh, mm = int(appointment_time[:2]), int(appointment_time[3:])
         appt_dt = datetime(
             appointment_date.year, appointment_date.month, appointment_date.day,
             hh, mm, tzinfo=timezone.utc,
+        )
+
+        mechanic_name = mechanic_name.strip() or None if mechanic_name is not None else None
+        await self._check_schedule(
+            appt_dt, appointment_time, estimated_duration_minutes, mechanic_name
         )
 
         appointment = await self.appointment_repo.create(
@@ -390,6 +411,7 @@ class AppointmentService:
         appointment_id: uuid.UUID,
         new_slot_id: uuid.UUID,
     ) -> dict:
+        await self.appointment_repo.lock_schedule()
         appointment = await self.appointment_repo.get_with_slot(appointment_id, for_update=True)
 
         if not appointment:
@@ -397,15 +419,20 @@ class AppointmentService:
         if appointment.status not in (AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED):
             raise AppointmentStateError("Only pending or confirmed appointments can be rescheduled")
 
-        # Release old slot
-        if appointment.slot:
-            appointment.slot.status = AppointmentSlotStatus.AVAILABLE
-            appointment.slot.appointment_id = None
-
         # Reserve new slot
         new_slot = await self.slot_repo.get_by_id(new_slot_id)
         if not new_slot or new_slot.status != AppointmentSlotStatus.AVAILABLE:
             raise SlotUnavailable()
+
+        await self._check_schedule(
+            new_slot.slot_date, new_slot.start_time, new_slot.duration_minutes,
+            new_slot.mechanic_name, exclude_id=appointment_id,
+        )
+
+        # Release only after the destination has passed every check.
+        if appointment.slot:
+            appointment.slot.status = AppointmentSlotStatus.AVAILABLE
+            appointment.slot.appointment_id = None
 
         new_slot.status = AppointmentSlotStatus.BOOKED
         new_slot.appointment_id = appointment_id
@@ -544,6 +571,7 @@ class AppointmentService:
         Idempotent: slots already present (same day/time/mechanic) are skipped,
         so re-running to extend the horizon never duplicates.
         """
+        await self.appointment_repo.lock_schedule()
         sc = self.uow.service_center_id
         mechanics = mechanic_names or [None]
         start_dt = datetime.combine(start_date, datetime.min.time(), tzinfo=timezone.utc)
@@ -597,7 +625,13 @@ class AppointmentService:
 
         appointments = await self.appointment_repo.list_in_range(start_dt, end_dt)
         slots = await self.slot_repo.list_in_range(start_dt, end_dt)
+        available_ids = {s.id for s in await self.slot_repo.list_in_range(start_dt, end_dt, available_only=True)}
         mechanics = await self._mechanics()
+
+        def effective_status(s: AppointmentSlot) -> str:
+            if s.status == AppointmentSlotStatus.AVAILABLE and s.id not in available_ids:
+                return AppointmentSlotStatus.BLOCKED
+            return s.status
 
         def slot_dict(s: AppointmentSlot) -> dict:
             return {
@@ -606,7 +640,7 @@ class AppointmentService:
                 "start_time": s.start_time,
                 "end_time": s.end_time,
                 "mechanic": s.mechanic_name,
-                "status": s.status,
+                "status": effective_status(s),
                 "duration": s.duration_minutes,
                 "appointment_id": str(s.appointment_id) if s.appointment_id else None,
             }
@@ -616,8 +650,8 @@ class AppointmentService:
             "end": end.isoformat(),
             "mechanics": mechanics,
             "appointments": [serialize_appointment(a) for a in appointments],
-            "slots": [slot_dict(s) for s in slots if s.status != AppointmentSlotStatus.BLOCKED],
-            "blocked": [slot_dict(s) for s in slots if s.status == AppointmentSlotStatus.BLOCKED],
+            "slots": [slot_dict(s) for s in slots if effective_status(s) != AppointmentSlotStatus.BLOCKED],
+            "blocked": [slot_dict(s) for s in slots if effective_status(s) == AppointmentSlotStatus.BLOCKED],
         }
 
     async def _mechanics(self) -> List[dict]:
@@ -632,6 +666,7 @@ class AppointmentService:
 
     # --- Calendar drag/drop -------------------------------------------------
     async def move_appointment(self, appointment_id: uuid.UUID, new_slot_id: uuid.UUID) -> dict:
+        await self.appointment_repo.lock_schedule()
         appointment = await self.appointment_repo.get_with_slot(appointment_id, for_update=True)
         if not appointment:
             raise AppointmentNotFound()
@@ -642,6 +677,11 @@ class AppointmentService:
         new_slot = await self.slot_repo.get_by_id(new_slot_id)
         if not new_slot or new_slot.status != AppointmentSlotStatus.AVAILABLE:
             raise SlotUnavailable()
+
+        await self._check_schedule(
+            new_slot.slot_date, new_slot.start_time, new_slot.duration_minutes,
+            new_slot.mechanic_name, exclude_id=appointment_id,
+        )
 
         # Free the old slot, book the new one.
         if appointment.slot:
@@ -669,17 +709,34 @@ class AppointmentService:
         notes: Optional[str] = None,
     ) -> dict:
         """Partial update used by the calendar board (drag-to-move, resize)."""
+        await self.appointment_repo.lock_schedule()
         appointment = await self.appointment_repo.get_detailed(appointment_id, for_update=True)
         if not appointment:
             raise AppointmentNotFound()
         if appointment.status not in (AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED):
             raise AppointmentStateError("Only pending or confirmed appointments can be edited")
-        if appointment_date is not None:
-            appointment.appointment_date = appointment_date
+        new_time = appointment_time or appointment.appointment_time
+        new_date = self._at_time(appointment_date or appointment.appointment_date, new_time)
+        new_duration = estimated_duration_minutes if estimated_duration_minutes is not None else appointment.estimated_duration_minutes
+        new_mechanic = (mechanic_name.strip() or None) if mechanic_name is not None else appointment.mechanic_name
+        await self._check_schedule(new_date, new_time, new_duration, new_mechanic, exclude_id=appointment_id)
+        # A freely edited visit no longer occupies its old pre-generated slot.
+        # Keep that slot reusable rather than leaving a phantom booking behind.
+        placement_changed = (
+            new_date != self._at_time(appointment.appointment_date, appointment.appointment_time)
+            or new_duration != appointment.estimated_duration_minutes
+            or new_mechanic != appointment.mechanic_name
+        )
+        if placement_changed and appointment.slot:
+            appointment.slot.status = AppointmentSlotStatus.AVAILABLE
+            appointment.slot.appointment_id = None
+            appointment.slot.reserved_until = None
+            appointment.slot = None
+        appointment.appointment_date = new_date
         if appointment_time is not None:
             appointment.appointment_time = appointment_time
         if mechanic_name is not None:
-            appointment.mechanic_name = mechanic_name
+            appointment.mechanic_name = new_mechanic
         if estimated_duration_minutes is not None:
             appointment.estimated_duration_minutes = estimated_duration_minutes
         if notes is not None:
@@ -688,11 +745,17 @@ class AppointmentService:
         return await self.get_appointment(appointment_id)
 
     async def assign_mechanic(self, appointment_id: uuid.UUID, mechanic_name: str) -> dict:
+        await self.appointment_repo.lock_schedule()
         appointment = await self.appointment_repo.get_with_slot(appointment_id, for_update=True)
         if not appointment:
             raise AppointmentNotFound()
         if appointment.status not in (AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED):
             raise AppointmentStateError("Mechanic assignment is closed after service work starts")
+        mechanic_name = mechanic_name.strip()
+        await self._check_schedule(
+            appointment.appointment_date, appointment.appointment_time,
+            appointment.estimated_duration_minutes, mechanic_name, exclude_id=appointment_id,
+        )
         appointment.mechanic_name = mechanic_name
         if appointment.slot:
             appointment.slot.mechanic_name = mechanic_name

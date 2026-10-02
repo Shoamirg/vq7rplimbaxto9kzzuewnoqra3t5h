@@ -3,9 +3,10 @@ from __future__ import annotations
 
 import uuid
 from datetime import date
+from typing import Literal
 
-from fastapi import APIRouter, Depends, Query, status
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, Header, Query, status
+from pydantic import BaseModel, Field, FiniteFloat
 
 from app.api.deps import get_tenant_uow
 from app.repositories.unit_of_work import UnitOfWork
@@ -15,33 +16,34 @@ router = APIRouter()
 
 
 class LineItemIn(BaseModel):
-    kind: str = "part"          # part | labor | fee | discount
-    description: str
-    quantity: float = 1
-    unit_price: float = 0
-    line_total: float | None = None
+    model_config = {"str_strip_whitespace": True}
+    kind: Literal["part", "labor", "fee", "discount"] = "part"
+    description: str = Field(min_length=1, max_length=255)
+    quantity: FiniteFloat = Field(default=1, gt=0, le=99999999.99)
+    unit_price: FiniteFloat = Field(default=0, ge=0, le=99999999.99)
+    line_total: FiniteFloat | None = Field(default=None, ge=0, le=99999999.99)
     taxable: bool = True
 
 
 class InvoiceCreate(BaseModel):
-    kind: str = "invoice"       # estimate | invoice
+    kind: Literal["estimate", "invoice"] = "invoice"
     customer_id: uuid.UUID
     vehicle_id: uuid.UUID | None = None
     appointment_id: uuid.UUID | None = None
     case_id: uuid.UUID | None = None
-    tax_rate: float | None = None
+    tax_rate: FiniteFloat | None = Field(default=None, ge=0, le=100)
     due_date: date | None = None
     notes: str | None = None
     line_items: list[LineItemIn] | None = None
 
 
 class PaymentIn(BaseModel):
-    amount: float
-    method: str = "card"        # cash | card | bank_transfer | online
-    kind: str = "payment"       # payment | refund | deposit
-    source: str = "manual"      # manual | terminal | telegram | stripe | bank | cash
-    reference: str | None = None
-    note: str | None = None
+    amount: FiniteFloat = Field(gt=0, le=99999999.99)
+    method: Literal["cash", "card", "bank_transfer", "online"] = "card"
+    kind: Literal["payment", "refund", "deposit"] = "payment"
+    source: Literal["manual", "terminal", "telegram", "stripe", "bank", "cash"] = "manual"
+    reference: str | None = Field(default=None, max_length=120)
+    note: str | None = Field(default=None, max_length=255)
 
 
 class InvoiceUpdate(BaseModel):
@@ -50,7 +52,7 @@ class InvoiceUpdate(BaseModel):
 
 class InvoiceEdit(BaseModel):
     vehicle_id: uuid.UUID | None = None
-    tax_rate: float | None = None
+    tax_rate: FiniteFloat | None = Field(default=None, ge=0, le=100)
     due_date: date | None = None
     notes: str | None = None
     line_items: list[LineItemIn] | None = None
@@ -100,8 +102,14 @@ async def edit_document(invoice_id: uuid.UUID, body: InvoiceEdit, uow: UnitOfWor
 
 
 @router.post("/{invoice_id}/payments", status_code=status.HTTP_201_CREATED, summary="Record a payment / refund")
-async def record_payment(invoice_id: uuid.UUID, body: PaymentIn, uow: UnitOfWork = Depends(get_tenant_uow)) -> dict:
-    return await InvoiceService(uow).record_payment(invoice_id, **body.model_dump())
+async def record_payment(
+    invoice_id: uuid.UUID, body: PaymentIn, uow: UnitOfWork = Depends(get_tenant_uow),
+    idempotency_key: uuid.UUID | None = Header(default=None, alias="Idempotency-Key"),
+) -> dict:
+    return await InvoiceService(uow).record_payment(
+        invoice_id, **body.model_dump(),
+        idempotency_key=str(idempotency_key) if idempotency_key is not None else None,
+    )
 
 
 @router.post("/{invoice_id}/send", summary="Send an estimate/invoice to the customer")

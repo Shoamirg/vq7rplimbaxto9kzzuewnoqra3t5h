@@ -12,17 +12,24 @@ from fastapi import APIRouter, Depends, Query
 from app.api.deps import get_tenant_uow
 from app.repositories.unit_of_work import UnitOfWork
 from app.services.customer_service import CustomerService
+from app.schemas.customer import StaffCustomerCreate
 
 router = APIRouter()
 
 
-@router.get("", summary="List customers (value-sorted, searchable)")
+@router.get("", summary="Search and paginate customers")
 async def list_customers(
     uow: UnitOfWork = Depends(get_tenant_uow),
     query: str = Query(default="", alias="q"),
     limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
 ) -> dict:
-    return await CustomerService(uow).list_360(query=query, limit=limit)
+    return await CustomerService(uow).list_360(query=query, limit=limit, offset=offset)
+
+
+@router.post("", status_code=201, summary="Register a customer in the current service center")
+async def create_customer(data: StaffCustomerCreate, uow: UnitOfWork = Depends(get_tenant_uow)) -> dict:
+    return await CustomerService(uow).register_customer(data)
 
 
 @router.get("/{customer_id}", summary="Customer 360 (profile, vehicles, timeline, AI summary)")

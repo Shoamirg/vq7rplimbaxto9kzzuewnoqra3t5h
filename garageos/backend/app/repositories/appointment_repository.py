@@ -1,8 +1,8 @@
 from __future__ import annotations
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Optional, Sequence
-from sqlalchemy import select, func, and_, or_
+from sqlalchemy import literal, select, func, and_, or_, text
 from sqlalchemy.orm import selectinload
 from app.models.appointment import Appointment, AppointmentStatus
 from app.models.brand import Brand
@@ -12,6 +12,7 @@ from app.models.service_record import ServiceRecord
 from app.models.vehicle import Vehicle
 from app.models.vehicle_model import VehicleModel
 from app.repositories.base import TenantScopedRepository
+from app.repositories.scheduling import appointment_start
 
 
 class AppointmentRepository(TenantScopedRepository[Appointment]):
@@ -36,7 +37,7 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
             )
         ).options(selectinload(Appointment.slot))
         if for_update:
-            stmt = stmt.with_for_update(of=Appointment)
+            stmt = stmt.with_for_update(of=Appointment).execution_options(populate_existing=True)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -47,9 +48,9 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
                 Appointment.id == appointment_id,
                 Appointment.is_active == True,
             )
-        ).options(*self._DETAIL_OPTIONS)
+        ).options(*self._DETAIL_OPTIONS, selectinload(Appointment.slot))
         if for_update:
-            stmt = stmt.with_for_update(of=Appointment)
+            stmt = stmt.with_for_update(of=Appointment).execution_options(populate_existing=True)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -184,6 +185,18 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
+    async def lock_schedule(self) -> None:
+        """Serialize schedule writes inside this tenant's transaction.
+
+        Locking only existing appointments leaves the empty-interval race open:
+        two receptionists can both see no conflict and insert at the same time.
+        Acquire this lock before any appointment row lock, consistently.
+        """
+        await self.session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtextextended(:schedule_key, 0))"),
+            {"schedule_key": f"garageos:schedule:{self.service_center_id}"},
+        )
+
     async def find_conflicting(
         self,
         service_center_id: uuid.UUID,
@@ -191,12 +204,23 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
         appointment_time: str,
         duration_minutes: int,
         exclude_id: Optional[uuid.UUID] = None,
+        mechanic_name: Optional[str] = None,
     ) -> Sequence[Appointment]:
-        """Find appointments that overlap with the requested time slot."""
-        stmt = select(Appointment).where(
+        """Half-open intervals: adjacent jobs and different mechanics may coexist."""
+        if not mechanic_name or not mechanic_name.strip():
+            return []  # Unassigned visits consume no named mechanic's time yet.
+        requested_start = datetime.combine(
+            appointment_date.date(), datetime.strptime(appointment_time, "%H:%M").time()
+        )
+        requested_end = requested_start + timedelta(minutes=duration_minutes)
+        # appointment_time is canonical; date-only legacy rows must also work.
+        starts_at = appointment_start()
+        ends_at = starts_at + Appointment.estimated_duration_minutes * literal(timedelta(minutes=1))
+        stmt = self._scope(select(Appointment)).where(
             Appointment.service_center_id == service_center_id,
-            Appointment.appointment_date == appointment_date,
-            Appointment.appointment_time == appointment_time,
+            func.lower(func.trim(Appointment.mechanic_name)) == mechanic_name.strip().lower(),
+            starts_at < requested_end,
+            ends_at > requested_start,
             Appointment.status.notin_([AppointmentStatus.CANCELLED, AppointmentStatus.COMPLETED]),
             Appointment.is_active == True,
         )

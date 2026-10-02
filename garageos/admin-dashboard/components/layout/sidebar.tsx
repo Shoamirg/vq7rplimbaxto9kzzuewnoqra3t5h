@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -20,6 +20,7 @@ import {
   Siren,
   Inbox,
   Receipt,
+  X,
 } from "lucide-react";
 import { cn } from "@garageos/design-system";
 
@@ -34,6 +35,7 @@ interface NavItem {
   href: string;
   icon: React.ReactNode;
   badge?: string | number;
+  unfinished?: boolean;
 }
 interface NavSection {
   key: string; // section.* translation key
@@ -67,15 +69,15 @@ const NAV_SECTIONS: NavSection[] = [
     key: "section.business",
     items: [
       { key: "nav.billing", href: "/billing", icon: <Receipt className="size-5" /> },
-      { key: "nav.inventory", href: "/inventory", icon: <Warehouse className="size-5" /> },
+      { key: "nav.inventory", href: "/inventory", icon: <Warehouse className="size-5" />, unfinished: true },
       { key: "nav.reports", href: "/reports", icon: <BarChart3 className="size-5" /> },
     ],
   },
 ];
 
 const bottomNav: NavItem[] = [
-  { key: "nav.settings", href: "/settings", icon: <Settings className="size-5" /> },
-  { key: "nav.support", href: "/support", icon: <HelpCircle className="size-5" /> },
+  { key: "nav.settings", href: "/settings", icon: <Settings className="size-5" />, unfinished: true },
+  { key: "nav.support", href: "/support", icon: <HelpCircle className="size-5" />, unfinished: true },
 ];
 
 type ShellUser = { name: string; email: string; role: string | null };
@@ -105,6 +107,12 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
   const [apptOpen, setApptOpen] = useState(false);
 
   const toggle = useCallback(() => setCollapsed((prev) => !prev), []);
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const close = (event: KeyboardEvent) => { if (event.key === "Escape") setMobileOpen(false); };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [mobileOpen]);
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard" || pathname === "/";
@@ -115,7 +123,8 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
     <>
       {/* Mobile overlay */}
       {mobileOpen && (
-        <div
+        <button
+          aria-label={t("action.close_menu")}
           className="fixed inset-0 z-40 bg-black/50 lg:hidden"
           onClick={() => setMobileOpen(false)}
         />
@@ -124,13 +133,17 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
       {/* Mobile hamburger (visible on small screens outside sidebar) */}
       <button
         onClick={() => setMobileOpen(true)}
-        className="fixed top-3 left-3 z-30 lg:hidden p-2 rounded-lg bg-background border border-border shadow-sm"
-        aria-label="Open sidebar"
+        className={cn("fixed top-3 left-3 z-40 lg:hidden p-2 rounded-lg bg-background border border-border shadow-sm", mobileOpen && "hidden")}
+        aria-label={t("action.open_menu")}
+        aria-expanded={mobileOpen}
+        aria-controls="staff-sidebar"
+        data-testid="sidebar-open"
       >
         <ChevronRight className="size-5" />
       </button>
 
       <aside
+        id="staff-sidebar"
         className={cn(
           "fixed lg:static inset-y-0 left-0 z-50 flex flex-col border-r border-border bg-sidebar text-sidebar-foreground transition-all duration-300",
           collapsed ? "w-16" : "w-64",
@@ -142,6 +155,7 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
           "h-16 flex items-center border-b border-sidebar-muted shrink-0",
           collapsed ? "justify-center px-0" : "px-4 gap-3"
         )}>
+          <button onClick={() => setMobileOpen(false)} aria-label={t("action.close_menu")} className="lg:hidden p-2 ml-auto"><X className="size-4" /></button>
           <div className="size-9 rounded-xl bg-primary flex items-center justify-center shrink-0 shadow-sm">
             <span className="text-primary-foreground font-bold text-sm">{brandMono}</span>
           </div>
@@ -164,7 +178,7 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
                 : "px-4 py-2.5 text-sm"
             )}
             aria-label={t("action.new_appointment")}
-            onClick={() => setApptOpen(true)}
+            onClick={() => { setMobileOpen(false); setApptOpen(true); }}
           >
             <Plus className="size-4 shrink-0" />
             {!collapsed && <span>{t("action.new_appointment")}</span>}
@@ -173,7 +187,7 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
         {apptOpen && (
           <NewAppointmentModal
             onClose={() => setApptOpen(false)}
-            onCreated={() => router.push("/appointments")}
+            onCreated={() => { setApptOpen(false); setMobileOpen(false); router.push("/appointments"); }}
           />
         )}
 
@@ -193,7 +207,10 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
                   <Link
                     key={item.href}
                     href={item.href}
-                    title={collapsed ? t(item.key) : undefined}
+                    onClick={() => setMobileOpen(false)}
+                    aria-current={active ? "page" : undefined}
+                    aria-label={t(item.key) + (item.unfinished ? " · " + t("soon.badge") : "")}
+                    title={collapsed ? t(item.key) + (item.unfinished ? " · " + t("soon.badge") : "") : undefined}
                     className={cn(
                       "flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-150 group",
                       collapsed ? "justify-center h-11 w-11 mx-auto" : "px-3 py-2.5",
@@ -211,6 +228,7 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
                     {!collapsed && (
                       <>
                         <span className="flex-1 truncate">{t(item.key)}</span>
+                        {item.unfinished && <span className="text-[9px] text-sidebar-foreground/50">{t("soon.badge")}</span>}
                         {item.badge && (
                           <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-sidebar-active/20 text-sidebar-active text-[10px] font-semibold">
                             {item.badge}
@@ -233,6 +251,10 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={() => setMobileOpen(false)}
+                aria-current={active ? "page" : undefined}
+                aria-label={t(item.key) + (item.unfinished ? " · " + t("soon.badge") : "")}
+                title={collapsed ? t(item.key) + (item.unfinished ? " · " + t("soon.badge") : "") : undefined}
                 className={cn(
                   "flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-150 group",
                   collapsed ? "justify-center h-11 w-11 mx-auto" : "px-3 py-2.5",
@@ -248,6 +270,7 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
                   {item.icon}
                 </span>
                 {!collapsed && <span className="flex-1 truncate">{t(item.key)}</span>}
+                {!collapsed && item.unfinished && <span className="text-[9px] text-sidebar-foreground/50">{t("soon.badge")}</span>}
               </Link>
             );
           })}
@@ -277,7 +300,7 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
               {initials(user?.name)}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-sidebar-foreground truncate">{user?.name ?? "Signed in"}</p>
+              <p className="text-sm font-medium text-sidebar-foreground truncate">{user?.name ?? t("menu.signed_in")}</p>
               <p className="text-xs text-sidebar-foreground/50 truncate">{user?.email ?? ""}</p>
             </div>
           </div>

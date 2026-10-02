@@ -31,12 +31,19 @@ export function EditAppointmentModal({
   const [mechanic, setMechanic] = useState(appointment.mechanic_name || "");
   const [notes, setNotes] = useState(appointment.notes || "");
   const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+
+  function loadMechanics() {
+    setLoadError(false);
+    clientFetch<CaseMechanic[]>("/cases/mechanics").then(setMechanics).catch(() => setLoadError(true));
+  }
 
   useEffect(() => {
-    clientFetch<CaseMechanic[]>("/cases/mechanics").then(setMechanics).catch(() => {});
+    loadMechanics();
   }, []);
 
   async function save() {
+    if (saving) return;
     setSaving(true);
     try {
       await clientFetch(`/appointments/${appointment.id}`, {
@@ -54,7 +61,7 @@ export function EditAppointmentModal({
       onClose();
     } catch (err) {
       if (!(err instanceof ClientApiError && err.status === 403)) {
-        toast({ title: t("appointment.update_failed"), variant: "danger" });
+        toast({ title: t(err instanceof ClientApiError && err.code === "APPOINTMENT_CONFLICT" ? "appointment.conflict" : "appointment.update_failed"), variant: "danger" });
       }
     } finally {
       setSaving(false);
@@ -70,10 +77,11 @@ export function EditAppointmentModal({
         className="relative w-full max-w-md rounded-2xl border border-border bg-card shadow-2xl">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <h2 className="flex items-center gap-2 text-base font-bold"><CalendarClock className="size-4 text-primary" /> {t("appointment.edit")}</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors" aria-label="Close"><X className="size-4" /></button>
+          <button onClick={onClose} disabled={saving} className="p-1.5 rounded-lg hover:bg-muted transition-colors" aria-label={t("common.close")}><X className="size-4" /></button>
         </div>
 
         <div className="p-5 space-y-4">
+          {loadError && <div role="alert" className="text-sm text-red-600">{t("common.load_failed")} <button onClick={loadMechanics} className="underline">{t("common.retry")}</button></div>}
           <div className="rounded-lg bg-muted/50 px-3 py-2 text-sm">
             <div className="font-medium">{appointment.customer_name || "—"}</div>
             <div className="text-muted-foreground text-xs">{appointment.vehicle_summary || ""}</div>
@@ -94,7 +102,7 @@ export function EditAppointmentModal({
             <div>
               <label className={LABEL} htmlFor="edit-duration">{t("appointment.duration")}</label>
               <select id="edit-duration" className={FIELD} value={duration} onChange={(e) => setDuration(Number(e.target.value))}>
-                {DURATIONS.map((d) => (<option key={d} value={d}>{d} min</option>))}
+                {DURATIONS.map((d) => (<option key={d} value={d}>{t("appointment.minutes", { n: d })}</option>))}
               </select>
             </div>
             <div>
@@ -114,7 +122,7 @@ export function EditAppointmentModal({
         </div>
 
         <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
-          <Button variant="ghost" size="sm" onClick={onClose}>{t("common.cancel")}</Button>
+          <Button variant="ghost" size="sm" disabled={saving} onClick={onClose}>{t("common.cancel")}</Button>
           <Button size="sm" disabled={saving} onClick={save} leftIcon={saving ? <Loader2 className="size-4 animate-spin" /> : <CalendarClock className="size-4" />}>
             {saving ? t("invoice.saving") : t("invoice.save")}
           </Button>

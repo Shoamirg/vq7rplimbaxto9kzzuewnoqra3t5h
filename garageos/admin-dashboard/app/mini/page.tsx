@@ -93,7 +93,7 @@ export default function HomePage() {
       ) : null}
 
       {/* Outstanding invoice */}
-      {home.outstanding_balance > 0.005 ? (
+      {Object.values(home.balances_by_currency ?? { [home.balance_currency ?? "USD"]: home.outstanding_balance }).some((amount) => amount > 0.005) ? (
         <Card href="/mini/billing" className="!bg-amber-50 !ring-amber-200/60">
           <div className="flex items-center gap-3">
             <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-amber-100 text-amber-700">
@@ -107,7 +107,7 @@ export default function HomePage() {
                   : t("mini.home.tap_to_pay")}
               </p>
             </div>
-            <p className="text-lg font-bold text-slate-900">{fmt.money(home.outstanding_balance)}</p>
+            <p className="text-lg font-bold text-slate-900">{Object.entries(home.balances_by_currency ?? { [home.balance_currency ?? "USD"]: home.outstanding_balance }).filter(([, amount]) => amount > 0.005).map(([currency, amount]) => fmt.money(amount, currency)).join(" · ")}</p>
           </div>
         </Card>
       ) : null}

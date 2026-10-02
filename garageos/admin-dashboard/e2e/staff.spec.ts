@@ -60,9 +60,10 @@ test("global search (⌘K) opens and finds results", async ({ page }) => {
   await page.goto("/dashboard", { waitUntil: "networkidle" });
   await page.keyboard.press("ControlOrMeta+k");
   // The command menu dialog has its own search input.
-  const search = page.getByPlaceholder(/search customers/i);
+  const dialog = page.getByRole("dialog");
+  const search = dialog.getByRole("textbox");
   await expect(search).toBeVisible();
   await search.fill("toyota");
   // Result rows are buttons; a matching vehicle shows "Toyota …".
-  await expect(page.getByText(/toyota/i).first()).toBeVisible({ timeout: 10_000 });
+  await expect(dialog.getByRole("button").filter({ hasText: /toyota/i }).first()).toBeVisible({ timeout: 10_000 });
 });

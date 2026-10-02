@@ -37,11 +37,11 @@ class UnitOfWork:
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
-        if exc_type is not None:
-            await self.rollback()
-            return
         try:
-            await self.commit()
+            if exc_type is not None:
+                await self.rollback()
+            else:
+                await self.commit()
         except Exception:
             await self.rollback()
             raise

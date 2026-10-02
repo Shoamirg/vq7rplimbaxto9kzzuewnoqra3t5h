@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { Badge, Button, cn, useToast } from "@garageos/design-system";
 
-import { clientFetch } from "@/lib/api/client";
+import { clientFetch, ClientApiError } from "@/lib/api/client";
 import { useI18n } from "@/lib/i18n/context";
 import { NewAppointmentButton } from "@/components/appointments/new-appointment-modal";
 import { CompleteWorkModal } from "@/components/appointments/complete-work-modal";
@@ -105,10 +105,12 @@ export function CalendarClient({ initial, initialDate }: Props) {
     setLoading(true);
     try {
       setData(await clientFetch<CalendarPayload>(`/calendar?start=${d}&end=${addDays(d, 1)}`));
+    } catch {
+      toast({ title: t("common.load_failed"), variant: "danger" });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [toast, t]);
 
   useEffect(() => {
     if (firstRun.current) { firstRun.current = false; return; }
@@ -140,7 +142,7 @@ export function CalendarClient({ initial, initialDate }: Props) {
   const findConflict = useCallback(
     (lane: string, startMin: number, dur: number, excludeId: string): Appointment | null => {
       for (const a of byLane[lane] ?? []) {
-        if (a.id === excludeId || a.status === "cancelled") continue;
+        if (a.id === excludeId || a.status === "cancelled" || a.status === "completed") continue;
         const s = hmToMin(a.appointment_time);
         const e = s + a.estimated_duration_minutes;
         if (startMin < e && startMin + dur > s) return a;
@@ -167,12 +169,12 @@ export function CalendarClient({ initial, initialDate }: Props) {
         if (patch.estimated_duration_minutes !== undefined) body.estimated_duration_minutes = patch.estimated_duration_minutes;
         await clientFetch(`/appointments/${appt.id}`, { method: "PATCH", body: JSON.stringify(body) });
         toast({ title: toastMsg, variant: "success" });
-      } catch {
-        toast({ title: "Update failed", description: "Reverting…", variant: "danger" });
+      } catch (error) {
+        toast({ title: t(error instanceof ClientApiError && error.code === "APPOINTMENT_CONFLICT" ? "appointment.conflict" : "calendar.move_failed"), variant: "danger" });
         load(date);
       }
     },
-    [date, load, toast]
+    [date, load, toast, t]
   );
 
   // ── Drag to move ─────────────────────────────────────────────────────────
@@ -322,7 +324,10 @@ export function CalendarClient({ initial, initialDate }: Props) {
     clientFetch(`/appointments/${appt.id}`, {
       method: "PATCH",
       body: JSON.stringify({ appointment_time: "09:00", appointment_date: `${addDays(date, 1)}T09:00:00Z` }),
-    }).then(() => toast({ title: "Moved to tomorrow 09:00", variant: "success" })).catch(() => load(date));
+    }).then(() => toast({ title: t("calendar.moved_tomorrow"), variant: "success" })).catch((error) => {
+      toast({ title: t(error instanceof ClientApiError && error.code === "APPOINTMENT_CONFLICT" ? "appointment.conflict" : "calendar.move_failed"), variant: "danger" });
+      load(date);
+    });
   };
 
   const handleInspectorChanged = (action: string) => {

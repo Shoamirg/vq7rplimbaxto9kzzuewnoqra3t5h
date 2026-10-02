@@ -74,6 +74,7 @@ class BrandNotFound(NotFoundError):
 
 
 class AppointmentConflict(ConflictError):
+    code = "APPOINTMENT_CONFLICT"
     detail = "Time slot is already booked"
 
 

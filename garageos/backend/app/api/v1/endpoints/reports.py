@@ -15,5 +15,6 @@ async def get_report(
     report: str,
     uow: UnitOfWork = Depends(get_tenant_uow),
     period: str = Query(default="30d"),
+    currency: str = Query(default="UZS", pattern="^[A-Z]{3}$"),
 ) -> dict:
-    return await AnalyticsService(uow).report(report, period_key=period)
+    return await AnalyticsService(uow).report(report, period_key=period, currency=currency)

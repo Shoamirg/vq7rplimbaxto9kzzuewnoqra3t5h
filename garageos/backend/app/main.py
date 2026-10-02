@@ -73,7 +73,12 @@ def _register_exception_handlers(app: FastAPI) -> None:
     async def handle_validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
         return JSONResponse(
             status_code=422,
-            content={"error": {"code": "VALIDATION_ERROR", "detail": exc.errors()}},
+            # Pydantic can attach NaN/Infinity inputs or ValueError instances.
+            # Return the field/message contract without non-JSON-safe context.
+            content={"error": {"code": "VALIDATION_ERROR", "detail": [
+                {key: error[key] for key in ("type", "loc", "msg") if key in error}
+                for error in exc.errors()
+            ]}},
         )
 
     @app.exception_handler(Exception)

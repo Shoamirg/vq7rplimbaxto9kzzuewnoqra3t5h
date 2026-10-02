@@ -14,11 +14,13 @@ async function forward(req: Request, segments: string[], method: string): Promis
   const search = new URL(req.url).search;
   const url = `${backendBase()}/${segments.join("/")}${search}`;
   const hasBody = method !== "GET" && method !== "HEAD";
+  const idempotencyKey = req.headers.get("Idempotency-Key");
   const res = await fetch(url, {
     method,
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
     },
     body: hasBody ? await req.text() : undefined,
     cache: "no-store",
@@ -40,4 +42,12 @@ export async function POST(req: Request, ctx: Ctx) {
 }
 export async function PATCH(req: Request, ctx: Ctx) {
   return forward(req, (await ctx.params).path, "PATCH");
+}
+
+export async function PUT(req: Request, ctx: Ctx) {
+  return forward(req, (await ctx.params).path, "PUT");
+}
+
+export async function DELETE(req: Request, ctx: Ctx) {
+  return forward(req, (await ctx.params).path, "DELETE");
 }

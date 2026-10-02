@@ -19,6 +19,8 @@ export default function BillingPage() {
   if (error) return <div><ScreenHeader title={t("mini.billing.title")} /><ScreenError onRetry={reload} /></div>;
   if (loading || !b) return <div><ScreenHeader title={t("mini.billing.title")} /><ListSkeleton /></div>;
 
+  const balanceText = Object.entries(b.balances_by_currency ?? { [b.balance_currency ?? "USD"]: b.balance_due }).filter(([, amount]) => amount > 0.005).map(([currency, amount]) => fmt.money(amount, currency)).join(" · ");
+
   const paid = b.invoices.filter((i) => i.balance <= 0.005);
 
   function patchEstimate(updated: BillingDoc) {
@@ -35,7 +37,7 @@ export default function BillingPage() {
       {b.has_balance ? (
         <div className="rounded-3xl bg-gradient-to-br from-slate-900 to-slate-700 p-5 text-white shadow-xl">
           <p className="text-sm text-white/70">{t("mini.home.balance_due")}</p>
-          <p className="mt-1 text-4xl font-bold tracking-tight">{fmt.money(b.balance_due)}</p>
+          <p className="mt-1 text-4xl font-bold tracking-tight">{balanceText}</p>
           {b.primary_invoice ? (
             <p className="mt-1 text-sm text-white/60">{t("mini.home.invoice_n", { code: b.primary_invoice.code })}</p>
           ) : null}
@@ -46,7 +48,7 @@ export default function BillingPage() {
             }}
             className="mt-4 min-h-[48px] w-full rounded-2xl bg-green-500 py-3.5 text-base font-bold text-white transition motion-safe:active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
           >
-            {t("mini.billing.pay", { amount: fmt.money(b.balance_due) })}
+            {t("mini.billing.pay", { amount: balanceText })}
           </button>
           {payNote ? <p className="mt-2 text-center text-xs text-white/70">{t("mini.billing.pay_soon")}</p> : null}
         </div>
@@ -84,10 +86,10 @@ export default function BillingPage() {
                 <li key={r.id} className="flex items-center gap-3 px-2 py-3">
                   <Receipt className="size-5 text-slate-400" aria-hidden />
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-slate-800 capitalize">{r.method ?? t("mini.billing.payment")}</p>
+                    <p className="text-sm font-medium text-slate-800 capitalize">{r.method ? t("billing.method_" + (r.method === "bank_transfer" ? "bank" : r.method)) : t("mini.billing.payment")}</p>
                     <p className="text-xs text-slate-400">{fmt.date(r.date)}</p>
                   </div>
-                  <span className="text-sm font-semibold text-green-600">{fmt.money(r.amount)}</span>
+                  <span className="text-sm font-semibold text-green-600">{fmt.money(r.amount, r.currency ?? "USD")}</span>
                 </li>
               ))}
             </ul>
@@ -107,7 +109,7 @@ export default function BillingPage() {
                     <p className="text-sm font-medium text-slate-800">{t("mini.home.invoice_n", { code: i.code })}</p>
                     <p className="text-xs text-slate-400">{fmt.date(i.created_at)}</p>
                   </div>
-                  <span className="text-sm font-semibold text-slate-500">{fmt.money(i.total)}</span>
+                  <span className="text-sm font-semibold text-slate-500">{fmt.money(i.total, i.currency ?? "USD")}</span>
                 </li>
               ))}
             </ul>
@@ -167,7 +169,7 @@ function EstimateCard({ estimate, onChange }: { estimate: BillingDoc; onChange: 
           <p className="text-sm text-slate-500">{t("mini.billing.awaiting")}</p>
         </div>
         <div className="text-right">
-          <p className="font-bold text-slate-900">{fmt.money(estimate.total)}</p>
+          <p className="font-bold text-slate-900">{fmt.money(estimate.total, estimate.currency ?? "USD")}</p>
           {decided ? (
             <Chip tone={estimate.status === "approved" ? "green" : "red"}>{t(`mini.status.${estimate.status}`)}</Chip>
           ) : null}

@@ -104,6 +104,7 @@ export function AppointmentsList() {
   const [data, setData] = useState<AppointmentListResponse | null>(null);
   const [stats, setStats] = useState<AppointmentStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [editing, setEditing] = useState<Appointment | null>(null);
   const [invoicing, setInvoicing] = useState<Appointment | null>(null);
   const [completing, setCompleting] = useState<Appointment | null>(null);
@@ -117,13 +118,16 @@ export function AppointmentsList() {
   const load = useCallback(async () => {
     const loadId = ++latestLoad.current;
     setLoading(true);
+    setLoadError(false);
     const qs = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE), ...dateParams(dateFilter) });
     if (tab !== "all") qs.set("status", tab);
     if (search) qs.set("q", search);
     try {
       const result = await clientFetch<AppointmentListResponse>(`/appointments?${qs.toString()}`);
       if (loadId === latestLoad.current) setData(result);
-    } catch { /* keep */ } finally {
+    } catch {
+      if (loadId === latestLoad.current) setLoadError(true);
+    } finally {
       if (loadId === latestLoad.current) setLoading(false);
     }
   }, [tab, page, dateFilter, search]);
@@ -204,6 +208,7 @@ export function AppointmentsList() {
       </div>
 
       {/* KPI strip */}
+      {loadError && <div role="alert" className="flex flex-wrap items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{t("common.load_failed")} <button onClick={load} className="font-semibold underline">{t("common.retry")}</button></div>}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {KPIS.map((k) => (
           <div key={k.label} className="rounded-xl border border-border bg-card p-3.5">

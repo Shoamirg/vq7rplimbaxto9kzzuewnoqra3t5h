@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FileText } from "lucide-react";
 import { cn, useToast } from "@garageos/design-system";
 
@@ -10,7 +10,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { BillingCounts, BillingKpis, BillingResponse, InvoiceDoc, InvoiceListItem } from "@/lib/api/types";
 import { DocumentView } from "./document-view";
 import { NewInvoiceModal } from "./new-invoice-modal";
-import { STATUS_META, VIEWS, money, relTime } from "./shared";
+import { STATUS_META, VIEWS } from "./shared";
 
 // The Commercial workspace — rail (views) ↔ queue ↔ document, swapped by state.
 export function BillingWorkspace() {
@@ -23,51 +23,87 @@ export function BillingWorkspace() {
   const [newKind, setNewKind] = useState<"estimate" | "invoice" | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [documentError, setDocumentError] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [actionPending, setActionPending] = useState(false);
+  const [mobileDocument, setMobileDocument] = useState(false);
+  const listRequest = useRef(0);
+  const documentRequest = useRef(0);
+  const pending = useRef(false);
   const { toast } = useToast();
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
+  const money = fmt.money;
 
   const load = useCallback(async () => {
+    const request = ++listRequest.current;
+    setLoading(true); setLoadError(false);
     try {
       const data = await clientFetch<BillingResponse>(`/invoices?view=${view}`);
+      if (request !== listRequest.current) return;
       setItems(data.items); setCounts(data.counts); setKpis(data.kpis);
       setActiveId((cur) => cur ?? data.items[0]?.id ?? null);
-    } catch { /* keep */ }
+    } catch {
+      if (request === listRequest.current) setLoadError(true);
+    } finally {
+      if (request === listRequest.current) setLoading(false);
+    }
   }, [view]);
 
   const loadDoc = useCallback(async (id: string) => {
-    try { setDoc(await clientFetch<InvoiceDoc>(`/invoices/${id}`)); } catch { /* keep */ }
+    const request = ++documentRequest.current;
+    setDoc(null); setDocumentError(false);
+    try {
+      const updated = await clientFetch<InvoiceDoc>(`/invoices/${id}`);
+      if (request === documentRequest.current) setDoc(updated);
+    } catch {
+      if (request === documentRequest.current) setDocumentError(true);
+    }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
-  useEffect(() => { if (activeId) loadDoc(activeId); }, [activeId, loadDoc]);
+  const invalidateList = useCallback(() => { listRequest.current++; }, []);
+  const invalidateDocument = useCallback(() => { documentRequest.current++; }, []);
+  useEffect(() => { load(); return invalidateList; }, [load, invalidateList]);
+  useEffect(() => {
+    if (activeId) loadDoc(activeId);
+    return invalidateDocument;
+  }, [activeId, loadDoc, invalidateDocument]);
 
   const act = useCallback(async (fn: () => Promise<InvoiceDoc>) => {
+    if (pending.current) throw new Error("Billing action already pending");
+    pending.current = true; setActionPending(true);
     try {
       const updated = await fn();
       setDoc(updated);
       if (updated?.id && updated.id !== activeId) setActiveId(updated.id);
-      load();
-    } catch { /* keep */ }
+      await load();
+    } finally {
+      pending.current = false; setActionPending(false);
+    }
   }, [activeId, load]);
+
+  const perform = (fn: () => Promise<InvoiceDoc>) => {
+    void act(fn).catch(() => toast({ title: t("billing.action_failed"), description: t("billing.try_again"), variant: "danger" }));
+  };
 
   const title = t(`billing.${view}`);
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full min-h-0 min-w-0 flex flex-col">
       {/* KPI header */}
-      <div className="flex items-center gap-3 px-5 h-14 border-b border-border bg-card shrink-0">
+      <div className="flex flex-wrap items-center gap-3 px-3 sm:px-5 py-3 border-b border-border bg-card shrink-0">
         <FileText className="size-5 text-primary" />
         <span className="font-bold text-foreground">{t("billing.title")}</span>
         {kpis && (
-          <div className="flex items-center gap-5 ml-4">
+          <div className="order-last w-full flex items-center gap-5 overflow-x-auto sm:order-none sm:w-auto sm:ml-4">
             <Kpi k={t("billing.outstanding")} v={money(kpis.outstanding, kpis.currency)} tone="text-red-600" />
             <Kpi k={t("billing.overdue")} v={money(kpis.overdue, kpis.currency)} tone="text-amber-600" />
             <Kpi k={t("billing.paid_month")} v={money(kpis.paid_this_month, kpis.currency)} tone="text-emerald-600" />
           </div>
         )}
         <div className="ml-auto flex gap-2">
-          <button onClick={() => setNewKind("estimate")} className="text-sm font-semibold px-3 py-1.5 rounded-lg border border-border text-slate-600 hover:bg-muted">＋ {t("public.estimate")}</button>
-          <button onClick={() => setNewKind("invoice")} className="text-sm font-semibold px-3 py-1.5 rounded-lg bg-primary text-primary-foreground">＋ {t("public.invoice")}</button>
+          <button disabled={actionPending} onClick={() => setNewKind("estimate")} className="text-sm font-semibold px-3 py-1.5 rounded-lg border border-border text-slate-600 hover:bg-muted disabled:opacity-50">＋ {t("public.estimate")}</button>
+          <button disabled={actionPending} onClick={() => setNewKind("invoice")} className="text-sm font-semibold px-3 py-1.5 rounded-lg bg-primary text-primary-foreground disabled:opacity-50">＋ {t("public.invoice")}</button>
         </div>
       </div>
 
@@ -75,7 +111,7 @@ export function BillingWorkspace() {
         <NewInvoiceModal
           kind={newKind}
           onClose={() => setNewKind(null)}
-          onCreated={(created) => { setActiveId(created.id); load(); }}
+          onCreated={(created) => { setActiveId(created.id); setMobileDocument(true); load(); }}
         />
       )}
 
@@ -113,17 +149,22 @@ export function BillingWorkspace() {
         />
       )}
 
-      <div className="flex-1 flex overflow-hidden">
+      {loadError && (
+        <div role="alert" className="shrink-0 flex items-center justify-between gap-3 p-3 text-sm bg-red-50 text-red-700">
+          <span>{t("billing.load_failed")}</span><button onClick={load} className="font-bold underline">{t("billing.retry")}</button>
+        </div>
+      )}
+      <div className="flex-1 min-h-0 min-w-0 flex flex-col xl:flex-row overflow-hidden">
         {/* rail */}
-        <nav className="w-52 shrink-0 bg-slate-900 text-slate-300 overflow-y-auto py-2">
-          <p className="px-4 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">{t("billing.documents")}</p>
+        <nav aria-label={t("billing.documents")} className="flex xl:block xl:w-44 shrink-0 bg-slate-900 text-slate-300 overflow-x-auto xl:overflow-y-auto py-2">
+          <p className="hidden xl:block px-4 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">{t("billing.documents")}</p>
           {VIEWS.map((v) => {
             const n = v.count && counts ? counts[v.count as keyof BillingCounts] : undefined;
             const active = view === v.key;
             const alert = v.key === "overdue";
             return (
-              <button key={v.key} onClick={() => { setView(v.key); setActiveId(null); setDoc(null); }}
-                className={cn("flex items-center gap-2.5 mx-2 my-0.5 px-2.5 py-2 rounded-lg text-[13px] transition-colors",
+              <button key={v.key} disabled={actionPending} aria-pressed={active} onClick={() => { setView(v.key); setActiveId(null); setDoc(null); setMobileDocument(false); }}
+                className={cn("flex shrink-0 items-center gap-2.5 mx-2 my-0.5 px-2.5 py-2 rounded-lg text-[13px] transition-colors disabled:opacity-50",
                   active ? "bg-blue-600/20 text-white" : "hover:bg-slate-800")}>
                 <span className="w-4 text-center">{v.icon}</span>
                 <span className="flex-1 text-left truncate">{t(`billing.${v.key}`)}</span>
@@ -134,15 +175,16 @@ export function BillingWorkspace() {
         </nav>
 
         {/* queue */}
-        <div className="w-[380px] shrink-0 bg-card border-r border-border flex flex-col">
+        <div className={cn("min-h-0 w-full xl:w-80 xl:shrink-0 bg-card border-r border-border flex-col", mobileDocument ? "hidden xl:flex" : "flex flex-1 xl:flex-none")}>
           <div className="h-11 flex items-center px-4 border-b border-border"><span className="text-sm font-bold flex-1">{title}</span><span className="text-xs text-muted-foreground">{items.length}</span></div>
           <div className="flex-1 overflow-y-auto">
-            {items.length === 0 && <p className="px-4 py-10 text-center text-sm text-muted-foreground">{t("billing.empty")}</p>}
+            {!loading && !loadError && items.length === 0 && <p className="px-4 py-10 text-center text-sm text-muted-foreground">{t("billing.empty")}</p>}
+            {loading && <p role="status" className="px-4 py-5 text-center text-sm text-muted-foreground">{t("billing.loading")}</p>}
             {items.map((d) => {
               const st = STATUS_META[d.status];
               const active = activeId === d.id;
               return (
-                <button key={d.id} onClick={() => setActiveId(d.id)}
+                <button key={d.id} disabled={actionPending} onClick={() => { setActiveId(d.id); setMobileDocument(true); }}
                   className={cn("w-full text-left px-4 py-3 border-b border-border/70 border-l-[3px] transition-colors",
                     active ? "bg-primary/5 border-l-primary" : "border-l-transparent hover:bg-muted/40")}>
                   <div className="flex items-center gap-2">
@@ -154,9 +196,9 @@ export function BillingWorkspace() {
                   <p className="text-[11.5px] text-muted-foreground truncate">{d.vehicle_label ?? ""}</p>
                   <div className="flex items-center gap-2 mt-2">
                     <span className={cn("text-[10.5px] font-bold px-2 py-0.5 rounded", st.cls)}>{t(`public.status_${d.status}`)}</span>
-                    {d.kind === "invoice" && d.balance > 0 && <span className="text-[11px] text-muted-foreground">{t("public.balance")} {money(d.balance, d.currency)}{d.due_date ? ` · ${t("public.due")} ${new Date(d.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}</span>}
+                    {d.kind === "invoice" && d.balance > 0 && <span className="text-[11px] text-muted-foreground">{t("public.balance")} {money(d.balance, d.currency)}{d.due_date ? ` · ${t("public.due")} ${fmt.date(d.due_date, { month: "short", day: "numeric" })}` : ""}</span>}
                     {d.kind === "invoice" && d.balance <= 0 && <span className="text-[11px] text-muted-foreground">{d.paid_at ? t("public.status_paid") : ""}</span>}
-                    {d.kind === "estimate" && <span className="text-[11px] text-muted-foreground">{relTime(d.created_at)}</span>}
+                    {d.kind === "estimate" && <span className="text-[11px] text-muted-foreground">{fmt.date(d.created_at)}</span>}
                   </div>
                 </button>
               );
@@ -165,19 +207,30 @@ export function BillingWorkspace() {
         </div>
 
         {/* document */}
+        <div className={cn("flex-1 min-h-0 min-w-0 flex-col", mobileDocument ? "flex" : "hidden xl:flex")}>
+          <button onClick={() => setMobileDocument(false)} disabled={actionPending} className="xl:hidden shrink-0 p-3 text-left text-sm font-semibold text-primary">← {t("billing.back_to_list")}</button>
         {doc ? (
           <DocumentView
+            key={doc.id}
             doc={doc}
-            onStatus={(s) => act(() => clientFetch<InvoiceDoc>(`/invoices/${doc.id}`, { method: "PATCH", body: JSON.stringify({ status: s }) }))}
-            onSend={() => act(() => clientFetch<InvoiceDoc>(`/invoices/${doc.id}/send`, { method: "POST", body: JSON.stringify({}) }))}
-            onConvert={() => act(() => clientFetch<InvoiceDoc>(`/invoices/${doc.id}/convert`, { method: "POST", body: JSON.stringify({}) }))}
-            onRecordPayment={(amount, method) => act(() => clientFetch<InvoiceDoc>(`/invoices/${doc.id}/payments`, { method: "POST", body: JSON.stringify({ amount, method }) }))}
+            actionPending={actionPending}
+            onStatus={(s) => perform(() => clientFetch<InvoiceDoc>(`/invoices/${doc.id}`, { method: "PATCH", body: JSON.stringify({ status: s }) }))}
+            onSend={() => {
+              void act(() => clientFetch<InvoiceDoc>(`/invoices/${doc.id}/send`, { method: "POST", body: JSON.stringify({}) }))
+                .then(() => toast({ title: t("billing.shared"), variant: "success" }))
+                .catch(() => toast({ title: t("billing.action_failed"), description: t("billing.try_again"), variant: "danger" }));
+            }}
+            onConvert={() => perform(() => clientFetch<InvoiceDoc>(`/invoices/${doc.id}/convert`, { method: "POST", body: JSON.stringify({}) }))}
+            onRecordPayment={(amount, method, idempotencyKey) => act(() => clientFetch<InvoiceDoc>(`/invoices/${doc.id}/payments`, { method: "POST", headers: { "Idempotency-Key": idempotencyKey }, body: JSON.stringify({ amount, method }) }))}
             onDelete={() => setConfirmDelete(true)}
             onEdit={() => setEditOpen(true)}
           />
         ) : (
-          <div className="flex-1 grid place-items-center text-muted-foreground text-sm">{t("billing.select")}</div>
+          <div className="flex-1 grid place-items-center p-4 text-muted-foreground text-sm">
+            {documentError ? <div role="alert" className="text-center"><p>{t("billing.document_failed")}</p><button onClick={() => activeId && loadDoc(activeId)} className="mt-2 text-primary font-semibold underline">{t("billing.retry")}</button></div> : t(activeId ? "billing.loading" : "billing.select")}
+          </div>
         )}
+        </div>
       </div>
     </div>
   );

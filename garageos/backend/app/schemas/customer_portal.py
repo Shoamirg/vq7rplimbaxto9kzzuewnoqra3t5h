@@ -88,6 +88,7 @@ class HomeAppointment(BaseModel):
 
 
 class HomeInvoice(BaseModel):
+    currency: str = "USD"
     id: str
     code: str
     balance: float
@@ -110,6 +111,8 @@ class HomeVehicle(BaseModel):
 
 
 class HomeResponse(BaseModel):
+    balance_currency: str = "USD"
+    balances_by_currency: dict[str, float] = Field(default_factory=dict)
     greeting: str
     garage: GarageIdentity
     sos_available: bool = True
@@ -160,6 +163,7 @@ class BookingResult(BaseModel):
 
 # ── Billing ─────────────────────────────────────────────────────────────────
 class BillingDoc(BaseModel):
+    currency: str = "USD"
     id: str
     code: str
     kind: str
@@ -171,6 +175,7 @@ class BillingDoc(BaseModel):
 
 
 class BillingReceipt(BaseModel):
+    currency: str = "USD"
     id: str
     amount: float
     method: Optional[str] = None
@@ -178,6 +183,8 @@ class BillingReceipt(BaseModel):
 
 
 class BillingResponse(BaseModel):
+    balance_currency: str = "USD"
+    balances_by_currency: dict[str, float] = Field(default_factory=dict)
     has_balance: bool = False
     balance_due: float = 0.0
     primary_invoice: Optional[BillingDoc] = None

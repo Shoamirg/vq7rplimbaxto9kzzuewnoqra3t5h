@@ -1,7 +1,8 @@
 # GarageOS — Demo & Regression Flow
 
-A scripted ~12-minute end-to-end walkthrough. Doubles as the **release regression
-checklist**: if every step passes, the platform is stable enough to merge/ship.
+A scripted ~12-minute end-to-end walkthrough and regression checklist for the
+listed flows. Deployment and real-workshop pilot readiness require the separate
+release checklist.
 
 Last verified: 2026-07-03 (Commercial Operations, merge `95b6b9b`, tag `v0.9.0-commercial-operations`).
 
@@ -27,6 +28,77 @@ using the demo password above and select Oʻzbek in the language menu.
 The queue's billing column shows a document only when it belongs to that exact
 appointment. An invoice from an earlier visit by the same vehicle does not count.
 This focused flow is separate from the broader regression checklist below.
+
+## Daily reception and financial safety (2026-10-02)
+
+The local demo now also supports a first-time visitor:
+
+1. In **Yangi navbat**, choose **Yangi mijoz**, enter name and phone, then save.
+   Choose **Avtomobil qo‘shish**, select a model, enter plate or VIN and mileage.
+   Both records remain selected in the original appointment.
+2. Customer/vehicle lists and appointment/invoice pickers search the server.
+   Customers beyond the first 50/200 records remain findable. A failed load shows
+   an error and retry action rather than an empty result.
+3. Booking, moving, resizing and assigning reject overlapping intervals for the
+   same mechanic. Adjacent intervals and different mechanics are allowed.
+   Available-slot and calendar displays respect direct bookings too.
+4. Record a positive payment no greater than the remaining balance. A failed
+   response leaves the form open. Retrying the same request records one payment;
+   sending a paid/partially paid invoice preserves its financial state.
+5. Unpaid invoices remain editable. Printing, public sharing and manual cash/card
+   recording work; the decorative "scan to pay" placeholder has been removed.
+6. Customer, vehicle and report workflows have EN/RU/UZ translations. Report
+   financials have an explicit currency selector; customer debt/history displays
+   separate currency amounts. Old unlinked service costs retain their legacy USD
+   meaning; linked history uses its final invoice amount and currency. No exchange-rate
+   conversion or addition of USD and UZS is performed.
+7. At phone widths, invoice fields stack and billing has list/document navigation.
+   Selecting a sidebar page closes the mobile menu. Inventory, settings and support
+   are marked **Tez orada** because their pages are unfinished.
+
+### Upgrade an existing local demo
+
+From `backend/`, apply migrations before starting the updated API:
+
+```powershell
+.\.venv\Scripts\python.exe -m alembic upgrade head
+.\.venv\Scripts\python.exe -m app.seeds.demo
+```
+
+The nonfresh seed preserves existing demo records and adds the common Chevrolet
+Cobalt, Spark, Nexia, Gentra and Damas catalog entries idempotently. Avoid `--fresh`
+when keeping existing work. The payment migration adds an optional request key;
+clients should reuse the same `Idempotency-Key` for retries of one payment intent.
+Reusing that key with changed payment details returns a conflict.
+
+Focused browser regressions live in `admin-dashboard/e2e/daily-use.spec.ts` and
+the complete service-work journey in `e2e/service-work-invoice.spec.ts`. Run them
+against an isolated seeded local database; they create real demo records.
+
+Financial reconciliation compares ledger amounts and balances for active,
+nonvoid final invoices in the selected currency. Historical ledger entries remain
+visible and unchanged; issued-revenue statistics describe the historical issuance
+stream. Only the computed reconciliation check is presented as verified.
+
+### Local verification — 2026-10-02
+
+- Backend: **144 tests passed** on an isolated PostgreSQL database at the latest
+  migration. This includes concurrent booking/code allocation/payment retry,
+  tenant boundaries, refunds, mixed currencies and fresh completed-work history.
+- Browser: **24 distinct Chromium scenarios passed** across staff, customer,
+  localization, daily reception and service-work/invoice flows. The first full
+  run passed 23; its old English-only global-search locator was updated and that
+  scenario passed on rerun. The final report/localization scenario also passed
+  after reconciliation labels were clarified.
+- Dashboard: TypeScript, lint and production build passed. EN/RU/UZ coverage has
+  **763 consistent keys**, with no new localization-audit violations. Two existing
+  marketing-image lint warnings and the unrelated translation backlog remain.
+- Nonfresh demo seeding preserved existing records and added the five Chevrolet
+  model entries. Test API/dashboard/PostgreSQL processes were temporary.
+
+This establishes the agreed local demo scope. A pilot in a real garage,
+production deployment, payment-provider integration and unfinished sections
+remain separate work.
 
 ---
 
@@ -54,7 +126,7 @@ This focused flow is separate from the broader regression checklist below.
 1. **Dashboard** — `/dashboard`. Executive view: active appointments, fleet health ring, weekly revenue, today's schedule, certified vehicles.
 2. **Calendar** — `/calendar`. Scheduling grid: technician columns, slots, drag-to-move appointments. *(Calendar plans; Appointments manages.)*
 3. **Appointments** — `/appointments`. The operational queue: KPI strip, status + date quick-filters (Today / This week / Overdue), search, bulk confirm/cancel, a per-row `⋯` menu into Customer 360 / Vehicle / Passport / Reschedule, and **Health + Billing** columns (Paid / balance / Overdue / Est) — the operational loop at a glance.
-3a. **Billing** — `/billing`. The commercial workspace: rail (Invoices / Estimates / Payments / Overdue / Awaiting / Drafts) + KPIs, a document queue, and the premium document. **Estimate = blue** (Approve / Reject / Convert); **Invoice = green** (Record payment / QR). Record a payment → status flips to Paid; approve an estimate → Convert to invoice.
+3a. **Billing** — `/billing`. The commercial workspace: rail (Invoices / Estimates / Payments / Overdue / Awaiting / Drafts) + KPIs, a document queue, and the document. **Estimate = blue** (Approve / Reject / Convert); **Invoice = green** (Record payment / Share / Print). Record the full balance → status flips to Paid; a partial payment retains the remaining debt. Approve an estimate → Convert to invoice once, preserving its currency.
 4. **Customer 360** — from any row, open the customer. One command center: vehicles, passports, timeline, appointments, LTV, tier — plus a **Financial** tab (Commercial Health ★, outstanding, avg days to pay, invoices/estimates/payments) and financial KPIs in the header.
 5. **Vehicle Health** — open a vehicle. Animated health gauge + component breakdown + due-services.
 6. **Passport** — from the vehicle, open its **Certified Vehicle Passport** (`/passport/{id}`, public route). Health hero, service history, QR, dealer stamp, garage branding.

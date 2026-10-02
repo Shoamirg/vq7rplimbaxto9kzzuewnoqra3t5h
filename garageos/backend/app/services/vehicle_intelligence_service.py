@@ -118,7 +118,8 @@ class VehicleIntelligenceService:
         s = await FinancialService(self.uow).customer_summary(owner.id)
         health = s["commercial_health"]
         lifetime = s["lifetime_spend"]
-        tier = next((name for threshold, name in _SPEND_TIER if lifetime >= threshold), None)
+        legacy_usd_spend = s["by_currency"].get("USD", {}).get("lifetime_spend", 0)
+        tier = next((name for threshold, name in _SPEND_TIER if legacy_usd_spend >= threshold), None)
         return {
             "score": health["score"],
             "stars": health["stars"],
@@ -126,6 +127,9 @@ class VehicleIntelligenceService:
             "label": health["label"],
             "outstanding": s["outstanding"],
             "lifetime_value": lifetime,
+            "currency": s["currency"],
+            "outstanding_by_currency": {currency: values["outstanding"] for currency, values in s["by_currency"].items()},
+            "lifetime_value_by_currency": {currency: values["lifetime_spend"] for currency, values in s["by_currency"].items()},
             "avg_days_to_pay": s["avg_days_to_pay"],
             "preferred_method": s["preferred_method"],
             "spend_tier": tier,
@@ -140,6 +144,8 @@ class VehicleIntelligenceService:
             when = (f"{top['remaining_days']} days" if top.get("remaining_days") is not None
                     else f"{top['remaining_km']:,} km" if top.get("remaining_km") is not None else "soon")
             out.append({
+                "code": "next", "params": {"service": top["service_type"],
+                    "days": top.get("remaining_days"), "km": top.get("remaining_km")},
                 "tone": "info", "icon": "wrench",
                 "title": f"Next service: {top['service_type']} in {when}",
                 "detail": "Based on mileage and service intervals.",
@@ -149,6 +155,7 @@ class VehicleIntelligenceService:
         if cats and cats[0]["score"] < 75:
             c = cats[0]
             out.append({
+                "code": "attention", "params": {"system": c["name"], "score": round(c["score"])},
                 "tone": "warning", "icon": "activity",
                 "title": f"{c['name']} needs attention ({round(c['score'])})",
                 "detail": "Lowest-scoring system — inspect at the next visit.",
@@ -156,6 +163,7 @@ class VehicleIntelligenceService:
         # overdue
         if health.get("urgent_count", 0) > 0:
             out.append({
+                "code": "overdue", "params": {"count": health["urgent_count"]},
                 "tone": "danger", "icon": "alert",
                 "title": f"{health['urgent_count']} item(s) overdue",
                 "detail": "Address to keep the passport certified.",
@@ -163,6 +171,7 @@ class VehicleIntelligenceService:
         # breakdown risk from band
         risk = _BREAKDOWN_RISK.get(health.get("band", ""), "Low")
         out.append({
+            "code": "risk", "params": {"risk": risk.lower()},
             "tone": "success" if risk == "Low" else "warning" if risk == "Medium" else "danger",
             "icon": "shield",
             "title": f"Breakdown probability: {risk}",

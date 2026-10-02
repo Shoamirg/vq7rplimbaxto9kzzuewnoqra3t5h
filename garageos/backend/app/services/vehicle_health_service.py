@@ -15,6 +15,7 @@ from sqlalchemy import select
 
 from app.exceptions import VehicleNotFound
 from app.models.service_center import ServiceCenter
+from app.models.invoice import Invoice, InvoiceKind
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.service_record_repository import ServiceRecordRepository
 from app.repositories.unit_of_work import UnitOfWork
@@ -125,9 +126,9 @@ class VehicleHealthService:
             raise VehicleNotFound(vehicle_id)
         await self.uow.flush()
 
-    async def list_vehicles(self, limit: int = 200) -> dict:
+    async def list_vehicles(self, limit: int = 200, query: str = "", offset: int = 0) -> dict:
         """Lightweight vehicle list for navigation (no per-vehicle health calc)."""
-        vehicles = await self.vehicle_repo.list_active(limit=limit)
+        vehicles, total = await self.vehicle_repo.page_active(query.strip(), limit, offset)
         return {
             "items": [
                 {
@@ -142,6 +143,8 @@ class VehicleHealthService:
                 for v in vehicles
             ],
             "count": len(vehicles),
+            "total": total, "limit": limit, "offset": offset,
+            "has_more": offset + len(vehicles) < total,
         }
 
     async def _vehicle_or_404(self, vehicle_id: uuid.UUID):
@@ -191,16 +194,19 @@ class VehicleHealthService:
         await self._vehicle_or_404(vehicle_id)
         records = await self.service_record_repo.find_by_vehicle(vehicle_id)
         appointments = await self.appointment_repo.find_by_vehicle(vehicle_id)
+        invoices = await self._record_invoices(vehicle_id)
 
         events: List[dict] = []
         for r in records:
+            invoice = invoices.get(r.appointment_id)
             events.append({
                 "type": "service",
                 "title": r.service_type,
                 "date": r.performed_date.isoformat(),
                 "detail": r.description,
                 "km": r.performed_km,
-                "cost": r.cost,
+                "cost": invoice["total"] if invoice else r.cost,
+                "currency": invoice["currency"] if invoice else "USD",
                 "id": str(r.id),
             })
         for a in appointments:
@@ -274,6 +280,19 @@ class VehicleHealthService:
         )
         return result.scalar_one_or_none()
 
+    async def _record_invoices(self, vehicle_id: uuid.UUID) -> dict:
+        """A linked final invoice supplies both service charge and currency.
+
+        Unlinked history follows the original USD contract. Never revalue an
+        old record into UZS just because the local demo now uses UZS.
+        """
+        return {appointment_id: {"currency": currency, "total": float(total)} for appointment_id, currency, total in (await self.uow.session.execute(
+            select(Invoice.appointment_id, Invoice.currency, Invoice.total).where(
+                Invoice.service_center_id == self.uow.service_center_id,
+                Invoice.vehicle_id == vehicle_id, Invoice.kind == InvoiceKind.INVOICE,
+                Invoice.is_active.is_(True), Invoice.appointment_id.isnot(None),
+            ))).all()}
+
     async def get_passport(self, vehicle_id: uuid.UUID) -> dict:
         """Compose the full Certified Vehicle Passport payload (the signature
         shareable document). Reuses the health report + timeline and adds
@@ -283,10 +302,17 @@ class VehicleHealthService:
         report = await self.maintenance.calculate_due_services(vehicle_id)
         records = await self.service_record_repo.find_by_vehicle(vehicle_id)
         center = await self._service_center()
+        invoices = await self._record_invoices(vehicle_id)
 
         # Vitals from the service-record history.
         services_completed = len(records)
-        total_spent = round(sum(r.cost or 0 for r in records), 2)
+        total_spent_by_currency: dict[str, float] = {}
+        for record in records:
+            invoice = invoices.get(record.appointment_id)
+            currency = invoice["currency"] if invoice else "USD"
+            amount = invoice["total"] if invoice else (record.cost or 0)
+            total_spent_by_currency[currency] = round(total_spent_by_currency.get(currency, 0) + amount, 2)
+        total_spent = total_spent_by_currency.get("USD", 0)
         last_service = max((r.performed_date for r in records), default=None)
 
         # Maintenance compliance: share of scheduled items currently on-track.
@@ -323,7 +349,8 @@ class VehicleHealthService:
                 "service_type": r.service_type,
                 "date": r.performed_date.isoformat(),
                 "km": r.performed_km,
-                "cost": r.cost,
+                "cost": invoices[r.appointment_id]["total"] if r.appointment_id in invoices else r.cost,
+                "currency": invoices[r.appointment_id]["currency"] if r.appointment_id in invoices else "USD",
             }
             for r in sorted(records, key=lambda r: r.performed_date, reverse=True)[:4]
         ]
@@ -358,6 +385,7 @@ class VehicleHealthService:
                 "services_completed": services_completed,
                 "overdue_items": report.urgent_count,
                 "total_spent": total_spent,
+                "total_spent_by_currency": total_spent_by_currency,
                 "ownership_years": ownership_years,
                 "last_service": last_service.isoformat() if last_service else None,
             },

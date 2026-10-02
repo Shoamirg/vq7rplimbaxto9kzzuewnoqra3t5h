@@ -126,7 +126,7 @@ export default function VehicleDetailPage() {
                     <p className="text-sm font-medium text-slate-800">{h.service_type}</p>
                     <p className="text-xs text-slate-400">{fmt.date(h.date) || "—"}</p>
                   </div>
-                  {h.cost != null ? <span className="text-sm font-semibold text-slate-700">{fmt.money(h.cost)}</span> : null}
+                  {h.cost != null && h.currency ? <span className="text-sm font-semibold text-slate-700">{fmt.money(h.cost, h.currency)}</span> : null}
                 </li>
               ))}
             </ul>

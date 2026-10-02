@@ -205,6 +205,8 @@ class PaymentReceived(DomainEvent):
     vehicle_id: UUID | None = None
     amount: float | None = None
     method: str | None = None
+    currency: str = "USD"
+    kind: str = "payment"
 
 
 @dataclass(kw_only=True)

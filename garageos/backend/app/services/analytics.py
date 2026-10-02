@@ -17,7 +17,7 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 
 from app.models.appointment import Appointment
 from app.models.customer import Customer
@@ -86,7 +86,8 @@ class BaseProjection:
     report = "base"
     title = "Report"
 
-    def __init__(self, uow: UnitOfWork):
+    def __init__(self, uow: UnitOfWork, currency: str = "UZS"):
+        self.currency = currency
         self.session = uow.session
         self.sc = uow.service_center_id
 
@@ -94,6 +95,8 @@ class BaseProjection:
         groups = await self.groups(period)
         return {
             "report": self.report, "title": self.title, "period": period.as_dict(),
+            "currency": self.currency,
+            "available_currencies": sorted(set((await self.session.execute(select(Invoice.currency).where(Invoice.service_center_id == self.sc, Invoice.is_active.is_(True)).distinct())).scalars().all()) | {self.currency}),
             "questions": self.questions(), "insights": await self.insights(period),
             "groups": groups, "sections": await self.sections(period),
             "reconciliation": await self.reconciliation(),
@@ -108,8 +111,8 @@ class BaseProjection:
     # ── shared computations ──
     async def _ledger_sum(self, direction, entry_type, start, end) -> float:
         return float(await self.session.scalar(
-            select(func.coalesce(func.sum(LedgerEntry.amount), 0)).where(
-                LedgerEntry.service_center_id == self.sc, LedgerEntry.direction == direction,
+            select(func.coalesce(func.sum(LedgerEntry.amount), 0)).outerjoin(Invoice, LedgerEntry.invoice_id == Invoice.id).where(
+                LedgerEntry.service_center_id == self.sc, func.coalesce(Invoice.currency, LedgerEntry.currency) == self.currency, LedgerEntry.direction == direction,
                 LedgerEntry.entry_type == entry_type,
                 LedgerEntry.occurred_at >= start, LedgerEntry.occurred_at < end)) or 0)
 
@@ -121,19 +124,20 @@ class BaseProjection:
     async def _outstanding(self) -> float:
         return float(await self.session.scalar(
             select(func.coalesce(func.sum(Invoice.balance), 0)).where(
-                Invoice.service_center_id == self.sc, Invoice.kind == InvoiceKind.INVOICE,
+                Invoice.service_center_id == self.sc, Invoice.currency == self.currency, Invoice.is_active.is_(True), Invoice.kind == InvoiceKind.INVOICE,
                 Invoice.status.in_(_OUTSTANDING))) or 0)
 
     async def _overdue(self) -> float:
         return float(await self.session.scalar(
             select(func.coalesce(func.sum(Invoice.balance), 0)).where(
-                Invoice.service_center_id == self.sc, Invoice.kind == InvoiceKind.INVOICE,
+                Invoice.service_center_id == self.sc, Invoice.currency == self.currency, Invoice.is_active.is_(True), Invoice.kind == InvoiceKind.INVOICE,
+                Invoice.status.in_(_OUTSTANDING),
                 Invoice.balance > 0, Invoice.due_date < date.today())) or 0)
 
     async def _revenue_series(self, months=7) -> list:
         rows = (await self.session.execute(
-            select(LedgerEntry.occurred_at, LedgerEntry.amount).where(
-                LedgerEntry.service_center_id == self.sc,
+            select(LedgerEntry.occurred_at, LedgerEntry.amount).outerjoin(Invoice, LedgerEntry.invoice_id == Invoice.id).where(
+                LedgerEntry.service_center_id == self.sc, func.coalesce(Invoice.currency, LedgerEntry.currency) == self.currency,
                 LedgerEntry.direction == LedgerDirection.DEBIT,
                 LedgerEntry.entry_type == LedgerEntryType.INVOICE_ISSUED))).all()
         by_month: dict = defaultdict(float)
@@ -145,20 +149,20 @@ class BaseProjection:
             y, m = now.year, now.month - k
             while m <= 0:
                 m += 12; y -= 1
-            out.append({"label": date(y, m, 1).strftime("%b"), "value": round(by_month.get(f"{y:04d}-{m:02d}", 0.0), 2)})
+            out.append({"label": date(y, m, 1).isoformat(), "value": round(by_month.get(f"{y:04d}-{m:02d}", 0.0), 2)})
         return out
 
     async def _conversion(self):
         rows = (await self.session.execute(
             select(Invoice.status, func.count()).where(
-                Invoice.service_center_id == self.sc, Invoice.kind == InvoiceKind.ESTIMATE
+                Invoice.service_center_id == self.sc, Invoice.currency == self.currency, Invoice.is_active.is_(True), Invoice.kind == InvoiceKind.ESTIMATE
             ).group_by(Invoice.status))).all()
         c = {s: n for s, n in rows}
         created = sum(c.values())
         st = lambda *ss: sum(c.get(s, 0) for s in ss)
         invoiced = int(await self.session.scalar(
             select(func.count()).select_from(Invoice).where(
-                Invoice.service_center_id == self.sc, Invoice.kind == InvoiceKind.INVOICE,
+                Invoice.service_center_id == self.sc, Invoice.currency == self.currency, Invoice.is_active.is_(True), Invoice.kind == InvoiceKind.INVOICE,
                 Invoice.source_estimate_id.isnot(None))) or 0)
         funnel = [
             {"stage": "Created", "count": created},
@@ -173,7 +177,7 @@ class BaseProjection:
 
     async def _avg_pay(self, since=None) -> float:
         q = select(Invoice.issued_at, Invoice.paid_at).where(
-            Invoice.service_center_id == self.sc, Invoice.kind == InvoiceKind.INVOICE,
+            Invoice.service_center_id == self.sc, Invoice.currency == self.currency, Invoice.is_active.is_(True), Invoice.kind == InvoiceKind.INVOICE,
             Invoice.status == InvoiceStatus.PAID, Invoice.paid_at.isnot(None))
         if since is not None:
             q = q.where(Invoice.paid_at >= since)
@@ -185,7 +189,7 @@ class BaseProjection:
         rows = (await self.session.execute(
             select(InvoiceLineItem.description, InvoiceLineItem.line_total).join(
                 Invoice, InvoiceLineItem.invoice_id == Invoice.id).where(
-                Invoice.service_center_id == self.sc, Invoice.kind == InvoiceKind.INVOICE,
+                Invoice.service_center_id == self.sc, Invoice.currency == self.currency, Invoice.is_active.is_(True), Invoice.kind == InvoiceKind.INVOICE,
                 Invoice.status == InvoiceStatus.PAID, Invoice.created_at >= p.start))).all()
         b: dict = defaultdict(float)
         for desc, lt in rows:
@@ -196,7 +200,7 @@ class BaseProjection:
     async def _revenue_by_customer(self, p: Period, limit=6) -> list:
         rows = (await self.session.execute(
             select(Invoice.customer_id, func.sum(Invoice.total)).where(
-                Invoice.service_center_id == self.sc, Invoice.kind == InvoiceKind.INVOICE,
+                Invoice.service_center_id == self.sc, Invoice.currency == self.currency, Invoice.is_active.is_(True), Invoice.kind == InvoiceKind.INVOICE,
                 Invoice.status == InvoiceStatus.PAID, Invoice.created_at >= p.start
             ).group_by(Invoice.customer_id).order_by(func.sum(Invoice.total).desc()).limit(limit))).all()
         out = []
@@ -208,7 +212,8 @@ class BaseProjection:
     async def _ar_aging(self) -> list:
         rows = (await self.session.execute(
             select(Invoice.balance, Invoice.due_date).where(
-                Invoice.service_center_id == self.sc, Invoice.kind == InvoiceKind.INVOICE, Invoice.balance > 0))).all()
+                Invoice.service_center_id == self.sc, Invoice.currency == self.currency, Invoice.is_active.is_(True), Invoice.kind == InvoiceKind.INVOICE,
+                Invoice.status.in_(_OUTSTANDING), Invoice.balance > 0))).all()
         today = date.today()
         buckets = {"Current": 0.0, "1–15 days": 0.0, "16–30 days": 0.0, "30+ days": 0.0}
         for bal, due in rows:
@@ -220,7 +225,8 @@ class BaseProjection:
     async def _ar_concentration(self):
         rows = (await self.session.execute(
             select(Invoice.customer_id, func.sum(Invoice.balance)).where(
-                Invoice.service_center_id == self.sc, Invoice.kind == InvoiceKind.INVOICE,
+                Invoice.service_center_id == self.sc, Invoice.currency == self.currency, Invoice.is_active.is_(True), Invoice.kind == InvoiceKind.INVOICE,
+                Invoice.status.in_(_OUTSTANDING),
                 Invoice.balance > 0).group_by(Invoice.customer_id))).all()
         vals = sorted((float(v) for _, v in rows), reverse=True)
         total = sum(vals)
@@ -228,8 +234,8 @@ class BaseProjection:
 
     async def _payment_methods(self, p: Period) -> list:
         rows = (await self.session.execute(
-            select(Payment.method, func.sum(Payment.amount)).where(
-                Payment.service_center_id == self.sc, Payment.kind != PaymentKind.REFUND,
+            select(Payment.method, func.sum(Payment.amount)).join(Invoice, Payment.invoice_id == Invoice.id).where(
+                Payment.service_center_id == self.sc, Invoice.currency == self.currency, Payment.kind != PaymentKind.REFUND,
                 Payment.received_at >= p.start).group_by(Payment.method))).all()
         return sorted(([{"label": m.replace("_", " "), "value": round(float(v), 2)} for m, v in rows]), key=lambda x: -x["value"])
 
@@ -237,16 +243,16 @@ class BaseProjection:
         """Per-customer Commercial Health bands, from actual pay behaviour."""
         rows = (await self.session.execute(
             select(Invoice.customer_id, Invoice.status, Invoice.balance, Invoice.issued_at,
-                   Invoice.paid_at, Invoice.due_date).where(
-                Invoice.service_center_id == self.sc, Invoice.kind == InvoiceKind.INVOICE))).all()
+                   Invoice.paid_at, Invoice.due_date, Invoice.total).where(
+                Invoice.service_center_id == self.sc, Invoice.currency == self.currency, Invoice.is_active.is_(True), Invoice.kind == InvoiceKind.INVOICE))).all()
         agg: dict = defaultdict(lambda: {"cnt": 0, "outstanding": 0.0, "overdue": 0, "days": []})
         today = date.today()
-        for cid, status, bal, iss, paid, due in rows:
+        for cid, status, bal, iss, paid, due, total in rows:
             a = agg[cid]
             a["cnt"] += 1
             if status in _OUTSTANDING:
-                a["outstanding"] += float(bal)
-            if float(bal) > 0 and due and due < today:
+                a["outstanding"] += float(bal) / max(float(total), 0.01) * 150
+            if status in _OUTSTANDING and float(bal) > 0 and due and due < today:
                 a["overdue"] += 1
             if status == InvoiceStatus.PAID and paid:
                 a["days"].append((paid.date() - (iss.date() if iss else paid.date())).days)
@@ -361,19 +367,23 @@ class ExecutiveProjection(BaseProjection):
         if d:
             top = f", led by {svc[0]['label'].lower()}" if svc else ""
             out.append({"tone": "insight", "label": "Revenue",
+                        "text_key": "reports.revenue_change", "params": {"pct": d.get("raw", d["pct"])},
                         "text": f"Revenue is {'up' if d['dir']=='up' else 'down'} {d['pct']}% vs the previous period{top}. Open the Commercial report.",
                         "drill": "/reports?report=commercial"})
         if c["conv"] < 70:
             out.append({"tone": "watch", "label": "Conversion",
+                        "text_key": "reports.conversion_watch", "params": {"pct": c["conv"]},
                         "text": f"Estimate → invoice conversion is {c['conv']}% — below target. Review open estimates.",
                         "drill": "/billing?view=estimates"})
         conc = await self._ar_concentration()
         if conc and conc >= 30:
             out.append({"tone": "watch", "label": "Receivables",
+                        "text_key": "reports.ar_watch", "params": {"pct": conc},
                         "text": f"Two customers account for {conc}% of outstanding receivables. Open A/R aging.",
                         "drill": "/billing?view=overdue"})
         if c["breaches"]:
             out.append({"tone": "watch", "label": "SLA",
+                        "text_key": "reports.sla_watch", "params": {"count": c["breaches"]},
                         "text": f"{c['breaches']} emergency case(s) breached SLA. Open Operations.",
                         "drill": "/operations"})
         return out[:4]
@@ -398,16 +408,17 @@ class CommercialProjection(BaseProjection):
         avg_pay = await self._avg_pay(p.start)
         conv, approval, funnel, est_created, lost = await self._conversion()
         paid_cnt = int(await self.session.scalar(select(func.count()).select_from(Invoice).where(
-            Invoice.service_center_id == self.sc, Invoice.kind == InvoiceKind.INVOICE,
+            Invoice.service_center_id == self.sc, Invoice.currency == self.currency, Invoice.is_active.is_(True), Invoice.kind == InvoiceKind.INVOICE,
             Invoice.status == InvoiceStatus.PAID, Invoice.created_at >= p.start)) or 0)
         avg_inv = round(rev / paid_cnt, 2) if paid_cnt else 0
         collection = round(cash / (cash + out) * 100) if (cash + out) else 100
-        refunds = float(await self.session.scalar(select(func.coalesce(func.sum(Payment.amount), 0)).where(
-            Payment.service_center_id == self.sc, Payment.kind == PaymentKind.REFUND, Payment.received_at >= p.start)) or 0)
-        deposits = int(await self.session.scalar(select(func.count()).select_from(Payment).where(
-            Payment.service_center_id == self.sc, Payment.kind == PaymentKind.DEPOSIT)) or 0)
+        refunds = float(await self.session.scalar(select(func.coalesce(func.sum(Payment.amount), 0)).join(Invoice, Payment.invoice_id == Invoice.id).where(
+            Payment.service_center_id == self.sc, Invoice.currency == self.currency, Payment.kind == PaymentKind.REFUND, Payment.received_at >= p.start)) or 0)
+        deposits = int(await self.session.scalar(select(func.count()).select_from(Payment).join(Invoice, Payment.invoice_id == Invoice.id).where(
+            Payment.service_center_id == self.sc, Invoice.currency == self.currency, Payment.kind == PaymentKind.DEPOSIT)) or 0)
         overdue_cnt = int(await self.session.scalar(select(func.count()).select_from(Invoice).where(
-            Invoice.service_center_id == self.sc, Invoice.kind == InvoiceKind.INVOICE,
+            Invoice.service_center_id == self.sc, Invoice.currency == self.currency, Invoice.is_active.is_(True), Invoice.kind == InvoiceKind.INVOICE,
+            Invoice.status.in_(_OUTSTANDING),
             Invoice.balance > 0, Invoice.due_date < date.today())) or 0)
         self._series = await self._revenue_series()
         self._funnel = funnel
@@ -451,15 +462,18 @@ class CommercialProjection(BaseProjection):
         svc = await self._revenue_by_service(p)
         if d and svc:
             out.append({"tone": "insight", "label": "Revenue",
+                        "text_key": "reports.revenue_change", "params": {"pct": d.get("raw", d["pct"])},
                         "text": f"Revenue {'increased' if d['dir']=='up' else 'declined'} {d['pct']}% vs the previous period; {svc[0]['label']} contributed the most (${svc[0]['value']:,.0f}).",
                         "drill": "/billing"})
         conc = await self._ar_concentration()
         if conc:
             out.append({"tone": "watch" if conc >= 30 else "insight", "label": "Receivables",
+                        "text_key": "reports.ar_watch", "params": {"pct": conc},
                         "text": f"Top 2 customers hold {conc}% of outstanding receivables. Open A/R aging.",
                         "drill": "/billing?view=overdue"})
         if c["conv"] < 70:
             out.append({"tone": "watch", "label": "Sales",
+                        "text_key": "reports.conversion_watch", "params": {"pct": c["conv"]},
                         "text": f"Estimate conversion is {c['conv']}%. Follow up on unanswered estimates.",
                         "drill": "/billing?view=estimates"})
         return out[:4]
@@ -472,16 +486,14 @@ class CommercialProjection(BaseProjection):
         ]
 
     async def reconciliation(self) -> dict:
-        entries = int(await self.session.scalar(select(func.count()).select_from(LedgerEntry).where(
-            LedgerEntry.service_center_id == self.sc)) or 0)
+        entries = int(await self.session.scalar(select(func.count()).select_from(LedgerEntry).outerjoin(Invoice, LedgerEntry.invoice_id == Invoice.id).where(
+            LedgerEntry.service_center_id == self.sc, func.coalesce(Invoice.currency, LedgerEntry.currency) == self.currency)) or 0)
         debit = await self._ledger_all(LedgerDirection.DEBIT)
         credit = await self._ledger_all(LedgerDirection.CREDIT)
         outstanding = await self._outstanding()
         # Ledger identity: issued (debit) − collected (credit) ≈ outstanding (± rounding).
         diff = abs((debit - credit) - outstanding)
         checks = [
-            {"label": "Invoices ↔ ledger debits", "ok": True},
-            {"label": "Payments ↔ ledger credits", "ok": True},
             {"label": "Debit − credit ≈ outstanding", "ok": diff < 1.0},
         ]
         return {"ledger_entries": entries, "checks": checks,
@@ -489,9 +501,17 @@ class CommercialProjection(BaseProjection):
                 "debit": round(debit, 2), "credit": round(credit, 2), "outstanding": round(outstanding, 2)}
 
     async def _ledger_all(self, direction) -> float:
+        # Refunds increase the receivable. Normalize historic refund rows that
+        # were appended as credits, without rewriting the append-only ledger.
+        effective_direction = case(
+            (LedgerEntry.entry_type == LedgerEntryType.REFUND_ISSUED, LedgerDirection.DEBIT),
+            else_=LedgerEntry.direction,
+        )
         return float(await self.session.scalar(
-            select(func.coalesce(func.sum(LedgerEntry.amount), 0)).where(
-                LedgerEntry.service_center_id == self.sc, LedgerEntry.direction == direction)) or 0)
+            select(func.coalesce(func.sum(LedgerEntry.amount), 0)).outerjoin(Invoice, LedgerEntry.invoice_id == Invoice.id).where(
+                LedgerEntry.service_center_id == self.sc, func.coalesce(Invoice.currency, LedgerEntry.currency) == self.currency,
+                Invoice.is_active.is_(True), Invoice.kind == InvoiceKind.INVOICE,
+                Invoice.status != InvoiceStatus.VOID, effective_direction == direction)) or 0)
 
 
 class AnalyticsService:
@@ -500,6 +520,6 @@ class AnalyticsService:
     def __init__(self, uow: UnitOfWork):
         self.uow = uow
 
-    async def report(self, name: str, period_key: str = "30d") -> dict:
+    async def report(self, name: str, period_key: str = "30d", currency: str = "UZS") -> dict:
         proj = self._PROJECTIONS.get(name, ExecutiveProjection)
-        return await proj(self.uow).build(Period(period_key))
+        return await proj(self.uow, currency=currency).build(Period(period_key))

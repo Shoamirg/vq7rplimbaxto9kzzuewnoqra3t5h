@@ -164,14 +164,16 @@ class CustomerPortalService:
         balance = summary["outstanding"]
         open_docs = [
             d for d in summary["invoices"]
-            if d["kind"] == InvoiceKind.INVOICE and d["balance"] > 0.005
+            if d["kind"] == InvoiceKind.INVOICE and d["status"] in (InvoiceStatus.ISSUED, InvoiceStatus.PARTIAL, InvoiceStatus.OVERDUE) and d["balance"] > 0.005
         ]
         open_docs.sort(key=lambda d: (d["due_date"] or "9999"))
         card = open_docs[0] if open_docs else None
         return {
             "outstanding_balance": balance,
+            "balance_currency": summary["currency"],
+            "balances_by_currency": {currency: values["outstanding"] for currency, values in summary["by_currency"].items()},
             "outstanding_invoice": (
-                HomeInvoice(id=card["id"], code=card["code"], balance=card["balance"])
+                HomeInvoice(id=card["id"], code=card["code"], balance=card["balance"], currency=card["currency"])
                 if card else None
             ),
         }
@@ -263,15 +265,17 @@ class CustomerPortalService:
         ]
         receipts = [
             BillingReceipt(id=p["id"], amount=p["amount"], method=p["method"],
-                           date=p["received_at"])
+                           date=p["received_at"], currency=p["currency"])
             for p in summary["payments"] if p["kind"] != "refund"
         ]
-        open_docs = [d for d in invoices if d.balance > 0.005]
+        open_docs = [d for d in invoices if d.status in (InvoiceStatus.ISSUED, InvoiceStatus.PARTIAL, InvoiceStatus.OVERDUE) and d.balance > 0.005]
         open_docs.sort(key=lambda d: (d.due_date or "9999"))
         balance = round(summary["outstanding"], 2)
         return BillingResponse(
-            has_balance=balance > 0.005,
+            has_balance=any(values["outstanding"] > 0.005 for values in summary["by_currency"].values()),
             balance_due=balance,
+            balance_currency=summary["currency"],
+            balances_by_currency={currency: values["outstanding"] for currency, values in summary["by_currency"].items()},
             primary_invoice=open_docs[0] if open_docs else None,
             invoices=invoices,
             estimates=estimates,
@@ -559,6 +563,7 @@ class CustomerPortalService:
     def _doc(d: dict) -> BillingDoc:
         return BillingDoc(
             id=d["id"], code=d["code"], kind=d["kind"], status=d["status"],
+            currency=d.get("currency", "USD"),
             total=d["total"], balance=d["balance"],
             due_date=d["due_date"], created_at=d["created_at"],
         )

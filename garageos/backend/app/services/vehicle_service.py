@@ -1,6 +1,7 @@
 from __future__ import annotations
 import uuid
 from typing import Optional, Sequence
+from sqlalchemy import text
 
 from app.repositories.vehicle_repository import VehicleRepository
 from app.repositories.brand_repository import BrandRepository
@@ -8,7 +9,18 @@ from app.repositories.vehicle_model_repository import VehicleModelRepository
 from app.repositories.unit_of_work import UnitOfWork
 from app.services.maintenance_service import MaintenanceService
 from app.core.events import VehicleAdded, MileageUpdated, event_bus
-from app.exceptions import VehicleNotFound, BrandNotFound
+from app.exceptions import VehicleNotFound, BrandNotFound, CustomerNotFound, ValidationError, DuplicateVehicle
+from app.repositories.customer_repository import CustomerRepository
+
+
+class VehicleModelUnknown(ValidationError):
+    code = "UNKNOWN_VEHICLE_MODEL"
+    detail = "Choose an active vehicle model"
+
+
+class VehicleRegistrationConflict(DuplicateVehicle):
+    code = "DUPLICATE_VEHICLE"
+    detail = "A vehicle with this plate or VIN already exists"
 
 
 class VehicleService:
@@ -21,6 +33,40 @@ class VehicleService:
         self.brand_repo = BrandRepository(uow.session)          # global reference
         self.model_repo = VehicleModelRepository(uow.session)   # global reference
         self.maintenance_service = MaintenanceService(uow.session, sc)
+
+    async def register_vehicle(self, data) -> dict:
+        customer = await CustomerRepository(self.uow.session, self.uow.service_center_id).get_by_id(data.customer_id)
+        if not customer:
+            raise CustomerNotFound()
+        model = await self.model_repo.get_by_id(data.vehicle_model_id)
+        if not model:
+            raise VehicleModelUnknown()
+        brand = await self.brand_repo.get_by_id(model.brand_id)
+        if not brand:
+            raise BrandNotFound()
+        # Sort locks to make multi-identifier registrations deadlock-free.
+        identifiers = sorted((field, value) for field, value in
+                             (("vin", data.vin), ("license_plate", data.license_plate)) if value)
+        for field, value in identifiers:
+            await self.uow.session.execute(text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
+                                           {"key": f"vehicle:{self.uow.service_center_id}:{field}:{value}"})
+            if await self.vehicle_repo.find_by_identifier(field, value):
+                raise VehicleRegistrationConflict()
+        vehicle = await self.vehicle_repo.create(**data.model_dump())
+        self.uow.add_event(VehicleAdded(aggregate_id=vehicle.id, vehicle_id=vehicle.id,
+                                      customer_id=customer.id, brand=brand.name, model=model.name))
+        return {"id": str(vehicle.id), "customer_id": str(customer.id), "brand": brand.name,
+                "model": model.name,
+                "label": f"{brand.name} {model.name}" + (f" ({vehicle.license_plate})" if vehicle.license_plate else ""),
+                "year": vehicle.year,
+                "license_plate": vehicle.license_plate, "current_km": vehicle.current_km}
+
+    async def catalog(self) -> dict:
+        brands = await self.brand_repo.list_active()
+        return {"brands": [{"id": str(brand.id), "name": brand.name,
+                            "models": [{"id": str(model.id), "name": model.name}
+                                       for model in sorted(brand.vehicle_models, key=lambda m: m.name)
+                                       if model.is_active]} for brand in brands]}
 
     async def add_vehicle(self, customer_id: uuid.UUID, data: dict) -> dict:
         vehicle = await self.vehicle_repo.create(
