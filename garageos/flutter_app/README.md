@@ -2,6 +2,8 @@
 
 First working Flutter slice of the uploaded GarageOS design: **customer + car → appointment → assigned service work → one linked UZS invoice → manual payment record**. Scope: [GitHub issue #7](https://github.com/Shoamirg/garageos/issues/7). The existing Next.js dashboard and FastAPI backend remain available.
 
+For iPhone build checks and partner installation through TestFlight, see the [Uzbek iOS guide](docs/ios.md) and [issue #8](https://github.com/Shoamirg/garageos/issues/8). A simulator/unsigned build is separate from a signed, installable iPhone release.
+
 ## Run locally
 
 Flutter **3.47.6 stable**, Dart **3.13.5**. This computer has a portable SDK at `%LOCALAPPDATA%\GarageOS\toolchains\flutter`; no global PATH change is needed.
