@@ -65,9 +65,11 @@ async def test_assigned_service_work_starts_and_completes_once(session):
             "customer_id": str(customer.id), "vehicle_id": str(vehicle.id),
             "appointment_date": date(2030, 5, 1).isoformat(),
             "appointment_time": "10:00",
+            "customer_notes": "Tormozda shovqin bor",
         })
         assert created.status_code == 201, created.text
         appointment_id = created.json()["id"]
+        assert created.json()["customer_notes"] == "Tormozda shovqin bor"
 
         confirmed = await client.patch(f"/api/v1/appointments/{appointment_id}/confirm")
         assert confirmed.status_code == 200, confirmed.text
@@ -91,6 +93,7 @@ async def test_assigned_service_work_starts_and_completes_once(session):
         )
         assert completed.status_code == 200, completed.text
         assert completed.json()["status"] == "completed"
+        assert completed.json()["notes"] == "Dvigatel xatolari tekshirildi"
         record_id = completed.json()["service_record_id"]
         record = await session.get(ServiceRecord, uuid.UUID(record_id))
         assert record.service_type == "Diagnostika"

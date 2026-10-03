@@ -41,6 +41,8 @@ def serialize_appointment(a) -> dict:
         "appointment_time": a.appointment_time,
         "mechanic_name": a.mechanic_name,
         "status": a.status,
+        "customer_notes": a.customer_notes,
+        "notes": a.notes,
         # service_type is derived from the linked maintenance rule (canonical
         # source) — Appointment has no service_type column of its own.
         "maintenance_rule_id": str(a.maintenance_rule_id) if a.maintenance_rule_id else None,
