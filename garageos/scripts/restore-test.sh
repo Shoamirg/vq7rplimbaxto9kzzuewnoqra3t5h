@@ -45,6 +45,10 @@ if [[ -z "${BACKUP_FILE}" || ! -f "${BACKUP_FILE}" ]]; then
   echo "[restore-test] FAIL: no backup file found (looked in ${BACKUP_DIR})" >&2
   exit 1
 fi
+if ! gzip -t "${BACKUP_FILE}"; then
+  echo "[restore-test] FAIL: backup gzip is corrupt; no container was started" >&2
+  exit 1
+fi
 echo "[restore-test] verifying: ${BACKUP_FILE} ($(du -h "${BACKUP_FILE}" | cut -f1))"
 
 # --- ephemeral postgres -------------------------------------------------------

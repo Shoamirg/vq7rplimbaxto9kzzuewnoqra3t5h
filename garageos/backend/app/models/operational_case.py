@@ -7,7 +7,7 @@ Reusable optional relations (vehicle, appointment) attach as needed.
 """
 import uuid
 
-from sqlalchemy import Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Float, ForeignKey, Integer, String, Text, true
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -42,13 +42,16 @@ _OPEN_STATUSES = {
 
 class OperationalCase(BaseModelMixin, ServiceCenterMixin, Base):
     __tablename__ = "operational_cases"
+    # Existing migrations use the primary-key index and these server defaults.
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=true())
 
     # Universal id referenced everywhere (chat, notifications, reports, audit).
     code: Mapped[str] = mapped_column(String(24), nullable=False, index=True)
 
-    case_type: Mapped[str] = mapped_column(String(24), nullable=False, default=CaseType.EMERGENCY, index=True)
-    status: Mapped[str] = mapped_column(String(24), nullable=False, default=CaseStatus.NEW, index=True)
-    severity: Mapped[str] = mapped_column(String(16), nullable=False, default="medium")
+    case_type: Mapped[str] = mapped_column(String(24), nullable=False, default=CaseType.EMERGENCY, server_default=CaseType.EMERGENCY, index=True)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default=CaseStatus.NEW, server_default=CaseStatus.NEW, index=True)
+    severity: Mapped[str] = mapped_column(String(16), nullable=False, default="medium", server_default="medium")
 
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -70,7 +73,7 @@ class OperationalCase(BaseModelMixin, ServiceCenterMixin, Base):
     location_lng: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # SLA target for first response, in minutes.
-    sla_response_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=15)
+    sla_response_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=15, server_default="15")
 
     def is_open(self) -> bool:
         return self.status in _OPEN_STATUSES

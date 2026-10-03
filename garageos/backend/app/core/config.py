@@ -1,6 +1,8 @@
 from pathlib import Path
 from pydantic_settings import BaseSettings
-from typing import List, Optional
+from pydantic import field_validator, model_validator
+from typing import List, Literal, Optional
+from urllib.parse import urlsplit
 
 # The .env lives at the garageos/ root (next to docker-compose.yml), while host
 # tooling (uvicorn, alembic, seeds) runs from garageos/backend/. Resolve it by
@@ -14,7 +16,7 @@ class Settings(BaseSettings):
     # Application
     APP_NAME: str = "Garage Management Platform"
     APP_VERSION: str = "1.0.0"
-    ENVIRONMENT: str = "development"
+    ENVIRONMENT: Literal["development", "test", "staging", "production"] = "development"
     DEBUG: bool = True
     LOG_LEVEL: str = "INFO"
 
@@ -74,7 +76,40 @@ class Settings(BaseSettings):
     # API
     API_V1_PREFIX: str = "/api/v1"
 
-    model_config = {"env_file": str(_ENV_FILE), "case_sensitive": True, "extra": "ignore"}
+    model_config = {"env_file": str(_ENV_FILE), "case_sensitive": True, "extra": "ignore",
+                    "hide_input_in_errors": True}
+
+    @field_validator("ENVIRONMENT", mode="before")
+    @classmethod
+    def normalize_environment(cls, value):
+        return value.strip().lower() if isinstance(value, str) else value
+
+    @model_validator(mode="after")
+    def validate_deployment(self):
+        if self.ENVIRONMENT not in {"staging", "production"}:
+            return self
+        if self.DEBUG:
+            raise ValueError("DEBUG must be false in staging and production")
+        secret = self.SECRET_KEY.strip()
+        if (len(secret.encode("utf-8")) < 32 or len(set(secret)) < 2
+                or secret.lower().startswith(("change", "__change", "replace", "__replace"))):
+            raise ValueError("SECRET_KEY must be a generated secret of at least 32 bytes, without a placeholder")
+        origins = self.cors_origins_list
+        valid_origins = bool(origins)
+        for origin in origins:
+            try:
+                parsed = urlsplit(origin)
+                valid_origins = valid_origins and (
+                    parsed.scheme == "https" and bool(parsed.hostname) and "*" not in origin
+                    and parsed.username is None and parsed.password is None
+                    and not parsed.path and not parsed.query and not parsed.fragment
+                    and (parsed.port is None or 1 <= parsed.port <= 65535)
+                )
+            except ValueError:
+                valid_origins = False
+        if not valid_origins:
+            raise ValueError("CORS_ORIGINS must contain explicit HTTPS origins without paths, credentials or wildcards")
+        return self
 
     @property
     def cors_origins_list(self) -> List[str]:

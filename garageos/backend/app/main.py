@@ -15,6 +15,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError
 
 from app.api.system import router as system_router
 from app.api.v1.router import api_router
@@ -58,6 +59,22 @@ async def lifespan(app: FastAPI):
 
 
 def _register_exception_handlers(app: FastAPI) -> None:
+    @app.exception_handler(IntegrityError)
+    async def handle_integrity_error(request: Request, exc: IntegrityError) -> JSONResponse:
+        # asyncpg exposes a stable constraint name on the original cause. Match
+        # only our identity indexes; unrelated FK/not-null failures stay errors.
+        cause = getattr(exc.orig, "__cause__", None)
+        constraint = getattr(cause, "constraint_name", None)
+        conflicts = {
+            "uq_customers_center_phone_active": ("DUPLICATE_CUSTOMER_PHONE", "A customer with this phone already exists"),
+            "uq_vehicles_center_plate_active": ("DUPLICATE_VEHICLE", "A vehicle with this plate or VIN already exists"),
+            "uq_vehicles_center_vin_active": ("DUPLICATE_VEHICLE", "A vehicle with this plate or VIN already exists"),
+        }
+        if getattr(exc.orig, "sqlstate", None) == "23505" and constraint in conflicts:
+            code, detail = conflicts[constraint]
+            return JSONResponse(status_code=409, content={"error": {"code": code, "detail": detail}})
+        return await handle_unexpected_error(request, exc)
+
     @app.exception_handler(GarageException)
     async def handle_garage_exception(request: Request, exc: GarageException) -> JSONResponse:
         headers = None

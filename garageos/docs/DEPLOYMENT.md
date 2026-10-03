@@ -31,6 +31,13 @@ cp .env.prod.example .env.prod
 # TELEGRAM_MINI_APP_URL=https://<DOMAIN>/mini
 ```
 
+The backend refuses to start in staging/production with `DEBUG=true`, a short or
+common placeholder `SECRET_KEY`, or CORS origins that are not explicit HTTPS
+origins. Use `https://your-domain` without a trailing slash, path, wildcard or
+credentials. Validation messages hide supplied values. Keep the actual secrets
+out of Git. `DEMO_MODE_ENABLED=false` is the client deployment default; enable the
+read-only public demo only intentionally on a deployment with demo accounts.
+
 ## 2. Launch
 
 ```bash
@@ -45,6 +52,13 @@ automatically. Caddy provisions the TLS certificate on first request (give it
 docker compose -f docker-compose.prod.yml ps
 curl -fsS https://<DOMAIN>/            # dashboard
 ```
+
+Before updating an existing database, take and restore-test a backup. Migration
+`b3c4d5e6f7a8` enforces per-garage active phone/plate/VIN uniqueness. It stops on
+existing duplicates with a group count, leaves records untouched, and rolls back
+all index changes. Resolve the records with the garage before retrying; do not
+delete its data or run `--fresh`. This migration locks customers/vehicles during
+checks/index creation, so schedule a pause in writes for the update.
 
 ## 3. Seed a demo tenant (optional, for a sales demo)
 
@@ -83,6 +97,15 @@ chmod +x scripts/backup.sh
 Backups land in `./backups` (last 14 days). **Recommended:** sync them off-host
 to S3/Cloudflare R2 (see the TODO in `scripts/backup.sh`).
 
+The backup script uses private file permissions, writes to a hidden temporary
+file, verifies a nonempty gzip dump, and then publishes it by a same-directory
+rename. Completed names are `garageos-YYYYMMDD-HHMMSS-<suffix>.sql.gz`; older names
+remain restorable. Failed/empty dumps leave no completed-looking archive and do
+not prune existing backups. `RETENTION_DAYS` must be a positive integer. Pruning
+only touches matching files directly inside `BACKUP_DIR`. Environment and backup
+paths may contain spaces. Keep that directory on a filesystem supporting atomic
+rename, restrict access, and monitor the command's exit status.
+
 **Prove your backups restore** — a dump you have never restored is a hope, not a
 backup. `restore-test.sh` restores the latest backup into a throwaway Postgres
 container (never touching production) and asserts the schema and core tables came
@@ -99,6 +122,10 @@ The restore test reads `POSTGRES_USER` from `.env.prod` so the throwaway
 database has the same role as the plain SQL dump. For a local dump without
 `.env.prod`, set `POSTGRES_USER` when running the test. `ENV_FILE` can point to
 a different environment file.
+
+Corrupted gzip archives are rejected before a container is started. A passing
+restore test proves the checked schema/data can be restored; it does not prove
+off-host copies, retention scheduling, storage capacity or client acceptance.
 
 ## 6. Security & reliability (M2)
 

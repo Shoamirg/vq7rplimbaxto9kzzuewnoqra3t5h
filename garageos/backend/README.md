@@ -49,6 +49,26 @@ make down        # stop services
 
 ## Database migrations
 
+### Active identity uniqueness (2026-10-04)
+
+PostgreSQL enforces one active customer per normalized nonempty phone and one
+active vehicle per normalized nonempty plate/VIN **within each garage**. Phone
+formatting is ignored; vehicle identifiers ignore whitespace/hyphens and case.
+Archived records, missing identifiers and the same identity in another garage
+remain supported. The staff API returns its existing `409` duplicate response
+even when the database catches a competing write after the application check.
+
+Migration `b3c4d5e6f7a8` locks the affected tables while checking/creating indexes.
+If existing active duplicates are present, it stops with the index name and group
+count. It does not merge, delete or archive records, and its transaction rolls
+back. Take a backup, review conflicting records with the garage, resolve their
+ownership/history deliberately, and retry. Schedule this migration when the
+garage can pause writes. Never reseed a client database to make migration pass.
+
+`alembic check` must pass after upgrades (also enforced by CI). Notification,
+operational-case and audit model defaults now match the already deployed schema;
+their existing primary-key indexes avoid redundant secondary ID indexes.
+
 ```bash
 cd backend
 .venv/Scripts/python -m alembic upgrade head          # apply
@@ -92,6 +112,16 @@ Run `make verify` (or `python -m scripts.verify_tenant_isolation`) to check data
 partitioning, cross-tenant FK integrity, and the repository filter behavior.
 
 ## Local environment notes
+
+- `ENVIRONMENT` accepts `development`, `test`, `staging`, and `production`.
+  Staging/production require `DEBUG=false`, a generated JWT secret of at least
+  32 bytes, and explicit HTTPS CORS origins without paths, credentials or
+  wildcards. Invalid settings stop startup; validation output hides input values.
+  This rejects common defaults/placeholders; it does not measure secret entropy.
+- To run destructive **isolated migration tests**, use `ENVIRONMENT=test` and a
+  loopback database named `garage_test`, with a test role allowed to create/drop
+  databases. The tests create uniquely named disposable databases and only remove
+  those databases. Other environments skip those migration tests.
 
 - Config is read from `garageos/.env` (see `.env.example`). It is resolved by absolute
   path, so host tooling works regardless of the current directory.
