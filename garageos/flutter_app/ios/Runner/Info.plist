@@ -6,6 +6,12 @@
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>uz</string>
+		<string>en</string>
+		<string>ru</string>
+	</array>
 	<key>CFBundleDisplayName</key>
 	<string>GarageOS</string>
 	<key>CFBundleExecutable</key>

@@ -3,25 +3,46 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garageos_staff/app_state.dart';
 import 'package:garageos_staff/main.dart';
 
+import 'support/fonts.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  setUpAll(() async {
-    final text = FontLoader('Golos Text')
-      ..addFont(rootBundle.load('assets/fonts/GolosText.ttf'));
-    await text.load();
-    final icons = FontLoader('MaterialIcons')
-      ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
-    await icons.load();
-  });
+  setUpAll(loadGarageFonts);
   for (final item in [
-    (name: 'staff-light', size: const Size(390, 844), mode: ThemeMode.light),
-    (name: 'staff-dark', size: const Size(390, 844), mode: ThemeMode.dark),
-    (name: 'staff-tablet', size: const Size(1024, 768), mode: ThemeMode.light),
+    (
+      name: 'staff-light',
+      size: const Size(390, 844),
+      mode: ThemeMode.light,
+      locale: 'uz',
+    ),
+    (
+      name: 'staff-dark',
+      size: const Size(390, 844),
+      mode: ThemeMode.dark,
+      locale: 'uz',
+    ),
+    (
+      name: 'staff-tablet',
+      size: const Size(1024, 768),
+      mode: ThemeMode.light,
+      locale: 'uz',
+    ),
+    (
+      name: 'staff-en',
+      size: const Size(390, 844),
+      mode: ThemeMode.light,
+      locale: 'en',
+    ),
+    (
+      name: 'staff-ru',
+      size: const Size(390, 844),
+      mode: ThemeMode.dark,
+      locale: 'ru',
+    ),
   ]) {
     testWidgets(
       '${item.name}: responsive layout, real font and touch targets',
@@ -32,7 +53,8 @@ void main() {
         addTearDown(tester.view.resetDevicePixelRatio);
         final state = AppState()
           ..demo()
-          ..themeMode = item.mode;
+          ..themeMode = item.mode
+          ..locale = Locale(item.locale);
         addTearDown(state.dispose);
         final key = GlobalKey();
         await tester.pumpWidget(
@@ -43,13 +65,53 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
-        await tester.ensureVisible(find.byTooltip('Yangilash'));
-        await tester.tap(find.byTooltip('Yangilash'));
+        await tester.ensureVisible(
+          find.byTooltip(
+            item.locale == 'uz'
+                ? 'Yangilash'
+                : item.locale == 'en'
+                ? 'Refresh'
+                : 'Обновить',
+          ),
+        );
+        await tester.tap(
+          find.byTooltip(
+            item.locale == 'uz'
+                ? 'Yangilash'
+                : item.locale == 'en'
+                ? 'Refresh'
+                : 'Обновить',
+          ),
+        );
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
+        await tester.scrollUntilVisible(
+          find.widgetWithText(
+            FilledButton,
+            item.locale == 'uz'
+                ? 'Yangi navbat'
+                : item.locale == 'en'
+                ? 'New appointment'
+                : 'Новая запись',
+          ),
+          -200,
+          scrollable: find.byWidgetPredicate(
+            (w) => w is Scrollable && w.axisDirection == AxisDirection.down,
+          ),
+        );
+        await tester.pumpAndSettle();
         expect(
           tester
-              .getSize(find.widgetWithText(FilledButton, 'Yangi navbat'))
+              .getSize(
+                find.widgetWithText(
+                  FilledButton,
+                  item.locale == 'uz'
+                      ? 'Yangi navbat'
+                      : item.locale == 'en'
+                      ? 'New appointment'
+                      : 'Новая запись',
+                ),
+              )
               .height,
           greaterThanOrEqualTo(48),
         );

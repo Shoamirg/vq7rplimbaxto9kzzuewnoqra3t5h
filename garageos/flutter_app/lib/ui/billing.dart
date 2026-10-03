@@ -5,96 +5,103 @@ import '../data/api_client.dart';
 import '../data/payment_store.dart';
 import '../data/repository.dart';
 import '../design/theme.dart';
+import '../l10n/l10n.dart';
 import '../design/widgets.dart';
 import '../domain/models.dart';
 import 'customers.dart' show requiredText;
 
 class BillList extends StatelessWidget {
-  const BillList({super.key, required this.repository});
+  const BillList({super.key, required this.repository, this.refreshKey = 0});
   final GarageRepository repository;
+  final int refreshKey;
   @override
   Widget build(BuildContext context) => Center(
     child: ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: Space.contentWidth),
-      child: LoadView<List<Bill>>(
+      constraints: BoxConstraints(maxWidth: Space.contentWidth),
+      child: ListLoadView<List<Bill>>(
+        storageKey: 'staff-bill-list',
+        filterKey: repository,
+        loadKey: (repository, refreshKey),
         load: repository.bills,
-        builder: (bills, reload) => ListView(
-          padding: const EdgeInsets.all(Space.page),
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Hisoblar',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
+        header: (bills, reload, loading) => [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  context.l10n.invoices,
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
-                IconButton(
-                  tooltip: 'Yangilash',
-                  onPressed: reload,
-                  icon: const Icon(Icons.refresh),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            if (bills.isEmpty)
-              const EmptyNotice(
-                'Hisoblar yoʻq',
-                'Servis ishi tugagach uning ichidan hisob yarating.',
-                icon: Icons.receipt_long_outlined,
               ),
-            for (final bill in bills)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Card(
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(12),
-                    onTap: () async {
-                      await openPage(
-                        context,
-                        BillScreen(repository: repository, bill: bill),
-                      );
-                      if (context.mounted) reload();
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Wrap(
-                            spacing: 12,
-                            runSpacing: 8,
-                            children: [
-                              Text(
-                                bill.code,
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                              StatusBadge(
-                                billStatusLabel(bill.status),
-                                tone: bill.status == 'paid'
-                                    ? 'success'
-                                    : 'warning',
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Text(bill.customerName),
-                          if (bill.vehicleLabel.isNotEmpty)
-                            Text(bill.vehicleLabel),
-                          Pair(
-                            'Jami',
-                            bill.total.format(bill.currency),
-                            emphasis: true,
-                          ),
-                          Pair('Qoldiq', bill.balance.format(bill.currency)),
-                        ],
-                      ),
+              IconButton(
+                tooltip: context.l10n.refresh,
+                onPressed: loading ? null : reload,
+                icon: Icon(Icons.refresh),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+        ],
+        items: (bills, reload) => [
+          if (bills.isEmpty)
+            EmptyNotice(
+              context.l10n.noInvoices,
+              context.l10n.createInvoiceHint,
+              icon: Icons.receipt_long_outlined,
+            ),
+          for (final bill in bills)
+            Padding(
+              padding: EdgeInsets.only(bottom: 12),
+              child: Card(
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(Radii.card),
+                  onTap: () async {
+                    await openPage(
+                      context,
+                      BillScreen(repository: repository, bill: bill),
+                    );
+                    if (context.mounted) reload();
+                  },
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 8,
+                          children: [
+                            Text(
+                              bill.code,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            StatusBadge(
+                              context.message(billStatusLabel(bill.status)),
+                              tone: bill.status == 'paid'
+                                  ? 'success'
+                                  : 'warning',
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 12),
+                        Text(bill.customerName),
+                        if (bill.vehicleLabel.isNotEmpty)
+                          Text(bill.vehicleLabel),
+                        Pair(
+                          context.l10n.total,
+                          context.money(bill.total, bill.currency),
+                          emphasis: true,
+                        ),
+                        Pair(
+                          context.l10n.balance,
+                          context.money(bill.balance, bill.currency),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     ),
   );
@@ -139,51 +146,51 @@ class _BillScreenState extends State<BillScreen> {
     demo: widget.repository.isDemo,
     actions: [
       IconButton(
-        tooltip: 'Yangilash',
+        tooltip: context.l10n.refresh,
         onPressed: busy ? null : reload,
-        icon: const Icon(Icons.refresh),
+        icon: Icon(Icons.refresh),
       ),
       IconButton(
-        tooltip: 'Mijozga koʻrsatish',
+        tooltip: context.l10n.showCustomer,
         onPressed: busy || error != null
             ? null
             : () => openPage(
                 context,
                 CustomerBillView(bill: bill, demo: widget.repository.isDemo),
               ),
-        icon: const Icon(Icons.visibility_outlined),
+        icon: Icon(Icons.visibility_outlined),
       ),
     ],
     body: ListView(
-      padding: const EdgeInsets.all(Space.page),
+      padding: EdgeInsets.all(Space.page),
       children: [
-        if (busy) const LinearProgressIndicator(),
-        if (busy) const SizedBox(height: 16),
+        if (busy) LinearProgressIndicator(),
+        if (busy) SizedBox(height: 16),
         if (error != null) ErrorNotice(error!, retry: reload),
         BillContent(bill: bill),
-        const SizedBox(height: 24),
+        SizedBox(height: 24),
         Text(
-          'Toʻlovlar tarixi',
+          context.l10n.paymentHistory,
           style: Theme.of(context).textTheme.titleMedium,
         ),
-        const SizedBox(height: 12),
-        if (bill.receipts.isEmpty) const Text('Toʻlov hali yozilmagan.'),
+        SizedBox(height: 12),
+        if (bill.receipts.isEmpty) Text(context.l10n.noPayments),
         for (final receipt in bill.receipts)
           Padding(
-            padding: const EdgeInsets.only(bottom: 12),
+            padding: EdgeInsets.only(bottom: 12),
             child: Panel(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Pair(
                     receipt.kind == 'refund'
-                        ? 'Qaytarish'
-                        : paymentLabel(receipt.method),
-                    receipt.amount.format(bill.currency),
+                        ? context.l10n.refund
+                        : context.message(paymentLabel(receipt.method)),
+                    context.money(receipt.amount, bill.currency),
                   ),
                   if (receipt.date != null)
                     Text(
-                      '${dateLabel(receipt.date!.toLocal())} · ${TimeOfDay.fromDateTime(receipt.date!.toLocal()).format(context)}',
+                      '${context.date(receipt.date!.toLocal())} · ${TimeOfDay.fromDateTime(receipt.date!.toLocal()).format(context)}',
                     ),
                 ],
               ),
@@ -192,7 +199,7 @@ class _BillScreenState extends State<BillScreen> {
       ],
     ),
     footer: SaveButton(
-      label: 'Toʻlov yozish / tekshirish',
+      label: context.l10n.recordOrCheckPayment,
       busy: busy,
       onPressed: error != null
           ? null
@@ -219,58 +226,75 @@ class BillContent extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Hisob-faktura',
+              context.l10n.invoice,
               style: Theme.of(context).textTheme.titleLarge,
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             SelectableText(bill.code),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             StatusBadge(
-              billStatusLabel(bill.status),
+              context.message(billStatusLabel(bill.status)),
               tone: bill.status == 'paid' ? 'success' : 'warning',
             ),
-            const Divider(),
+            Divider(),
             Text(
               bill.customerName,
               style: Theme.of(context).textTheme.titleMedium,
             ),
             if (bill.vehicleLabel.isNotEmpty) Text(bill.vehicleLabel),
             if (bill.dueDate != null)
-              Pair('Toʻlov muddati', dateLabel(bill.dueDate!)),
+              Pair(context.l10n.dueDate, context.date(bill.dueDate!)),
           ],
         ),
       ),
-      const SizedBox(height: 24),
+      SizedBox(height: 24),
       Text(
-        'Xizmatlar va qismlar',
+        context.l10n.servicesAndParts,
         style: Theme.of(context).textTheme.titleMedium,
       ),
-      const SizedBox(height: 12),
+      SizedBox(height: 12),
       Panel(
         child: Column(
           children: [
             for (final line in bill.lines)
               Padding(
-                padding: const EdgeInsets.only(bottom: 16),
+                padding: EdgeInsets.only(bottom: 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Pair(line.description, line.total.format(bill.currency)),
+                    Pair(
+                      line.description,
+                      context.money(line.total, bill.currency),
+                    ),
                     Text(
-                      '${line.quantity.toString().replaceFirst(RegExp(r'\.0$'), '')} × ${line.price.format(bill.currency)}',
+                      '${line.quantity.toString().replaceFirst(RegExp(r'\.0$'), '')} × ${context.money(line.price, bill.currency)}',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ],
                 ),
               ),
-            const Divider(),
-            Pair('Xizmatlar jami', bill.subtotal.format(bill.currency)),
+            Divider(),
+            Pair(
+              context.l10n.subtotal,
+              context.money(bill.subtotal, bill.currency),
+            ),
             if (bill.discount.cents != 0)
-              Pair('Chegirma', bill.discount.format(bill.currency)),
-            Pair('QQS', bill.tax.format(bill.currency)),
-            Pair('Jami', bill.total.format(bill.currency), emphasis: true),
-            Pair('Toʻlangan', bill.paid.format(bill.currency)),
-            Pair('Qoldiq', bill.balance.format(bill.currency), emphasis: true),
+              Pair(
+                context.l10n.discount,
+                context.money(bill.discount, bill.currency),
+              ),
+            Pair(context.l10n.vat, context.money(bill.tax, bill.currency)),
+            Pair(
+              context.l10n.total,
+              context.money(bill.total, bill.currency),
+              emphasis: true,
+            ),
+            Pair(context.l10n.paid, context.money(bill.paid, bill.currency)),
+            Pair(
+              context.l10n.balance,
+              context.money(bill.balance, bill.currency),
+              emphasis: true,
+            ),
           ],
         ),
       ),
@@ -284,22 +308,23 @@ class CustomerBillView extends StatelessWidget {
   final bool demo;
   @override
   Widget build(BuildContext context) => PageFrame(
-    title: 'Mijoz uchun hisob',
+    title: context.l10n.customerInvoice,
     demo: demo,
     body: ListView(
-      padding: const EdgeInsets.all(Space.page),
+      padding: EdgeInsets.all(Space.page),
       children: [BillContent(bill: bill)],
     ),
   );
 }
 
 class LineFields {
-  LineFields({String text = 'Servis ishi'})
+  LineFields({String text = '', this.localizedDefault = false})
     : description = TextEditingController(text: text);
   final TextEditingController description;
   final quantity = TextEditingController(text: '1'),
       price = TextEditingController();
   String kind = 'labor';
+  bool localizedDefault;
   static double? parseQuantity(String text) {
     if (!RegExp(r'^\d{1,8}([.,]\d{1,2})?$').hasMatch(text)) return null;
     final value = double.tryParse(text.replaceAll(',', '.'));
@@ -330,10 +355,28 @@ class BillForm extends StatefulWidget {
 }
 
 class _BillFormState extends State<BillForm> {
-  final form = GlobalKey<FormState>(), lines = <LineFields>[LineFields()];
+  final form = GlobalKey<FormState>(), lines = <LineFields>[];
   double taxRate = 0;
-  bool busy = false, dirty = false;
+  bool busy = false, dirty = false, updatingDefaults = false;
   String? error;
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (lines.isEmpty) {
+      lines.add(
+        LineFields(text: context.l10n.serviceWork, localizedDefault: true),
+      );
+    }
+    updatingDefaults = true;
+    for (final line in lines) {
+      if (line.localizedDefault &&
+          line.description.text != context.l10n.serviceWork) {
+        line.description.text = context.l10n.serviceWork;
+      }
+    }
+    updatingDefaults = false;
+  }
+
   @override
   void dispose() {
     for (final line in lines) {
@@ -350,10 +393,7 @@ class _BillFormState extends State<BillForm> {
   Future<void> save() async {
     if (!validateForm(form)) return;
     if (total <= 0 || total > Money.maxCents) {
-      setState(
-        () => error =
-            'Jami summa 0 dan katta va 100 million soʻmdan kam boʻlsin.',
-      );
+      setState(() => error = context.l10n.invoiceTotalError);
       return;
     }
     setState(() {
@@ -379,33 +419,38 @@ class _BillFormState extends State<BillForm> {
 
   @override
   Widget build(BuildContext context) => PageFrame(
-    title: 'Hisob yaratish',
+    title: context.l10n.createInvoice,
     demo: widget.repository.isDemo,
     hasChanges: dirty,
     isSaving: busy,
     body: Form(
       key: form,
-      onChanged: () => setState(() => dirty = true),
+      autovalidateMode: dirty
+          ? AutovalidateMode.onUserInteraction
+          : AutovalidateMode.disabled,
+      onChanged: () {
+        if (!updatingDefaults) setState(() => dirty = true);
+      },
       child: ListView(
-        padding: const EdgeInsets.all(Space.page),
+        padding: EdgeInsets.all(Space.page),
         children: [
           Panel(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Plate(widget.work.plate),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
                 Text(widget.work.customerName),
                 Text(widget.work.car),
               ],
             ),
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: 24),
           if (error != null) ErrorNotice(error!),
           for (final line in lines)
             Padding(
               key: ObjectKey(line),
-              padding: const EdgeInsets.only(bottom: 16),
+              padding: EdgeInsets.only(bottom: 16),
               child: Panel(
                 child: Column(
                   children: [
@@ -413,12 +458,12 @@ class _BillFormState extends State<BillForm> {
                       children: [
                         Expanded(
                           child: Text(
-                            'Hisob qatori ${lines.indexOf(line) + 1}',
+                            context.l10n.invoiceLine(lines.indexOf(line) + 1),
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                         ),
                         IconButton(
-                          tooltip: 'Qatorni oʻchirish',
+                          tooltip: context.l10n.removeLine,
                           onPressed: busy || lines.length == 1
                               ? null
                               : () {
@@ -428,84 +473,93 @@ class _BillFormState extends State<BillForm> {
                                   });
                                   line.dispose();
                                 },
-                          icon: const Icon(Icons.close),
+                          icon: Icon(Icons.close),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
                     TextFormField(
                       controller: line.description,
                       enabled: !busy,
+                      onChanged: (_) => line.localizedDefault = false,
                       maxLength: 255,
-                      validator: requiredText,
-                      decoration: const InputDecoration(
-                        labelText: 'Xizmat yoki qism nomi',
+                      validator: (value) =>
+                          context.validation(requiredText(value)),
+                      decoration: InputDecoration(
+                        labelText: context.l10n.lineDescription,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16),
                     DropdownButtonFormField<String>(
                       initialValue: line.kind,
                       isExpanded: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Qator turi',
+                      decoration: InputDecoration(
+                        labelText: context.l10n.lineType,
                       ),
-                      items: const [
+                      items: [
                         DropdownMenuItem(
                           value: 'labor',
-                          child: Text('Xizmat / ish haqi'),
+                          child: Text(context.l10n.labor),
                         ),
                         DropdownMenuItem(
                           value: 'part',
-                          child: Text('Ehtiyot qism'),
+                          child: Text(context.l10n.part),
                         ),
                         DropdownMenuItem(
                           value: 'fee',
-                          child: Text('Qoʻshimcha haq'),
+                          child: Text(context.l10n.fee),
                         ),
                       ],
                       onChanged: busy
                           ? null
                           : (v) => setState(() => line.kind = v!),
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16),
                     TextFormField(
                       controller: line.quantity,
                       enabled: !busy,
-                      keyboardType: const TextInputType.numberWithOptions(
+                      keyboardType: TextInputType.numberWithOptions(
                         decimal: true,
                       ),
-                      decoration: const InputDecoration(labelText: 'Miqdor'),
+                      decoration: InputDecoration(
+                        labelText: context.l10n.quantity,
+                      ),
                       onChanged: (_) => setState(() {}),
                       validator: (v) {
                         return LineFields.parseQuantity(v ?? '') != null
                             ? null
-                            : 'Musbat miqdorni kiriting.';
+                            : context.l10n.quantityError;
                       },
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16),
                     TextFormField(
                       controller: line.price,
                       enabled: !busy,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Birlik narxi',
-                        suffixText: 'soʻm',
+                      decoration: InputDecoration(
+                        labelText: context.l10n.unitPrice,
+                        suffixText: context.l10n.uzs,
                       ),
                       onChanged: (_) => setState(() {}),
                       validator: (v) {
                         final price = Money.parse(v ?? '');
-                        if (price == null) return 'Toʻgʻri narxni kiriting.';
+                        if (price == null) return context.l10n.priceError;
                         final quantity = LineFields.parseQuantity(
                           line.quantity.text,
                         );
                         if (quantity != null &&
                             quantity * price.cents > Money.maxCents) {
-                          return 'Qator summasi 100 million soʻmdan kam boʻlsin.';
+                          return context.l10n.lineTotalError;
                         }
                         return null;
                       },
                     ),
-                    Pair('Qator jami', line.value?.total.format() ?? '—'),
+                    Pair(
+                      context.l10n.lineTotal,
+                      line.value == null
+                          ? '—'
+                          : context.money(line.value!.total),
+                    ),
                   ],
                 ),
               ),
@@ -517,26 +571,30 @@ class _BillFormState extends State<BillForm> {
                     lines.add(LineFields(text: ''));
                     dirty = true;
                   }),
-            icon: const Icon(Icons.add),
-            label: const Text('Qator qoʻshish'),
+            icon: Icon(Icons.add),
+            label: Text(context.l10n.addLine),
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: 24),
           DropdownButtonFormField<double>(
             initialValue: taxRate,
-            decoration: const InputDecoration(labelText: 'QQS'),
-            items: const [
+            decoration: InputDecoration(labelText: context.l10n.vat),
+            items: [
               DropdownMenuItem(value: 0, child: Text('0%')),
               DropdownMenuItem(value: 12, child: Text('12%')),
             ],
             onChanged: busy ? null : (v) => setState(() => taxRate = v!),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           Panel(
             child: Column(
               children: [
-                Pair('Xizmatlar jami', Money(subtotal).format()),
-                Pair('QQS', Money(total - subtotal).format()),
-                Pair('Jami', Money(total).format(), emphasis: true),
+                Pair(context.l10n.subtotal, context.money(Money(subtotal))),
+                Pair(context.l10n.vat, context.money(Money(total - subtotal))),
+                Pair(
+                  context.l10n.total,
+                  context.money(Money(total)),
+                  emphasis: true,
+                ),
               ],
             ),
           ),
@@ -547,12 +605,12 @@ class _BillFormState extends State<BillForm> {
       children: [
         TextButton(
           onPressed: busy ? null : () => Navigator.maybePop(context),
-          child: const Text('Ortga'),
+          child: Text(context.l10n.back),
         ),
-        const SizedBox(width: 8),
+        SizedBox(width: 8),
         Expanded(
           child: SaveButton(
-            label: 'Hisob yaratish',
+            label: context.l10n.createInvoice,
             onPressed: save,
             busy: busy,
           ),
@@ -620,7 +678,7 @@ class _PaymentFormState extends State<PaymentForm> {
     if (!ready || (pending == null && !validateForm(form))) return;
     final intent =
         pending ??
-        PendingPayment(Money.parse(amount.text)!, method, const Uuid().v4());
+        PendingPayment(Money.parse(amount.text)!, method, Uuid().v4());
     setState(() {
       pending = intent;
       busy = true;
@@ -634,8 +692,9 @@ class _PaymentFormState extends State<PaymentForm> {
         intent.key,
       );
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Toʻlov qayd etildi.')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.l10n.paymentRecorded)));
         Navigator.pop(context, result);
       }
     } catch (e) {
@@ -652,42 +711,41 @@ class _PaymentFormState extends State<PaymentForm> {
 
   @override
   Widget build(BuildContext context) => PageFrame(
-    title: 'Toʻlovni qayd etish',
+    title: context.l10n.recordPayment,
     demo: widget.repository.isDemo,
     hasChanges: dirty && pending == null,
     isSaving: busy,
     body: Form(
       key: form,
+      autovalidateMode: AutovalidateMode.onUserInteraction,
       onChanged: () {
         if (ready && !busy) setState(() => dirty = true);
       },
       child: ListView(
-        padding: const EdgeInsets.all(Space.page),
+        padding: EdgeInsets.all(Space.page),
         children: [
-          if (busy) const LinearProgressIndicator(),
-          if (busy) const SizedBox(height: 16),
+          if (busy) LinearProgressIndicator(),
+          if (busy) SizedBox(height: 16),
           if (error != null) ErrorNotice(error!, retry: !ready ? reload : null),
           Text(bill.code, style: Theme.of(context).textTheme.titleMedium),
           Pair(
-            'Qolgan summa',
-            bill.balance.format(bill.currency),
+            context.l10n.remainingAmount,
+            context.money(bill.balance, bill.currency),
             emphasis: true,
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           if (pending != null)
-            Panel(
-              child: Text(
-                'Oldingi toʻlov soʻrovi saqlangan. Natijani tekshirish shu soʻrovni takrorlaydi; yangi toʻlov yaratmaydi.',
-              ),
-            ),
-          const SizedBox(height: 16),
+            Panel(child: Text(context.l10n.pendingPaymentHint)),
+          SizedBox(height: 16),
           TextFormField(
             controller: amount,
             enabled: !busy && pending == null && bill.canPay,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            keyboardType: TextInputType.numberWithOptions(decimal: true),
             decoration: InputDecoration(
-              labelText: 'Qabul qilingan summa',
-              suffixText: bill.currency == 'UZS' ? 'soʻm' : bill.currency,
+              labelText: context.l10n.receivedAmount,
+              suffixText: bill.currency == 'UZS'
+                  ? context.l10n.uzs
+                  : bill.currency,
             ),
             validator: (v) {
               final money = Money.parse(v ?? '');
@@ -695,39 +753,40 @@ class _PaymentFormState extends State<PaymentForm> {
                       money.cents > 0 &&
                       money.cents <= bill.balance.cents
                   ? null
-                  : 'Musbat summa kiriting; qoldiqdan oshmasin.';
+                  : context.l10n.paymentAmountError;
             },
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           DropdownButtonFormField<String>(
             initialValue: method,
             key: ValueKey(method),
             isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Toʻlov usuli'),
+            decoration: InputDecoration(labelText: context.l10n.paymentMethod),
             items: ['cash', 'card', 'bank_transfer']
                 .map(
-                  (s) =>
-                      DropdownMenuItem(value: s, child: Text(paymentLabel(s))),
+                  (s) => DropdownMenuItem(
+                    value: s,
+                    child: Text(context.message(paymentLabel(s))),
+                  ),
                 )
                 .toList(),
             onChanged: busy || pending != null || !bill.canPay
                 ? null
                 : (v) => setState(() => method = v!),
           ),
-          const SizedBox(height: 24),
-          const Text('Mijozdan qabul qilingan toʻlovni hisobga yozing.'),
+          SizedBox(height: 24),
+          Text(context.l10n.manualPaymentHint),
           if (!bill.canPay && pending == null) ...[
-            const SizedBox(height: 16),
-            const StatusBadge(
-              'Bu hisob toʻlov qabul qilmaydi',
-              tone: 'success',
-            ),
+            SizedBox(height: 16),
+            StatusBadge(context.l10n.cannotPayInvoice, tone: 'success'),
           ],
         ],
       ),
     ),
     footer: SaveButton(
-      label: pending == null ? 'Toʻlovni qayd etish' : 'Natijani tekshirish',
+      label: pending == null
+          ? context.l10n.recordPayment
+          : context.l10n.checkResult,
       busy: busy,
       onPressed: ready && (bill.canPay || pending != null) ? pay : null,
     ),

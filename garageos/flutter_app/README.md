@@ -4,6 +4,14 @@ First working Flutter slice of the uploaded GarageOS design: **customer + car �
 
 For iPhone build checks and partner installation through TestFlight, see the [Uzbek iOS guide](docs/ios.md) and [issue #8](https://github.com/Shoamirg/garageos/issues/8). A simulator/unsigned build is separate from a signed, installable iPhone release.
 
+## Approved design and languages
+
+The approved clean dashboard design is applied to the existing staff screens ([issue #9](https://github.com/Shoamirg/garageos/issues/9), [approved review frontend](https://garageos-mobile-maket-oct3.john-doe-4292.chatgpt.site)). Shared tokens provide white cards, orange primary actions, 16dp card corners and 8dp controls, with a matching dark theme. DM Sans is the body font, Plus Jakarta Sans is used for headings, and Golos Text supplies Cyrillic fallback. All fonts and their SIL OFL licenses are bundled locally.
+
+Use the globe button on sign-in, staff lists or detail/form pages to choose **O‘zbekcha / English / Русский**. Uzbek is the initial default. The choice is stored on this device; switching language keeps the account/demo, selected tab, search/filter state, current route and draft edits. Device storage failure is reported while the selected language still works for the current session; later saves can retry. Dates, money and screen-reader plate labels follow the selected locale; currency and server amounts are unchanged. Names, notes and edited invoice descriptions are customer/staff data and are not translated. Untouched generated service/line defaults follow language changes without marking forms as edited.
+
+`lib/l10n/app_*.arb` are the translation sources. After editing them, run `flutter gen-l10n`; generated Dart files are ignored. `dart run tool/check_l10n.dart` prevents partial catalogs from silently falling back to Uzbek. The full staff widget journey runs in all three languages at 360dp / 130% text.
+
 ## Run locally
 
 Flutter **3.47.6 stable**, Dart **3.13.5**. This computer has a portable SDK at `%LOCALAPPDATA%\GarageOS\toolchains\flutter`; no global PATH change is needed.
@@ -46,12 +54,14 @@ Manual payment recording saves money already received. It does not charge a card
 
 ## Implemented
 
-- Uzbek staff sign-in and token refresh; visible errors/retry and account exit.
+- Uzbek, English and Russian staff screens, sign-in and token refresh; visible errors/retry and account exit.
 - Search/paginate customers and appointments; choose current-day or all dates and workflow status.
+- Keep each staff tab's search, filters and scroll position; load tabs on first visit and refresh when revisited. Search after a short pause or submit, and clear filtered empty results with one action.
+- Keep list headings/actions during loading or failure. Same-filter refreshes retain disabled prior rows and scroll position until current results are available; changing search, filters or page starts at the top.
 - Register customer and car, create a direct appointment, assign usta, confirm/start/complete/cancel.
 - Create multiple service/part/fee lines and explicit 0%/12% tax; open the existing invoice on repeat creation.
 - View invoice, currency-aware totals, receipt history and customer-facing view; record cash/card/bank partial/full payments safely.
-- Signal orange theme, bundled OFL Golos Text, reusable plates/status badges, light/dark mode, phone/tablet navigation and 48dp+ controls.
+- Approved white/orange theme, bundled OFL DM Sans/Plus Jakarta Sans/Golos Text, reusable plates/status badges, light/dark mode, phone/tablet navigation and 48dp+ controls.
 - Guard unsaved forms when going back/cancelling, keep the first invalid field visible/focused, and honor reduced-motion preferences.
 
 ## Review and automation
@@ -60,7 +70,13 @@ This milestone uses the `ask-matt` implementation/review flow, a separate Standa
 
 GitHub CI has a separate Flutter job pinned to the SDK above. It runs analysis, unit/widget tests and the real API journey against its own migrated Postgres database, then builds web with a bundled renderer. The existing backend and Next.js jobs remain separate.
 
-Local verification on 2026-10-03: **19 Flutter tests including the real API journey**, **10 targeted backend tests**, clean analysis, web release build and Android debug APK build. The web demo was also opened in Chrome at phone width. iOS builds and physical Android device tests have not been run.
+Initial staff milestone verification on 2026-10-03: **19 Flutter tests including the real API journey**, **10 targeted backend tests**, clean analysis, web release build and Android debug APK build. The web demo was also opened in Chrome at phone width. At that milestone, iOS builds and physical Android device tests had not been run.
+
+Staff-list increment verification on 2026-10-03: **25 Flutter tests including the real API journey and six UI regressions**, clean analysis, release web build, and **144 existing backend tests** against an isolated migrated and CI-seeded PostgreSQL database. Regressions cover independent searches/status filters across tabs, lazy loading, no theme-only refetch, out-of-order responses, pending/error/empty recovery, and customer/invoice scroll retention through refresh failures. The layout checks retain their touch-target assertions and scroll the action into view before measuring it. Android/iOS native builds were not rerun for this increment.
+
+Design/language increment on 2026-10-03: **34 local Flutter tests passed**, with the optional live API test skipped locally; clean analysis and **215 complete messages per language**. Six localization regressions cover persisted choice, retained drafts/validation/tab/search, browser storage failures and recovery, pristine translated defaults and accessible plate labels. The complete service-work/invoice/split-payment flow passes in UZ/EN/RU at 360dp and 130% text. Five font-rendered layout checks cover light/dark phone, tablet, English and Russian. Current CI runs the live API journey and web build; its results are linked in issue #9.
+
+The preceding iOS increment on `5b9ff42` passed an unsigned iPhone release build and two native simulator tests on macOS/Xcode ([run](https://github.com/Shoamirg/garageos/actions/runs/37099097524)). The current iOS workflow adds language persistence as its third native test; current results are tracked in issue #9. Physical Android/iPhone testing, Apple signing and TestFlight distribution remain pending.
 
 ## Subsequent milestones
 
@@ -68,11 +84,13 @@ The 100 HTML files are the complete reference, not 100 implemented Flutter scree
 
 ## Layout
 
-`lib/domain`: typed API models and integer minor-unit money. `lib/data`: API/refresh, live and demo repositories, durable payment intent store. `lib/design`: theme tokens and shared widgets. `lib/ui`: staff screens and form state. `app_state.dart`: account/theme state.
+`lib/domain`: typed API models and integer minor-unit money. `lib/data`: API/refresh, live and demo repositories, durable payment intent store. `lib/design`: theme tokens and shared widgets. `lib/l10n`: ARB translations and presentation formatting. `lib/ui`: staff screens and form state. `app_state.dart`: account/theme/language state.
 
 ## Verify / build
 
 ```sh
+dart run tool/check_l10n.dart
+flutter gen-l10n
 flutter analyze
 flutter test
 flutter build web --release --no-web-resources-cdn
@@ -85,7 +103,7 @@ Optional reproducible screenshots:
 flutter test test/layout_test.dart --dart-define=WRITE_PREVIEWS=true
 ```
 
-Screenshots: [phone light](docs/previews/staff-light.png), [phone dark](docs/previews/staff-dark.png), [tablet](docs/previews/staff-tablet.png). The workflow widget test uses the bundled font, 360dp width and 130% text scaling, through split payment completion.
+Screenshots: [phone light](docs/previews/staff-light.png), [phone dark](docs/previews/staff-dark.png), [tablet](docs/previews/staff-tablet.png), [English](docs/previews/staff-en.png), [Russian](docs/previews/staff-ru.png). The workflow widget test uses bundled fonts, 360dp width and 130% text scaling in UZ/EN/RU, through split payment completion.
 
 The live API test is skipped by default. To run it, use an isolated loopback database named `garage_test`, migrated and with `ENVIRONMENT=test`. From `garageos/backend` create its isolated accounts (the helper never resets data):
 

@@ -18,7 +18,7 @@ Windowsda Xcode yo‘q. Shu sabab native iOS build Macda yoki GitHubdagi macOS r
 
 1. Xcode versiyasi va mavjud simulatorlar yoziladi.
 2. `flutter analyze` va `flutter build ios --release --no-codesign` bajariladi.
-3. Mavjud iPhone simulatorida ikkita native test bajariladi: payment-intent saqlash/o‘qish/tozalash va demo navbat → ish → hisob → qisman/to‘liq to‘lov qaydi.
+3. Mavjud iPhone simulatorida uchta native test bajariladi: til tanlovi keyingi ochishda saqlanishi, payment-intent saqlash/o‘qish/tozalash va demo navbat → ish → hisob → qisman/to‘liq to‘lov qaydi.
 4. Unsigned build arxivi GitHub Actions artifact sifatida 7 kun saqlanadi. Bu sheriklarga tarqatish fayli emas.
 
 Workflow qo‘lda ishga tushirishni ham qo‘llaydi; GitHub `workflow_dispatch` orqali ishga tushirish uchun workflow avval default branchda ro‘yxatdan o‘tgan bo‘lishi kerak. Hozir feature branch push triggeridan foydalaniladi. Private repo runnerlari GitHub hisobidagi Actions daqiqalarini ishlatadi; limit va xarajatlar [GitHub billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions) bo‘yicha yuritiladi.

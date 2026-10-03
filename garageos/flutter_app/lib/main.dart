@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'app_state.dart';
 import 'design/theme.dart';
+import 'l10n/generated/app_localizations.dart';
 import 'ui/login.dart';
+import 'ui/settings.dart';
 import 'ui/staff_home.dart';
 
 void main() => runApp(const GarageApp());
@@ -22,6 +25,7 @@ class _GarageAppState extends State<GarageApp> {
   void initState() {
     super.initState();
     state.onExpired = logout;
+    unawaited(state.restoreLocale());
   }
 
   void logout() {
@@ -43,9 +47,10 @@ class _GarageAppState extends State<GarageApp> {
       navigatorKey: navigator,
       title: 'GarageOS',
       debugShowCheckedModeBanner: false,
-      locale: const Locale('uz'),
-      supportedLocales: const [Locale('uz')],
-      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      locale: state.locale,
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      builder: (context, child) => SettingsScope(state: state, child: child!),
       theme: garageTheme(Brightness.light),
       darkTheme: garageTheme(Brightness.dark),
       themeMode: state.themeMode,

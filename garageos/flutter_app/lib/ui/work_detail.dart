@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/api_client.dart';
 import '../data/repository.dart';
 import '../design/theme.dart';
+import '../l10n/l10n.dart';
 import '../design/widgets.dart';
 import '../domain/models.dart';
 import 'billing.dart';
@@ -120,31 +121,31 @@ class _WorkScreenState extends State<WorkScreen> {
   Widget build(BuildContext context) {
     final canAssign = work.canAssignMechanic;
     final label = switch (work.status) {
-      WorkStatus.pending => 'Navbatni tasdiqlash',
+      WorkStatus.pending => context.l10n.confirmAppointment,
       WorkStatus.confirmed =>
         (work.mechanic?.trim().isNotEmpty ?? false)
-            ? 'Ishni boshlash'
-            : 'Usta tayinlash',
-      WorkStatus.inProgress => 'Ishni tugatish',
+            ? context.l10n.startWork
+            : context.l10n.assignMechanic,
+      WorkStatus.inProgress => context.l10n.completeWork,
       WorkStatus.completed =>
-        linked == null ? 'Hisob yaratish' : 'Hisobni ochish',
+        linked == null ? context.l10n.createInvoice : context.l10n.openInvoice,
       _ => null,
     };
     return PageFrame(
-      title: 'Servis ishi',
+      title: context.l10n.serviceWork,
       demo: widget.repository.isDemo,
       actions: [
         IconButton(
-          tooltip: 'Yangilash',
+          tooltip: context.l10n.refresh,
           onPressed: busy ? null : reload,
-          icon: const Icon(Icons.refresh),
+          icon: Icon(Icons.refresh),
         ),
       ],
       body: ListView(
-        padding: const EdgeInsets.all(Space.page),
+        padding: EdgeInsets.all(Space.page),
         children: [
-          if (busy) const LinearProgressIndicator(),
-          if (busy) const SizedBox(height: 16),
+          if (busy) LinearProgressIndicator(),
+          if (busy) SizedBox(height: 16),
           if (error != null) ErrorNotice(error!, retry: reload),
           Panel(
             child: Column(
@@ -155,75 +156,90 @@ class _WorkScreenState extends State<WorkScreen> {
                   runSpacing: 12,
                   children: [
                     Plate(work.plate),
-                    StatusBadge(work.status.label, tone: workTone(work.status)),
+                    StatusBadge(
+                      context.message(work.status.label),
+                      tone: workTone(work.status),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 Text(work.car, style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(work.customerName),
-                const Divider(),
-                Pair('Navbat', '${dateLabel(work.date)} · ${work.time}'),
-                Pair('Davomiyligi', '${work.duration} daqiqa'),
-                Pair('Usta', work.mechanic ?? 'Tayinlanmagan'),
+                Divider(),
+                Pair(
+                  context.l10n.appointments,
+                  '${context.date(work.date)} · ${work.time}',
+                ),
+                Pair(
+                  context.l10n.duration,
+                  context.l10n.minutes(work.duration),
+                ),
+                Pair(
+                  context.l10n.mechanic,
+                  work.mechanic ?? context.l10n.unassigned,
+                ),
                 if (canAssign)
                   OutlinedButton.icon(
                     onPressed: busy ? null : assign,
-                    icon: const Icon(Icons.person_outline),
-                    label: const Text('Ustani tanlash / oʻzgartirish'),
+                    icon: Icon(Icons.person_outline),
+                    label: Text(context.l10n.changeMechanic),
                   ),
               ],
             ),
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: 24),
           Text(
-            'Mijoz shikoyati',
+            context.l10n.customerConcern,
             style: Theme.of(context).textTheme.titleMedium,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           Panel(
             child: Text(
               work.customerNotes?.trim().isNotEmpty == true
                   ? work.customerNotes!
-                  : 'Izoh kiritilmagan.',
+                  : context.l10n.noNotes,
             ),
           ),
           if (work.serviceType != null) ...[
-            const SizedBox(height: 16),
-            Pair('Xizmat turi', work.serviceType!),
+            SizedBox(height: 16),
+            Pair(context.l10n.serviceType, work.serviceType!),
           ],
           if (work.notes?.trim().isNotEmpty == true) ...[
-            const SizedBox(height: 24),
+            SizedBox(height: 24),
             Text(
-              'Bajarilgan ishlar / xodim izohi',
+              context.l10n.staffNotes,
               style: Theme.of(context).textTheme.titleMedium,
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             Panel(child: Text(work.notes!)),
           ],
           if (linked != null) ...[
-            const SizedBox(height: 24),
+            SizedBox(height: 24),
             Panel(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(linked!.code),
                   Pair(
-                    'Jami',
-                    linked!.total.format(linked!.currency),
+                    context.l10n.total,
+                    context.money(linked!.total, linked!.currency),
                     emphasis: true,
                   ),
-                  Pair('Qoldiq', linked!.balance.format(linked!.currency)),
+                  Pair(
+                    context.l10n.balance,
+                    context.money(linked!.balance, linked!.currency),
+                  ),
                 ],
               ),
             ),
           ],
           if (work.canCancel) ...[
-            const SizedBox(height: 24),
+            SizedBox(height: 24),
             TextButton.icon(
               onPressed: busy ? null : cancel,
-              icon: const Icon(Icons.event_busy_outlined),
-              label: const Text('Navbatni bekor qilish'),
+              icon: Icon(Icons.event_busy_outlined),
+              label: Text(context.l10n.cancelAppointment),
             ),
           ],
         ],
@@ -280,21 +296,22 @@ class _MechanicDialogState extends State<MechanicDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Usta tayinlash'),
+    title: Text(context.l10n.assignMechanic),
     content: Form(
       key: form,
+      autovalidateMode: AutovalidateMode.onUserInteraction,
       child: TextFormField(
         controller: name,
         autofocus: MediaQuery.sizeOf(context).width >= Space.tablet,
         maxLength: 255,
-        decoration: const InputDecoration(labelText: 'Ustaning ismi'),
-        validator: requiredText,
+        decoration: InputDecoration(labelText: context.l10n.mechanicName),
+        validator: (value) => context.validation(requiredText(value)),
       ),
     ),
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: const Text('Bekor qilish'),
+        child: Text(context.l10n.cancel),
       ),
       FilledButton(
         onPressed: () {
@@ -302,7 +319,7 @@ class _MechanicDialogState extends State<MechanicDialog> {
             Navigator.pop(context, name.text.trim());
           }
         },
-        child: const Text('Tayinlash'),
+        child: Text(context.l10n.assign),
       ),
     ],
   );
@@ -324,18 +341,18 @@ class _CancelDialogState extends State<CancelDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Navbatni bekor qilish'),
+    title: Text(context.l10n.cancelAppointment),
     content: SingleChildScrollView(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('Navbat bekor qilinadi va vaqt boʻshaydi.'),
-          const SizedBox(height: 16),
+          Text(context.l10n.cancelAppointmentHint),
+          SizedBox(height: 16),
           TextField(
             controller: reason,
             maxLength: 1000,
             maxLines: 3,
-            decoration: const InputDecoration(labelText: 'Sabab (ixtiyoriy)'),
+            decoration: InputDecoration(labelText: context.l10n.optionalReason),
           ),
         ],
       ),
@@ -343,11 +360,11 @@ class _CancelDialogState extends State<CancelDialog> {
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: const Text('Qolish'),
+        child: Text(context.l10n.stay),
       ),
       FilledButton(
         onPressed: () => Navigator.pop(context, reason.text.trim()),
-        child: const Text('Bekor qilish'),
+        child: Text(context.l10n.cancel),
       ),
     ],
   );
@@ -363,11 +380,22 @@ class CompleteForm extends StatefulWidget {
 
 class _CompleteFormState extends State<CompleteForm> {
   final form = GlobalKey<FormState>();
-  final type = TextEditingController(text: 'Umumiy servis'),
+  final type = TextEditingController(),
       notes = TextEditingController(),
       km = TextEditingController();
   bool busy = false, dirty = false;
   String? error;
+  bool typeEdited = false, updatingDefault = false;
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!typeEdited && type.text != context.l10n.generalService) {
+      updatingDefault = true;
+      type.text = context.l10n.generalService;
+      updatingDefault = false;
+    }
+  }
+
   @override
   void dispose() {
     type.dispose();
@@ -402,45 +430,53 @@ class _CompleteFormState extends State<CompleteForm> {
 
   @override
   Widget build(BuildContext context) => PageFrame(
-    title: 'Ishni tugatish',
+    title: context.l10n.completeWork,
     demo: widget.repository.isDemo,
     hasChanges: dirty,
     isSaving: busy,
     body: Form(
       key: form,
-      onChanged: () => setState(() => dirty = true),
+      autovalidateMode: dirty
+          ? AutovalidateMode.onUserInteraction
+          : AutovalidateMode.disabled,
+      onChanged: () {
+        if (!updatingDefault) setState(() => dirty = true);
+      },
       child: ListView(
-        padding: const EdgeInsets.all(Space.page),
+        padding: EdgeInsets.all(Space.page),
         children: [
           Plate(widget.work.plate),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           Text(widget.work.car, style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 24),
+          SizedBox(height: 24),
           if (error != null) ErrorNotice(error!),
           TextFormField(
             controller: type,
             enabled: !busy,
+            onChanged: (_) => typeEdited = true,
             maxLength: 100,
-            validator: requiredText,
-            decoration: const InputDecoration(labelText: 'Bajarilgan xizmat'),
+            validator: (value) => context.validation(requiredText(value)),
+            decoration: InputDecoration(
+              labelText: context.l10n.completedService,
+            ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           TextFormField(
             controller: notes,
             enabled: !busy,
             maxLines: 3,
             maxLength: 1000,
-            decoration: const InputDecoration(
-              labelText: 'Bajarilgan ishlar haqida izoh',
+            decoration: InputDecoration(
+              labelText: context.l10n.completionNotes,
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           TextFormField(
             controller: km,
             enabled: !busy,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: 'Yurgan masofa (ixtiyoriy)',
+            decoration: InputDecoration(
+              labelText: context.l10n.optionalOdometer,
               suffixText: 'km',
             ),
             validator: (v) {
@@ -448,13 +484,11 @@ class _CompleteFormState extends State<CompleteForm> {
               final n = int.tryParse(v);
               return n != null && n >= 0 && n <= 2147483647
                   ? null
-                  : 'Toʻgʻri masofani kiriting.';
+                  : context.l10n.odometerError;
             },
           ),
-          const SizedBox(height: 16),
-          const Text(
-            'Servis tarixi saqlanadi. Keyin shu ish ichidan hisob yaratishingiz mumkin.',
-          ),
+          SizedBox(height: 16),
+          Text(context.l10n.completeWorkHint),
         ],
       ),
     ),
@@ -462,11 +496,15 @@ class _CompleteFormState extends State<CompleteForm> {
       children: [
         TextButton(
           onPressed: busy ? null : () => Navigator.maybePop(context),
-          child: const Text('Ortga'),
+          child: Text(context.l10n.back),
         ),
-        const SizedBox(width: 8),
+        SizedBox(width: 8),
         Expanded(
-          child: SaveButton(label: 'Ish tugadi', onPressed: save, busy: busy),
+          child: SaveButton(
+            label: context.l10n.workCompleted,
+            onPressed: save,
+            busy: busy,
+          ),
         ),
       ],
     ),

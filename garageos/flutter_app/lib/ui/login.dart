@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../data/api_client.dart';
 import '../design/theme.dart';
+import '../l10n/l10n.dart';
+import 'settings.dart';
 import '../design/widgets.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -52,32 +54,34 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
       actions: [
+        const LanguageMenu(),
         IconButton(
-          tooltip: 'Koʻrinishni almashtirish',
+          tooltip: context.l10n.toggleTheme,
           onPressed: () =>
               widget.state.toggleTheme(Theme.of(context).brightness),
-          icon: const Icon(Icons.brightness_6_outlined),
+          icon: Icon(Icons.brightness_6_outlined),
         ),
       ],
     ),
     body: SafeArea(
       child: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(Space.page),
+          padding: EdgeInsets.all(Space.page),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 440),
+            constraints: BoxConstraints(maxWidth: 440),
             child: Form(
               key: form,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: context.colors.brandSoft,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(Radii.card),
                         ),
                         child: Icon(
                           Icons.home_repair_service_outlined,
@@ -85,7 +89,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           size: 28,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -94,20 +98,20 @@ class _LoginScreenState extends State<LoginScreen> {
                               'GarageOS',
                               style: Theme.of(context).textTheme.titleLarge,
                             ),
-                            const Text('Xodimlar uchun'),
+                            Text(context.l10n.staffApp),
                           ],
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 40),
+                  SizedBox(height: 40),
                   Text(
-                    'Xush kelibsiz',
+                    context.l10n.welcome,
                     style: Theme.of(context).textTheme.displaySmall,
                   ),
-                  const SizedBox(height: 8),
-                  const Text('Navbat, servis ishlari va hisoblar — bir joyda.'),
-                  const SizedBox(height: 32),
+                  SizedBox(height: 8),
+                  Text(context.l10n.loginSubtitle),
+                  SizedBox(height: 32),
                   if (error != null) ErrorNotice(error!),
                   TextFormField(
                     controller: email,
@@ -115,32 +119,32 @@ class _LoginScreenState extends State<LoginScreen> {
                     keyboardType: TextInputType.emailAddress,
                     autocorrect: false,
                     enableSuggestions: false,
-                    autofillHints: const [AutofillHints.username],
+                    autofillHints: [AutofillHints.username],
                     textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
+                    decoration: InputDecoration(
+                      labelText: context.l10n.email,
                       prefixIcon: Icon(Icons.alternate_email),
                     ),
                     validator: (s) =>
                         RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
                             .hasMatch(s?.trim() ?? '')
                         ? null
-                        : 'Email manzilini kiriting.',
+                        : context.l10n.emailError,
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
                   TextFormField(
                     controller: password,
                     enabled: !busy,
                     obscureText: obscure,
-                    autofillHints: const [AutofillHints.password],
+                    autofillHints: [AutofillHints.password],
                     onFieldSubmitted: (_) => busy ? null : login(),
                     decoration: InputDecoration(
-                      labelText: 'Parol',
-                      prefixIcon: const Icon(Icons.lock_outline),
+                      labelText: context.l10n.password,
+                      prefixIcon: Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
                         tooltip: obscure
-                            ? 'Parolni koʻrsatish'
-                            : 'Parolni yashirish',
+                            ? context.l10n.showPassword
+                            : context.l10n.hidePassword,
                         onPressed: () => setState(() => obscure = !obscure),
                         icon: Icon(
                           obscure
@@ -151,25 +155,29 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     validator: (s) => (s?.length ?? 0) >= 6
                         ? null
-                        : 'Kamida 6 ta belgi kiriting.',
+                        : context.l10n.passwordError,
                   ),
-                  const SizedBox(height: 16),
-                  SaveButton(label: 'Kirish', onPressed: login, busy: busy),
-                  const SizedBox(height: 12),
+                  SizedBox(height: 16),
+                  SaveButton(
+                    label: context.l10n.signIn,
+                    onPressed: login,
+                    busy: busy,
+                  ),
+                  SizedBox(height: 12),
                   OutlinedButton(
                     onPressed: busy ? null : widget.state.demo,
-                    child: const Text('Demo rejimni ochish'),
+                    child: Text(context.l10n.openDemo),
                   ),
-                  const SizedBox(height: 12),
+                  SizedBox(height: 12),
                   Text(
-                    'Demoda navbatdan hisobgacha sinab koʻring. Maʼlumotlar shu qurilmada vaqtincha saqlanadi.',
+                    context.l10n.demoExplanation,
                     style: Theme.of(context).textTheme.bodyMedium
                         ?.copyWith(color: context.colors.secondary),
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
                   ExpansionTile(
                     tilePadding: EdgeInsets.zero,
-                    title: const Text('Ulanish sozlamalari'),
+                    title: Text(context.l10n.connectionSettings),
                     children: [
                       TextFormField(
                         controller: address,
@@ -177,19 +185,19 @@ class _LoginScreenState extends State<LoginScreen> {
                         keyboardType: TextInputType.url,
                         autocorrect: false,
                         enableSuggestions: false,
-                        decoration: const InputDecoration(
-                          labelText: 'Server manzili',
+                        decoration: InputDecoration(
+                          labelText: context.l10n.serverAddress,
                         ),
                         validator: (s) {
                           try {
                             ApiClient.validateAddress(s ?? '');
                             return null;
                           } catch (e) {
-                            return failureText(e);
+                            return context.message(failureText(e));
                           }
                         },
                       ),
-                      const SizedBox(height: 12),
+                      SizedBox(height: 12),
                     ],
                   ),
                 ],

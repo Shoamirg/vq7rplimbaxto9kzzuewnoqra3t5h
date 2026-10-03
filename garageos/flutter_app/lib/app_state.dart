@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'data/api_client.dart';
 import 'data/demo_repository.dart';
@@ -9,7 +10,52 @@ class AppState extends ChangeNotifier {
   GarageRepository? repository;
   String name = '', garageName = '';
   ThemeMode themeMode = ThemeMode.system;
+  Locale locale = const Locale('uz');
+  int _localeRevision = 0;
+  bool _disposed = false;
+  Future<void> _preferenceWrites = Future.value();
   void Function()? onExpired;
+  Future<void> restoreLocale() async {
+    if (_localeRevision != 0) return;
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      final code = preferences.getString('garageos.language');
+      if (!_disposed &&
+          _localeRevision == 0 &&
+          ['uz', 'en', 'ru'].contains(code)) {
+        locale = Locale(code!);
+        notifyListeners();
+      }
+    } catch (_) {
+      // Preferences are optional. Native plugin and browser storage failures
+      // both keep the default language; neither should break app startup.
+    }
+  }
+
+  Future<bool> setLocale(Locale value) {
+    if (!['uz', 'en', 'ru'].contains(value.languageCode)) {
+      throw ArgumentError.value(value, 'locale', 'Unsupported language');
+    }
+    _localeRevision++;
+    locale = value;
+    notifyListeners();
+    final write = _preferenceWrites.then((_) async {
+      try {
+        final preferences = await SharedPreferences.getInstance();
+        return await preferences.setString(
+          'garageos.language',
+          value.languageCode,
+        );
+      } catch (_) {
+        // Browser security/quota errors are not PlatformException. Complete
+        // the queue normally so a later language selection can retry saving.
+        return false;
+      }
+    });
+    _preferenceWrites = write.then((_) {});
+    return write;
+  }
+
   void toggleTheme(Brightness current) {
     themeMode = current == Brightness.dark ? ThemeMode.light : ThemeMode.dark;
     notifyListeners();
@@ -61,6 +107,7 @@ class AppState extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     repository?.close();
     super.dispose();
   }

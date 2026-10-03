@@ -6,9 +6,34 @@ import 'package:garageos_staff/data/payment_store.dart';
 import 'package:garageos_staff/domain/models.dart';
 import 'package:garageos_staff/main.dart' as app;
 import 'package:uuid/uuid.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+  testWidgets('iPhone language preference survives a new app session', (
+    tester,
+  ) async {
+    expect(defaultTargetPlatform, TargetPlatform.iOS);
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.remove('garageos.language');
+    try {
+      app.main();
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('language-menu')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Русский'));
+      await tester.pumpAndSettle();
+      expect(find.text('Добро пожаловать'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox.shrink());
+      app.main();
+      await tester.pumpAndSettle();
+      expect(find.text('Добро пожаловать'), findsOneWidget);
+    } finally {
+      await preferences.remove('garageos.language');
+      await tester.pumpWidget(const SizedBox.shrink());
+    }
+  });
 
   testWidgets('iOS native payment intent survives store recreation', (
     tester,

@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../data/api_client.dart';
 import '../domain/models.dart';
 import 'theme.dart';
+import '../l10n/l10n.dart';
+import '../ui/settings.dart';
 
 bool validateForm(GlobalKey<FormState> key) {
   final form = key.currentState;
@@ -36,7 +40,7 @@ bool validateForm(GlobalKey<FormState> key) {
       alignment: .2,
       duration: MediaQuery.disableAnimationsOf(field.context)
           ? Duration.zero
-          : const Duration(milliseconds: 150),
+          : Duration(milliseconds: 150),
     );
   });
   return false;
@@ -75,7 +79,10 @@ class PageFrame extends StatelessWidget {
     hasChanges: hasChanges,
     isSaving: isSaving,
     child: Scaffold(
-      appBar: AppBar(title: Text(title), actions: actions),
+      appBar: AppBar(
+        title: Text(title),
+        actions: [...?actions, const LanguageMenu()],
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -83,9 +90,7 @@ class PageFrame extends StatelessWidget {
             Expanded(
               child: Center(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    maxWidth: Space.contentWidth,
-                  ),
+                  constraints: BoxConstraints(maxWidth: Space.contentWidth),
                   child: body,
                 ),
               ),
@@ -96,7 +101,7 @@ class PageFrame extends StatelessWidget {
       bottomNavigationBar: footer == null
           ? null
           : SafeArea(
-              child: Padding(padding: const EdgeInsets.all(16), child: footer),
+              child: Padding(padding: EdgeInsets.all(16), child: footer),
             ),
     ),
   );
@@ -122,27 +127,24 @@ class _LeaveGuardState extends State<LeaveGuard> {
   Future<void> attempted(bool didPop, Object? result) async {
     if (didPop || asking) return;
     if (widget.isSaving) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Saqlanmoqda… natijani kuting.')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(context.l10n.savingHint)));
       return;
     }
     asking = true;
     final discard = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Oʻzgarishlar saqlanmadi'),
-        content: const Text(
-          'Sahifadan chiqsangiz kiritilgan yozuvlar yoʻqoladi.',
-        ),
+        title: Text(context.l10n.unsavedChanges),
+        content: Text(context.l10n.discardHint),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Davom etish'),
+            child: Text(context.l10n.continueEditing),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Saqlamasdan chiqish'),
+            child: Text(context.l10n.discardChanges),
           ),
         ],
       ),
@@ -167,9 +169,9 @@ class DemoNotice extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     width: double.infinity,
     color: context.colors.infoSoft,
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
     child: Text(
-      'Demo maʼlumotlar · chiqishda tiklanadi',
+      context.l10n.demoNotice,
       style: Theme.of(context).textTheme.bodySmall
           ?.copyWith(color: context.colors.info),
     ),
@@ -187,16 +189,18 @@ class Plate extends StatelessWidget {
         ? text
         : '${match[1]} ${match[2]} ${match[3]} ${match[4]}';
     return Semantics(
-      label: 'Davlat raqami: ${display.isEmpty ? 'yoʻq' : display}',
+      label: context.l10n.plateSemantics(
+        display.isEmpty ? context.l10n.absent : display,
+      ),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
           color: context.colors.surface,
           border: Border.all(color: context.colors.border),
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(Radii.plate),
         ),
         child: Text(
-          display.isEmpty ? 'Raqam yoʻq' : display,
+          display.isEmpty ? context.l10n.noPlate : display,
           style: Theme.of(context).textTheme.labelMedium,
         ),
       ),
@@ -205,8 +209,9 @@ class Plate extends StatelessWidget {
 }
 
 class StatusBadge extends StatelessWidget {
-  const StatusBadge(this.label, {super.key, this.tone = 'info'});
+  const StatusBadge(this.label, {super.key, this.tone = 'info', this.icon});
   final String label, tone;
+  final IconData? icon;
   @override
   Widget build(BuildContext context) {
     final p = context.colors;
@@ -217,14 +222,25 @@ class StatusBadge extends StatelessWidget {
       _ => (p.info, p.infoSoft),
     };
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.control),
       ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(color: fg),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 16, color: fg),
+            SizedBox(width: Space.xs),
+          ],
+          Flexible(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: fg),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -242,7 +258,7 @@ class Panel extends StatelessWidget {
   final Widget child;
   @override
   Widget build(BuildContext context) => Card(
-    child: Padding(padding: const EdgeInsets.all(16), child: child),
+    child: Padding(padding: EdgeInsets.all(16), child: child),
   );
 }
 
@@ -252,21 +268,24 @@ class ErrorNotice extends StatelessWidget {
   final VoidCallback? retry;
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(16),
-    margin: const EdgeInsets.only(bottom: 16),
+    padding: EdgeInsets.all(16),
+    margin: EdgeInsets.only(bottom: 16),
     decoration: BoxDecoration(
       color: context.colors.dangerSoft,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(Radii.card),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Semantics(
           liveRegion: true,
-          child: Text(message, style: TextStyle(color: context.colors.danger)),
+          child: Text(
+            context.message(message),
+            style: TextStyle(color: context.colors.danger),
+          ),
         ),
         if (retry != null)
-          TextButton(onPressed: retry, child: const Text('Qayta urinish')),
+          TextButton(onPressed: retry, child: Text(context.l10n.retry)),
       ],
     ),
   );
@@ -278,30 +297,36 @@ class EmptyNotice extends StatelessWidget {
     this.detail, {
     super.key,
     this.icon = Icons.inbox_outlined,
+    this.action,
   });
   final String title, detail;
   final IconData icon;
+  final Widget? action;
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
+    padding: EdgeInsets.symmetric(vertical: 40, horizontal: 16),
     child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(icon, size: 40, color: context.colors.secondary),
-        const SizedBox(height: 16),
-        Text(
-          title,
-          style: Theme.of(context).textTheme.titleMedium,
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 8),
-        Text(detail, textAlign: TextAlign.center),
+        SizedBox(height: 16),
+        Text(title, style: Theme.of(context).textTheme.titleMedium),
+        SizedBox(height: 8),
+        Text(detail),
+        if (action != null) ...[SizedBox(height: Space.md), action!],
       ],
     ),
   );
 }
 
 class LoadView<T> extends StatefulWidget {
-  const LoadView({super.key, required this.load, required this.builder});
+  const LoadView({
+    super.key,
+    required this.loadKey,
+    required this.load,
+    required this.builder,
+  });
+  final Object loadKey;
   final Future<T> Function() load;
   final Widget Function(T data, VoidCallback reload) builder;
   @override
@@ -319,7 +344,7 @@ class _LoadViewState<T> extends State<LoadView<T>> {
   @override
   void didUpdateWidget(covariant LoadView<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.load != widget.load) {
+    if (oldWidget.loadKey != widget.loadKey) {
       future = widget.load();
     }
   }
@@ -337,17 +362,207 @@ class _LoadViewState<T> extends State<LoadView<T>> {
     future: future,
     builder: (context, snapshot) {
       if (snapshot.connectionState != ConnectionState.done) {
-        return const Center(child: CircularProgressIndicator());
+        return Center(child: CircularProgressIndicator());
       }
       if (snapshot.hasError) {
         return ListView(
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.all(20),
           children: [ErrorNotice(failureText(snapshot.error!), retry: reload)],
         );
       }
       return widget.builder(snapshot.data as T, reload);
     },
   );
+}
+
+/// List controls stay available while results are loading or unavailable.
+class ListLoadView<T> extends StatefulWidget {
+  const ListLoadView({
+    super.key,
+    required this.loadKey,
+    required this.filterKey,
+    required this.load,
+    required this.header,
+    required this.items,
+    required this.storageKey,
+  });
+  final Object loadKey;
+  final Object filterKey;
+  final Future<T> Function() load;
+  final List<Widget> Function(T? data, VoidCallback reload, bool loading)
+  header;
+  final List<Widget> Function(T data, VoidCallback reload) items;
+  final String storageKey;
+
+  @override
+  State<ListLoadView<T>> createState() => _ListLoadViewState<T>();
+}
+
+class _ListLoadViewState<T> extends State<ListLoadView<T>> {
+  late Future<T> future;
+  T? previousData;
+  final scroll = ScrollController();
+
+  Future<T> load() {
+    late final Future<T> request;
+    request = Future<T>.sync(widget.load).then((data) {
+      if (mounted && identical(future, request)) previousData = data;
+      return data;
+    });
+    return request;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    future = load();
+  }
+
+  @override
+  void didUpdateWidget(covariant ListLoadView<T> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.filterKey != widget.filterKey) {
+      previousData = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && scroll.hasClients) scroll.jumpTo(0);
+      });
+    }
+    if (oldWidget.loadKey != widget.loadKey) future = load();
+  }
+
+  @override
+  void dispose() {
+    scroll.dispose();
+    super.dispose();
+  }
+
+  void reload() {
+    setState(() {
+      future = load();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<T>(
+    future: future,
+    builder: (context, snapshot) {
+      final loading = snapshot.connectionState != ConnectionState.done;
+      final data = !loading && !snapshot.hasError ? snapshot.data : null;
+      return ListView(
+        key: PageStorageKey(widget.storageKey),
+        controller: scroll,
+        padding: EdgeInsets.all(Space.page),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        children: [
+          ...widget.header(data, reload, loading),
+          if (snapshot.hasError)
+            ErrorNotice(failureText(snapshot.error!), retry: reload),
+          if (snapshot.hasError && previousData != null)
+            Padding(
+              padding: EdgeInsets.only(bottom: Space.md),
+              child: Text(context.l10n.previousListHint),
+            ),
+          if ((loading || snapshot.hasError) && previousData != null)
+            Stack(
+              children: [
+                IgnorePointer(
+                  child: ExcludeSemantics(
+                    child: Opacity(
+                      opacity: .55,
+                      child: Column(
+                        children: widget.items(previousData as T, reload),
+                      ),
+                    ),
+                  ),
+                ),
+                if (loading)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: LinearProgressIndicator(
+                      semanticsLabel: context.l10n.loading,
+                    ),
+                  ),
+              ],
+            )
+          else if (loading)
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: Space.group),
+              child: LinearProgressIndicator(
+                semanticsLabel: context.l10n.loading,
+              ),
+            )
+          else if (!snapshot.hasError)
+            ...widget.items(snapshot.data as T, reload),
+        ],
+      );
+    },
+  );
+}
+
+class ListSearchField extends StatefulWidget {
+  const ListSearchField({
+    super.key,
+    required this.controller,
+    required this.label,
+    required this.hint,
+    required this.onSearch,
+  });
+  final TextEditingController controller;
+  final String label, hint;
+  final ValueChanged<String> onSearch;
+  @override
+  State<ListSearchField> createState() => _ListSearchFieldState();
+}
+
+class _ListSearchFieldState extends State<ListSearchField> {
+  Timer? debounce;
+  void submit(String value) {
+    debounce?.cancel();
+    widget.onSearch(value.trim());
+  }
+
+  @override
+  void dispose() {
+    debounce?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      ValueListenableBuilder<TextEditingValue>(
+        valueListenable: widget.controller,
+        builder: (context, value, _) => TextField(
+          controller: widget.controller,
+          decoration: InputDecoration(
+            labelText: widget.label,
+            hintText: widget.hint,
+            prefixIcon: Icon(Icons.search),
+            suffixIcon: value.text.isEmpty
+                ? null
+                : IconButton(
+                    tooltip: context.l10n.clearSearch,
+                    onPressed: () {
+                      widget.controller.clear();
+                      submit('');
+                    },
+                    icon: Icon(Icons.close),
+                  ),
+          ),
+          textInputAction: TextInputAction.search,
+          onSubmitted: submit,
+          onChanged: (text) {
+            debounce?.cancel();
+            debounce = Timer(Duration(milliseconds: 350), () {
+              if (widget.controller.text == text &&
+                  widget.controller.value.composing.isCollapsed) {
+                submit(text);
+              }
+            });
+          },
+        ),
+      );
 }
 
 class SaveButton extends StatelessWidget {
@@ -364,7 +579,7 @@ class SaveButton extends StatelessWidget {
   Widget build(BuildContext context) => FilledButton(
     onPressed: busy ? null : onPressed,
     child: busy
-        ? const SizedBox(
+        ? SizedBox(
             width: 24,
             height: 24,
             child: CircularProgressIndicator(strokeWidth: 2),
@@ -379,14 +594,14 @@ class Pair extends StatelessWidget {
   final bool emphasis;
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8),
+    padding: EdgeInsets.symmetric(vertical: 8),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
           child: Text(label, style: TextStyle(color: context.colors.secondary)),
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: 12),
         Expanded(
           child: Text(
             value,

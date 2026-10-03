@@ -37,6 +37,10 @@ jobs:
           xcodebuild -version
           xcrun simctl list devices available
       - run: flutter pub get
+      - name: Verify complete Uzbek, English and Russian catalogs
+        run: |
+          dart run tool/check_l10n.dart
+          flutter gen-l10n
       - run: flutter analyze
       - name: Compile iPhone release app without signing
         run: flutter build ios --release --no-codesign

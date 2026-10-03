@@ -10,6 +10,10 @@ abstract final class Space {
   static const contentWidth = 960.0, tablet = 720.0, buttonHeight = 56.0;
 }
 
+abstract final class Radii {
+  static const card = 16.0, control = 8.0, plate = 4.0;
+}
+
 @immutable
 class Palette extends ThemeExtension<Palette> {
   const Palette({
@@ -48,17 +52,18 @@ class Palette extends ThemeExtension<Palette> {
       dangerSoft,
       info,
       infoSoft;
+  static const action = Color(0xFFC2410C), onAction = Color(0xFFFFFFFF);
   static const light = Palette(
-    background: Color(0xFFF2F4F6),
+    background: Color(0xFFF7F9FC),
     surface: Color(0xFFFFFFFF),
-    muted: Color(0xFFF7F8FA),
-    border: Color(0xFFC9CFD6),
-    text: Color(0xFF1B2025),
-    secondary: Color(0xFF4A535E),
-    brand: Color(0xFFC94A04),
-    brandSoft: Color(0xFFFFF0E6),
+    muted: Color(0xFFF2F4F7),
+    border: Color(0xFFE4E7EC),
+    text: Color(0xFF1D2939),
+    secondary: Color(0xFF667085),
+    brand: Color(0xFFC2410C),
+    brandSoft: Color(0xFFFFF3EB),
     onBrand: Color(0xFFFFFFFF),
-    success: Color(0xFF1B7A4B),
+    success: Color(0xFF157347),
     successSoft: Color(0xFFE4F3EA),
     warning: Color(0xFF94560A),
     warningSoft: Color(0xFFFFF2D9),
@@ -68,16 +73,16 @@ class Palette extends ThemeExtension<Palette> {
     infoSoft: Color(0xFFE7EFFB),
   );
   static const dark = Palette(
-    background: Color(0xFF0F1214),
-    surface: Color(0xFF171B1F),
-    muted: Color(0xFF1D2227),
-    border: Color(0xFF3B434B),
-    text: Color(0xFFE9ECEF),
-    secondary: Color(0xFFAEB5BD),
-    brand: Color(0xFFDB7A47),
-    brandSoft: Color(0xFF3A2418),
+    background: Color(0xFF101828),
+    surface: Color(0xFF182230),
+    muted: Color(0xFF223044),
+    border: Color(0xFF344054),
+    text: Color(0xFFF2F4F7),
+    secondary: Color(0xFFB1BCCD),
+    brand: Color(0xFFFDBA74),
+    brandSoft: Color(0xFF34271F),
     onBrand: Color(0xFF1A120D),
-    success: Color(0xFF6CCB97),
+    success: Color(0xFF75D5A3),
     successSoft: Color(0xFF123323),
     warning: Color(0xFFEDB55A),
     warningSoft: Color(0xFF372A12),
@@ -100,7 +105,8 @@ extension DesignContext on BuildContext {
 ThemeData garageTheme(Brightness brightness) {
   final p = brightness == Brightness.dark ? Palette.dark : Palette.light;
   TextStyle style(double size, double height, FontWeight weight) => TextStyle(
-    fontFamily: 'Golos Text',
+    fontFamily: 'DM Sans',
+    fontFamilyFallback: const ['Golos Text'],
     fontSize: size,
     height: height / size,
     fontWeight: weight,
@@ -108,9 +114,21 @@ ThemeData garageTheme(Brightness brightness) {
     fontFeatures: const [FontFeature.tabularFigures()],
   );
   final texts = TextTheme(
-    displaySmall: style(28, 34, FontWeight.w600),
-    titleLarge: style(22, 28, FontWeight.w600),
-    titleMedium: style(18, 24, FontWeight.w600),
+    displaySmall: style(
+      28,
+      34,
+      FontWeight.w600,
+    ).copyWith(fontFamily: 'Plus Jakarta Sans'),
+    titleLarge: style(
+      22,
+      28,
+      FontWeight.w600,
+    ).copyWith(fontFamily: 'Plus Jakarta Sans'),
+    titleMedium: style(
+      18,
+      24,
+      FontWeight.w600,
+    ).copyWith(fontFamily: 'Plus Jakarta Sans'),
     bodyLarge: style(16, 24, FontWeight.w400),
     bodyMedium: style(14, 20, FontWeight.w400),
     bodySmall: style(12, 16, FontWeight.w500),
@@ -120,8 +138,8 @@ ThemeData garageTheme(Brightness brightness) {
   );
   final scheme =
       ColorScheme.fromSeed(seedColor: p.brand, brightness: brightness).copyWith(
-        primary: p.brand,
-        onPrimary: p.onBrand,
+        primary: Palette.action,
+        onPrimary: Palette.onAction,
         primaryContainer: p.brandSoft,
         onPrimaryContainer: p.brand,
         surface: p.surface,
@@ -135,7 +153,9 @@ ThemeData garageTheme(Brightness brightness) {
         secondaryContainer: p.brandSoft,
         onSecondaryContainer: p.brand,
       );
-  final shape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(8));
+  final shape = RoundedRectangleBorder(
+    borderRadius: BorderRadius.circular(Radii.control),
+  );
   final button = ButtonStyle(
     minimumSize: const WidgetStatePropertyAll(Size(48, Space.buttonHeight)),
     padding: const WidgetStatePropertyAll(
@@ -148,16 +168,18 @@ ThemeData garageTheme(Brightness brightness) {
     useMaterial3: true,
     colorScheme: scheme,
     extensions: [p],
-    fontFamily: 'Golos Text',
+    fontFamily: 'DM Sans',
+    fontFamilyFallback: const ['Golos Text'],
     textTheme: texts,
     scaffoldBackgroundColor: p.background,
     visualDensity: VisualDensity.standard,
     materialTapTargetSize: MaterialTapTargetSize.padded,
     appBarTheme: AppBarTheme(
-      backgroundColor: p.background,
+      backgroundColor: p.surface,
       surfaceTintColor: Colors.transparent,
       titleTextStyle: texts.titleMedium,
       centerTitle: false,
+      toolbarHeight: 64,
       elevation: 0,
     ),
     cardTheme: CardThemeData(
@@ -165,13 +187,27 @@ ThemeData garageTheme(Brightness brightness) {
       elevation: 0,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(Radii.card),
         side: BorderSide(color: p.border),
       ),
     ),
     filledButtonTheme: FilledButtonThemeData(style: button),
-    outlinedButtonTheme: OutlinedButtonThemeData(style: button),
-    textButtonTheme: TextButtonThemeData(style: button),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: button.copyWith(
+        foregroundColor: WidgetStateProperty.resolveWith(
+          (states) =>
+              states.contains(WidgetState.disabled) ? p.secondary : p.brand,
+        ),
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: button.copyWith(
+        foregroundColor: WidgetStateProperty.resolveWith(
+          (states) =>
+              states.contains(WidgetState.disabled) ? p.secondary : p.brand,
+        ),
+      ),
+    ),
     iconButtonTheme: const IconButtonThemeData(
       style: ButtonStyle(minimumSize: WidgetStatePropertyAll(Size(48, 48))),
     ),
@@ -180,23 +216,51 @@ ThemeData garageTheme(Brightness brightness) {
       fillColor: p.surface,
       contentPadding: const EdgeInsets.all(16),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.control),
         borderSide: BorderSide(color: p.border),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: p.info, width: 2),
+        borderRadius: BorderRadius.circular(Radii.control),
+        borderSide: BorderSide(color: p.brand, width: 2),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.control),
         borderSide: BorderSide(color: p.border),
       ),
+    ),
+    navigationRailTheme: NavigationRailThemeData(
+      backgroundColor: p.surface,
+      indicatorColor: p.brandSoft,
+      selectedIconTheme: IconThemeData(color: p.brand),
+      selectedLabelTextStyle: texts.bodySmall?.copyWith(color: p.brand),
+      unselectedIconTheme: IconThemeData(color: p.secondary),
+      unselectedLabelTextStyle: texts.bodySmall?.copyWith(color: p.secondary),
     ),
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: p.surface,
       indicatorColor: p.brandSoft,
-      labelTextStyle: WidgetStatePropertyAll(texts.bodySmall),
+      labelTextStyle: WidgetStateProperty.resolveWith(
+        (states) => texts.bodySmall?.copyWith(
+          color: states.contains(WidgetState.selected) ? p.brand : p.secondary,
+        ),
+      ),
+      iconTheme: WidgetStateProperty.resolveWith(
+        (states) => IconThemeData(
+          color: states.contains(WidgetState.selected) ? p.brand : p.secondary,
+        ),
+      ),
     ),
+    chipTheme: ChipThemeData(
+      backgroundColor: p.surface,
+      selectedColor: p.brandSoft,
+      side: BorderSide(color: p.border),
+      labelStyle: texts.bodyMedium,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Radii.control),
+      ),
+    ),
+    dialogTheme: DialogThemeData(backgroundColor: p.surface),
+    popupMenuTheme: PopupMenuThemeData(color: p.surface),
     dividerTheme: DividerThemeData(color: p.border, space: Space.group),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,

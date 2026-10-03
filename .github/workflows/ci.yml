@@ -130,6 +130,10 @@ jobs:
           git clone --depth 1 --branch 3.47.6 https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
           echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
       - run: flutter pub get
+      - name: Verify complete Uzbek, English and Russian catalogs
+        run: |
+          dart run tool/check_l10n.dart
+          flutter gen-l10n
       - run: flutter analyze
       - name: Prepare isolated API database
         working-directory: garageos/backend

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/api_client.dart';
 import '../data/repository.dart';
 import '../design/theme.dart';
+import '../l10n/l10n.dart';
 import '../design/widgets.dart';
 import '../domain/models.dart';
 import 'customers.dart';
@@ -28,7 +29,7 @@ class _BookingScreenState extends State<BookingScreen> {
   late Car? car = widget.car;
   List<Car> cars = [];
   DateTime date = DateTime.now();
-  TimeOfDay time = const TimeOfDay(hour: 10, minute: 0);
+  TimeOfDay time = TimeOfDay(hour: 10, minute: 0);
   int duration = 60;
   bool busy = false, loadingCars = false, dirty = false;
   int carsRequest = 0;
@@ -89,7 +90,7 @@ class _BookingScreenState extends State<BookingScreen> {
   Future<void> save() async {
     if (!validateForm(form)) return;
     if (customer == null || car == null) {
-      setState(() => error = 'Avval mijoz va mashinani tanlang.');
+      setState(() => error = context.l10n.pickCustomerError);
       return;
     }
     setState(() {
@@ -119,47 +120,54 @@ class _BookingScreenState extends State<BookingScreen> {
 
   @override
   Widget build(BuildContext context) => PageFrame(
-    title: 'Yangi navbat',
+    title: context.l10n.newAppointment,
     demo: widget.repository.isDemo,
     hasChanges: dirty,
     isSaving: busy,
     body: Form(
       key: form,
+      autovalidateMode: AutovalidateMode.onUserInteraction,
       onChanged: () => setState(() => dirty = true),
       child: ListView(
-        padding: const EdgeInsets.all(Space.page),
+        padding: EdgeInsets.all(Space.page),
         children: [
           if (error != null) ErrorNotice(error!),
           Panel(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Mijoz', style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 8),
+                Text(
+                  context.l10n.customer,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                SizedBox(height: 8),
                 if (customer != null) ...[
                   Text(customer!.name),
                   Text(customer!.phone),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                 ],
                 OutlinedButton.icon(
                   onPressed: busy ? null : pickCustomer,
-                  icon: const Icon(Icons.person_search_outlined),
+                  icon: Icon(Icons.person_search_outlined),
                   label: Text(
                     customer == null
-                        ? 'Mijozni tanlash'
-                        : 'Mijozni oʻzgartirish',
+                        ? context.l10n.chooseCustomer
+                        : context.l10n.changeCustomer,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 24),
-          Text('Mashina', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 12),
-          if (loadingCars) const LinearProgressIndicator(),
+          SizedBox(height: 24),
+          Text(
+            context.l10n.vehicle,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          SizedBox(height: 12),
+          if (loadingCars) LinearProgressIndicator(),
           for (final item in cars)
             Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: EdgeInsets.only(bottom: 8),
               child: Card(
                 child: ListTile(
                   title: Text(item.modelLabel),
@@ -203,15 +211,15 @@ class _BookingScreenState extends State<BookingScreen> {
                         await loadCars();
                       }
                     },
-              icon: const Icon(Icons.add),
-              label: const Text('Mashina qoʻshish'),
+              icon: Icon(Icons.add),
+              label: Text(context.l10n.addVehicle),
             ),
-          const SizedBox(height: 24),
+          SizedBox(height: 24),
           Text(
-            'Vaqt va servis',
+            context.l10n.timeAndService,
             style: Theme.of(context).textTheme.titleMedium,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: busy
                 ? null
@@ -219,10 +227,8 @@ class _BookingScreenState extends State<BookingScreen> {
                     final selected = await showDatePicker(
                       context: context,
                       initialDate: date,
-                      firstDate: DateTime.now().subtract(
-                        const Duration(days: 1),
-                      ),
-                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                      firstDate: DateTime.now().subtract(Duration(days: 1)),
+                      lastDate: DateTime.now().add(Duration(days: 365)),
                     );
                     if (selected != null && mounted) {
                       setState(() {
@@ -231,10 +237,10 @@ class _BookingScreenState extends State<BookingScreen> {
                       });
                     }
                   },
-            icon: const Icon(Icons.calendar_today_outlined),
-            label: Text(dateLabel(date)),
+            icon: Icon(Icons.calendar_today_outlined),
+            label: Text(context.date(date)),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: busy
                 ? null
@@ -255,42 +261,43 @@ class _BookingScreenState extends State<BookingScreen> {
                       });
                     }
                   },
-            icon: const Icon(Icons.schedule),
+            icon: Icon(Icons.schedule),
             label: Text(
               '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}',
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           DropdownButtonFormField<int>(
             initialValue: duration,
             isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Davomiyligi'),
+            decoration: InputDecoration(labelText: context.l10n.duration),
             items: [30, 45, 60, 90, 120, 180, 240]
                 .map(
-                  (n) => DropdownMenuItem(value: n, child: Text('$n daqiqa')),
+                  (n) => DropdownMenuItem(
+                    value: n,
+                    child: Text(context.l10n.minutes(n)),
+                  ),
                 )
                 .toList(),
             onChanged: busy ? null : (v) => setState(() => duration = v!),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           TextFormField(
             controller: mechanic,
             enabled: !busy,
             maxLength: 255,
-            decoration: const InputDecoration(
-              labelText: 'Usta',
-              helperText: 'Ishni boshlashdan oldin usta tayinlang.',
+            decoration: InputDecoration(
+              labelText: context.l10n.mechanic,
+              helperText: context.l10n.mechanicHint,
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           TextFormField(
             controller: notes,
             enabled: !busy,
             maxLines: 3,
             maxLength: 1000,
-            decoration: const InputDecoration(
-              labelText: 'Mijoz shikoyati / servis izohi',
-            ),
+            decoration: InputDecoration(labelText: context.l10n.customerNotes),
           ),
         ],
       ),
@@ -299,12 +306,12 @@ class _BookingScreenState extends State<BookingScreen> {
       children: [
         TextButton(
           onPressed: busy ? null : () => Navigator.maybePop(context),
-          child: const Text('Bekor qilish'),
+          child: Text(context.l10n.cancel),
         ),
-        const SizedBox(width: 8),
+        SizedBox(width: 8),
         Expanded(
           child: SaveButton(
-            label: 'Navbat yaratish',
+            label: context.l10n.createAppointment,
             onPressed: save,
             busy: busy,
           ),

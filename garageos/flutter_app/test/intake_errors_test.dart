@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:garageos_staff/l10n/generated/app_localizations.dart';
 import 'package:garageos_staff/data/api_client.dart';
 import 'package:garageos_staff/data/demo_repository.dart';
 import 'package:garageos_staff/design/theme.dart';
@@ -26,8 +27,13 @@ class DelayedCars extends DemoRepository {
   Future<List<Car>> cars(String customerId) => responses[customerId]!.future;
 }
 
-Widget host(Widget screen) =>
-    MaterialApp(theme: garageTheme(Brightness.light), home: screen);
+Widget host(Widget screen) => MaterialApp(
+  locale: const Locale('uz'),
+  supportedLocales: AppLocalizations.supportedLocales,
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  theme: garageTheme(Brightness.light),
+  home: screen,
+);
 
 void main() {
   testWidgets('vehicle Save waits for catalog; error can be retried', (
