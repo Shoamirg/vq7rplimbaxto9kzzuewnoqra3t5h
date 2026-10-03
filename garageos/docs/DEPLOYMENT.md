@@ -60,6 +60,11 @@ all index changes. Resolve the records with the garage before retrying; do not
 delete its data or run `--fresh`. This migration locks customers/vehicles during
 checks/index creation, so schedule a pause in writes for the update.
 
+Migration `e1bdd605818c` also creates the inbox schema without demo seeding and
+adopts existing seed-created tables. Inbox tables and message data remain on its
+downgrade to support the earlier application; re-upgrade preserves them. Do not
+drop those tables as a release rollback step.
+
 ## 3. Seed a demo tenant (optional, for a sales demo)
 
 ```bash
@@ -126,6 +131,7 @@ a different environment file.
 Corrupted gzip archives are rejected before a container is started. A passing
 restore test proves the checked schema/data can be restored; it does not prove
 off-host copies, retention scheduling, storage capacity or client acceptance.
+The test removes its own container and anonymous database volume on exit.
 
 ## 6. Security & reliability (M2)
 

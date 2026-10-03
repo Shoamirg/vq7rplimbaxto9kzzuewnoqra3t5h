@@ -52,7 +52,7 @@ fi
 echo "[restore-test] verifying: ${BACKUP_FILE} ($(du -h "${BACKUP_FILE}" | cut -f1))"
 
 # --- ephemeral postgres -------------------------------------------------------
-cleanup() { docker rm -f "${CONTAINER}" >/dev/null 2>&1 || true; }
+cleanup() { docker rm -fv "${CONTAINER}" >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 
 echo "[restore-test] starting throwaway ${PG_IMAGE} (${CONTAINER})"

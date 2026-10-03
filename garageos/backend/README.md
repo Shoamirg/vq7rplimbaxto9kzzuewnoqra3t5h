@@ -69,6 +69,12 @@ garage can pause writes. Never reseed a client database to make migration pass.
 operational-case and audit model defaults now match the already deployed schema;
 their existing primary-key indexes avoid redundant secondary ID indexes.
 
+Migration `e1bdd605818c` creates the four inbox tables on fresh installs and
+adopts matching tables that older demo seeds created. Existing threads, messages,
+participants and attachments are preserved. Its downgrade intentionally retains
+inbox tables/data because the preceding application already uses them; a later
+upgrade adopts them again. No demo seed is required for a complete schema.
+
 ```bash
 cd backend
 .venv/Scripts/python -m alembic upgrade head          # apply

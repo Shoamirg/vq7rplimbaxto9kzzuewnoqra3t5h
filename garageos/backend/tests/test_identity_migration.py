@@ -83,7 +83,40 @@ async def test_upgrade_stops_on_existing_duplicates_without_deleting_or_merging(
     # An operator resolves only this synthetic conflict; migration itself never
     # guesses which real record should be archived. Upgrade/rollback preserve it.
     await connection.execute(f"UPDATE {table} SET is_active = false WHERE id = $1", identifiers[1])
-    for args in (("upgrade", "head"), ("downgrade", "-1"), ("upgrade", "head")):
+    for args in (("upgrade", "head"), ("downgrade", "a2b3c4d5e6f7"), ("upgrade", "head")):
         result = migrate(*args)
         assert result.returncode == 0, result.stderr
     assert await connection.fetchval(f"SELECT count(*) FROM {table} WHERE id = ANY($1::uuid[])", identifiers) == 2
+
+
+async def test_fresh_migrations_match_all_models_without_demo_seed(migration_database):
+    _, migrate = migration_database
+    result = migrate("upgrade", "head")
+    assert result.returncode == 0, result.stderr
+    check = migrate("check")
+    assert check.returncode == 0, check.stderr[:800]
+
+
+async def test_upgrade_adopts_seed_created_inbox_and_rollback_keeps_messages(migration_database):
+    connection, migrate = migration_database
+    name = await connection.fetchval("SELECT current_database()")
+    url = make_url(settings.DATABASE_URL).set(database=name).render_as_string(hide_password=False)
+    env = {**os.environ, "DATABASE_URL": url}
+    # Reproduce the older seed's schema-only creation, without seeding a garage.
+    created = subprocess.run([sys.executable, "-c", "import asyncio; from app.core.database import init_db; asyncio.run(init_db())"],
+                             cwd=BACKEND, env=env, capture_output=True, text=True, encoding="utf-8")
+    assert created.returncode == 0, created.stderr
+    center, conversation, message, participant, attachment = (uuid.uuid4() for _ in range(5))
+    await connection.execute("INSERT INTO service_centers (id, name, timezone, is_active) VALUES ($1, 'Existing inbox garage', 'UTC', true)", center)
+    await connection.execute("INSERT INTO conversations (id, service_center_id, subject, conv_type, status, priority, unread_messages, unread_activity, summary_version, is_active) VALUES ($1, $2, 'Existing thread', 'general', 'open', 'medium', 1, 0, 0, true)", conversation, center)
+    await connection.execute("INSERT INTO conversation_messages (id, service_center_id, conversation_id, kind, channel, is_internal, author_role, body, delivery_status, is_active) VALUES ($1, $2, $3, 'text', 'web', false, 'customer', 'Keep this message', 'sent', true)", message, center, conversation)
+    await connection.execute("INSERT INTO conversation_participants (id, service_center_id, conversation_id, role, display_name, is_following, is_online, is_typing, is_active) VALUES ($1, $2, $3, 'customer', 'Owner', false, false, false, true)", participant, center, conversation)
+    await connection.execute("INSERT INTO conversation_attachments (id, service_center_id, conversation_id, message_id, kind, label, url, is_active) VALUES ($1, $2, $3, $4, 'photo', 'Existing photo', '/unchanged.jpg', true)", attachment, center, conversation, message)
+
+    for args in (("upgrade", "head"), ("downgrade", "b3c4d5e6f7a8"), ("upgrade", "head")):
+        result = migrate(*args)
+        assert result.returncode == 0, result.stderr
+        row = await connection.fetchrow("SELECT c.subject, m.body, p.display_name, a.url FROM conversations c JOIN conversation_messages m ON m.conversation_id = c.id JOIN conversation_participants p ON p.conversation_id = c.id JOIN conversation_attachments a ON a.message_id = m.id WHERE c.id = $1", conversation)
+        assert tuple(row) == ("Existing thread", "Keep this message", "Owner", "/unchanged.jpg")
+    check = migrate("check")
+    assert check.returncode == 0, check.stderr[:800]
