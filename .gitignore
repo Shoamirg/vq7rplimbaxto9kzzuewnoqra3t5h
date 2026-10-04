@@ -5,6 +5,7 @@
 !.env.prod.example
 *.pem
 *.key
+/garageos/backend/garage.local.json
 
 # ---- Backups / runtime data ----
 backups/

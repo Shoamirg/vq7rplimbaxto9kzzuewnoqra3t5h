@@ -80,8 +80,12 @@ docker compose -f docker-compose.prod.yml exec backend python -m app.seeds.demo 
 # Login: admin@demo.garageos.app / demo1234
 ```
 
-For a **real** garage, use the onboarding flow (Phase 12 · Week 4) instead of
-the demo seed.
+For a **real** garage, use the implemented operator provisioning command in
+[PROVISIONING.md](PROVISIONING.md). It creates the garage, reference catalog and
+requested staff without demo transactions. Review the default read-only plan,
+provide passwords through the named environment variables and then use `--apply`.
+Run migrations first. Keep public demo disabled and never run the demo `--fresh`
+command against a client's database. Self-service onboarding is still separate work.
 
 ## 4. Wire the Telegram Mini App (finally real)
 

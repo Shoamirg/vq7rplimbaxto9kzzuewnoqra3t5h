@@ -38,6 +38,10 @@ if [[ "${1:-}" == rm && "${2:-}" == -*v* ]]; then
 fi
 if [[ "$*" == *to_regclass* ]]; then printf 't\\n'; fi
 if [[ "$*" == *'count(*)'* ]]; then printf '1\\n'; fi
+if [[ "${1:-}" == exec && "${2:-}" == -i ]]; then
+    # Real docker exec/psql consumes the SQL stream before returning.
+    cat >/dev/null
+fi
 for ((i=0; i<${#arguments[@]}; i++)); do
     if [[ "${arguments[i]}" == --env-file && "${arguments[i+1]}" != "$ENV_FILE" ]]; then
         echo 'env-file path was split' >&2
@@ -135,7 +139,8 @@ def test_restore_rejects_corrupted_archive_before_starting_docker(backup_cli):
 def test_restore_cleans_its_temporary_database_volume(backup_cli):
     run, backups, _, _ = backup_cli
     archive = backups / "garageos-good.sql.gz"
-    archive.write_bytes(gzip.compress(b"CREATE TABLE source_data (id integer);\n"))
+    # A realistic stream exceeds a pipe buffer and exposes an early reader exit.
+    archive.write_bytes(gzip.compress(b"-- fixture row\n" * 16384 + b"CREATE TABLE source_data (id integer);\n"))
     result = run(script="restore-test.sh", args=(_bash_path(archive),))
     assert result.returncode == 0, result.stdout + result.stderr
     assert not (backups / ".test-docker-volume").exists()

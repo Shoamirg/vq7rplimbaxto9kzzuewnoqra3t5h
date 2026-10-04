@@ -47,6 +47,30 @@ make dev         # run the API with autoreload
 make down        # stop services
 ```
 
+## Real garage setup
+
+Use the operator provisioning command for the first real garage and later staff
+additions. It prepares reference roles/vehicle models and the requested accounts
+without creating demo customers, vehicles, bookings or billing records. Default
+mode is a read-only plan; `--apply` creates missing identities in one transaction.
+
+See [the operator guide](../docs/PROVISIONING.md) for Windows/Docker commands,
+secret input, validation, safe repeat/add-staff behavior and failure recovery.
+The non-secret manifest starts from [provisioning.example.json](provisioning.example.json).
+
+```sh
+# backend/; configure the intended DB through the existing environment mechanism
+python -m alembic upgrade head
+python -m app.commands.provision --config garage.local.json
+# Provide GARAGEOS_STAFF_* passwords securely for new accounts, then:
+python -m app.commands.provision --config garage.local.json --apply
+```
+
+Provisioning requires the bundled migration heads. It has no wipe, password reset,
+account transfer, role-change or reactivation mode. Keep the customer manifest
+outside Git; `backend/garage.local.json` is ignored. Actual hosting, signed apps
+and client acceptance remain delivery work tracked in #10.
+
 ## Database migrations
 
 ### Active identity uniqueness (2026-10-04)
