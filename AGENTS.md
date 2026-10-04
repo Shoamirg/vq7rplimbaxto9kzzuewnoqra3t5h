@@ -1,5 +1,11 @@
 # GarageOS agent guidance
 
+## Delivery continuity
+
+When resuming client delivery, choosing the next task, or answering readiness
+questions, follow `docs/agents/delivery-workflow.md` first. It identifies the
+authoritative delivery plan, checkout checks and evidence required at hand-off.
+
 ## Agent skills
 
 ### Issue tracker
