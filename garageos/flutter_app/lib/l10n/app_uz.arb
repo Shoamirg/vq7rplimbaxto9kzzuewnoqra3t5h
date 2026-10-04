@@ -257,5 +257,19 @@
       }
     }
   },
-  "readOnlyNotice": "Faqat ko‘rish huquqi · o‘zgartirish uchun admin yoki qabul xodimiga murojaat qiling."
+  "readOnlyNotice": "Faqat ko‘rish huquqi · o‘zgartirish uchun admin yoki qabul xodimiga murojaat qiling.",
+  "searchInvoices": "Hisoblarni qidirish",
+  "invoiceSearchHint": "Hisob raqami, mijoz yoki mashina",
+  "invoicesLoading": "Hisoblar yuklanmoqda…",
+  "invoicesFailed": "Hisoblarni yuklab bo‘lmadi",
+  "noMatchingInvoices": "Mos hisob topilmadi",
+  "searchInvoicesHint": "Qidiruvni o‘zgartiring yoki tozalang.",
+  "invoiceCount": "{count} ta hisob topildi",
+  "@invoiceCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

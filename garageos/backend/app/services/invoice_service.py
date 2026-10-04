@@ -30,6 +30,8 @@ import httpx
 from app.core.config import settings
 from app.exceptions import ValidationError
 from app.models.customer import Customer
+from app.models.brand import Brand
+from app.models.vehicle_model import VehicleModel
 from app.models.appointment import Appointment, AppointmentStatus
 from app.models.invoice import (
     Invoice,
@@ -584,13 +586,32 @@ class InvoiceService:
             return stmt.where(Invoice.id == None)  # noqa: E711 — placeholder (none yet)
         return stmt
 
-    async def list_documents(self, *, view: str = "invoices") -> dict:
+    async def list_documents(self, *, view: str = "invoices", q: str = "", page: int = 1, page_size: int = 80) -> dict:
         base = select(Invoice).where(
             Invoice.service_center_id == self.sc, Invoice.is_active.is_(True))
-        stmt = self._view_where(base, view).order_by(Invoice.created_at.desc()).limit(80)
+        filtered = self._view_where(base, view)
+        if query := q.strip():
+            # Search is literal: SQL LIKE wildcards in a plate/name must not match everything.
+            pattern = "%" + query.replace("/", "//").replace("%", "/%").replace("_", "/_") + "%"
+            customer_match = select(Customer.id).where(
+                Customer.id == Invoice.customer_id, Customer.service_center_id == self.sc,
+                Customer.full_name.ilike(pattern, escape="/")).exists()
+            vehicle_match = select(Vehicle.id).join(
+                VehicleModel, Vehicle.vehicle_model_id == VehicleModel.id).join(
+                Brand, VehicleModel.brand_id == Brand.id).where(
+                    Vehicle.id == Invoice.vehicle_id, Vehicle.service_center_id == self.sc,
+                    or_(Vehicle.license_plate.ilike(pattern, escape="/"),
+                        Vehicle.vin.ilike(pattern, escape="/"),
+                        (Brand.name + " " + VehicleModel.name).ilike(pattern, escape="/"))).exists()
+            filtered = filtered.where(or_(Invoice.code.ilike(pattern, escape="/"), customer_match, vehicle_match))
+        total = int(await self.session.scalar(select(func.count()).select_from(filtered.subquery())) or 0)
+        stmt = filtered.order_by(Invoice.created_at.desc(), Invoice.id.desc()).offset(
+            (page - 1) * page_size).limit(page_size)
         rows = list((await self.session.execute(stmt)).scalars().all())
         items = [await self.serialize_row(inv) for inv in rows]
-        return {"items": items, "counts": await self.counts(), "kpis": await self.kpis(), "view": view}
+        return {"items": items, "counts": await self.counts(), "kpis": await self.kpis(), "view": view,
+                "total": total, "page": page, "page_size": page_size,
+                "total_pages": (total + page_size - 1) // page_size}
 
     async def counts(self) -> dict:
         base = select(func.count()).select_from(Invoice).where(

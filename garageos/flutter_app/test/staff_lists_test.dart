@@ -11,33 +11,37 @@ import 'package:garageos_staff/main.dart';
 
 class ListRepository extends DemoRepository {
   Completer<PageData<Customer>>? nextCustomers;
-  Completer<List<Bill>>? nextBills;
+  Completer<PageData<Bill>>? nextBills;
   int customerLoads = 0;
   int workLoads = 0;
   final requests = <String>[];
 
   @override
-  Future<List<Bill>> bills() {
+  Future<PageData<Bill>> bills({String query = '', int page = 1}) {
     final pending = nextBills;
     nextBills = null;
     if (pending != null) return pending.future;
     return Future.value(
-      List.generate(
+      PageData(
+        List.generate(
+          20,
+          (i) => Bill.fromJson({
+            'id': 'invoice-$i',
+            'code': 'INV-${i.toString().padLeft(2, '0')}',
+            'customer_id': 'list-$i',
+            'customer_name': 'Sinov mijoz $i',
+            'currency': 'UZS',
+            'status': 'issued',
+            'total': 100000,
+            'amount_paid': 0,
+            'balance': 100000,
+            'subtotal': 100000,
+            'tax_total': 0,
+            'discount_total': 0,
+          }),
+        ),
         20,
-        (i) => Bill.fromJson({
-          'id': 'invoice-$i',
-          'code': 'INV-${i.toString().padLeft(2, '0')}',
-          'customer_id': 'list-$i',
-          'customer_name': 'Sinov mijoz $i',
-          'currency': 'UZS',
-          'status': 'issued',
-          'total': 100000,
-          'amount_paid': 0,
-          'balance': 100000,
-          'subtotal': 100000,
-          'tax_total': 0,
-          'discount_total': 0,
-        }),
+        page,
       ),
     );
   }
@@ -115,7 +119,7 @@ void main() {
       final offset = tester.state<ScrollableState>(scroll).position.pixels;
       expect(offset, greaterThan(600));
       await tab(tester, 'Navbat');
-      final pending = Completer<List<Bill>>();
+      final pending = Completer<PageData<Bill>>();
       repo.nextBills = pending;
       await tester.tap(
         find.descendant(
@@ -147,7 +151,9 @@ void main() {
         scrollable: scroll,
       );
       await tester.pumpAndSettle();
-      final failure = Completer<List<Bill>>();
+      final failure = Completer<PageData<Bill>>();
+      tester.state<ScrollableState>(scroll).position.jumpTo(0);
+      await tester.pumpAndSettle();
       repo.nextBills = failure;
       await tester.tap(find.byTooltip('Yangilash'));
       await tester.pump();

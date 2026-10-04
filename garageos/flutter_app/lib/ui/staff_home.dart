@@ -471,12 +471,13 @@ class Pager extends StatelessWidget {
     required this.total,
     required this.hasNext,
     required this.onPage,
+    this.size = 30,
   });
-  final int page, total;
+  final int page, total, size;
   final bool hasNext;
   final ValueChanged<int> onPage;
   @override
-  Widget build(BuildContext context) => total <= 30
+  Widget build(BuildContext context) => total <= size && page <= 1
       ? SizedBox.shrink()
       : Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -486,7 +487,7 @@ class Pager extends StatelessWidget {
               onPressed: page > 1 ? () => onPage(page - 1) : null,
               icon: Icon(Icons.chevron_left),
             ),
-            Text('$page / ${(total / 30).ceil()}'),
+            Text('$page / ${total == 0 ? 1 : (total / size).ceil()}'),
             IconButton(
               tooltip: context.l10n.nextPage,
               onPressed: hasNext ? () => onPage(page + 1) : null,

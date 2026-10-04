@@ -114,7 +114,7 @@ void main() {
       find.text('Qator summasi 100 million soʻmdan kam boʻlsin.'),
       findsOneWidget,
     );
-    expect(await repo.bills(), isEmpty);
+    expect((await repo.bills()).items, isEmpty);
   });
 
   testWidgets('unsaved customer survives Back until discard is confirmed', (

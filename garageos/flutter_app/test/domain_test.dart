@@ -64,7 +64,7 @@ void main() {
       final bill = await repo.createBill(done, lines, 12);
       final duplicate = await repo.createBill(done, lines, 12);
       expect(duplicate.id, bill.id);
-      expect((await repo.bills()).length, 1);
+      expect((await repo.bills()).items.length, 1);
       expect(bill.total.cents, 33600000);
       final first = await repo.pay(
         bill.id,

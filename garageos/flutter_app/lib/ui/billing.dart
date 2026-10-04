@@ -9,27 +9,66 @@ import '../l10n/l10n.dart';
 import '../design/widgets.dart';
 import '../domain/models.dart';
 import 'customers.dart' show requiredText;
+import 'staff_home.dart' show Pager;
 
-class BillList extends StatelessWidget {
+class BillList extends StatefulWidget {
   const BillList({super.key, required this.repository, this.refreshKey = 0});
   final GarageRepository repository;
   final int refreshKey;
   @override
+  State<BillList> createState() => _BillListState();
+}
+
+class _BillListState extends State<BillList> {
+  String query = '';
+  int page = 1;
+  final search = TextEditingController();
+  @override
+  void dispose() {
+    search.dispose();
+    super.dispose();
+  }
+
+  void updateSearch(String value) {
+    if (query == value) return;
+    setState(() {
+      query = value;
+      page = 1;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) => Center(
     child: ConstrainedBox(
       constraints: BoxConstraints(maxWidth: Space.contentWidth),
-      child: ListLoadView<List<Bill>>(
+      child: ListLoadView<PageData<Bill>>(
         storageKey: 'staff-bill-list',
-        filterKey: repository,
-        loadKey: (repository, refreshKey),
-        load: repository.bills,
+        filterKey: (query, page),
+        loadKey: (widget.repository, query, page, widget.refreshKey),
+        load: () => widget.repository.bills(query: query, page: page),
         header: (bills, reload, loading) => [
+          Text(
+            context.l10n.invoices,
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          SizedBox(height: 16),
+          ListSearchField(
+            controller: search,
+            label: context.l10n.searchInvoices,
+            hint: context.l10n.invoiceSearchHint,
+            onSearch: updateSearch,
+            maxLength: 100,
+          ),
+          SizedBox(height: 12),
           Row(
             children: [
               Expanded(
                 child: Text(
-                  context.l10n.invoices,
-                  style: Theme.of(context).textTheme.titleLarge,
+                  loading
+                      ? context.l10n.invoicesLoading
+                      : bills == null
+                      ? context.l10n.invoicesFailed
+                      : context.l10n.invoiceCount(bills.total),
                 ),
               ),
               IconButton(
@@ -39,16 +78,38 @@ class BillList extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: 16),
+          if (bills != null)
+            Pager(
+              page: bills.page,
+              total: bills.total,
+              size: bills.size,
+              hasNext: bills.hasNext,
+              onPage: (value) => setState(() => page = value),
+            ),
+          SizedBox(height: 12),
         ],
         items: (bills, reload) => [
-          if (bills.isEmpty)
+          if (bills.items.isEmpty)
             EmptyNotice(
-              context.l10n.noInvoices,
-              context.l10n.createInvoiceHint,
+              query.isEmpty
+                  ? context.l10n.noInvoices
+                  : context.l10n.noMatchingInvoices,
+              query.isEmpty
+                  ? context.l10n.createInvoiceHint
+                  : context.l10n.searchInvoicesHint,
               icon: Icons.receipt_long_outlined,
+              action: query.isEmpty
+                  ? null
+                  : OutlinedButton.icon(
+                      onPressed: () {
+                        search.clear();
+                        updateSearch('');
+                      },
+                      icon: Icon(Icons.search_off),
+                      label: Text(context.l10n.clearSearch),
+                    ),
             ),
-          for (final bill in bills)
+          for (final bill in bills.items)
             Padding(
               padding: EdgeInsets.only(bottom: 12),
               child: Card(
@@ -57,7 +118,7 @@ class BillList extends StatelessWidget {
                   onTap: () async {
                     await openPage(
                       context,
-                      BillScreen(repository: repository, bill: bill),
+                      BillScreen(repository: widget.repository, bill: bill),
                     );
                     if (context.mounted) reload();
                   },

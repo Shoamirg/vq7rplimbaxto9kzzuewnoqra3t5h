@@ -235,7 +235,24 @@ class DemoRepository extends GarageRepository {
   }
 
   @override
-  Future<List<Bill>> bills() async => List.unmodifiable(_bills.reversed);
+  Future<PageData<Bill>> bills({String query = '', int page = 1}) async {
+    final q = query.trim().toLowerCase();
+    final matches = _bills.reversed
+        .where(
+          (bill) => [
+            bill.code,
+            bill.customerName,
+            bill.vehicleLabel,
+          ].any((text) => text.toLowerCase().contains(q)),
+        )
+        .toList();
+    return PageData(
+      List.unmodifiable(matches.skip((page - 1) * 30).take(30)),
+      matches.length,
+      page,
+    );
+  }
+
   @override
   Future<Bill> bill(String id) async => _bills.firstWhere((b) => b.id == id);
   @override

@@ -50,7 +50,11 @@ Set backend `CORS_ORIGINS` to include the exact web origin `http://127.0.0.1:808
 
 Only Android **debug** permits cleartext for local development. Release builds retain platform network restrictions. Access/refresh tokens remain in memory; closing or leaving the app requires sign-in again. Pending payment request UUID, amount and method are stored separately on the device, scoped by API/user/tenant, before sending. Uncertain responses retain the same request across navigation, re-login and app restart. Resolve that request before changing its amount; there is no offline write queue.
 
-Manual payment recording saves money already received. It does not charge a card or connect Payme/Click/Stripe. Server currency and totals remain authoritative; currencies are not converted or summed together. Invoice lists follow the existing API's latest-80 limit; appointments and customers use server pagination/search.
+Manual payment recording saves money already received. It does not charge a card or connect Payme/Click/Stripe. Server currency and totals remain authoritative; currencies are not converted or summed together. Invoice history uses server search and pages of 30: search by invoice code, customer, vehicle model or plate. Search resets to page 1; tab/detail return and language changes retain the current search/page/scroll. Loading, retry and clear-search states are available in UZ/EN/RU. Demo mode applies the same search and pagination in memory.
+
+`GET /api/v1/invoices` accepts `q` (at most 100 characters; trimmed, case-insensitive literal substring), `page` (1–2,147,483,647; larger values return 422 before database offset overflow) and `page_size` (1–100). Search also supports VIN on the live API. The response adds `total`, `page`, `page_size` and `total_pages`; `total` counts matching active documents in the selected view and garage. Existing `items`, global garage `counts`, `kpis` and `view` remain. Documents sort by creation time and ID descending, including timestamp ties. Callers omitting pagination still receive a bounded first page of up to 80 documents. No database migration is required.
+
+Invoice history previews use synthetic read-only fixtures at 130% text: [Uzbek phone](docs/previews/invoices-uz-360.png), [Russian phone](docs/previews/invoices-ru-360.png), [English tablet](docs/previews/invoices-en-1024.png). Regenerate all three languages at phone/tablet sizes with `flutter test test/invoice_history_test.dart --dart-define=WRITE_PREVIEWS=true`.
 
 ## Staff permissions
 

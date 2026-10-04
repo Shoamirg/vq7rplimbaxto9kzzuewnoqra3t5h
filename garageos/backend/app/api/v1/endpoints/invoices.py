@@ -62,8 +62,11 @@ class InvoiceEdit(BaseModel):
 async def list_documents(
     uow: UnitOfWork = Depends(get_tenant_uow),
     view: str = Query(default="invoices"),
+    q: str = Query(default="", max_length=100),
+    page: int = Query(default=1, ge=1, le=2_147_483_647),
+    page_size: int = Query(default=80, ge=1, le=100),
 ) -> dict:
-    return await InvoiceService(uow).list_documents(view=view)
+    return await InvoiceService(uow).list_documents(view=view, q=q, page=page, page_size=page_size)
 
 
 @router.get("/{invoice_id}", summary="Full document (line items, payments, timeline)")

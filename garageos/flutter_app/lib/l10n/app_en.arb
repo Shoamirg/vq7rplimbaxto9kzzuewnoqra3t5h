@@ -215,5 +215,19 @@
   "minutes": "{count} min",
   "invoiceLine": "Invoice line {number}",
   "plateSemantics": "License plate: {plate}",
-  "readOnlyNotice": "Read-only access · contact an admin or reception staff to make changes."
+  "readOnlyNotice": "Read-only access · contact an admin or reception staff to make changes.",
+  "searchInvoices": "Search invoices",
+  "invoiceSearchHint": "Invoice number, customer or vehicle",
+  "invoicesLoading": "Loading invoices…",
+  "invoicesFailed": "Could not load invoices",
+  "noMatchingInvoices": "No matching invoices",
+  "searchInvoicesHint": "Change or clear the search.",
+  "invoiceCount": "{count} invoices found",
+  "@invoiceCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

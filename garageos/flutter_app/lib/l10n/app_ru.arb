@@ -215,5 +215,19 @@
   "minutes": "{count} мин",
   "invoiceLine": "Строка счёта {number}",
   "plateSemantics": "Госномер: {plate}",
-  "readOnlyNotice": "Только просмотр · для изменений обратитесь к администратору или сотруднику приёмки."
+  "readOnlyNotice": "Только просмотр · для изменений обратитесь к администратору или сотруднику приёмки.",
+  "searchInvoices": "Поиск счетов",
+  "invoiceSearchHint": "Номер счёта, клиент или автомобиль",
+  "invoicesLoading": "Загрузка счетов…",
+  "invoicesFailed": "Не удалось загрузить счета",
+  "noMatchingInvoices": "Подходящих счетов нет",
+  "searchInvoicesHint": "Измените или очистите поиск.",
+  "invoiceCount": "Найдено счетов: {count}",
+  "@invoiceCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

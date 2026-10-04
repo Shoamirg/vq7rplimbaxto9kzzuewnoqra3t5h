@@ -660,6 +660,10 @@ export interface BillingResponse {
   counts: BillingCounts;
   kpis: BillingKpis;
   view: string;
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
 }
 
 // ─── Reports & Analytics ──────────────────────────────────────

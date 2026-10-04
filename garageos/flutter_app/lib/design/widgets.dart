@@ -526,10 +526,12 @@ class ListSearchField extends StatefulWidget {
     required this.label,
     required this.hint,
     required this.onSearch,
+    this.maxLength,
   });
   final TextEditingController controller;
   final String label, hint;
   final ValueChanged<String> onSearch;
+  final int? maxLength;
   @override
   State<ListSearchField> createState() => _ListSearchFieldState();
 }
@@ -553,6 +555,13 @@ class _ListSearchFieldState extends State<ListSearchField> {
         valueListenable: widget.controller,
         builder: (context, value, _) => TextField(
           controller: widget.controller,
+          maxLength: widget.maxLength,
+          buildCounter: (
+            context, {
+            required currentLength,
+            required isFocused,
+            maxLength,
+          }) => null,
           decoration: InputDecoration(
             labelText: widget.label,
             hintText: widget.hint,

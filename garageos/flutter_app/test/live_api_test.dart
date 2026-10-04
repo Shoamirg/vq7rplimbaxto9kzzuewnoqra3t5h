@@ -174,9 +174,17 @@ void main() {
       expect(paid.receipts.length, 2);
       expect(paid.balance.cents, 0);
       expect(
-        (await repo.bills()).where((b) => b.appointmentId == work.id).length,
+        (await repo.bills()).items
+            .where((b) => b.appointmentId == work.id)
+            .length,
         1,
       );
+      final searched = await repo.bills(query: bill.code.toLowerCase());
+      expect(searched.total, 1);
+      expect(searched.page, 1);
+      expect(searched.size, 30);
+      expect(searched.items.single.id, bill.id);
+      expect((await repo.bills(query: '%')).items, isEmpty);
     },
     skip: !enabled,
     timeout: const Timeout(Duration(minutes: 2)),

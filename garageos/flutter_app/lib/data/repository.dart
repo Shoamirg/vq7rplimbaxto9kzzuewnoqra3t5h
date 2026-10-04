@@ -20,7 +20,7 @@ abstract class GarageRepository {
   Future<List<Car>> cars(String customerId);
   Future<List<CarModel>> catalog();
   Future<Car> createCar(Json data);
-  Future<List<Bill>> bills();
+  Future<PageData<Bill>> bills({String query = '', int page = 1});
   Future<Bill> bill(String id);
   Future<Bill?> billForWork(String id);
   Future<Bill> createBill(Work work, List<BillLine> lines, double taxRate);
@@ -129,13 +129,23 @@ class LiveRepository extends GarageRepository {
     data['customer_id'],
   );
   @override
-  Future<List<Bill>> bills() async {
+  Future<PageData<Bill>> bills({String query = '', int page = 1}) async {
     final data = await api.request(
       'GET',
       '/invoices',
-      query: {'view': 'invoices'},
+      query: {
+        'view': 'invoices',
+        'q': query,
+        'page': '$page',
+        'page_size': '30',
+      },
     );
-    return (data['items'] as List).map((j) => Bill.fromJson(j)).toList();
+    return PageData(
+      (data['items'] as List).map((j) => Bill.fromJson(j)).toList(),
+      data['total'],
+      data['page'],
+      size: data['page_size'],
+    );
   }
 
   @override
