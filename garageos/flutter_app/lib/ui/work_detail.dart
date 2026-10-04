@@ -98,6 +98,9 @@ class _WorkScreenState extends State<WorkScreen> {
           BillScreen(repository: widget.repository, bill: existing),
         );
       } else {
+        if (!widget.repository.canWrite) {
+          throw const AppFailure('Bu amal uchun ruxsat yoʻq.', status: 403);
+        }
         final created = await openPage<Bill>(
           context,
           BillForm(repository: widget.repository, work: work),
@@ -119,7 +122,7 @@ class _WorkScreenState extends State<WorkScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final canAssign = work.canAssignMechanic;
+    final canAssign = widget.repository.canWrite && work.canAssignMechanic;
     final label = switch (work.status) {
       WorkStatus.pending => context.l10n.confirmAppointment,
       WorkStatus.confirmed =>
@@ -134,6 +137,7 @@ class _WorkScreenState extends State<WorkScreen> {
     return PageFrame(
       title: context.l10n.serviceWork,
       demo: widget.repository.isDemo,
+      readOnly: !widget.repository.canWrite,
       actions: [
         IconButton(
           tooltip: context.l10n.refresh,
@@ -234,7 +238,7 @@ class _WorkScreenState extends State<WorkScreen> {
               ),
             ),
           ],
-          if (work.canCancel) ...[
+          if (widget.repository.canWrite && work.canCancel) ...[
             SizedBox(height: 24),
             TextButton.icon(
               onPressed: busy ? null : cancel,
@@ -244,7 +248,10 @@ class _WorkScreenState extends State<WorkScreen> {
           ],
         ],
       ),
-      footer: label == null
+      footer:
+          label == null ||
+              (!widget.repository.canWrite &&
+                  !(work.status == WorkStatus.completed && linked != null))
           ? null
           : SaveButton(
               label: label,

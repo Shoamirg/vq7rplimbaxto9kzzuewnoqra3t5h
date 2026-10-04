@@ -71,6 +71,7 @@ class _StaffHomeState extends State<StaffHome> {
     final content = Column(
       children: [
         if (repo.isDemo) DemoNotice(),
+        if (!repo.canWrite) const ReadOnlyNotice(),
         Expanded(
           child: IndexedStack(
             index: tab,
@@ -250,17 +251,18 @@ class _WorkListState extends State<WorkList> {
                   ),
                 ],
               ),
-              FilledButton.icon(
-                onPressed: () async {
-                  await openPage(
-                    context,
-                    BookingScreen(repository: widget.repository),
-                  );
-                  if (mounted) reload();
-                },
-                icon: Icon(Icons.add),
-                label: Text(context.l10n.newAppointment),
-              ),
+              if (widget.repository.canWrite)
+                FilledButton.icon(
+                  onPressed: () async {
+                    await openPage(
+                      context,
+                      BookingScreen(repository: widget.repository),
+                    );
+                    if (mounted) reload();
+                  },
+                  icon: Icon(Icons.add),
+                  label: Text(context.l10n.newAppointment),
+                ),
             ],
           ),
           SizedBox(height: 24),

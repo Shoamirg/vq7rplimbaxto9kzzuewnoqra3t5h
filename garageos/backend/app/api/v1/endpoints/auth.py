@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_auth_service, get_current_user
+from app.api.deps import get_auth_service, get_current_user, get_staff_permissions
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.rate_limit import auth_rate_limit
@@ -94,6 +94,7 @@ async def demo(auth: AuthService = Depends(get_auth_service)) -> TokenResponse:
 @router.get("/me", response_model=CurrentUserResponse, summary="Current authenticated user")
 async def me(
     current_user: User = Depends(get_current_user),
+    permissions: list[str] = Depends(get_staff_permissions),
     db: AsyncSession = Depends(get_db),
 ) -> CurrentUserResponse:
     result = await db.execute(
@@ -107,5 +108,6 @@ async def me(
         role=current_user.role.name if current_user.role else None,
         service_center_id=str(current_user.service_center_id),
         is_super_admin=current_user.is_super_admin,
+        permissions=permissions,
         branding=Branding(**branding_dict(center)) if center else None,
     )

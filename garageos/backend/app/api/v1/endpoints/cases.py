@@ -6,7 +6,7 @@ import uuid
 from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel
 
-from app.api.deps import get_tenant_uow
+from app.api.deps import get_staff_permissions, get_tenant_uow
 from app.repositories.unit_of_work import UnitOfWork
 from app.services.case_service import CaseService
 from app.services.conversation_service import ConversationService
@@ -52,9 +52,15 @@ async def get_case(case_id: uuid.UUID, uow: UnitOfWork = Depends(get_tenant_uow)
 
 
 @router.get("/{case_id}/conversation", summary="The case's live conversation (shared UCP model)")
-async def case_conversation(case_id: uuid.UUID, uow: UnitOfWork = Depends(get_tenant_uow)) -> dict:
+async def case_conversation(
+    case_id: uuid.UUID,
+    uow: UnitOfWork = Depends(get_tenant_uow),
+    permissions: list[str] = Depends(get_staff_permissions),
+) -> dict:
     # Operations reuses the SAME conversation model as the Inbox — created on demand.
-    return await ConversationService(uow).get_or_create_for_case(case_id)
+    return await ConversationService(uow).get_or_create_for_case(
+        case_id, allow_create="staff.write" in permissions,
+    )
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, summary="Open a case")

@@ -62,22 +62,23 @@ class _CustomerListState extends State<CustomerList> {
                     : context.l10n.customers,
                 style: Theme.of(context).textTheme.titleLarge,
               ),
-              FilledButton.icon(
-                onPressed: () async {
-                  final customer = await openPage<Customer>(
-                    context,
-                    CustomerForm(repository: widget.repository),
-                  );
-                  if (!context.mounted) return;
-                  if (widget.pick && customer != null) {
-                    Navigator.pop(context, customer);
-                  } else {
-                    reload();
-                  }
-                },
-                icon: Icon(Icons.person_add_alt),
-                label: Text(context.l10n.newCustomer),
-              ),
+              if (widget.repository.canWrite)
+                FilledButton.icon(
+                  onPressed: () async {
+                    final customer = await openPage<Customer>(
+                      context,
+                      CustomerForm(repository: widget.repository),
+                    );
+                    if (!context.mounted) return;
+                    if (widget.pick && customer != null) {
+                      Navigator.pop(context, customer);
+                    } else {
+                      reload();
+                    }
+                  },
+                  icon: Icon(Icons.person_add_alt),
+                  label: Text(context.l10n.newCustomer),
+                ),
             ],
           ),
           SizedBox(height: 24),
@@ -207,6 +208,7 @@ class CustomerScreen extends StatelessWidget {
   Widget build(BuildContext context) => PageFrame(
     title: customer.name,
     demo: repository.isDemo,
+    readOnly: !repository.canWrite,
     body: LoadView<List<Car>>(
       loadKey: (repository, customer.id),
       load: () => repository.cars(customer.id),
@@ -236,17 +238,18 @@ class CustomerScreen extends StatelessWidget {
                 context.l10n.vehicles,
                 style: Theme.of(context).textTheme.titleMedium,
               ),
-              OutlinedButton.icon(
-                onPressed: () async {
-                  await openPage(
-                    context,
-                    CarForm(repository: repository, customer: customer),
-                  );
-                  if (context.mounted) reload();
-                },
-                icon: Icon(Icons.add),
-                label: Text(context.l10n.addVehicle),
-              ),
+              if (repository.canWrite)
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    await openPage(
+                      context,
+                      CarForm(repository: repository, customer: customer),
+                    );
+                    if (context.mounted) reload();
+                  },
+                  icon: Icon(Icons.add),
+                  label: Text(context.l10n.addVehicle),
+                ),
             ],
           ),
           SizedBox(height: 16),
@@ -271,18 +274,19 @@ class CustomerScreen extends StatelessWidget {
                     ),
                     Text('${car.year} · ${car.km} km'),
                     SizedBox(height: 12),
-                    FilledButton.icon(
-                      onPressed: () => openPage(
-                        context,
-                        BookingScreen(
-                          repository: repository,
-                          customer: customer,
-                          car: car,
+                    if (repository.canWrite)
+                      FilledButton.icon(
+                        onPressed: () => openPage(
+                          context,
+                          BookingScreen(
+                            repository: repository,
+                            customer: customer,
+                            car: car,
+                          ),
                         ),
+                        icon: Icon(Icons.event_available_outlined),
+                        label: Text(context.l10n.createAppointment),
                       ),
-                      icon: Icon(Icons.event_available_outlined),
-                      label: Text(context.l10n.createAppointment),
-                    ),
                   ],
                 ),
               ),

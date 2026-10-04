@@ -214,5 +214,6 @@
   "vehicleCount": "{count, plural, =1{1 vehicle} other{{count} vehicles}}",
   "minutes": "{count} min",
   "invoiceLine": "Invoice line {number}",
-  "plateSemantics": "License plate: {plate}"
+  "plateSemantics": "License plate: {plate}",
+  "readOnlyNotice": "Read-only access · contact an admin or reception staff to make changes."
 }

@@ -15,6 +15,14 @@ telegram-bot ──▶ Telegram (long-poll, outbound only — no inbound port ne
 
 ## Prerequisites
 
+Client handover is tracked in [issue #10](https://github.com/Shoamirg/garageos/issues/10).
+Passing local/CI tests does not prove that a client host, production accounts,
+off-host scheduled backups, signed mobile releases or physical-device pilot are
+ready. Verify those against the actual target environment before handover.
+The current staff API/Flutter permissions contract is documented in
+`backend/README.md` and `flutter_app/README.md`; update both together. Do not use
+seeded demo passwords or reset the client's database with `--fresh`.
+
 - A Linux host (2 vCPU / 4 GB RAM is enough to start) with Docker + Docker Compose.
 - A domain with an **A record** pointing at the host's public IP (e.g.
   `app.garageos.example`).

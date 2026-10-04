@@ -3,12 +3,64 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:uuid/uuid.dart';
+import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
+import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
+import 'package:garageos_staff/app_state.dart';
 import 'package:garageos_staff/data/api_client.dart';
 import 'package:garageos_staff/data/repository.dart';
 import 'package:garageos_staff/domain/models.dart';
 
 void main() {
   const enabled = bool.fromEnvironment('RUN_LIVE_API');
+  test(
+    'real FastAPI: server permissions reach the signed-in Flutter account',
+    () async {
+      final originalPreferences = SharedPreferencesAsyncPlatform.instance;
+      SharedPreferencesAsyncPlatform.instance =
+          InMemorySharedPreferencesAsync.empty();
+      addTearDown(
+        () => SharedPreferencesAsyncPlatform.instance = originalPreferences,
+      );
+      final fixture = jsonDecode(
+        await File(const String.fromEnvironment('SMOKE_FIXTURE'))
+            .readAsString(),
+      );
+      const address = String.fromEnvironment(
+        'API_URL',
+        defaultValue: 'http://127.0.0.1:8010/api/v1',
+      );
+      final operator = AppState();
+      final mechanic = AppState();
+      addTearDown(operator.dispose);
+      addTearDown(mechanic.dispose);
+      await operator.login(address, fixture['email'], fixture['password']);
+      expect(operator.repository!.canWrite, isTrue);
+      await mechanic.login(
+        address,
+        fixture['read_only_email'],
+        fixture['password'],
+      );
+      expect(mechanic.repository!.canWrite, isFalse);
+      expect(
+        (await mechanic.repository!.works()).total,
+        greaterThanOrEqualTo(0),
+      );
+      await expectLater(
+        mechanic.repository!.createCustomer(
+          'Forbidden from mechanic account',
+          '+998900000099',
+        ),
+        throwsA(
+          isA<AppFailure>().having(
+            (e) => e.status,
+            'server permission enforcement',
+            403,
+          ),
+        ),
+      );
+    },
+    skip: !enabled,
+  );
   test(
     'real FastAPI: intake -> assigned work -> one UZS invoice -> payments, tenant isolation',
     () async {

@@ -80,11 +80,16 @@ class AppState extends ChangeNotifier {
       api.accessToken = tokens['access_token'];
       api.refreshToken = tokens['refresh_token'];
       final user = await api.request('GET', '/auth/me');
+      final permissions = user['permissions'];
+      if (permissions is! List || !permissions.contains('staff.read')) {
+        throw const AppFailure('Bu amal uchun ruxsat yoʻq.', status: 403);
+      }
       name = user['full_name'];
       garageName = user['branding']?['name'] ?? 'GarageOS';
       api.onExpired = () => onExpired?.call();
       repository = LiveRepository(
         api,
+        canWrite: permissions.contains('staff.write'),
         paymentStore: DevicePaymentStore(
           Uri.encodeComponent(
             '${api.base}/${user['id']}/${user['service_center_id']}',

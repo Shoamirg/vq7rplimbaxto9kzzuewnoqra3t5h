@@ -65,6 +65,7 @@ class PageFrame extends StatelessWidget {
     this.footer,
     this.actions,
     this.demo = false,
+    this.readOnly = false,
     this.hasChanges = false,
     this.isSaving = false,
   });
@@ -73,6 +74,7 @@ class PageFrame extends StatelessWidget {
   final Widget? footer;
   final List<Widget>? actions;
   final bool demo;
+  final bool readOnly;
   final bool hasChanges, isSaving;
   @override
   Widget build(BuildContext context) => LeaveGuard(
@@ -87,6 +89,7 @@ class PageFrame extends StatelessWidget {
         child: Column(
           children: [
             if (demo) const DemoNotice(),
+            if (readOnly) const ReadOnlyNotice(),
             Expanded(
               child: Center(
                 child: ConstrainedBox(
@@ -172,6 +175,21 @@ class DemoNotice extends StatelessWidget {
     padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
     child: Text(
       context.l10n.demoNotice,
+      style: Theme.of(context).textTheme.bodySmall
+          ?.copyWith(color: context.colors.info),
+    ),
+  );
+}
+
+class ReadOnlyNotice extends StatelessWidget {
+  const ReadOnlyNotice({super.key});
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    color: context.colors.infoSoft,
+    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    child: Text(
+      context.l10n.readOnlyNotice,
       style: Theme.of(context).textTheme.bodySmall
           ?.copyWith(color: context.colors.info),
     ),

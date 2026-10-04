@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from sqlalchemy import func, or_, select
 
 from app.core.events import ConversationStarted, MessagePosted
-from app.exceptions import NotFoundError
+from app.exceptions import NotFoundError, UnauthorizedAction
 from app.models.conversation import (
     Attachment,
     Channel,
@@ -234,7 +234,7 @@ class ConversationService:
     }
     _SEV_TO_PRIORITY = {"critical": "high", "high": "high", "medium": "medium", "low": "low"}
 
-    async def get_or_create_for_case(self, case_id: uuid.UUID) -> dict:
+    async def get_or_create_for_case(self, case_id: uuid.UUID, *, allow_create: bool = True) -> dict:
         """Return the thread for a dispatch case, creating it on first open.
 
         This is the proof that Operations and the Inbox are ONE system: a case's
@@ -253,6 +253,9 @@ class ConversationService:
         case = await self.session.get(OperationalCase, case_id)
         if not case or case.service_center_id != self.sc:
             raise ConversationNotFound()
+
+        if not allow_create:
+            raise UnauthorizedAction()
 
         customer = await self.session.get(Customer, case.customer_id)
         parts = [{"role": ParticipantRole.CUSTOMER,

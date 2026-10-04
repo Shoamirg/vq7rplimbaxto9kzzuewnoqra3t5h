@@ -256,5 +256,6 @@
         "type": "String"
       }
     }
-  }
+  },
+  "readOnlyNotice": "Faqat ko‘rish huquqi · o‘zgartirish uchun admin yoki qabul xodimiga murojaat qiling."
 }

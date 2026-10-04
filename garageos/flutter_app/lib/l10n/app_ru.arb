@@ -214,5 +214,6 @@
   "vehicleCount": "Автомобилей: {count}",
   "minutes": "{count} мин",
   "invoiceLine": "Строка счёта {number}",
-  "plateSemantics": "Госномер: {plate}"
+  "plateSemantics": "Госномер: {plate}",
+  "readOnlyNotice": "Только просмотр · для изменений обратитесь к администратору или сотруднику приёмки."
 }

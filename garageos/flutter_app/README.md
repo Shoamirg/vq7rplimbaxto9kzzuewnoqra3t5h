@@ -52,6 +52,27 @@ Only Android **debug** permits cleartext for local development. Release builds r
 
 Manual payment recording saves money already received. It does not charge a card or connect Payme/Click/Stripe. Server currency and totals remain authoritative; currencies are not converted or summed together. Invoice lists follow the existing API's latest-80 limit; appointments and customers use server pagination/search.
 
+## Staff permissions
+
+Live sign-in reads effective `permissions` from `/auth/me`; deploy the API and
+mobile changes together. Missing read permission or a missing permissions field
+rejects entry. Accounts with `staff.read` but no `staff.write` see a localized
+read-only notice and can inspect customers, vehicles, appointments and existing
+invoices/customer-facing views. Intake, vehicle creation, work transitions,
+invoice creation and payment controls are hidden. The server independently
+enforces these permissions, including direct API calls.
+
+The shared staff panel currently permits admin, manager, receptionist and
+super-admin roles to operate records; mechanics have read-only access. This is a
+coarse product policy: mechanic reads are not yet assignment-scoped, and reception
+can operate billing. Fine financial approvals and a dedicated mechanic interface
+remain later milestones. Offline demonstration stays editable with example data.
+Suspending a user, garage or global role denies login and existing tokens; a
+`401` during refresh clears the mobile session. Role changes are enforced by the
+server immediately; sign in again to refresh the mobile controls after a role
+change. Pending payment intents remain scoped to the same API/user/garage and
+are not deleted by logout.
+
 ## Implemented
 
 - Uzbek, English and Russian staff screens, sign-in and token refresh; visible errors/retry and account exit.

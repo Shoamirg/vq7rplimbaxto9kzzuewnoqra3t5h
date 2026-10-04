@@ -3,6 +3,8 @@ import uuid
 from datetime import timedelta
 from typing import Optional
 
+from sqlalchemy import select
+
 from app.core.security import (
     hash_password,
     verify_password,
@@ -17,7 +19,7 @@ from app.repositories.base import BaseRepository
 from app.models.service_center import ServiceCenter
 from app.models.role import Role
 from app.models.user import User
-from app.exceptions import InvalidCredentials, TokenExpired, InvalidToken, UserNotFound
+from app.exceptions import InvalidCredentials, InvalidToken
 
 
 class AuthService:
@@ -68,7 +70,7 @@ class AuthService:
     async def login(self, email: str, password: str) -> dict:
         """Authenticate and return token pair."""
         user = await self.user_repo.find_by_email(email)
-        if not user or not verify_password(password, user.password_hash):
+        if not await self._is_enabled(user) or not verify_password(password, user.password_hash):
             raise InvalidCredentials()
 
         access_token = create_access_token(
@@ -85,21 +87,21 @@ class AuthService:
             "token_type": "bearer",
         }
 
+    async def _is_enabled(self, user: User | None) -> bool:
+        """A staff identity is usable only while its garage and role are active."""
+        if not user or not user.is_active or not user.role or not user.role.is_active:
+            return False
+        center_id = await self.uow.session.scalar(
+            select(ServiceCenter.id).where(
+                ServiceCenter.id == user.service_center_id,
+                ServiceCenter.is_active.is_(True),
+            )
+        )
+        return center_id is not None
+
     async def refresh(self, refresh_token: str) -> dict:
         """Issue a new access token using a refresh token."""
-        payload = decode_token(refresh_token)
-        if not payload:
-            raise InvalidToken()
-        if payload.get("type") != "refresh":
-            raise InvalidToken("Invalid token type")
-
-        user_id = payload.get("sub")
-        if not user_id:
-            raise InvalidToken()
-
-        user = await self.user_repo.get_by_id(uuid.UUID(user_id))
-        if not user:
-            raise UserNotFound()
+        user, payload = await self._token_user(refresh_token, "refresh")
 
         # Carry the demo flag across refresh — otherwise a read-only demo session
         # could refresh into a full-access token and bypass the write guard.
@@ -125,8 +127,8 @@ class AuthService:
         carry a ``demo`` claim that DemoReadOnlyMiddleware uses to reject writes.
         """
         user = await self.user_repo.find_by_email(settings.DEMO_EMAIL)
-        if not user:
-            raise UserNotFound()
+        if not await self._is_enabled(user):
+            raise InvalidCredentials()
         access_token = create_access_token(
             data={"sub": str(user.id), "email": user.email, "type": "access", "demo": True},
             expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
@@ -142,17 +144,18 @@ class AuthService:
 
     async def get_current_user(self, token: str) -> User:
         """Decode access token and return the user."""
-        payload = decode_token(token)
-        if not payload:
-            raise InvalidToken()
-        if payload.get("type") != "access":
-            raise InvalidToken("Invalid token type")
-
-        user_id = payload.get("sub")
-        if not user_id:
-            raise InvalidToken()
-
-        user = await self.user_repo.get_by_id(uuid.UUID(user_id))
-        if not user:
-            raise UserNotFound()
+        user, _ = await self._token_user(token, "access")
         return user
+
+    async def _token_user(self, token: str, kind: str) -> tuple[User, dict]:
+        payload = decode_token(token)
+        if not payload or payload.get("type") != kind:
+            raise InvalidToken()
+        try:
+            user_id = uuid.UUID(payload.get("sub", ""))
+        except (ValueError, TypeError, AttributeError):
+            raise InvalidToken()
+        user = await self.user_repo.get_by_id(user_id)
+        if not await self._is_enabled(user):
+            raise InvalidToken()
+        return user, payload

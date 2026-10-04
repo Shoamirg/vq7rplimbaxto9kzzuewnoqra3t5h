@@ -31,12 +31,20 @@ async def seed(output: Path):
             role = Role(name="admin")
             session.add(role)
             await session.flush()
+        mechanic_role = await session.scalar(select(Role).where(Role.name == "mechanic"))
+        if mechanic_role is None:
+            mechanic_role = Role(name="mechanic")
+            session.add(mechanic_role)
+            await session.flush()
         a = ServiceCenter(name="Flutter QA Turon", email=f"flutter-a-{tag}@example.com")
         b = ServiceCenter(name="Flutter QA other tenant", email=f"flutter-b-{tag}@example.com")
         session.add_all([a, b])
         await session.flush()
         session.add(User(email=email, password_hash=hash_password(password), full_name="Flutter QA xodim",
                          role_id=role.id, service_center_id=a.id, is_super_admin=False))
+        readonly_email = f"flutter-readonly-{tag}@example.com"
+        session.add(User(email=readonly_email, password_hash=hash_password(password), full_name="Flutter QA usta",
+                         role_id=mechanic_role.id, service_center_id=a.id, is_super_admin=False))
         other = Customer(service_center_id=b.id, full_name="Other tenant customer", phone="+998900001111")
         session.add(other)
         # Fresh test databases need one valid catalog model for vehicle intake.
@@ -49,6 +57,7 @@ async def seed(output: Path):
         await session.flush()
         await session.commit()
         output.write_text(json.dumps({"email": email, "password": password,
+                                      "read_only_email": readonly_email,
                                       "other_customer_id": str(other.id)}, indent=2), encoding="utf-8")
     await engine.dispose()
     print("Created isolated Flutter API smoke fixture")

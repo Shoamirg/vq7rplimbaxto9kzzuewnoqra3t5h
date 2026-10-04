@@ -144,6 +144,7 @@ class _BillScreenState extends State<BillScreen> {
   Widget build(BuildContext context) => PageFrame(
     title: bill.code,
     demo: widget.repository.isDemo,
+    readOnly: !widget.repository.canWrite,
     actions: [
       IconButton(
         tooltip: context.l10n.refresh,
@@ -198,19 +199,21 @@ class _BillScreenState extends State<BillScreen> {
           ),
       ],
     ),
-    footer: SaveButton(
-      label: context.l10n.recordOrCheckPayment,
-      busy: busy,
-      onPressed: error != null
-          ? null
-          : () async {
-              await openPage(
-                context,
-                PaymentForm(repository: widget.repository, bill: bill),
-              );
-              if (mounted) await reload();
-            },
-    ),
+    footer: !widget.repository.canWrite
+        ? null
+        : SaveButton(
+            label: context.l10n.recordOrCheckPayment,
+            busy: busy,
+            onPressed: error != null
+                ? null
+                : () async {
+                    await openPage(
+                      context,
+                      PaymentForm(repository: widget.repository, bill: bill),
+                    );
+                    if (mounted) await reload();
+                  },
+          ),
   );
 }
 

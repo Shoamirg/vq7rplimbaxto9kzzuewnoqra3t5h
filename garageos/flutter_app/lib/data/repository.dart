@@ -5,6 +5,7 @@ import 'payment_store.dart';
 abstract class GarageRepository {
   PaymentStore payments = MemoryPaymentStore();
   bool get isDemo;
+  bool get canWrite => true;
   Future<PageData<Work>> works({
     String query = '',
     int page = 1,
@@ -28,10 +29,16 @@ abstract class GarageRepository {
 }
 
 class LiveRepository extends GarageRepository {
-  LiveRepository(this.api, {PaymentStore? paymentStore}) {
+  LiveRepository(
+    this.api, {
+    PaymentStore? paymentStore,
+    this.canWrite = false,
+  }) {
     if (paymentStore != null) payments = paymentStore;
   }
   final ApiClient api;
+  @override
+  final bool canWrite;
   @override
   bool get isDemo => false;
   @override

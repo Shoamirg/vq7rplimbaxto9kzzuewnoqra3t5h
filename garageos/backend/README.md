@@ -106,6 +106,47 @@ admin email `admin@<tenant-slug>.garageos.app` (e.g. `admin@demo.garageos.app`).
 
 ## Multi-tenant isolation — important
 
+### Staff access lifecycle and permissions
+
+Staff login, token refresh, authenticated requests and public demo sign-in require
+an active user, service center and role. Suspending any of these denies previously
+issued tokens on the next request; unavailable identities and malformed token
+subjects return `401`, so mobile refresh failures end the session. Suspension is
+checked against current database state, not cached in JWT claims. Re-enabling an
+identity does not invalidate its otherwise unexpired tokens; this is suspension,
+not a permanent logout/revocation registry.
+
+`GET /api/v1/auth/me` exposes effective `permissions`. The current shared staff
+panel uses this coarse policy:
+
+| Active role | Permissions |
+| --- | --- |
+| `admin`, `manager`, `receptionist`, `super_admin` | `staff.read`, `staff.write` |
+| `mechanic` | `staff.read` |
+| Unknown role | None |
+| Public demo session | At most `staff.read` |
+
+Every staff tenant Unit of Work enforces the required capability before opening
+its transaction. The platform flag does not bypass permissions or tenant scope.
+The case-conversation lookup can create a thread on first open; that creation
+also requires `staff.write`, even though the route uses GET. Read-only accounts
+can read an existing thread, but receive `403` if it would need to be created.
+Mechanics can inspect the tenant workspace (including billing); reception can
+operate billing. A dedicated assignment-scoped mechanic workflow and finer
+financial approvals are later work, not claims about the client's agreed roles.
+The customer portal uses a separate principal and dependency chain.
+
+Update the API and Flutter app together: live mobile sign-in requires the
+permissions field and fails closed if it is absent. The role catalog is global;
+suspending a role affects every garage using it. To suspend one employee, change
+that user's `is_active`, not the global role.
+
+Focused real-database regressions:
+
+```sh
+python -m pytest tests/test_staff_access_lifecycle.py -q
+```
+
 Isolation is **caller-enforced**, not automatic:
 
 - `BaseRepository.list(service_center_id=...)` and `count(...)` scope correctly **when
