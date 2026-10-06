@@ -26,7 +26,7 @@ for (const width of [390, 1280]) {
       await page.screenshot({ path: `test-results/platform-${locale}-${width}-garages.png`, fullPage: true });
       await other.getByRole('button', { name: text.center }).click();
       await expect(page.getByRole('button', { name: text.all })).toBeVisible();
-      await page.getByLabel(text.records, { exact: true }).selectOption('customers');
+      await page.getByRole('combobox', { name: text.records, exact: true }).selectOption('customers');
       await expect(page.getByRole('listitem').first()).toBeVisible();
       await expect(page.getByRole('listitem').first()).toContainText('Northside Auto (Tenant B)');
       await page.getByLabel(text.search, { exact: true }).fill('No-match-platform-938231');
@@ -47,7 +47,7 @@ test('ordinary owner has no global browser access or global proxy data', async (
   expect((await page.request.post('/api/auth/login', { data: { email: 'admin@demo.garageos.app', password: 'demo1234' } })).ok()).toBeTruthy();
   expect((await page.request.get('/api/proxy/platform/records/centers')).status()).toBe(403);
   await page.goto('/platform');
-  await expect(page.getByRole('alert')).toContainText('platforma ko‘rish huquqi');
+  await expect(page.getByRole('main').getByRole('alert')).toContainText('platforma ko‘rish huquqi');
   await expect(page.getByRole('listitem')).toHaveCount(0);
 });
 

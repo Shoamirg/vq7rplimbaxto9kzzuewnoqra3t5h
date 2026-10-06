@@ -130,7 +130,7 @@ test("calendar completion records the performed work in vehicle history", async 
   expect((await page.request.patch(`/api/proxy/appointments/${appointmentId}/start`)).ok()).toBeTruthy();
 
   await page.goto("/calendar");
-  await page.getByTestId(`calendar-appointment-${appointmentId}`).click();
+  await page.getByRole("main").getByTestId(`calendar-appointment-${appointmentId}`).click();
   await page.getByRole("button", { name: "Ishni tugatish" }).click();
   await expect(page.getByRole("dialog", { name: "Ishni tugatish" })).toBeVisible();
   await page.locator("#complete-service-type").fill("Moy almashtirish");
