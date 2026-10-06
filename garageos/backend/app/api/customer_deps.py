@@ -57,7 +57,9 @@ async def get_customer_uow(
     # Identity/credential validity is checked by get_current_customer first.
     # The signed claim distinguishes owner-created credentials from Telegram.
     payload = decode_token(credentials.credentials)
-    if payload and "account_id" in payload:
+    if payload is None:
+        raise UnauthorizedError()
+    if "account_id" in payload:
         path = request.url.path.rstrip("/")
         allowed_read = path == "/api/v1/customer/me" or path.startswith("/api/v1/customer/history/")
         if request.method not in {"GET", "HEAD", "OPTIONS"} or not allowed_read:
