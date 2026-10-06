@@ -42,4 +42,5 @@ class CurrentUserResponse(BaseModel):
     service_center_id: str
     is_super_admin: bool
     permissions: list[str] = Field(default_factory=list)
+    platform_permissions: list[str] = Field(default_factory=list)
     branding: Branding | None = None

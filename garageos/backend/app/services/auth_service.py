@@ -57,7 +57,7 @@ class AuthService:
             phone=phone,
             role_id=admin_role.id,
             service_center_id=service_center.id,
-            is_super_admin=True,
+            is_super_admin=False,
         )
 
         return {

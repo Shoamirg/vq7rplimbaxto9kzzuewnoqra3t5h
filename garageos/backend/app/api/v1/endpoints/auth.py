@@ -1,6 +1,8 @@
 """Authentication endpoints: login, token refresh, current user."""
 from __future__ import annotations
 
+from app.api.platform_deps import get_platform_permissions
+
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -95,6 +97,7 @@ async def demo(auth: AuthService = Depends(get_auth_service)) -> TokenResponse:
 async def me(
     current_user: User = Depends(get_current_user),
     permissions: list[str] = Depends(get_staff_permissions),
+    platform_permissions: list[str] = Depends(get_platform_permissions),
     db: AsyncSession = Depends(get_db),
 ) -> CurrentUserResponse:
     result = await db.execute(
@@ -109,5 +112,6 @@ async def me(
         service_center_id=str(current_user.service_center_id),
         is_super_admin=current_user.is_super_admin,
         permissions=permissions,
+        platform_permissions=platform_permissions,
         branding=Branding(**branding_dict(center)) if center else None,
     )
