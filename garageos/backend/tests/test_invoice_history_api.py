@@ -135,12 +135,13 @@ async def test_literal_wildcards_can_find_a_document_and_empty_pages_remain_boun
     assert blank["total"] == 85 and len(blank["items"]) == 85
 
 
-async def test_read_only_mechanic_can_search_history_but_cannot_archive_a_result(client, history, identity):
+async def test_mechanic_cannot_search_or_archive_financial_history(client, history, identity):
     await _as_role(identity, "mechanic")
     response = await client.get("/api/v1/invoices", headers=history, params={"q": "history-001", "page_size": 30})
-    assert response.status_code == 200 and response.json()["total"] == 1
-    result_id = response.json()["items"][0]["id"]
+    assert response.status_code == 403
+    result_id = str(uuid.UUID(int=1))
     denied = await client.delete(f"/api/v1/invoices/{result_id}", headers=history)
     assert denied.status_code == 403
+    await _as_role(identity, "admin")
     still_present = await client.get(f"/api/v1/invoices/{result_id}", headers=history)
     assert still_present.status_code == 200

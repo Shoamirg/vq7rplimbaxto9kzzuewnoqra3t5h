@@ -81,7 +81,13 @@ class AppState extends ChangeNotifier {
       api.refreshToken = tokens['refresh_token'];
       final user = await api.request('GET', '/auth/me');
       final permissions = user['permissions'];
-      if (permissions is! List || !permissions.contains('staff.read')) {
+      final mechanic =
+          user['role'] == 'mechanic' &&
+          permissions is List &&
+          permissions.contains('work.read.assigned') &&
+          permissions.contains('work.write.assigned');
+      if (permissions is! List ||
+          (!permissions.contains('staff.read') && !mechanic)) {
         throw const AppFailure('Bu amal uchun ruxsat yoʻq.', status: 403);
       }
       name = user['full_name'];
@@ -90,11 +96,14 @@ class AppState extends ChangeNotifier {
       repository = LiveRepository(
         api,
         canWrite: permissions.contains('staff.write'),
-        paymentStore: DevicePaymentStore(
-          Uri.encodeComponent(
-            '${api.base}/${user['id']}/${user['service_center_id']}',
-          ),
-        ),
+        isMechanic: mechanic,
+        paymentStore: mechanic
+            ? null
+            : DevicePaymentStore(
+                Uri.encodeComponent(
+                  '${api.base}/${user['id']}/${user['service_center_id']}',
+                ),
+              ),
       );
       notifyListeners();
     } catch (_) {

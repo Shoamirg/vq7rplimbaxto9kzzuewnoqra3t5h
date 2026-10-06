@@ -35,7 +35,9 @@ class _WorkScreenState extends State<WorkScreen> {
     });
     try {
       final current = await widget.repository.work(work.id);
-      final invoice = current.status == WorkStatus.completed
+      final invoice =
+          current.status == WorkStatus.completed &&
+              !widget.repository.isMechanic
           ? await widget.repository.billForWork(work.id)
           : null;
       if (mounted) {
@@ -67,6 +69,16 @@ class _WorkScreenState extends State<WorkScreen> {
   }
 
   Future<void> assign() async {
+    if (!widget.repository.isDemo) {
+      final mechanic = await openPage<Mechanic>(
+        context,
+        MechanicPicker(repository: widget.repository, initial: work.mechanic),
+      );
+      if (mechanic != null && mounted) {
+        await change('assign-mechanic', {'mechanic_user_id': mechanic.id});
+      }
+      return;
+    }
     final name = await showDialog<String>(
       context: context,
       builder: (context) => MechanicDialog(initial: work.mechanic),
@@ -124,20 +136,25 @@ class _WorkScreenState extends State<WorkScreen> {
   Widget build(BuildContext context) {
     final canAssign = widget.repository.canWrite && work.canAssignMechanic;
     final label = switch (work.status) {
-      WorkStatus.pending => context.l10n.confirmAppointment,
+      WorkStatus.pending =>
+        widget.repository.isMechanic ? null : context.l10n.confirmAppointment,
       WorkStatus.confirmed =>
         (work.mechanic?.trim().isNotEmpty ?? false)
             ? context.l10n.startWork
             : context.l10n.assignMechanic,
       WorkStatus.inProgress => context.l10n.completeWork,
       WorkStatus.completed =>
-        linked == null ? context.l10n.createInvoice : context.l10n.openInvoice,
+        widget.repository.isMechanic
+            ? null
+            : linked == null
+            ? context.l10n.createInvoice
+            : context.l10n.openInvoice,
       _ => null,
     };
     return PageFrame(
       title: context.l10n.serviceWork,
       demo: widget.repository.isDemo,
-      readOnly: !widget.repository.canWrite,
+      readOnly: !widget.repository.canPerformWork,
       actions: [
         IconButton(
           tooltip: context.l10n.refresh,
@@ -250,7 +267,7 @@ class _WorkScreenState extends State<WorkScreen> {
       ),
       footer:
           label == null ||
-              (!widget.repository.canWrite &&
+              (!widget.repository.canPerformWork &&
                   !(work.status == WorkStatus.completed && linked != null))
           ? null
           : SaveButton(
@@ -283,6 +300,53 @@ class _WorkScreenState extends State<WorkScreen> {
             ),
     );
   }
+}
+
+class MechanicPicker extends StatefulWidget {
+  const MechanicPicker({super.key, required this.repository, this.initial});
+  final GarageRepository repository;
+  final String? initial;
+  @override
+  State<MechanicPicker> createState() => _MechanicPickerState();
+}
+
+class _MechanicPickerState extends State<MechanicPicker> {
+  @override
+  Widget build(BuildContext context) => PageFrame(
+    title: context.l10n.assignMechanic,
+    demo: widget.repository.isDemo,
+    body: Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: Space.contentWidth),
+        child: ListLoadView<List<Mechanic>>(
+          storageKey: 'mechanic-account-picker',
+          loadKey: widget.repository,
+          filterKey: widget.repository,
+          load: widget.repository.mechanics,
+          header: (data, reload, loading) => [
+            Text(context.l10n.mechanicAccountHint),
+            if (widget.initial != null)
+              Pair(context.l10n.mechanic, widget.initial!),
+            const SizedBox(height: Space.group),
+          ],
+          items: (data, reload) => [
+            if (data.isEmpty)
+              EmptyNotice(
+                context.l10n.noMechanics,
+                context.l10n.mechanicAccountHint,
+              ),
+            for (final mechanic in data)
+              ListTile(
+                title: Text(mechanic.name),
+                subtitle: Text(mechanic.email),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.pop(context, mechanic),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class MechanicDialog extends StatefulWidget {
@@ -495,7 +559,11 @@ class _CompleteFormState extends State<CompleteForm> {
             },
           ),
           SizedBox(height: 16),
-          Text(context.l10n.completeWorkHint),
+          Text(
+            widget.repository.isMechanic
+                ? context.l10n.mechanicCompleteHint
+                : context.l10n.completeWorkHint,
+          ),
         ],
       ),
     ),

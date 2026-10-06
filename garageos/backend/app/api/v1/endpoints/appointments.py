@@ -202,6 +202,7 @@ async def update_appointment(
         appointment_date=body.appointment_date,
         appointment_time=body.appointment_time,
         mechanic_name=body.mechanic_name,
+        mechanic_user_id=body.mechanic_user_id,
         estimated_duration_minutes=body.estimated_duration_minutes,
         notes=body.notes,
     )
@@ -222,4 +223,6 @@ async def assign_mechanic(
     body: AssignMechanicRequest,
     uow: UnitOfWork = Depends(get_tenant_uow),
 ) -> dict:
-    return await AppointmentService(uow).assign_mechanic(appointment_id, body.mechanic_name)
+    return await AppointmentService(uow).assign_mechanic(
+        appointment_id, body.mechanic_name, mechanic_user_id=body.mechanic_user_id,
+    )

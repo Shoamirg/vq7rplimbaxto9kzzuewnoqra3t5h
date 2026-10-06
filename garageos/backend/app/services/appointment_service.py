@@ -17,7 +17,7 @@ from app.core.events import AppointmentCreated, AppointmentConfirmed, Appointmen
     AppointmentCompleted, AppointmentCancelled, MileageUpdated
 from app.exceptions import (
     AppointmentNotFound, SlotUnavailable, AppointmentConflict, AppointmentStateError,
-    VehicleNotFound, CustomerNotFound,
+    VehicleNotFound, CustomerNotFound, UserNotFound,
 )
 
 
@@ -40,6 +40,7 @@ def serialize_appointment(a) -> dict:
         "appointment_date": a.appointment_date.isoformat(),
         "appointment_time": a.appointment_time,
         "mechanic_name": a.mechanic_name,
+        "mechanic_user_id": str(a.mechanic_user_id) if a.mechanic_user_id else None,
         "status": a.status,
         "customer_notes": a.customer_notes,
         "notes": a.notes,
@@ -64,10 +65,10 @@ class AppointmentService:
         self.customer_repo = CustomerRepository(uow.session, sc)
         self.service_record_repo = ServiceRecordRepository(uow.session, sc)
 
-    async def _check_schedule(self, when, time, duration, mechanic, *, exclude_id=None):
+    async def _check_schedule(self, when, time, duration, mechanic, *, exclude_id=None, mechanic_user_id=None):
         conflicts = await self.appointment_repo.find_conflicting(
             self.uow.service_center_id, when, time, duration,
-            exclude_id=exclude_id, mechanic_name=mechanic,
+            exclude_id=exclude_id, mechanic_name=mechanic, mechanic_user_id=mechanic_user_id,
         )
         if conflicts:
             raise AppointmentConflict()
@@ -271,9 +272,10 @@ class AppointmentService:
         await self.uow.flush()
         return await self.get_appointment(appointment_id)
 
-    async def start_appointment(self, appointment_id: uuid.UUID) -> dict:
+    async def start_appointment(self, appointment_id: uuid.UUID,
+                                *, mechanic_user_id: uuid.UUID | None = None) -> dict:
         appointment = await self.appointment_repo.get_detailed(appointment_id, for_update=True)
-        if not appointment:
+        if not appointment or (mechanic_user_id is not None and appointment.mechanic_user_id != mechanic_user_id):
             raise AppointmentNotFound()
         if appointment.status != AppointmentStatus.CONFIRMED:
             raise AppointmentStateError(
@@ -298,6 +300,7 @@ class AppointmentService:
         total_cost: Optional[float] = None,
         notes: Optional[str] = None,
         service_type: Optional[str] = None,
+        mechanic_user_id: uuid.UUID | None = None,
     ) -> dict:
         """Complete an appointment and drive the core value chain.
 
@@ -308,7 +311,7 @@ class AppointmentService:
         handled after commit — that is where Telegram/email hook in.
         """
         appointment = await self.appointment_repo.get_detailed(appointment_id, for_update=True)
-        if not appointment:
+        if not appointment or (mechanic_user_id is not None and appointment.mechanic_user_id != mechanic_user_id):
             raise AppointmentNotFound()
         if appointment.status != AppointmentStatus.IN_PROGRESS:
             raise AppointmentStateError(
@@ -316,7 +319,8 @@ class AppointmentService:
             )
 
         appointment.status = AppointmentStatus.COMPLETED
-        appointment.total_cost = total_cost
+        if mechanic_user_id is None:
+            appointment.total_cost = total_cost
         if notes:
             appointment.notes = notes
 
@@ -346,7 +350,7 @@ class AppointmentService:
             description=description,
             performed_km=performed_km,
             performed_date=datetime.now(timezone.utc),
-            cost=total_cost,
+            cost=appointment.total_cost,
         )
         await self.uow.flush()
 
@@ -442,6 +446,7 @@ class AppointmentService:
         appointment.appointment_date = new_slot.slot_date
         appointment.appointment_time = new_slot.start_time
         appointment.mechanic_name = new_slot.mechanic_name
+        appointment.mechanic_user_id = None
         appointment.estimated_duration_minutes = new_slot.duration_minutes
         appointment.status = AppointmentStatus.RESCHEDULED
         await self.uow.session.flush()
@@ -696,6 +701,7 @@ class AppointmentService:
         appointment.appointment_date = new_slot.slot_date
         appointment.appointment_time = new_slot.start_time
         appointment.mechanic_name = new_slot.mechanic_name
+        appointment.mechanic_user_id = None
         appointment.estimated_duration_minutes = new_slot.duration_minutes
         await self.uow.flush()
         return await self.get_appointment(appointment_id)
@@ -709,6 +715,7 @@ class AppointmentService:
         mechanic_name: Optional[str] = None,
         estimated_duration_minutes: Optional[int] = None,
         notes: Optional[str] = None,
+        mechanic_user_id: uuid.UUID | None = None,
     ) -> dict:
         """Partial update used by the calendar board (drag-to-move, resize)."""
         await self.appointment_repo.lock_schedule()
@@ -721,13 +728,21 @@ class AppointmentService:
         new_date = self._at_time(appointment_date or appointment.appointment_date, new_time)
         new_duration = estimated_duration_minutes if estimated_duration_minutes is not None else appointment.estimated_duration_minutes
         new_mechanic = (mechanic_name.strip() or None) if mechanic_name is not None else appointment.mechanic_name
-        await self._check_schedule(new_date, new_time, new_duration, new_mechanic, exclude_id=appointment_id)
+        assigned_id = appointment.mechanic_user_id if mechanic_name is None else None
+        if mechanic_user_id is not None:
+            mechanic = await UserRepository(self.uow.session).mechanic(self.uow.service_center_id, mechanic_user_id)
+            if not mechanic:
+                raise UserNotFound()
+            new_mechanic, assigned_id = mechanic.full_name, mechanic.id
+        await self._check_schedule(new_date, new_time, new_duration, new_mechanic, exclude_id=appointment_id,
+                                   mechanic_user_id=assigned_id)
         # A freely edited visit no longer occupies its old pre-generated slot.
         # Keep that slot reusable rather than leaving a phantom booking behind.
         placement_changed = (
             new_date != self._at_time(appointment.appointment_date, appointment.appointment_time)
             or new_duration != appointment.estimated_duration_minutes
             or new_mechanic != appointment.mechanic_name
+            or assigned_id != appointment.mechanic_user_id
         )
         if placement_changed and appointment.slot:
             appointment.slot.status = AppointmentSlotStatus.AVAILABLE
@@ -737,8 +752,9 @@ class AppointmentService:
         appointment.appointment_date = new_date
         if appointment_time is not None:
             appointment.appointment_time = appointment_time
-        if mechanic_name is not None:
+        if mechanic_name is not None or mechanic_user_id is not None:
             appointment.mechanic_name = new_mechanic
+            appointment.mechanic_user_id = assigned_id
         if estimated_duration_minutes is not None:
             appointment.estimated_duration_minutes = estimated_duration_minutes
         if notes is not None:
@@ -746,19 +762,28 @@ class AppointmentService:
         await self.uow.flush()
         return await self.get_appointment(appointment_id)
 
-    async def assign_mechanic(self, appointment_id: uuid.UUID, mechanic_name: str) -> dict:
+    async def assign_mechanic(self, appointment_id: uuid.UUID, mechanic_name: str | None = None,
+                              *, mechanic_user_id: uuid.UUID | None = None) -> dict:
         await self.appointment_repo.lock_schedule()
         appointment = await self.appointment_repo.get_with_slot(appointment_id, for_update=True)
         if not appointment:
             raise AppointmentNotFound()
         if appointment.status not in (AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED):
             raise AppointmentStateError("Mechanic assignment is closed after service work starts")
-        mechanic_name = mechanic_name.strip()
+        if mechanic_user_id:
+            mechanic = await UserRepository(self.uow.session).mechanic(self.uow.service_center_id, mechanic_user_id)
+            if not mechanic:
+                raise UserNotFound()
+            mechanic_name = mechanic.full_name
+        else:
+            mechanic_name = (mechanic_name or "").strip()
         await self._check_schedule(
             appointment.appointment_date, appointment.appointment_time,
             appointment.estimated_duration_minutes, mechanic_name, exclude_id=appointment_id,
+            mechanic_user_id=mechanic_user_id,
         )
         appointment.mechanic_name = mechanic_name
+        appointment.mechanic_user_id = mechanic_user_id
         if appointment.slot:
             appointment.slot.mechanic_name = mechanic_name
         await self.uow.flush()

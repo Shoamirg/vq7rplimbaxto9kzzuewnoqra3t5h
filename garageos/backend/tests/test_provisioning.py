@@ -97,13 +97,20 @@ async def test_operator_provisioned_staff_can_sign_in_to_an_empty_workspace(mani
             assert profile.json()["service_center_id"] == result["service_center"]["id"]
             assert profile.json()["role"] == staff["role"]
             assert profile.json()["is_super_admin"] is False
-            permissions = ["staff.read"] if staff["role"] == "mechanic" else ["staff.read", "staff.write"]
+            mechanic = staff["role"] == "mechanic"
+            permissions = ["work.read.assigned", "work.write.assigned"] if mechanic else ["staff.read", "staff.write"]
             assert profile.json()["permissions"] == permissions
             for route in ("customers", "vehicles", "appointments", "invoices"):
                 listed = await client.get(f"/api/v1/{route}", headers=headers)
-                assert listed.status_code == 200, listed.text
-                assert listed.json()["items"] == []
-        catalog = await client.get("/api/v1/vehicles/catalog", headers=headers)
+                assert listed.status_code == (403 if mechanic else 200), listed.text
+                if not mechanic:
+                    assert listed.json()["items"] == []
+            if mechanic:
+                own_work = await client.get("/api/v1/mechanic/work", headers=headers)
+                assert own_work.status_code == 200
+                assert own_work.json()["items"] == []
+        operator = next(staff for staff in config["staff"] if staff["role"] == "admin")
+        catalog = await client.get("/api/v1/vehicles/catalog", headers=await _login(client, operator["email"]))
         assert catalog.status_code == 200
         assert catalog.json()["brands"]
 

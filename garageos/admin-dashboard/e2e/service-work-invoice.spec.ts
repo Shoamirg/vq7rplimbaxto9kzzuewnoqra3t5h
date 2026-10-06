@@ -44,7 +44,14 @@ test("staff completes service work and shows one Uzbek UZS invoice", async ({ pa
   await page.getByText("Tahrirlash / usta tayinlash", { exact: true }).click();
   await expect(page.locator("#edit-mechanic")).toBeVisible();
   await page.locator("#edit-mechanic").selectOption({ index: 1 });
+  const mechanicId = await page.locator("#edit-mechanic").inputValue();
+  expect(mechanicId).toMatch(/^[0-9a-f-]{36}$/);
+  const assignmentPromise = page.waitForResponse((response) =>
+    response.url().includes(`/api/proxy/appointments/${appointmentId}`) && response.request().method() === "PATCH");
   await page.getByRole("button", { name: "Saqlash" }).click();
+  const assignment = await assignmentPromise;
+  expect(assignment.ok(), await assignment.text()).toBeTruthy();
+  expect((await assignment.json()).mechanic_user_id).toBe(mechanicId);
 
   await actions().click();
   await page.getByText("Ishni boshlash", { exact: true }).click();

@@ -6,6 +6,9 @@ abstract class GarageRepository {
   PaymentStore payments = MemoryPaymentStore();
   bool get isDemo;
   bool get canWrite => true;
+  bool get isMechanic => false;
+  bool get canPerformWork => canWrite || isMechanic;
+  Future<List<Mechanic>> mechanics() async => const [];
   Future<PageData<Work>> works({
     String query = '',
     int page = 1,
@@ -33,12 +36,22 @@ class LiveRepository extends GarageRepository {
     this.api, {
     PaymentStore? paymentStore,
     this.canWrite = false,
+    this.isMechanic = false,
   }) {
     if (paymentStore != null) payments = paymentStore;
   }
   final ApiClient api;
   @override
   final bool canWrite;
+  @override
+  final bool isMechanic;
+  String get workPath => isMechanic ? '/mechanic/work' : '/appointments';
+  @override
+  Future<List<Mechanic>> mechanics() async {
+    final data = await api.request('GET', '/mechanics');
+    return (data['items'] as List).map((j) => Mechanic.fromJson(j)).toList();
+  }
+
   @override
   bool get isDemo => false;
   @override
@@ -50,7 +63,7 @@ class LiveRepository extends GarageRepository {
   }) async {
     final data = await api.request(
       'GET',
-      '/appointments',
+      workPath,
       query: {
         'q': query,
         'page': '$page',
@@ -69,7 +82,7 @@ class LiveRepository extends GarageRepository {
 
   @override
   Future<Work> work(String id) async =>
-      Work.fromJson(await api.request('GET', '/appointments/$id'));
+      Work.fromJson(await api.request('GET', '$workPath/$id'));
   @override
   Future<Work> createWork(Json data) async => Work.fromJson(
     await api.request('POST', '/appointments/direct', body: data),
@@ -77,7 +90,7 @@ class LiveRepository extends GarageRepository {
   @override
   Future<Work> changeWork(String id, String action, [Json? data]) async =>
       Work.fromJson(
-        await api.request('PATCH', '/appointments/$id/$action', body: data),
+        await api.request('PATCH', '$workPath/$id/$action', body: data),
       );
   @override
   Future<PageData<Customer>> customers({

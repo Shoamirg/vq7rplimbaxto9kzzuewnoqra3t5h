@@ -21,6 +21,7 @@ class Appointment(BaseModelMixin, ServiceCenterMixin, Base):
     __table_args__ = (
         Index("ix_appointments_center_date", "service_center_id", "appointment_date"),
         Index("ix_appointments_center_status", "service_center_id", "status"),
+        Index("ix_appointments_center_mechanic", "service_center_id", "mechanic_user_id"),
     )
 
     customer_id: Mapped[UUID] = mapped_column(
@@ -40,6 +41,9 @@ class Appointment(BaseModelMixin, ServiceCenterMixin, Base):
         nullable=True,
     )
     mechanic_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    mechanic_user_id: Mapped[UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True,
+    )
     appointment_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
     appointment_time: Mapped[str] = mapped_column(String(10), nullable=False)  # HH:MM format
     estimated_duration_minutes: Mapped[int] = mapped_column(Integer, default=60)

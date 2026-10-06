@@ -25,6 +25,7 @@ export interface Appointment {
   appointment_date: string; // ISO
   appointment_time: string; // HH:MM
   mechanic_name: string | null;
+  mechanic_user_id?: string | null;
   status: AppointmentStatus;
   maintenance_rule_id: string | null;
   service_type: string | null;
@@ -34,6 +35,12 @@ export interface Appointment {
   health_score?: number | null;
   health_band?: HealthBand | null;
   billing?: AppointmentBilling | null;
+}
+
+export interface MechanicAccount {
+  id: string;
+  full_name: string;
+  email: string;
 }
 
 export interface AppointmentBilling {

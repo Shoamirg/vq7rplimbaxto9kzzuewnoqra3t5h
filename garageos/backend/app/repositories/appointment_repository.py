@@ -65,8 +65,11 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
         q: Optional[str] = None,
         skip: int = 0,
         limit: int = 50,
+        mechanic_user_id: Optional[uuid.UUID] = None,
     ) -> tuple[Sequence[Appointment], int]:
         base = self._scope(select(Appointment).where(Appointment.is_active == True))
+        if mechanic_user_id is not None:
+            base = base.where(Appointment.mechanic_user_id == mechanic_user_id)
         if status:
             base = base.where(Appointment.status == status)
         if on_date:
@@ -108,7 +111,7 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
         total = await self.session.scalar(select(func.count()).select_from(base.subquery()))
 
         stmt = (
-            base.order_by(Appointment.appointment_date.desc(), Appointment.appointment_time)
+            base.order_by(Appointment.appointment_date.desc(), Appointment.appointment_time, Appointment.id.desc())
             .offset(skip)
             .limit(limit)
             .options(*self._DETAIL_OPTIONS)
@@ -205,6 +208,7 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
         duration_minutes: int,
         exclude_id: Optional[uuid.UUID] = None,
         mechanic_name: Optional[str] = None,
+        mechanic_user_id: Optional[uuid.UUID] = None,
     ) -> Sequence[Appointment]:
         """Half-open intervals: adjacent jobs and different mechanics may coexist."""
         if not mechanic_name or not mechanic_name.strip():
@@ -216,9 +220,14 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
         # appointment_time is canonical; date-only legacy rows must also work.
         starts_at = appointment_start()
         ends_at = starts_at + Appointment.estimated_duration_minutes * literal(timedelta(minutes=1))
+        name_matches = func.lower(func.trim(Appointment.mechanic_name)) == mechanic_name.strip().lower()
+        mechanic_matches = name_matches if mechanic_user_id is None else or_(
+            Appointment.mechanic_user_id == mechanic_user_id,
+            and_(Appointment.mechanic_user_id.is_(None), name_matches),
+        )
         stmt = self._scope(select(Appointment)).where(
             Appointment.service_center_id == service_center_id,
-            func.lower(func.trim(Appointment.mechanic_name)) == mechanic_name.strip().lower(),
+            mechanic_matches,
             starts_at < requested_end,
             ends_at > requested_start,
             Appointment.status.notin_([AppointmentStatus.CANCELLED, AppointmentStatus.COMPLETED]),

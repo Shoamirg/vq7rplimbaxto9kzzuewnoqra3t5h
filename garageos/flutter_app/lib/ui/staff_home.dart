@@ -118,7 +118,9 @@ class _StaffHomeState extends State<StaffHome> {
         ],
       ),
       body: SafeArea(
-        child: wide
+        child: repo.isMechanic
+            ? WorkList(repository: repo)
+            : wide
             ? Row(
                 children: [
                   NavigationRail(
@@ -146,7 +148,7 @@ class _StaffHomeState extends State<StaffHome> {
               )
             : content,
       ),
-      bottomNavigationBar: wide
+      bottomNavigationBar: wide || repo.isMechanic
           ? null
           : NavigationBar(
               selectedIndex: tab,
@@ -182,6 +184,12 @@ class _WorkListState extends State<WorkList> {
   String query = '';
   int page = 1;
   bool today = true;
+  @override
+  void initState() {
+    super.initState();
+    if (widget.repository.isMechanic) today = false;
+  }
+
   final search = TextEditingController();
   @override
   void dispose() {
@@ -241,11 +249,17 @@ class _WorkListState extends State<WorkList> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    today ? context.l10n.today : context.l10n.allAppointments,
+                    widget.repository.isMechanic
+                        ? context.l10n.myWork
+                        : today
+                        ? context.l10n.today
+                        : context.l10n.allAppointments,
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   Text(
-                    today
+                    widget.repository.isMechanic
+                        ? context.l10n.assignedWorkHint
+                        : today
                         ? context.date(DateTime.now())
                         : context.l10n.receptionSubtitle,
                   ),
@@ -273,21 +287,22 @@ class _WorkListState extends State<WorkList> {
             onSearch: updateSearch,
           ),
           SizedBox(height: 12),
-          SegmentedButton<bool>(
-            style: ButtonStyle(
-              minimumSize: WidgetStatePropertyAll(Size(48, 48)),
+          if (!widget.repository.isMechanic)
+            SegmentedButton<bool>(
+              style: ButtonStyle(
+                minimumSize: WidgetStatePropertyAll(Size(48, 48)),
+              ),
+              segments: [
+                ButtonSegment(value: true, label: Text(context.l10n.today)),
+                ButtonSegment(value: false, label: Text(context.l10n.allDates)),
+              ],
+              selected: {today},
+              showSelectedIcon: false,
+              onSelectionChanged: (values) => setState(() {
+                today = values.single;
+                page = 1;
+              }),
             ),
-            segments: [
-              ButtonSegment(value: true, label: Text(context.l10n.today)),
-              ButtonSegment(value: false, label: Text(context.l10n.allDates)),
-            ],
-            selected: {today},
-            showSelectedIcon: false,
-            onSelectionChanged: (values) => setState(() {
-              today = values.single;
-              page = 1;
-            }),
-          ),
           SizedBox(height: Space.xs),
           SizedBox(
             height: 56,
@@ -342,9 +357,13 @@ class _WorkListState extends State<WorkList> {
         items: (data, reload) => [
           if (data.items.isEmpty)
             EmptyNotice(
-              context.l10n.noAppointments,
+              widget.repository.isMechanic
+                  ? context.l10n.noAssignedWork
+                  : context.l10n.noAppointments,
               query.isNotEmpty || status != null
                   ? context.l10n.noMatchingAppointments
+                  : widget.repository.isMechanic
+                  ? context.l10n.assignedWorkHint
                   : today
                   ? context.l10n.noAppointmentsToday
                   : context.l10n.newAppointmentHint,

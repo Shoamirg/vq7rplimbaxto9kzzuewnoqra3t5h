@@ -96,6 +96,7 @@ class Work {
     required this.duration,
     required this.status,
     this.mechanic,
+    this.mechanicUserId,
     this.notes,
     this.customerNotes,
     this.serviceType,
@@ -111,6 +112,7 @@ class Work {
     duration: j['estimated_duration_minutes'] ?? 60,
     status: WorkStatus.parse(j['status']),
     mechanic: j['mechanic_name'],
+    mechanicUserId: j['mechanic_user_id'],
     notes: j['notes'],
     customerNotes: j['customer_notes'],
     serviceType: j['service_type'],
@@ -120,6 +122,7 @@ class Work {
   final int duration;
   final WorkStatus status;
   final String? mechanic, notes, customerNotes, serviceType;
+  final String? mechanicUserId;
   String? get plate =>
       RegExp(r'\(([^)]+)\)\s*$').firstMatch(vehicleLabel)?.group(1);
   String get car => vehicleLabel.replaceFirst(RegExp(r'\s*\([^)]+\)\s*$'), '');
@@ -137,10 +140,18 @@ class Work {
     duration: duration,
     status: status ?? this.status,
     mechanic: mechanic ?? this.mechanic,
+    mechanicUserId: mechanicUserId,
     notes: notes ?? this.notes,
     customerNotes: customerNotes,
     serviceType: serviceType,
   );
+}
+
+class Mechanic {
+  const Mechanic(this.id, this.name, this.email);
+  factory Mechanic.fromJson(Json j) =>
+      Mechanic(j['id'], j['full_name'], j['email']);
+  final String id, name, email;
 }
 
 class Customer {

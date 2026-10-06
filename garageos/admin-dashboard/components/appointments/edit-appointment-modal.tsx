@@ -7,7 +7,7 @@ import { Button, useToast } from "@garageos/design-system";
 
 import { clientFetch, ClientApiError } from "@/lib/api/client";
 import { useI18n } from "@/lib/i18n/context";
-import type { Appointment, CaseMechanic } from "@/lib/api/types";
+import type { Appointment, MechanicAccount } from "@/lib/api/types";
 
 const FIELD = "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
 const LABEL = "block text-xs font-semibold text-muted-foreground mb-1.5";
@@ -24,18 +24,23 @@ export function EditAppointmentModal({
 }) {
   const { toast } = useToast();
   const { t } = useI18n();
-  const [mechanics, setMechanics] = useState<CaseMechanic[]>([]);
+  const [mechanics, setMechanics] = useState<MechanicAccount[]>([]);
   const [date, setDate] = useState(appointment.appointment_date.slice(0, 10));
   const [time, setTime] = useState(appointment.appointment_time || "09:00");
   const [duration, setDuration] = useState(appointment.estimated_duration_minutes || 60);
-  const [mechanic, setMechanic] = useState(appointment.mechanic_name || "");
+  const initialMechanic = appointment.mechanic_user_id || (appointment.mechanic_name ? `legacy:${appointment.mechanic_name}` : "");
+  const [mechanic, setMechanic] = useState(initialMechanic);
   const [notes, setNotes] = useState(appointment.notes || "");
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const [loadingMechanics, setLoadingMechanics] = useState(true);
 
   function loadMechanics() {
     setLoadError(false);
-    clientFetch<CaseMechanic[]>("/cases/mechanics").then(setMechanics).catch(() => setLoadError(true));
+    setLoadingMechanics(true);
+    clientFetch<{ items: MechanicAccount[] }>("/mechanics")
+      .then((data) => setMechanics(data.items)).catch(() => setLoadError(true))
+      .finally(() => setLoadingMechanics(false));
   }
 
   useEffect(() => {
@@ -52,7 +57,7 @@ export function EditAppointmentModal({
           appointment_date: `${date}T${time}:00Z`,
           appointment_time: time,
           estimated_duration_minutes: duration,
-          mechanic_name: mechanic,
+          ...(mechanic === initialMechanic ? {} : mechanic ? { mechanic_user_id: mechanic } : { mechanic_name: "" }),
           notes: notes,
         }),
       });
@@ -107,10 +112,10 @@ export function EditAppointmentModal({
             </div>
             <div>
               <label className={LABEL} htmlFor="edit-mechanic">{t("work.mechanic")}</label>
-              <select id="edit-mechanic" className={FIELD} value={mechanic} onChange={(e) => setMechanic(e.target.value)}>
+              <select id="edit-mechanic" className={FIELD} value={mechanic} disabled={saving || loadingMechanics || loadError} onChange={(e) => setMechanic(e.target.value)}>
                 <option value="">{t("work.unassigned")}</option>
-                {mechanics.map((m) => (<option key={m.id} value={m.name}>{m.name}</option>))}
-                {mechanic && !mechanics.some((m) => m.name === mechanic) ? <option value={mechanic}>{mechanic}</option> : null}
+                {mechanics.map((m) => (<option key={m.id} value={m.id}>{m.full_name} · {m.email}</option>))}
+                {initialMechanic && !mechanics.some((m) => m.id === initialMechanic) ? <option value={initialMechanic}>{appointment.mechanic_name}</option> : null}
               </select>
             </div>
           </div>

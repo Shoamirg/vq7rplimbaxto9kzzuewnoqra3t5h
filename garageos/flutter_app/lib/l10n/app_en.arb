@@ -229,5 +229,11 @@
         "type": "int"
       }
     }
-  }
+  },
+  "mechanicCompleteHint": "Service history will be saved. The admin handles invoicing and payment.",
+  "myWork": "My work",
+  "assignedWorkHint": "Service work assigned to you by the admin appears here.",
+  "noAssignedWork": "No work assigned to you",
+  "noMechanics": "No active mechanic accounts",
+  "mechanicAccountHint": "Choose an active account so the job appears in the mechanic’s app. The previous assignment stays until you select an account."
 }

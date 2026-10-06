@@ -72,3 +72,15 @@ async def get_tenant_uow(
         raise UnauthorizedAction()
     async with UnitOfWork(service_center_id=current_user.service_center_id) as uow:
         yield uow
+
+
+async def get_mechanic_uow(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    permissions: list[str] = Depends(get_staff_permissions),
+) -> AsyncIterator[UnitOfWork]:
+    required = "work.read.assigned" if request.method in {"GET", "HEAD", "OPTIONS"} else "work.write.assigned"
+    if required not in permissions:
+        raise UnauthorizedAction()
+    async with UnitOfWork(service_center_id=current_user.service_center_id) as uow:
+        yield uow

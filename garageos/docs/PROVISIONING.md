@@ -19,16 +19,19 @@ Namuna ichidagi ismlar va email manzillarini almashtiring.
   Bu sozlash mavjud navbat API’sining vaqt hisoblash usulini o‘zgartirmaydi.
 - `staff`: kamida bitta `admin`; qolgan rollar `manager`, `receptionist`, `mechanic`.
   Email manzillar kichik harfga o‘tkaziladi va butun tizimda bitta hisobga tegishli.
-- `full_name`: xodim ismi. Ustalar uchun bir-biridan ajraladigan ismlar ishlating:
-  hozirgi navbat jarayoni ustani ism orqali tayinlaydi.
+- `full_name`: xodim ismi. Yangi tayinlovda usta akkaunt IDsi orqali tanlanadi;
+  bir xil ismli ustalar email orqali ajratiladi. Eski ismli tayinlovlar
+  avtomatik akkauntga bog‘lanmaydi.
 - `password_env`: `GARAGEOS_STAFF_` bilan boshlanuvchi muhit o‘zgaruvchisi nomi.
   JSON ichida parol qiymati, `password`, `is_super_admin` yoki noma’lum maydon
   bo‘lishi rad etiladi. Yangi hisoblar platforma super admini bo‘lmaydi.
 
 Hozirgi umumiy xodim panelida admin/manager/receptionist yozishi mumkin;
-mechanic faqat ko‘radi. Ishni qabul xodimi/admin boshlaydi va tugatadi.
-Bu dastlabki huquqlarni mijoz pilotida tekshiring; usta uchun alohida ish ekrani
-va batafsil moliyaviy huquqlar keyingi ishlar.
+mechanic Flutter’dagi “Mening ishlarim” orqali faqat akkauntiga tayinlangan
+ishlarni ko‘radi va boshlaydi/tugatadi. Mijozlar ro‘yxati, hisoblar, to‘lovlar
+va boshqa ustalarning ishlariga kira olmaydi. Ishni admin ham avvalgi panelda
+boshqarishi mumkin. [Usta oqimi](MECHANIC-WORKFLOW.md) va batafsil moliyaviy
+huquqlarni mijoz pilotida tekshiring.
 
 ## 2. Windowsda ko‘rib chiqish va qo‘llash
 

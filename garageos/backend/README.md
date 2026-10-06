@@ -141,12 +141,12 @@ identity does not invalidate its otherwise unexpired tokens; this is suspension,
 not a permanent logout/revocation registry.
 
 `GET /api/v1/auth/me` exposes effective `permissions`. The current shared staff
-panel uses this coarse policy:
+API uses this capability policy:
 
 | Active role | Permissions |
 | --- | --- |
 | `admin`, `manager`, `receptionist`, `super_admin` | `staff.read`, `staff.write` |
-| `mechanic` | `staff.read` |
+| `mechanic` | `work.read.assigned`, `work.write.assigned` |
 | Unknown role | None |
 | Public demo session | At most `staff.read` |
 
@@ -155,9 +155,12 @@ its transaction. The platform flag does not bypass permissions or tenant scope.
 The case-conversation lookup can create a thread on first open; that creation
 also requires `staff.write`, even though the route uses GET. Read-only accounts
 can read an existing thread, but receive `403` if it would need to be created.
-Mechanics can inspect the tenant workspace (including billing); reception can
-operate billing. A dedicated assignment-scoped mechanic workflow and finer
-financial approvals are later work, not claims about the client's agreed roles.
+Mechanics use `/api/v1/mechanic/work` to read, start and complete only work
+explicitly linked to their account. They cannot inspect tenant-wide customers,
+appointments or billing. Completion cannot change financial amounts. Reception
+can operate billing; finer financial approvals remain later work. Legacy
+mechanic names grant no account ownership; an operator must assign a real
+account through the appointment editor. See `../docs/MECHANIC-WORKFLOW.md`.
 The customer portal uses a separate principal and dependency chain.
 
 Update the API and Flutter app together: live mobile sign-in requires the

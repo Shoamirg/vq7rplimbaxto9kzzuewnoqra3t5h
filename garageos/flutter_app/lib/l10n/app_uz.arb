@@ -271,5 +271,11 @@
         "type": "int"
       }
     }
-  }
+  },
+  "mechanicCompleteHint": "Servis tarixi saqlanadi. Hisob va to‘lovni admin rasmiylashtiradi.",
+  "myWork": "Mening ishlarim",
+  "assignedWorkHint": "Admin sizga tayinlagan servis ishlari shu yerda ko‘rinadi.",
+  "noAssignedWork": "Sizga tayinlangan ishlar yo‘q",
+  "noMechanics": "Faol usta akkaunti yo‘q",
+  "mechanicAccountHint": "Ustaning ilovasida ish ko‘rinishi uchun faol akkauntni tanlang. Avvalgi tayinlov tanlamaguningizcha saqlanadi."
 }

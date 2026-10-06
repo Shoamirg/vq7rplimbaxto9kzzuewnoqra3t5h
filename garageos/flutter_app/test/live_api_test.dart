@@ -126,11 +126,36 @@ void main() {
           isA<AppFailure>().having((e) => e.status, 'requires mechanic', 409),
         ),
       );
+      final account = (await repo.mechanics()).singleWhere(
+        (m) => m.email == fixture['read_only_email'],
+      );
       await repo.changeWork(work.id, 'assign-mechanic', {
-        'mechanic_name': 'Flutter sinov ustasi',
+        'mechanic_user_id': account.id,
       });
-      await repo.changeWork(work.id, 'start');
-      final done = await repo.changeWork(work.id, 'complete', {
+      final mechanicApi = ApiClient(api.base.toString());
+      addTearDown(mechanicApi.close);
+      final mechanicToken = await mechanicApi.request(
+        'POST',
+        '/auth/login',
+        authenticated: false,
+        body: {
+          'email': fixture['read_only_email'],
+          'password': fixture['password'],
+        },
+      );
+      mechanicApi.accessToken = mechanicToken['access_token'];
+      mechanicApi.refreshToken = mechanicToken['refresh_token'];
+      final mechanicRepo = LiveRepository(
+        mechanicApi,
+        canWrite: false,
+        isMechanic: true,
+      );
+      expect(
+        (await mechanicRepo.works(query: '$stamp')).items.single.id,
+        work.id,
+      );
+      await mechanicRepo.changeWork(work.id, 'start');
+      final done = await mechanicRepo.changeWork(work.id, 'complete', {
         'service_type': 'Diagnostika',
         'notes': 'Tormoz tizimi tekshirildi',
         'odometer_km': 40100,

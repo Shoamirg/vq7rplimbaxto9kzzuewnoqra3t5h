@@ -66,11 +66,22 @@ invoices/customer-facing views. Intake, vehicle creation, work transitions,
 invoice creation and payment controls are hidden. The server independently
 enforces these permissions, including direct API calls.
 
-The shared staff panel currently permits admin, manager, receptionist and
-super-admin roles to operate records; mechanics have read-only access. This is a
-coarse product policy: mechanic reads are not yet assignment-scoped, and reception
-can operate billing. Fine financial approvals and a dedicated mechanic interface
-remain later milestones. Offline demonstration stays editable with example data.
+Admin, manager, receptionist and super-admin roles retain the tenant staff
+workspace. Mechanic accounts instead receive `work.read.assigned` and
+`work.write.assigned`: Flutter opens **My work**, across all dates, and uses the
+dedicated `/mechanic/work` API. Mechanics can read their assigned jobs and
+start/complete them, without customer lists, billing, payment or assignment
+controls. The API checks the account assignment again under the job lock before
+each transition. Reception can still operate billing; fine financial approvals
+remain a later milestone. Offline demonstration stays editable with example data.
+
+The admin web appointment editor and live mobile assignment picker select active
+mechanic accounts by ID, showing email to distinguish equal names. Deploy the
+mechanic-account migration before these clients. Legacy name-only assignments
+remain intact and appear in a mechanic's app only after explicit account
+assignment; names are never guessed as ownership. See
+[mechanic workflow](../docs/MECHANIC-WORKFLOW.md). Customer Flutter and superadmin
+web panels in #18 are subsequent increments, not included in this slice.
 Suspending a user, garage or global role denies login and existing tokens; a
 `401` during refresh clears the mobile session. Role changes are enforced by the
 server immediately; sign in again to refresh the mobile controls after a role

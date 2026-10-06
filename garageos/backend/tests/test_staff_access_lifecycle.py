@@ -108,12 +108,12 @@ async def test_active_staff_login_profile_and_refresh_still_work(client, identit
     assert profile.json()["id"] == str(identity["user"])
 
 
-async def test_mechanic_can_read_intake_but_cannot_create_customer(client, identity):
+async def test_mechanic_cannot_read_intake_or_create_customer(client, identity):
     await _as_role(identity, "mechanic")
     token = create_access_token({"sub": str(identity["user"]), "type": "access"})
     headers = {"Authorization": f"Bearer {token}"}
     listed = await client.get("/api/v1/customers", headers=headers)
-    assert listed.status_code == 200
+    assert listed.status_code == 403
     response = await client.post("/api/v1/customers", headers=headers, json={"full_name": "Unauthorized intake", "phone": "+998900000001"})
     assert response.status_code == 403
 
@@ -203,7 +203,8 @@ async def test_readonly_case_lookup_cannot_create_a_conversation(client, identit
     headers = await _readonly_headers(client, identity, mode, monkeypatch)
     response = await client.get(f"/api/v1/cases/{case_id}/conversation", headers=headers)
     assert response.status_code == 403
-    after = await client.get("/api/v1/conversations", headers=headers)
+    await _as_role(identity, "admin")
+    after = await client.get("/api/v1/conversations", headers=operator)
     assert after.status_code == 200
     assert after.json()["items"] == []
 
@@ -215,6 +216,10 @@ async def test_operator_can_create_case_thread_and_readonly_staff_can_read_it(cl
     assert created.status_code == 200
     headers = await _readonly_headers(client, identity, mode, monkeypatch)
     existing = await client.get(f"/api/v1/cases/{case_id}/conversation", headers=headers)
+    if mode == "mechanic":
+        assert existing.status_code == 403
+        assert (await client.get("/api/v1/conversations", headers=headers)).status_code == 403
+        return
     assert existing.status_code == 200
     assert existing.json() == created.json()
     listed = await client.get("/api/v1/conversations", headers=headers)
@@ -222,11 +227,11 @@ async def test_operator_can_create_case_thread_and_readonly_staff_can_read_it(cl
     assert [item["id"] for item in listed.json()["items"]] == [created.json()["id"]]
 
 
-async def test_readonly_missing_case_lookup_is_not_found(client, identity):
+async def test_mechanic_cannot_lookup_unassigned_cases(client, identity):
     await _as_role(identity, "mechanic")
     token = create_access_token({"sub": str(identity["user"]), "type": "access"})
     response = await client.get(f"/api/v1/cases/{uuid.uuid4()}/conversation", headers={"Authorization": f"Bearer {token}"})
-    assert response.status_code == 404
+    assert response.status_code == 403
 
 
 @pytest.mark.parametrize("kind", ["center", "role", "user"])

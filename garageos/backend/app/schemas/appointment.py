@@ -20,9 +20,16 @@ class AppointmentUpdate(BaseModel):
     appointment_time: str | None = Field(None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
     estimated_duration_minutes: int | None = Field(None, ge=15, le=480)
     mechanic_name: str | None = None
+    mechanic_user_id: UUID | None = None
     status: str | None = None
     notes: str | None = None
     total_cost: float | None = Field(None, ge=0)
+
+    @model_validator(mode="after")
+    def reject_ambiguous_mechanic(self):
+        if self.mechanic_user_id is not None and self.mechanic_name is not None:
+            raise ValueError("Provide an account ID or a legacy name, not both")
+        return self
 
 
 class AppointmentStatusUpdate(BaseModel):
@@ -44,6 +51,7 @@ class AppointmentResponse(BaseModel):
     appointment_time: str
     estimated_duration_minutes: int
     mechanic_name: str | None
+    mechanic_user_id: str | None = None
     status: str
     notes: str | None
     customer_notes: str | None
@@ -130,6 +138,13 @@ class AppointmentCompleteRequest(BaseModel):
     service_type: str | None = Field(default=None, max_length=100)
 
 
+class MechanicCompleteRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    odometer_km: int | None = Field(default=None, ge=0)
+    notes: str | None = Field(default=None, max_length=5000)
+    service_type: str | None = Field(default=None, max_length=100)
+
+
 class SlotGenerateRequest(BaseModel):
     start_date: date
     days: int = Field(default=30, ge=1, le=120)
@@ -144,4 +159,12 @@ class MoveAppointmentRequest(BaseModel):
 
 
 class AssignMechanicRequest(BaseModel):
-    mechanic_name: str = Field(min_length=1, max_length=255)
+    model_config = ConfigDict(extra="forbid")
+    mechanic_name: str | None = Field(default=None, min_length=1, max_length=255)
+    mechanic_user_id: UUID | None = None
+
+    @model_validator(mode="after")
+    def require_one_assignment(self):
+        if (self.mechanic_name is None) == (self.mechanic_user_id is None):
+            raise ValueError("Provide a mechanic account ID or a legacy name, not both")
+        return self
