@@ -23,8 +23,9 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Authenticated visitor to login or root -> dashboard.
-  if (isAuthed && (pathname === "/login" || pathname === "/")) {
+  // Root/current login returns use the server-verified app landing.
+  // A server-rejected stale cookie must reach login instead of looping back.
+  if (isAuthed && (pathname === "/" || (pathname === "/login" && !req.nextUrl.searchParams.has("reauth")))) {
     const url = req.nextUrl.clone();
     url.pathname = "/dashboard";
     url.search = "";

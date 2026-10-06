@@ -21,7 +21,12 @@ export async function POST(req: Request) {
   }
 
   const tokens = (await res.json()) as { access_token: string };
-  const response = NextResponse.json({ ok: true });
+  const profile = await fetch(`${apiBaseUrl()}/auth/me`, {
+    headers: { Authorization: `Bearer ${tokens.access_token}` }, cache: 'no-store',
+  });
+  if (!profile.ok) return NextResponse.json({ error: 'Could not validate account access' }, { status: 401 });
+  const user = await profile.json() as { platform_permissions?: string[] };
+  const response = NextResponse.json({ ok: true, redirectTo: user.platform_permissions?.includes('platform.read') ? '/platform' : '/dashboard' });
   response.cookies.set(AUTH_COOKIE, tokens.access_token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",

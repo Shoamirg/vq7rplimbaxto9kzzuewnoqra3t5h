@@ -21,9 +21,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   try {
     user = await getCurrentUser();
   } catch (err) {
-    if (err instanceof ApiError && err.status === 401) redirect("/login");
+    if (err instanceof ApiError && err.status === 401) redirect("/login?reauth=1");
     throw err;
   }
+
+  if (user.platform_permissions?.includes("platform.read")) redirect("/platform");
 
   const shellUser = { name: user.full_name, email: user.email, role: user.role };
   const cookieStore = await cookies();

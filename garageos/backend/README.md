@@ -226,3 +226,35 @@ Downgrade removes password identities; back up before downgrade and never treat
 it as a safe rollback that preserves newly created logins.
 
 Owner-created password tokens are restricted server-side to GET customer/me and customer/history reads. Legacy Telegram billing/draft and mutation routes reject these tokens with 403; Telegram tokens retain their existing route policy. Login and credential-checked refresh remain available.
+
+## Superadmin platform reads
+
+`GET /api/v1/platform/records/{kind}` supports centers, staff, customers, vehicles,
+appointments, invoices (including estimates/drafts) and payment records. Every
+request requires an active identity/garage/role, both `super_admin` role and
+`is_super_admin=true`, and a non-demo access token. `/auth/me` advertises a
+separate `platform_permissions` list. Legacy admin+flag and role-only identities
+are denied. Internal admin registration now uses flag=false; existing rows are
+not modified. Customer tokens cannot substitute for staff tokens.
+
+Queries: literal `q` (max100), `page` (fixed30, stable created_at/UUID ordering),
+optional `center_id`, inclusive UTC `start`/`end` dates. Lists include archived
+records; business projections exclude credentials, private notes and payment
+references/idempotency keys. The chosen garage can be suspended. Date filtering
+uses appointment_date, invoice issued_at, payment received_at, otherwise creation
+of registry records. Clear dates for all-time data. Invalid dates/ranges/pages422.
+
+`GET /platform/stats` uses the same garage/date filters. Counts are active rows,
+with centers_total additionally including suspended garages. Financial sums use
+issued invoices (excluding estimates/drafts/void/inactive) and active payments
+with matching active invoice/garage. Receipts include payments and deposits;
+refunds and net receipts are separate. Invoice issue dates and payment receipt
+dates are independent, and currency groups are never added together.
+
+`/platform` is the dedicated browser workspace; normal login selects it only
+from server-verified platform permissions. It exposes reads, searches and filters.
+Tenant endpoints retain their original center/role policy, with no global bypass.
+Deep vehicle health/inbox/audit drill-down and exports remain later explicit work.
+There is no HTTP platform enrollment or global write API. Real platform enrollment
+requires a trusted operator and is not performed against production by this slice;
+existing staff provisioning cannot elevate roles/flags. See ADR0006.

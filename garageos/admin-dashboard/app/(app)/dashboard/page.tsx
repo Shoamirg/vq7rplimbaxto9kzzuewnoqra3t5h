@@ -26,7 +26,7 @@ export default async function DashboardPage() {
     return <DashboardClient userName={firstName} stats={stats} today={today} fleet={fleet} />;
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) {
-      redirect("/login");
+      redirect("/login?reauth=1");
     }
     throw err;
   }

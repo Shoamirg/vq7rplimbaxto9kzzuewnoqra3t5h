@@ -28,7 +28,8 @@ export default function LoginPage() {
         setError(data.error ?? "Login failed");
         return;
       }
-      router.replace("/dashboard");
+      const result = await res.json();
+      router.replace(result.redirectTo === "/platform" ? "/platform" : "/dashboard");
       router.refresh();
     } catch {
       setError("Could not reach the server. Is the backend running?");

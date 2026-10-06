@@ -70,7 +70,7 @@ def _definition(kind: Kind):
     if kind == 'vehicles':
         return Vehicle, func.coalesce(Vehicle.license_plate, Vehicle.vin, cast(Vehicle.id, String)), {'vin': Vehicle.vin, 'year': Vehicle.year, 'customer_id': Vehicle.customer_id}, Vehicle.created_at
     if kind == 'appointments':
-        return Appointment, cast(Appointment.appointment_date, String), {'status': Appointment.status, 'customer_id': Appointment.customer_id, 'vehicle_id': Appointment.vehicle_id, 'mechanic': Appointment.mechanic_name}, Appointment.appointment_date
+        return Appointment, Appointment.appointment_date, {'appointment_time': Appointment.appointment_time, 'status': Appointment.status, 'customer_id': Appointment.customer_id, 'vehicle_id': Appointment.vehicle_id, 'mechanic': Appointment.mechanic_name}, Appointment.appointment_date
     if kind == 'invoices':
         return Invoice, Invoice.code, {'kind': Invoice.kind, 'status': Invoice.status, 'currency': Invoice.currency, 'total': Invoice.total, 'balance': Invoice.balance, 'customer_id': Invoice.customer_id, 'issued_at': Invoice.issued_at}, Invoice.issued_at
     return Payment, Invoice.code, {'kind': Payment.kind, 'method': Payment.method, 'currency': Invoice.currency, 'amount': Payment.amount, 'received_at': Payment.received_at}, Payment.received_at
@@ -107,7 +107,7 @@ async def records(
     rows = (await db.execute(query.order_by(model.created_at.desc(), model.id).offset((page - 1) * 30).limit(30))).mappings()
     return Records(total=total, page=page, items=[Record(
         id=row['id'], service_center_id=row['service_center_id'], garage=row['garage'],
-        title=row['title'], is_active=row['is_active'],
+        title=row['title'].isoformat() if isinstance(row['title'], datetime) else row['title'], is_active=row['is_active'],
         fields={key: (value.isoformat() if isinstance(value, datetime) else str(value)) if value is not None else None
                 for key, value in row.items() if key in fields},
     ) for row in rows])
@@ -126,6 +126,8 @@ async def statistics(
         center_column = ServiceCenter.id if kind == 'centers' else model.service_center_id
         conditions = ([center_column == center_id] if center_id else []) + _period(period_column, start, end)
         counts[kind] = await db.scalar(select(func.count()).select_from(model).where(model.is_active.is_(True), *conditions))
+    center_conditions = ([ServiceCenter.id == center_id] if center_id else []) + _period(ServiceCenter.created_at, start, end)
+    counts['centers_total'] = await db.scalar(select(func.count()).select_from(ServiceCenter).where(*center_conditions))
     invoice_conditions = [Invoice.is_active.is_(True), Invoice.kind == 'invoice',
                           Invoice.status.in_(['issued', 'partial', 'paid', 'overdue', 'refunded'])]
     if center_id:
