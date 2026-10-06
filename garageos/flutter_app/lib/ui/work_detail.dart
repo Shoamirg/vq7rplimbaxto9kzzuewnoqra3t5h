@@ -35,9 +35,7 @@ class _WorkScreenState extends State<WorkScreen> {
     });
     try {
       final current = await widget.repository.work(work.id);
-      final invoice =
-          current.status == WorkStatus.completed &&
-              !widget.repository.isMechanic
+      final invoice = current.status == WorkStatus.completed
           ? await widget.repository.billForWork(work.id)
           : null;
       if (mounted) {
@@ -135,21 +133,18 @@ class _WorkScreenState extends State<WorkScreen> {
   @override
   Widget build(BuildContext context) {
     final canAssign = widget.repository.canWrite && work.canAssignMechanic;
-    final label = switch (work.status) {
-      WorkStatus.pending =>
-        widget.repository.isMechanic ? null : context.l10n.confirmAppointment,
-      WorkStatus.confirmed =>
-        (work.mechanic?.trim().isNotEmpty ?? false)
-            ? context.l10n.startWork
-            : context.l10n.assignMechanic,
-      WorkStatus.inProgress => context.l10n.completeWork,
-      WorkStatus.completed =>
-        widget.repository.isMechanic
-            ? null
-            : linked == null
-            ? context.l10n.createInvoice
-            : context.l10n.openInvoice,
-      _ => null,
+    final action = widget.repository.primaryWorkAction(
+      work,
+      hasInvoice: linked != null,
+    );
+    final label = switch (action) {
+      WorkAction.confirm => context.l10n.confirmAppointment,
+      WorkAction.assign => context.l10n.assignMechanic,
+      WorkAction.start => context.l10n.startWork,
+      WorkAction.complete => context.l10n.completeWork,
+      WorkAction.createInvoice => context.l10n.createInvoice,
+      WorkAction.openInvoice => context.l10n.openInvoice,
+      null => null,
     };
     return PageFrame(
       title: context.l10n.serviceWork,
@@ -265,25 +260,20 @@ class _WorkScreenState extends State<WorkScreen> {
           ],
         ],
       ),
-      footer:
-          label == null ||
-              (!widget.repository.canPerformWork &&
-                  !(work.status == WorkStatus.completed && linked != null))
+      footer: label == null
           ? null
           : SaveButton(
               label: label,
               busy: busy,
               onPressed: () async {
-                switch (work.status) {
-                  case WorkStatus.pending:
+                switch (action) {
+                  case WorkAction.confirm:
                     await change('confirm');
-                  case WorkStatus.confirmed:
-                    if (work.mechanic?.trim().isNotEmpty == true) {
-                      await change('start');
-                    } else {
-                      await assign();
-                    }
-                  case WorkStatus.inProgress:
+                  case WorkAction.assign:
+                    await assign();
+                  case WorkAction.start:
+                    await change('start');
+                  case WorkAction.complete:
                     final result = await openPage<Work>(
                       context,
                       CompleteForm(repository: widget.repository, work: work),
@@ -291,9 +281,10 @@ class _WorkScreenState extends State<WorkScreen> {
                     if (result != null && mounted) {
                       setState(() => work = result);
                     }
-                  case WorkStatus.completed:
+                  case WorkAction.createInvoice:
+                  case WorkAction.openInvoice:
                     await invoice();
-                  default:
+                  case null:
                     break;
                 }
               },

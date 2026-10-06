@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'data/api_client.dart';
+import 'data/session.dart';
 import 'data/demo_repository.dart';
 import 'data/repository.dart';
-import 'data/payment_store.dart';
 
 class AppState extends ChangeNotifier {
   GarageRepository? repository;
@@ -69,47 +68,16 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> login(String address, String email, String password) async {
-    final api = ApiClient(address);
-    try {
-      final tokens = await api.request(
-        'POST',
-        '/auth/login',
-        authenticated: false,
-        body: {'email': email.trim(), 'password': password},
-      );
-      api.accessToken = tokens['access_token'];
-      api.refreshToken = tokens['refresh_token'];
-      final user = await api.request('GET', '/auth/me');
-      final permissions = user['permissions'];
-      final mechanic =
-          user['role'] == 'mechanic' &&
-          permissions is List &&
-          permissions.contains('work.read.assigned') &&
-          permissions.contains('work.write.assigned');
-      if (permissions is! List ||
-          (!permissions.contains('staff.read') && !mechanic)) {
-        throw const AppFailure('Bu amal uchun ruxsat yoʻq.', status: 403);
-      }
-      name = user['full_name'];
-      garageName = user['branding']?['name'] ?? 'GarageOS';
-      api.onExpired = () => onExpired?.call();
-      repository = LiveRepository(
-        api,
-        canWrite: permissions.contains('staff.write'),
-        isMechanic: mechanic,
-        paymentStore: mechanic
-            ? null
-            : DevicePaymentStore(
-                Uri.encodeComponent(
-                  '${api.base}/${user['id']}/${user['service_center_id']}',
-                ),
-              ),
-      );
-      notifyListeners();
-    } catch (_) {
-      api.close();
-      rethrow;
-    }
+    final session = await GarageSession.login(
+      address,
+      email,
+      password,
+      onExpired: () => onExpired?.call(),
+    );
+    repository = session.repository;
+    name = session.name;
+    garageName = session.garageName;
+    notifyListeners();
   }
 
   void logout() {

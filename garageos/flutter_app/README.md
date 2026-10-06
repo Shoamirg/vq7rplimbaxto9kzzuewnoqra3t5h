@@ -133,6 +133,16 @@ flutter build web --release --no-web-resources-cdn
 flutter build apk --debug
 ```
 
+### Role and session ownership
+
+`lib/data/session.dart` resolves the signed-in staff identity, server capabilities,
+repository and per-account payment storage together. `AppState` only publishes
+the resulting session and keeps presentation preferences. `GarageRepository`
+selects the primary service-work action; screens translate it and open the
+matching form. `LiveRepository` keeps mechanics out of the staff invoice lookup.
+Live and demo remain the existing adapters. Server authorization remains
+authoritative; this refactor adds no customer credentials or global privileges.
+
 Optional reproducible screenshots:
 
 ```sh

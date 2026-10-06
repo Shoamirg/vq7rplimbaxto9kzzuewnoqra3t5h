@@ -2,12 +2,37 @@ import '../domain/models.dart';
 import 'api_client.dart';
 import 'payment_store.dart';
 
+enum WorkAction { confirm, assign, start, complete, createInvoice, openInvoice }
+
 abstract class GarageRepository {
   PaymentStore payments = MemoryPaymentStore();
   bool get isDemo;
   bool get canWrite => true;
   bool get isMechanic => false;
   bool get canPerformWork => canWrite || isMechanic;
+  WorkAction? primaryWorkAction(Work work, {required bool hasInvoice}) {
+    if (!canPerformWork) {
+      return !isMechanic && work.status == WorkStatus.completed && hasInvoice
+          ? WorkAction.openInvoice
+          : null;
+    }
+    return switch (work.status) {
+      WorkStatus.pending => isMechanic ? null : WorkAction.confirm,
+      WorkStatus.confirmed =>
+        (work.mechanic?.trim().isNotEmpty ?? false)
+            ? WorkAction.start
+            : WorkAction.assign,
+      WorkStatus.inProgress => WorkAction.complete,
+      WorkStatus.completed =>
+        isMechanic
+            ? null
+            : hasInvoice
+            ? WorkAction.openInvoice
+            : WorkAction.createInvoice,
+      _ => null,
+    };
+  }
+
   Future<List<Mechanic>> mechanics() async => const [];
   Future<PageData<Work>> works({
     String query = '',
@@ -166,6 +191,8 @@ class LiveRepository extends GarageRepository {
       Bill.fromJson(await api.request('GET', '/invoices/$id'));
   @override
   Future<Bill?> billForWork(String id) async {
+    // Assigned mechanics never enter the staff billing workflow.
+    if (isMechanic) return null;
     try {
       return Bill.fromJson(
         await api.request('GET', '/appointments/$id/invoice'),
