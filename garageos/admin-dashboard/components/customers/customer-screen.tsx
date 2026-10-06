@@ -1,4 +1,5 @@
 "use client";
+import { CustomerAccount } from "./customer-account";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -53,7 +54,7 @@ function useCustomerText() {
 }
 const monogram = (name: string) => name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "?";
 
-export function CustomerScreen({ customer }: { customer: Customer360 }) {
+export function CustomerScreen({ customer, canManageAccount = false }: { customer: Customer360; canManageAccount?: boolean }) {
   const { t, fmt, text, money, fmtDate, amounts, nf } = useCustomerText();
   const [tab, setTab] = useState<Tab>("Overview");
   const [del, setDel] = useState(false);
@@ -67,6 +68,7 @@ export function CustomerScreen({ customer }: { customer: Customer360 }) {
     <div className="p-4 lg:p-6 space-y-5 animate-fade-in">
       <Link href="/customers" className="text-xs text-muted-foreground hover:text-foreground">← {text("Customers")}</Link>
 
+      {canManageAccount && <CustomerAccount customerId={c.id} />}
       {/* Header */}
       <div className="rounded-2xl border border-border bg-card p-5">
         <div className="flex flex-col md:flex-row md:items-center gap-4">

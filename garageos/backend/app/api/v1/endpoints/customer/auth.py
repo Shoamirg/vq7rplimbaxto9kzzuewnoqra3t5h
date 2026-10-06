@@ -73,3 +73,9 @@ async def dev_sign_in(
     if not settings.DEBUG:
         raise NotFoundError("Not found")
     return TokenResponse(**await auth.dev_authenticate(body.telegram_id if body else None))
+
+from app.schemas.customer_account import CustomerPasswordLogin
+
+@router.post('/login', response_model=TokenResponse, dependencies=[Depends(auth_rate_limit)])
+async def password_login(body: CustomerPasswordLogin, auth: CustomerAuthService = Depends(get_customer_auth_service)):
+    return await auth.authenticate_password(str(body.email), body.password)

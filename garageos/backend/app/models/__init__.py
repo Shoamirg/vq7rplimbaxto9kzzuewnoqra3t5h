@@ -3,6 +3,7 @@ from app.models.service_center import ServiceCenter
 from app.models.role import Role
 from app.models.user import User
 from app.models.customer import Customer
+from app.models.customer_account import CustomerAccount
 from app.models.brand import Brand
 from app.models.vehicle_model import VehicleModel
 from app.models.vehicle import Vehicle
@@ -33,6 +34,7 @@ __all__ = [
     "Role",
     "User",
     "Customer",
+    "CustomerAccount",
     "Brand",
     "VehicleModel",
     "Vehicle",

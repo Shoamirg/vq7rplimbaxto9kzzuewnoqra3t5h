@@ -160,3 +160,26 @@ flutter test test/live_api_test.dart --dart-define=RUN_LIVE_API=true --dart-defi
 ```
 
 The test authenticates real staff, adds customer/car, verifies tenant isolation, runs the lifecycle, verifies one UZS invoice and repeated/partial/full payment handling. Stop temporary test servers after the check. Build output is ignored by Git.
+
+## Customer password portal (#18)
+
+After `alembic upgrade head`, the garage owner opens an existing customer in the
+browser and creates a separate email/password login. The email is unique within
+customer logins (case-insensitive), separate from staff emails. Only the owner
+can create or suspend/reactivate password access. Share the initial password
+privately; do not store it in Git, issues or public screenshots. Password reset
+and self-registration are not included.
+
+Choose Customer on Flutter sign-in. The customer reads only their own active
+vehicles, all-date appointments and issued invoice/payment details, paged in
+30-row lists. Submit search with Enter. Internal staff notes and draft invoices
+are excluded. No staff mutation/payment recording controls are exposed.
+Password sessions use a separate refresh route; suspension revokes old tokens
+permanently even after reactivation. Existing Telegram sign-in stays available
+independently; suspending password access does not unlink Telegram. Archived
+customers or inactive garages cannot use customer reads/refresh.
+
+Full customer workflow runs through loopback HTTP in UZ/EN/RU at phone390 and
+tablet834. `live_api_test.dart` also reads the real completed work/invoice and two
+payments through a customer login, then checks suspension. This does not prove
+signed physical-device distribution or production/client acceptance.

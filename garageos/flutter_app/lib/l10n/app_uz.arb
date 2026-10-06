@@ -115,7 +115,7 @@
   "total": "Jami",
   "balance": "Qoldiq",
   "showCustomer": "Mijozga koʻrsatish",
-  "paymentHistory": "Toʻlovlar tarixi",
+  "paymentHistory": "To‘lov tarixi",
   "noPayments": "Toʻlov hali yozilmagan.",
   "refund": "Qaytarish",
   "recordOrCheckPayment": "Toʻlov yozish / tekshirish",
@@ -277,5 +277,18 @@
   "assignedWorkHint": "Admin sizga tayinlagan servis ishlari shu yerda ko‘rinadi.",
   "noAssignedWork": "Sizga tayinlangan ishlar yo‘q",
   "noMechanics": "Faol usta akkaunti yo‘q",
-  "mechanicAccountHint": "Ustaning ilovasida ish ko‘rinishi uchun faol akkauntni tanlang. Avvalgi tayinlov tanlamaguningizcha saqlanadi."
+  "mechanicAccountHint": "Ustaning ilovasida ish ko‘rinishi uchun faol akkauntni tanlang. Avvalgi tayinlov tanlamaguningizcha saqlanadi.",
+  "customerSignIn": "Mijoz",
+  "staffSignIn": "Xodim",
+  "myVehicles": "Mashinalarim",
+  "myAppointments": "Navbatlar",
+  "myInvoices": "Hisoblar",
+  "customerPortal": "Mening avtoservisim",
+  "emptyHistory": "Yozuvlar topilmadi.",
+  "customerSearch": "Qidirish; Enter bosing",
+  "invoiceLines": "Hisob tarkibi",
+  "customerPartial": "Qisman to‘langan",
+  "customerIssued": "Hisob chiqarilgan",
+  "customerPayment": "To‘lov",
+  "customerRefund": "Qaytarish"
 }

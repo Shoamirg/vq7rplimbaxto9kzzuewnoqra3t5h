@@ -208,3 +208,19 @@ partitioning, cross-tenant FK integrity, and the repository filter behavior.
   there. Clean machines use the committed default (5432).
 - Use `127.0.0.1` rather than `localhost` in `DATABASE_URL`/`REDIS_URL` on Windows — the
   IPv6 `::1` resolution path causes slow/failed connects with connect-timeouts.
+
+### Customer password identities
+
+Run `alembic upgrade head` before deploying the customer password portal.
+`customer_accounts` stores the hash and session version, linked to the existing
+customer and garage; customer emails are a separate, case-insensitive login
+namespace from staff. Owner-only `/customers/{id}/account` GET/POST/PATCH creates
+or suspends/restores access. No reset/delete/transfer operation is exposed.
+`/customer/auth/login` and `/customer/auth/refresh` issue customer token types;
+password tokens additionally bind the active credential/version. `/customer/history`
+contains bounded own-customer reads and excludes internal notes/draft invoices.
+Existing Telegram identities remain independent. Suspend password access is not
+Telegram unlinking; archived customer/inactive garage blocks customer reads.
+Migration adds an empty identity table without rewriting customer history.
+Downgrade removes password identities; back up before downgrade and never treat
+it as a safe rollback that preserves newly created logins.

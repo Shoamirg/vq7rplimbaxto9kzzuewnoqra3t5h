@@ -210,6 +210,46 @@ void main() {
       expect(searched.size, 30);
       expect(searched.items.single.id, bill.id);
       expect((await repo.bills(query: '%')).items, isEmpty);
+      final customerEmail = 'customer-$stamp@example.com';
+      await api.request(
+        'POST',
+        '/customers/${work.customerId}/account',
+        body: {'email': customerEmail, 'password': fixture['password']},
+      );
+      final customerState = AppState();
+      addTearDown(customerState.dispose);
+      await customerState.login(
+        api.base.toString(),
+        customerEmail,
+        fixture['password'],
+        customer: true,
+      );
+      expect(customerState.repository, isNull);
+      final customerRepo = customerState.customerRepository!;
+      expect((await customerRepo.history('vehicles')).total, 1);
+      expect(
+        (await customerRepo.history('appointments')).items.single['id'],
+        work.id,
+      );
+      expect(
+        (await customerRepo.history('invoices')).items.single['id'],
+        bill.id,
+      );
+      final customerBill = await customerRepo.invoice(bill.id);
+      expect(customerBill['balance'], 0);
+      expect((customerBill['payments'] as List).length, 2);
+      expect(customerBill.containsKey('notes'), isFalse);
+      await api.request(
+        'PATCH',
+        '/customers/${work.customerId}/account',
+        body: {'is_active': false},
+      );
+      await expectLater(
+        customerRepo.history('vehicles'),
+        throwsA(
+          isA<AppFailure>().having((e) => e.status, 'suspended customer', 401),
+        ),
+      );
     },
     skip: !enabled,
     timeout: const Timeout(Duration(minutes: 2)),

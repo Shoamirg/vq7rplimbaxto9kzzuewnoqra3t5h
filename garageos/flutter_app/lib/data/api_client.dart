@@ -19,10 +19,14 @@ String failureText(Object error) => error is AppFailure
     : 'Maʼlumotni olishda xatolik yuz berdi. Qayta urinib koʻring.';
 
 class ApiClient {
-  ApiClient(String address, {http.Client? client})
-    : base = validateAddress(address),
-      _client = client ?? http.Client();
+  ApiClient(
+    String address, {
+    http.Client? client,
+    this.refreshPath = '/auth/refresh',
+  }) : base = validateAddress(address),
+       _client = client ?? http.Client();
   final Uri base;
+  final String refreshPath;
   final http.Client _client;
   String? accessToken, refreshToken;
   void Function()? onExpired;
@@ -171,7 +175,7 @@ class ApiClient {
     try {
       final data = await request(
         'POST',
-        '/auth/refresh',
+        refreshPath,
         authenticated: false,
         body: {'refresh_token': refreshToken},
       );

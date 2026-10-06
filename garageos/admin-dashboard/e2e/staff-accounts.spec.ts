@@ -3,6 +3,31 @@ import { expect, test } from '@playwright/test';
 const owner = { email: 'admin@demo.garageos.app', password: 'demo1234' };
 const password = 'Account-test-only-2026!';
 
+test('owner opens customer password access; customer credentials cannot enter staff panel', async ({ page }) => {
+  expect((await page.request.post('/api/auth/login', { data: owner })).ok()).toBeTruthy();
+  await page.context().addCookies([{ name: 'garageos_locale', value: 'uz', url: 'http://localhost:3001' }]);
+  const customer = await page.request.post('/api/proxy/customers', { data: { full_name: 'Browser Mijoz', phone: `998${Date.now().toString().slice(-9)}` } });
+  expect(customer.status(), await customer.text()).toBe(201);
+  const id = (await customer.json()).id;
+  await page.goto(`/customers/${id}`);
+  const form = page.getByRole('form', { name: 'Mijoz ilovasiga kirish' });
+  await expect(form).toBeVisible();
+  const email = `browser-customer-${Date.now()}@example.com`;
+  await form.getByLabel('Kirish uchun email').fill(email);
+  await form.getByLabel('Boshlang‘ich parol', { exact: true }).fill(password);
+  await form.getByRole('button', { name: 'Mijoz loginini yaratish' }).click();
+  await expect(form).toBeHidden();
+  await expect(page.getByText(email, { exact: false })).toBeVisible();
+  const login = await page.request.post('http://127.0.0.1:8010/api/v1/customer/auth/login', { data: { email, password } });
+  expect(login.status()).toBe(200);
+  const token = (await login.json()).access_token;
+  expect((await page.request.get('http://127.0.0.1:8010/api/v1/customer/history/vehicles', { headers: { Authorization: `Bearer ${token}` } })).status()).toBe(200);
+  expect((await page.request.post('http://127.0.0.1:8010/api/v1/auth/login', { data: { email, password } })).status()).toBe(401);
+  await page.getByRole('button', { name: 'Parol bilan kirishni to‘xtatish' }).click();
+  await expect(page.getByRole('button', { name: 'Parol bilan kirishni yoqish' })).toBeVisible();
+  expect((await page.request.get('http://127.0.0.1:8010/api/v1/customer/me', { headers: { Authorization: `Bearer ${token}` } })).status()).toBe(401);
+});
+
 test('owner creates, edits, suspends and restores a real mechanic account', async ({ page }) => {
   expect((await page.request.post('/api/auth/login', { data: owner })).ok()).toBeTruthy();
   await page.context().addCookies([{ name: 'garageos_locale', value: 'uz', url: 'http://localhost:3001' }]);

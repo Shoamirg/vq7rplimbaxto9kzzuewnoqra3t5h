@@ -25,8 +25,11 @@ from app.core.security import (
     create_access_token,
     create_refresh_token,
     decode_token,
+    verify_password,
 )
-from app.exceptions import InvalidToken, NotFoundError, UnauthorizedError
+from app.exceptions import InvalidToken, NotFoundError, UnauthorizedError, InvalidCredentials
+from app.models.customer_account import CustomerAccount
+from app.models.service_center import ServiceCenter
 from app.models.customer import Customer
 from app.repositories.customer_repository import CustomerRepository
 from app.repositories.unit_of_work import UnitOfWork
@@ -46,6 +49,30 @@ class TelegramNotLinked(NotFoundError):
 class CustomerAuthService:
     def __init__(self, uow: UnitOfWork):
         self.uow = uow
+
+    async def authenticate_password(self, email: str, password: str) -> dict:
+        account = await self.uow.session.scalar(select(CustomerAccount).where(CustomerAccount.email == email.lower()))
+        if account is None or not account.is_active or len(password.encode('utf-8')) > 72 or not verify_password(password, account.password_hash):
+            raise InvalidCredentials()
+        try:
+            customer = await self._load(str(account.customer_id))
+        except UnauthorizedError:
+            raise InvalidCredentials() from None
+        if account.service_center_id != customer.service_center_id:
+            raise InvalidCredentials()
+        return self._tokens(customer, account)
+
+    async def _password_account(self, payload, customer):
+        if 'account_id' not in payload:
+            return None
+        try:
+            account_id = uuid.UUID(payload['account_id'])
+        except (ValueError, TypeError):
+            raise InvalidToken() from None
+        account = await self.uow.session.get(CustomerAccount, account_id)
+        if account is None or not account.is_active or account.customer_id != customer.id or account.service_center_id != customer.service_center_id or account.version != payload.get('account_version'):
+            raise InvalidToken()
+        return account
 
     # --- Sign-in ------------------------------------------------------------
 
@@ -151,7 +178,7 @@ class CustomerAuthService:
         if not payload or payload.get("type") != _REFRESH:
             raise InvalidToken()
         customer = await self._load(payload.get("sub"))
-        return self._tokens(customer)
+        return self._tokens(customer, await self._password_account(payload, customer))
 
     # --- Resolution (used by deps) -----------------------------------------
 
@@ -159,7 +186,9 @@ class CustomerAuthService:
         payload = decode_token(token)
         if not payload or payload.get("type") != _ACCESS:
             raise InvalidToken()
-        return await self._load(payload.get("sub"))
+        customer = await self._load(payload.get("sub"))
+        await self._password_account(payload, customer)
+        return customer
 
     # --- Internals ----------------------------------------------------------
 
@@ -173,18 +202,23 @@ class CustomerAuthService:
         customer = await self.uow.session.get(Customer, cid)
         if customer is None or not customer.is_active:
             raise UnauthorizedError()
+        center = await self.uow.session.scalar(select(ServiceCenter.id).where(ServiceCenter.id == customer.service_center_id, ServiceCenter.is_active.is_(True)))
+        if center is None:
+            raise UnauthorizedError()
         return customer
 
-    def _tokens(self, customer: Customer) -> dict:
+    def _tokens(self, customer: Customer, account: CustomerAccount | None = None) -> dict:
         claims = {
             "sub": str(customer.id),
             "scid": str(customer.service_center_id),
         }
+        if account is not None:
+            claims.update(account_id=str(account.id), account_version=account.version)
         access = create_access_token(
             data={**claims, "type": _ACCESS},
             expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
         )
-        refresh = create_refresh_token(data={"sub": str(customer.id), "type": _REFRESH})
+        refresh = create_refresh_token(data={**claims, "type": _REFRESH})
         return {
             "access_token": access,
             "refresh_token": refresh,

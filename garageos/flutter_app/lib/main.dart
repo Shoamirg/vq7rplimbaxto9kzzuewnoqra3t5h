@@ -8,6 +8,7 @@ import 'l10n/generated/app_localizations.dart';
 import 'ui/login.dart';
 import 'ui/settings.dart';
 import 'ui/staff_home.dart';
+import 'ui/customer_home.dart';
 
 void main() => runApp(const GarageApp());
 
@@ -63,7 +64,9 @@ class _GarageAppState extends State<GarageApp> {
                   .disableAnimations)
           ? Duration.zero
           : const Duration(milliseconds: 150),
-      home: state.repository == null
+      home: state.customerRepository != null
+          ? CustomerHome(state: state, onLogout: logout)
+          : state.repository == null
           ? LoginScreen(state: state)
           : StaffHome(state: state, onLogout: logout),
     ),

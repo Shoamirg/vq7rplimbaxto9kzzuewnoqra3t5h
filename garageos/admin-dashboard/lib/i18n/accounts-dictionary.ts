@@ -2,6 +2,12 @@ import type { Locale } from './dictionaries';
 
 export const ACCOUNTS_DICTIONARY: Record<Locale, Record<string, string>> = {
   en: {
+    "customer_account.title": "Customer app access",
+    "customer_account.hint": "Create a separate customer login. This does not grant employee access.",
+    "customer_account.create": "Create customer login",
+    "customer_account.suspend": "Suspend password access",
+    "customer_account.restore": "Restore password access",
+
     'accounts.title': 'Employee accounts',
     'accounts.subtitle': 'Manage access to your workshop. Existing work and service history are retained.',
     'accounts.add': 'Add employee', 'accounts.edit': 'Edit employee',
@@ -22,6 +28,12 @@ export const ACCOUNTS_DICTIONARY: Record<Locale, Record<string, string>> = {
     'accounts.previous': 'Previous', 'accounts.next': 'Next', 'accounts.page': 'Page {page} of {pages} · {total} accounts',
   },
   ru: {
+    "customer_account.title": "Доступ клиента к приложению",
+    "customer_account.hint": "Создайте отдельный логин клиента. Доступ сотрудника не предоставляется.",
+    "customer_account.create": "Создать логин клиента",
+    "customer_account.suspend": "Отключить вход по паролю",
+    "customer_account.restore": "Включить вход по паролю",
+
     'accounts.title': 'Аккаунты сотрудников',
     'accounts.subtitle': 'Управляйте доступом к своей мастерской. Работы и история обслуживания сохраняются.',
     'accounts.add': 'Добавить сотрудника', 'accounts.edit': 'Изменить сотрудника',
@@ -42,6 +54,12 @@ export const ACCOUNTS_DICTIONARY: Record<Locale, Record<string, string>> = {
     'accounts.previous': 'Назад', 'accounts.next': 'Далее', 'accounts.page': 'Страница {page} из {pages} · аккаунтов: {total}',
   },
   uz: {
+    "customer_account.title": "Mijoz ilovasiga kirish",
+    "customer_account.hint": "Mijoz uchun alohida login yarating. Bu xodim huquqini bermaydi.",
+    "customer_account.create": "Mijoz loginini yaratish",
+    "customer_account.suspend": "Parol bilan kirishni to‘xtatish",
+    "customer_account.restore": "Parol bilan kirishni yoqish",
+
     'accounts.title': 'Xodim akkauntlari',
     'accounts.subtitle': 'O‘z ustaxonangizga kirishni boshqaring. Ishlar va servis tarixi saqlanadi.',
     'accounts.add': 'Xodim qo‘shish', 'accounts.edit': 'Xodimni tahrirlash',

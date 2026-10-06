@@ -26,6 +26,7 @@ class _LoginScreenState extends State<LoginScreen> {
         : 'http://127.0.0.1:8000/api/v1',
   );
   bool busy = false, obscure = true;
+  bool customer = false;
   String? error;
   @override
   void dispose() {
@@ -42,7 +43,12 @@ class _LoginScreenState extends State<LoginScreen> {
       error = null;
     });
     try {
-      await widget.state.login(address.text, email.text, password.text);
+      await widget.state.login(
+        address.text,
+        email.text,
+        password.text,
+        customer: customer,
+      );
     } catch (e) {
       if (mounted) setState(() => error = failureText(e));
     } finally {
@@ -98,7 +104,11 @@ class _LoginScreenState extends State<LoginScreen> {
                               'GarageOS',
                               style: Theme.of(context).textTheme.titleLarge,
                             ),
-                            Text(context.l10n.staffApp),
+                            Text(
+                              customer
+                                  ? context.l10n.customerPortal
+                                  : context.l10n.staffApp,
+                            ),
                           ],
                         ),
                       ),
@@ -112,6 +122,23 @@ class _LoginScreenState extends State<LoginScreen> {
                   SizedBox(height: 8),
                   Text(context.l10n.loginSubtitle),
                   SizedBox(height: 32),
+                  SegmentedButton<bool>(
+                    segments: [
+                      ButtonSegment(
+                        value: false,
+                        label: Text(context.l10n.staffSignIn),
+                      ),
+                      ButtonSegment(
+                        value: true,
+                        label: Text(context.l10n.customerSignIn),
+                      ),
+                    ],
+                    selected: {customer},
+                    onSelectionChanged: busy
+                        ? null
+                        : (value) => setState(() => customer = value.first),
+                  ),
+                  SizedBox(height: 16),
                   if (error != null) ErrorNotice(error!),
                   TextFormField(
                     controller: email,

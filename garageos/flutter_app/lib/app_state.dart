@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'data/session.dart';
+import 'data/customer_repository.dart';
 import 'data/demo_repository.dart';
 import 'data/repository.dart';
 
 class AppState extends ChangeNotifier {
   GarageRepository? repository;
+  CustomerRepository? customerRepository;
   String name = '', garageName = '';
   ThemeMode themeMode = ThemeMode.system;
   Locale locale = const Locale('uz');
@@ -61,19 +63,46 @@ class AppState extends ChangeNotifier {
   }
 
   void demo() {
+    repository?.close();
+    customerRepository?.close();
+    customerRepository = null;
     repository = DemoRepository();
     name = 'Demo xodim';
     garageName = 'Turon avtoservis';
     notifyListeners();
   }
 
-  Future<void> login(String address, String email, String password) async {
+  Future<void> login(
+    String address,
+    String email,
+    String password, {
+    bool customer = false,
+  }) async {
+    if (customer) {
+      final session = await CustomerRepository.login(
+        address,
+        email,
+        password,
+        onExpired: () => onExpired?.call(),
+      );
+      repository?.close();
+      customerRepository?.close();
+      repository = null;
+      customerRepository = session;
+      name = session.name;
+      garageName = session.garageName;
+      notifyListeners();
+      return;
+    }
     final session = await GarageSession.login(
       address,
       email,
       password,
       onExpired: () => onExpired?.call(),
     );
+    repository?.close();
+    customerRepository?.close();
+    customerRepository = null;
     repository = session.repository;
     name = session.name;
     garageName = session.garageName;
@@ -82,6 +111,8 @@ class AppState extends ChangeNotifier {
 
   void logout() {
     repository?.close();
+    customerRepository?.close();
+    customerRepository = null;
     repository = null;
     name = garageName = '';
     notifyListeners();
@@ -91,6 +122,7 @@ class AppState extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     repository?.close();
+    customerRepository?.close();
     super.dispose();
   }
 }
