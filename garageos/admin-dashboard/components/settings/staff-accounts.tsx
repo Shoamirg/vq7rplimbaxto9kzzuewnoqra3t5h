@@ -85,7 +85,7 @@ export function StaffAccounts({ allowed }: { allowed: boolean }) {
     <header className="flex flex-wrap items-start justify-between gap-4">
       <div><h1 className="text-2xl font-bold">{t('accounts.title')}</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{t('accounts.subtitle')}</p></div>
-      {!denied && <Button disabled={saving} onClick={() => open()} leftIcon={<Plus className="size-4" />}>{t('accounts.add')}</Button>}
+      {!denied && <Button disabled={saving || !!editor} onClick={() => open()} leftIcon={<Plus className="size-4" />}>{t('accounts.add')}</Button>}
     </header>
     {denied ? <p role="alert" className="rounded-lg border border-border bg-card p-4">{t('accounts.denied')}</p> : <>
       {saved && <p role="status" className="text-sm text-foreground">{t('accounts.saved')}</p>}
@@ -98,7 +98,7 @@ export function StaffAccounts({ allowed }: { allowed: boolean }) {
           <label className="space-y-1 text-sm"><span>{t('accounts.email')}</span><input className={field} type="email" required maxLength={255} autoComplete="off" disabled={!!editor.id} value={editor.email} onChange={(e) => setEditor({ ...editor, email: e.target.value })} /></label>
           <label className="space-y-1 text-sm"><span>{t('accounts.phone')}</span><input className={field} type="tel" maxLength={50} autoComplete="tel" value={editor.phone} onChange={(e) => setEditor({ ...editor, phone: e.target.value })} /></label>
           <label className="space-y-1 text-sm"><span>{t('accounts.role')}</span><select className={field} value={editor.role} onChange={(e) => setEditor({ ...editor, role: e.target.value as EmployeeRole })}>{roles.map((role) => <option key={role} value={role}>{t(roleKeys[role])}</option>)}</select></label>
-          {!editor.id && <label className="space-y-1 text-sm sm:col-span-2"><span>{t('accounts.password')}</span><input aria-describedby="initial-password-hint" className={field} type="password" required minLength={10} maxLength={72} autoComplete="new-password" value={editor.password} onChange={(e) => setEditor({ ...editor, password: e.target.value })} /><span id="initial-password-hint" className="block text-xs text-muted-foreground">{t('accounts.password_hint')}</span></label>}
+          {!editor.id && <div className="space-y-1 text-sm sm:col-span-2"><label htmlFor="staff-initial-password">{t('accounts.password')}</label><input id="staff-initial-password" aria-describedby="initial-password-hint" className={field} type="password" required minLength={10} maxLength={72} autoComplete="new-password" value={editor.password} onChange={(e) => setEditor({ ...editor, password: e.target.value })} /><p id="initial-password-hint" className="text-xs text-muted-foreground">{t('accounts.password_hint')}</p></div>}
           {editor.id && <div className="space-y-2 sm:col-span-2"><label className="space-y-1 text-sm"><span>{t('accounts.status')}</span><select className={field} value={String(editor.is_active)} onChange={(e) => setEditor({ ...editor, is_active: e.target.value === 'true' })}><option value="true">{t('accounts.active')}</option><option value="false">{t('accounts.inactive')}</option></select></label><p className="text-xs text-muted-foreground">{t('accounts.access_hint')}</p></div>}
         </fieldset>
         <footer className="flex items-center justify-between gap-3 border-t border-border pt-4">
@@ -111,10 +111,10 @@ export function StaffAccounts({ allowed }: { allowed: boolean }) {
       {loadError && <p role="alert" className="text-sm text-destructive">{t('accounts.load_failed')} <button type="button" className="underline focus-visible:outline focus-visible:outline-primary" onClick={() => setRevision((value) => value + 1)}>{t('accounts.retry')}</button></p>}
       {!loading && !loadError && result?.items.length === 0 && <div className="space-y-2 py-8"><h2 className="font-semibold">{t('accounts.empty')}</h2><p className="text-sm text-muted-foreground">{t('accounts.empty_hint')}</p></div>}
       {!loadError && result && <ul aria-busy={loading} className="divide-y divide-border rounded-xl border border-border bg-card">
-        {result.items.map((employee) => <li key={employee.id} data-testid={`staff-${employee.id}`} className="flex flex-wrap items-center justify-between gap-3 p-4">
-          <div className="min-w-0 flex-1"><h2 className="break-words font-semibold">{employee.full_name}</h2><p className="break-all text-sm text-muted-foreground">{employee.email}</p>
+        {result.items.map((employee) => <li key={employee.id} data-testid={`staff-${employee.id}`} className="flex flex-col items-start justify-between gap-3 p-4 sm:flex-row sm:items-center">
+          <div className="w-full min-w-0 flex-1 sm:w-auto"><h2 className="break-words font-semibold">{employee.full_name}</h2><p className="break-all text-sm text-muted-foreground">{employee.email}</p>
             <p className="mt-1 text-xs text-muted-foreground">{t(roleKeys[employee.role] ?? 'accounts.protected')} · {t(employee.is_active ? 'accounts.active' : 'accounts.inactive')}</p></div>
-          {employee.editable ? <Button variant="secondary" size="sm" disabled={saving || loading} onClick={() => open(employee)} leftIcon={<Pencil className="size-4" />}>{t('accounts.edit')}</Button>
+          {employee.editable ? <Button variant="secondary" size="sm" disabled={saving || loading || !!editor} onClick={() => open(employee)} leftIcon={<Pencil className="size-4" />}>{t('accounts.edit')}</Button>
             : <span className="flex items-center gap-1 text-xs text-muted-foreground"><ShieldCheck className="size-4" />{t('accounts.protected')}</span>}
         </li>)}
       </ul>}
