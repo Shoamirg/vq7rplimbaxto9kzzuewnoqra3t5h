@@ -224,6 +224,7 @@ String customerStatus(BuildContext context, String value) => switch (value) {
   'void' => context.l10n.cancelled,
   'refunded' => context.l10n.customerRefund,
   'payment' => context.l10n.customerPayment,
+  'deposit' => context.l10n.customerDeposit,
   'refund' => context.l10n.customerRefund,
   _ => value,
 };

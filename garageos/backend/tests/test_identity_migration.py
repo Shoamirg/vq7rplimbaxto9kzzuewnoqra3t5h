@@ -103,7 +103,9 @@ async def test_upgrade_adopts_seed_created_inbox_and_rollback_keeps_messages(mig
     url = make_url(settings.DATABASE_URL).set(database=name).render_as_string(hide_password=False)
     env = {**os.environ, "DATABASE_URL": url}
     # Reproduce the older seed's schema-only creation, without seeding a garage.
-    created = subprocess.run([sys.executable, "-c", "import asyncio; from app.core.database import init_db; asyncio.run(init_db())"],
+    # That seed predates customer password accounts; do not create the new table
+    # with today's metadata before its migration gets a chance to run.
+    created = subprocess.run([sys.executable, "-c", "import asyncio; import app.models; from app.core.database import Base, init_db; Base.metadata.remove(Base.metadata.tables['customer_accounts']); asyncio.run(init_db())"],
                              cwd=BACKEND, env=env, capture_output=True, text=True, encoding="utf-8")
     assert created.returncode == 0, created.stderr
     center, conversation, message, participant, attachment = (uuid.uuid4() for _ in range(5))

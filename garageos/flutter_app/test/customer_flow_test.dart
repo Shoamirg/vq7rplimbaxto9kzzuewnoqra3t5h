@@ -103,7 +103,7 @@ void main() {
                     'payments': [
                       {
                         'amount': 150000,
-                        'kind': 'payment',
+                        'kind': 'deposit',
                         'method': 'cash',
                         'date': '2026-10-06',
                       },
@@ -173,6 +173,10 @@ void main() {
               await tester.tap(find.text('INV-1'));
               await settle();
               expect(find.text('Moy almashtirish'), findsOneWidget);
+              expect(
+                find.textContaining(strings.customerDeposit),
+                findsOneWidget,
+              );
               await capture('invoice');
               expect(tester.takeException(), isNull);
               expect(find.textContaining('150'), findsWidgets);

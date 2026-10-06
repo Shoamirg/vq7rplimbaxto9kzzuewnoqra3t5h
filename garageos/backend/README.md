@@ -224,3 +224,5 @@ Telegram unlinking; archived customer/inactive garage blocks customer reads.
 Migration adds an empty identity table without rewriting customer history.
 Downgrade removes password identities; back up before downgrade and never treat
 it as a safe rollback that preserves newly created logins.
+
+Owner-created password tokens are restricted server-side to GET customer/me and customer/history reads. Legacy Telegram billing/draft and mutation routes reject these tokens with 403; Telegram tokens retain their existing route policy. Login and credential-checked refresh remain available.

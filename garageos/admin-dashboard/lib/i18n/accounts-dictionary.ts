@@ -2,6 +2,7 @@ import type { Locale } from './dictionaries';
 
 export const ACCOUNTS_DICTIONARY: Record<Locale, Record<string, string>> = {
   en: {
+    "customer_account.password_hint": "Use at least 10 characters and at most 72 UTF-8 bytes. Share privately with this customer.",
     "customer_account.title": "Customer app access",
     "customer_account.hint": "Create a separate customer login. This does not grant employee access.",
     "customer_account.create": "Create customer login",
@@ -28,6 +29,7 @@ export const ACCOUNTS_DICTIONARY: Record<Locale, Record<string, string>> = {
     'accounts.previous': 'Previous', 'accounts.next': 'Next', 'accounts.page': 'Page {page} of {pages} · {total} accounts',
   },
   ru: {
+    "customer_account.password_hint": "Не менее 10 символов, не более 72 байт UTF-8. Передайте лично этому клиенту.",
     "customer_account.title": "Доступ клиента к приложению",
     "customer_account.hint": "Создайте отдельный логин клиента. Доступ сотрудника не предоставляется.",
     "customer_account.create": "Создать логин клиента",
@@ -54,6 +56,7 @@ export const ACCOUNTS_DICTIONARY: Record<Locale, Record<string, string>> = {
     'accounts.previous': 'Назад', 'accounts.next': 'Далее', 'accounts.page': 'Страница {page} из {pages} · аккаунтов: {total}',
   },
   uz: {
+    "customer_account.password_hint": "Kamida 10 belgi, ko‘pi bilan 72 UTF-8 bayt. Faqat shu mijozga shaxsan yetkazing.",
     "customer_account.title": "Mijoz ilovasiga kirish",
     "customer_account.hint": "Mijoz uchun alohida login yarating. Bu xodim huquqini bermaydi.",
     "customer_account.create": "Mijoz loginini yaratish",

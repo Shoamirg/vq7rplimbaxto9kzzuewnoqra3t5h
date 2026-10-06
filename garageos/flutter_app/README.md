@@ -183,3 +183,5 @@ Full customer workflow runs through loopback HTTP in UZ/EN/RU at phone390 and
 tablet834. `live_api_test.dart` also reads the real completed work/invoice and two
 payments through a customer login, then checks suspension. This does not prove
 signed physical-device distribution or production/client acceptance.
+
+Owner-created password tokens are restricted server-side to GET customer/me and customer/history reads. Legacy Telegram billing/draft and mutation routes reject these tokens with 403; Telegram tokens retain their existing route policy. Login and credential-checked refresh remain available.

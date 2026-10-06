@@ -53,7 +53,7 @@ export function CustomerAccount({ customerId }: { customerId: string }) {
     </> : !loadFailed && <form onSubmit={save} aria-label={t('customer_account.title')} className="space-y-4">
       <label className="block space-y-1 text-sm"><span>{t('accounts.email')}</span><input type="email" required maxLength={255} disabled={saving} value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2" /></label>
       <label className="block space-y-1 text-sm"><span>{t('accounts.password')}</span><input type="password" required minLength={10} maxLength={72} autoComplete="new-password" disabled={saving} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2" /></label>
-      <p className="text-xs text-muted-foreground">{t('accounts.password_hint')}</p>
+      <p className="text-xs text-muted-foreground">{t('customer_account.password_hint')}</p>
       <div className="flex justify-end"><Button type="submit" disabled={saving}>{t('customer_account.create')}</Button></div>
     </form>}
   </section>;

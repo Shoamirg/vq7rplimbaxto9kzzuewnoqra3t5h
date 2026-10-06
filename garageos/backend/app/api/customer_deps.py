@@ -12,12 +12,13 @@ from __future__ import annotations
 
 from typing import AsyncIterator
 
-from fastapi import Depends
+from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.exceptions import UnauthorizedError
+from app.core.security import decode_token
+from app.exceptions import UnauthorizedAction, UnauthorizedError
 from app.models.customer import Customer
 from app.repositories.unit_of_work import UnitOfWork
 from app.services.customer_auth_service import CustomerAuthService
@@ -48,8 +49,18 @@ async def get_current_customer(
 
 
 async def get_customer_uow(
+    request: Request,
     current_customer: Customer = Depends(get_current_customer),
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
 ) -> AsyncIterator[UnitOfWork]:
-    """A UnitOfWork scoped to the authenticated customer's tenant."""
+    """Tenant-bound access; password customers use only the approved read portal."""
+    # Identity/credential validity is checked by get_current_customer first.
+    # The signed claim distinguishes owner-created credentials from Telegram.
+    payload = decode_token(credentials.credentials)
+    if payload and "account_id" in payload:
+        path = request.url.path.rstrip("/")
+        allowed_read = path == "/api/v1/customer/me" or path.startswith("/api/v1/customer/history/")
+        if request.method not in {"GET", "HEAD", "OPTIONS"} or not allowed_read:
+            raise UnauthorizedAction()
     async with UnitOfWork(service_center_id=current_customer.service_center_id) as uow:
         yield uow

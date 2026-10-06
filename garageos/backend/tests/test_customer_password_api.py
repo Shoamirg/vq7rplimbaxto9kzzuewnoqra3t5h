@@ -2,6 +2,7 @@ import uuid
 import pytest
 from sqlalchemy import update
 from app.core.database import async_session_factory
+from app.core.security import create_access_token
 from app.models import Customer, ServiceCenter, Invoice
 from tests.test_staff_access_lifecycle import _as_role
 
@@ -25,6 +26,15 @@ async def test_owner_opens_customer_login_and_suspends_existing_session(client, 
     customer_headers = {'Authorization': 'Bearer ' + tokens['access_token']}
     me = await client.get('/api/v1/customer/me', headers=customer_headers)
     assert me.status_code == 200 and me.json()['id'] == customer_id
+    # Password principals cannot use legacy Telegram mutations or draft reads.
+    assert (await client.post(f'/api/v1/customer/billing/estimates/{uuid.uuid4()}/approve', headers=customer_headers)).status_code == 403
+    assert (await client.get('/api/v1/customer/billing', headers=customer_headers)).status_code == 403
+    assert (await client.get('/api/v1/customer/home', headers=customer_headers)).status_code == 403
+    legacy = {'Authorization': 'Bearer ' + create_access_token({
+        'sub': customer_id, 'scid': str(identity['center']), 'type': 'customer_access'})}
+    assert (await client.get('/api/v1/customer/billing', headers=legacy)).status_code == 200
+    assert (await client.post(f'/api/v1/customer/billing/estimates/{uuid.uuid4()}/approve', headers=legacy)).status_code == 404
+
     assert (await client.get('/api/v1/customers', headers=customer_headers)).status_code == 401
     assert (await client.get('/api/v1/customer/me', headers=owner)).status_code == 401
     suspended = await client.patch(f'/api/v1/customers/{customer_id}/account', headers=owner,
