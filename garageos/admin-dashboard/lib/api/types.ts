@@ -69,6 +69,7 @@ export interface CurrentUser {
   role: string | null;
   service_center_id: string;
   is_super_admin: boolean;
+  permissions?: string[];
   branding: Branding | null;
 }
 

@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const FILES = ["lib/i18n/dictionaries.ts", "lib/i18n/mini-dictionary.ts", "lib/i18n/staff-dictionary.ts", "lib/i18n/daily-dictionary.ts"];
+const FILES = ["lib/i18n/dictionaries.ts", "lib/i18n/mini-dictionary.ts", "lib/i18n/staff-dictionary.ts", "lib/i18n/daily-dictionary.ts", "lib/i18n/accounts-dictionary.ts"];
 const LOCALES = ["en", "ru", "uz"];
 // Plural keys legitimately differ per locale (ru has few/many, en/uz don't),
 // so compare their base name, not the exact form.
@@ -27,8 +27,9 @@ function parse(src) {
       continue;
     }
     if (!current) continue;
-    const key = line.match(/^\s+"([^"]+)":/);
-    if (key) out[current].add(key[1].replace(PLURAL_SUFFIX, ""));
+    for (const key of line.matchAll(/(?:^\s*|,\s*)["']([^"']+)["']\s*:/g)) {
+      out[current].add(key[1].replace(PLURAL_SUFFIX, ""));
+    }
   }
   return out;
 }

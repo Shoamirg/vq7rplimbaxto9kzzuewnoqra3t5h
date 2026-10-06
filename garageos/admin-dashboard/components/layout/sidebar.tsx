@@ -76,7 +76,7 @@ const NAV_SECTIONS: NavSection[] = [
 ];
 
 const bottomNav: NavItem[] = [
-  { key: "nav.settings", href: "/settings", icon: <Settings className="size-5" />, unfinished: true },
+  { key: "nav.settings", href: "/settings", icon: <Settings className="size-5" /> },
   { key: "nav.support", href: "/support", icon: <HelpCircle className="size-5" />, unfinished: true },
 ];
 

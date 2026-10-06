@@ -168,6 +168,10 @@ permissions field and fails closed if it is absent. The role catalog is global;
 suspending a role affects every garage using it. To suspend one employee, change
 that user's `is_active`, not the global role.
 
+Owners can manage their garage's employee accounts through `/api/v1/staff` and
+the browser Settings page. Other staff and public demos cannot use this API;
+owner/platform identities are protected. See [employee account workflow](../docs/STAFF-ACCOUNTS.md).
+
 Focused real-database regressions:
 
 ```sh
