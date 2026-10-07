@@ -11,13 +11,15 @@ concurrency:
 
 jobs:
   public-routing:
-    name: Production proxy · public HTTP routing
+    name: Production · build context · public HTTP routing
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Verify dashboard build context excludes private and generated files
+        run: python garageos/scripts/test_dashboard_build_context.py
       - name: Verify native API and dashboard routes through production Caddyfile
         run: python garageos/scripts/test_public_routing.py
 

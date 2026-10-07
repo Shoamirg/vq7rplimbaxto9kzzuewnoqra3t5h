@@ -51,6 +51,28 @@ read-only public demo only intentionally on a deployment with demo accounts.
 
 ## 2. Launch
 
+The dashboard's Docker build uses the `garageos/` workspace root. Its
+`.dockerignore` permits the root npm manifests, dashboard and shared packages;
+local `.env` files, credentials (`*.pem`, `*.key`), installed dependencies and
+generated Next/Playwright output are excluded. Backend, Flutter and backup files
+are also outside that context. Backend images use their own `backend/` context
+and `.dockerignore`. Pass actual deployment values at runtime through `.env.prod`.
+Keep private files outside source directories, even when they have other names.
+
+Verify context filtering independently with synthetic files, then build the
+production application images from `garageos/`:
+
+```bash
+python scripts/test_dashboard_build_context.py
+docker build -f docker/Dockerfile.backend.prod -t garageos-backend:local backend
+docker build -f docker/Dockerfile.dashboard.prod -t garageos-dashboard:local .
+```
+
+Context filtering does not prove dependency security, application startup or
+successful deployment. The production build itself checks the standalone bundle,
+TypeScript and lint. Verify startup, schema/readiness and authenticated routes on
+the target stack before client handover.
+
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 ```
