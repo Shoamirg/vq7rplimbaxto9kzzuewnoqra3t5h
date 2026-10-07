@@ -34,6 +34,8 @@
   "allDates": "Barcha sanalar",
   "ongoingWork": "Davom etayotgan ishlar",
   "ongoingWorkHint": "Barcha sanalarda boshlangan va tugamagan ishlar.",
+  "awaitingInvoiceWork": "Hisob kutilayotgan",
+  "awaitingInvoiceHint": "Barcha sanalardagi tugagan, yakuniy hisob yaratilmagan ishlar.",
   "all": "Barchasi",
   "appointmentsLoading": "Navbatlar yuklanmoqda…",
   "appointmentsFailed": "Navbatlarni yuklab boʻlmadi",

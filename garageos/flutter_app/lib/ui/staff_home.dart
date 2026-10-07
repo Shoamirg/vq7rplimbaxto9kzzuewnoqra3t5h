@@ -198,7 +198,9 @@ class _WorkListState extends State<WorkList> {
   }
 
   WorkStatus? status;
-  bool get ongoing => !today && status == WorkStatus.inProgress;
+  bool awaitingInvoice = false;
+  bool get ongoing =>
+      !today && status == WorkStatus.inProgress && !awaitingInvoice;
 
   void updateSearch(String value) {
     if (query == value) return;
@@ -213,6 +215,7 @@ class _WorkListState extends State<WorkList> {
     setState(() {
       query = '';
       status = null;
+      awaitingInvoice = false;
       today = false;
       page = 1;
     });
@@ -224,13 +227,14 @@ class _WorkListState extends State<WorkList> {
       constraints: BoxConstraints(maxWidth: Space.contentWidth),
       child: ListLoadView<PageData<Work>>(
         storageKey: 'staff-work-list',
-        filterKey: (query, page, today, status),
+        filterKey: (query, page, today, status, awaitingInvoice),
         loadKey: (
           widget.repository,
           query,
           page,
           today,
           status,
+          awaitingInvoice,
           widget.refreshKey,
         ),
         load: () => widget.repository.works(
@@ -238,6 +242,7 @@ class _WorkListState extends State<WorkList> {
           page: page,
           date: today ? DateTime.now() : null,
           status: status,
+          awaitingInvoice: awaitingInvoice,
         ),
         header: (data, reload, loading) => [
           Wrap(
@@ -252,6 +257,8 @@ class _WorkListState extends State<WorkList> {
                   Text(
                     widget.repository.isMechanic
                         ? context.l10n.myWork
+                        : awaitingInvoice
+                        ? context.l10n.awaitingInvoiceWork
                         : ongoing
                         ? context.l10n.ongoingWork
                         : today
@@ -262,6 +269,8 @@ class _WorkListState extends State<WorkList> {
                   Text(
                     widget.repository.isMechanic
                         ? context.l10n.assignedWorkHint
+                        : awaitingInvoice
+                        ? context.l10n.awaitingInvoiceHint
                         : ongoing
                         ? context.l10n.ongoingWorkHint
                         : today
@@ -294,15 +303,34 @@ class _WorkListState extends State<WorkList> {
           SizedBox(height: 12),
           Align(
             alignment: Alignment.centerLeft,
-            child: FilterChip(
-              avatar: const Icon(Icons.build_outlined, size: 18),
-              label: Text(context.l10n.ongoingWork),
-              selected: ongoing,
-              onSelected: (selected) => setState(() {
-                today = false;
-                status = selected ? WorkStatus.inProgress : null;
-                page = 1;
-              }),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                FilterChip(
+                  avatar: const Icon(Icons.build_outlined, size: 18),
+                  label: Text(context.l10n.ongoingWork),
+                  selected: ongoing,
+                  onSelected: (selected) => setState(() {
+                    today = false;
+                    awaitingInvoice = false;
+                    status = selected ? WorkStatus.inProgress : null;
+                    page = 1;
+                  }),
+                ),
+                if (!widget.repository.isMechanic)
+                  FilterChip(
+                    avatar: const Icon(Icons.receipt_long_outlined, size: 18),
+                    label: Text(context.l10n.awaitingInvoiceWork),
+                    selected: awaitingInvoice,
+                    onSelected: (selected) => setState(() {
+                      today = false;
+                      awaitingInvoice = selected;
+                      status = selected ? WorkStatus.completed : null;
+                      page = 1;
+                    }),
+                  ),
+              ],
             ),
           ),
           SizedBox(height: 12),
@@ -319,6 +347,7 @@ class _WorkListState extends State<WorkList> {
               showSelectedIcon: false,
               onSelectionChanged: (values) => setState(() {
                 today = values.single;
+                awaitingInvoice = false;
                 page = 1;
               }),
             ),
@@ -346,6 +375,7 @@ class _WorkListState extends State<WorkList> {
                       selected: status == item,
                       onSelected: (_) => setState(() {
                         status = item;
+                        awaitingInvoice = false;
                         page = 1;
                       }),
                     ),
@@ -403,6 +433,7 @@ class _WorkListState extends State<WorkList> {
               padding: EdgeInsets.only(bottom: 12),
               child: WorkTile(
                 work: work,
+                showBilling: !widget.repository.isMechanic,
                 onTap: () async {
                   await openPage(
                     context,
@@ -425,9 +456,15 @@ class _WorkListState extends State<WorkList> {
 }
 
 class WorkTile extends StatelessWidget {
-  const WorkTile({super.key, required this.work, required this.onTap});
+  const WorkTile({
+    super.key,
+    required this.work,
+    required this.onTap,
+    this.showBilling = true,
+  });
   final Work work;
   final VoidCallback onTap;
+  final bool showBilling;
   @override
   Widget build(BuildContext context) => Card(
     child: InkWell(
@@ -458,6 +495,14 @@ class WorkTile extends StatelessWidget {
                     WorkStatus.unknown => Icons.help_outline,
                   },
                 ),
+                if (showBilling &&
+                    work.status == WorkStatus.completed &&
+                    work.awaitingInvoice == true)
+                  StatusBadge(
+                    context.l10n.awaitingInvoiceWork,
+                    tone: 'warning',
+                    icon: Icons.receipt_long_outlined,
+                  ),
               ],
             ),
             SizedBox(height: 12),

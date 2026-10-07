@@ -39,6 +39,7 @@ abstract class GarageRepository {
     int page = 1,
     DateTime? date,
     WorkStatus? status,
+    bool awaitingInvoice = false,
   });
   Future<Work> work(String id);
   Future<Work> createWork(Json data);
@@ -85,7 +86,11 @@ class LiveRepository extends GarageRepository {
     int page = 1,
     DateTime? date,
     WorkStatus? status,
+    bool awaitingInvoice = false,
   }) async {
+    if (isMechanic && awaitingInvoice) {
+      throw const AppFailure('Bu amal uchun ruxsat yoʻq.', status: 403);
+    }
     final data = await api.request(
       'GET',
       workPath,
@@ -96,6 +101,7 @@ class LiveRepository extends GarageRepository {
         if (date != null) 'date_from': dateKey(date),
         if (date != null) 'date_to': dateKey(date),
         if (status != null) 'status': status.code,
+        if (awaitingInvoice) 'awaiting_invoice': 'true',
       },
     );
     return PageData(

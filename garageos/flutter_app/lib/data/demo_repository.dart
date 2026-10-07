@@ -121,22 +121,35 @@ class DemoRepository extends GarageRepository {
     int page = 1,
     DateTime? date,
     WorkStatus? status,
+    bool awaitingInvoice = false,
   }) async => _page(
     _works
         .where(
           (w) =>
               (date == null || dateKey(w.date) == dateKey(date)) &&
               (status == null || w.status == status) &&
+              (!awaitingInvoice || _withBilling(w).awaitingInvoice == true) &&
               '${w.customerName} ${w.vehicleLabel} ${w.mechanic}'
                   .toLowerCase()
                   .contains(query.toLowerCase()),
         )
+        .map(_withBilling)
         .toList()
       ..sort((a, b) => '${a.date}${a.time}'.compareTo('${b.date}${b.time}')),
     page,
   );
   @override
-  Future<Work> work(String id) async => _works.firstWhere((w) => w.id == id);
+  Future<Work> work(String id) async =>
+      _withBilling(_works.firstWhere((w) => w.id == id));
+  Work _withBilling(Work work) {
+    final matches = _bills.where((bill) => bill.appointmentId == work.id);
+    final bill = matches.isEmpty ? null : matches.first;
+    return work.changed(
+      finalInvoiceId: bill?.id,
+      awaitingInvoice: work.status == WorkStatus.completed && bill == null,
+    );
+  }
+
   @override
   Future<Work> createWork(Json data) async {
     final customer = _customers.firstWhere((c) => c.id == data['customer_id']);
@@ -170,7 +183,7 @@ class DemoRepository extends GarageRepository {
       customerNotes: data['customer_notes'],
     );
     _works.add(value);
-    return value;
+    return _withBilling(value);
   }
 
   @override
@@ -218,7 +231,7 @@ class DemoRepository extends GarageRepository {
       notes: data?['notes'],
     );
     _works[index] = value;
-    return value;
+    return _withBilling(value);
   }
 
   @override

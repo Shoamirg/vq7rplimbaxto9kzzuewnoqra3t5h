@@ -8,6 +8,7 @@ from app.models.appointment import Appointment, AppointmentStatus
 from app.models.brand import Brand
 from app.models.customer import Customer
 from app.models.maintenance_rule import MaintenanceRule
+from app.models.invoice import Invoice, InvoiceKind
 from app.models.service_record import ServiceRecord
 from app.models.vehicle import Vehicle
 from app.models.vehicle_model import VehicleModel
@@ -62,6 +63,7 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
         date_from: Optional[date] = None,
         date_to: Optional[date] = None,
         overdue: bool = False,
+        awaiting_invoice: bool = False,
         q: Optional[str] = None,
         skip: int = 0,
         limit: int = 50,
@@ -72,6 +74,14 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
             base = base.where(Appointment.mechanic_user_id == mechanic_user_id)
         if status:
             base = base.where(Appointment.status == status)
+        if awaiting_invoice:
+            final_invoice = select(Invoice.id).where(
+                Invoice.appointment_id == Appointment.id,
+                Invoice.service_center_id == Appointment.service_center_id,
+                Invoice.kind == InvoiceKind.INVOICE,
+                Invoice.is_active.is_(True),
+            ).exists()
+            base = base.where(Appointment.status == AppointmentStatus.COMPLETED, ~final_invoice)
         if on_date:
             base = base.where(
                 Appointment.appointment_date >= datetime.combine(on_date, datetime.min.time()),

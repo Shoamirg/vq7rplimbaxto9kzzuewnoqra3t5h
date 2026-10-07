@@ -2,6 +2,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, date, timedelta, timezone
 from typing import List, Optional, Sequence
+from sqlalchemy import select
 
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.appointment_slot_repository import AppointmentSlotRepository
@@ -12,6 +13,7 @@ from app.repositories.user_repository import UserRepository
 from app.repositories.unit_of_work import UnitOfWork
 from app.services.maintenance_service import MaintenanceService
 from app.models.appointment import AppointmentStatus
+from app.models.invoice import Invoice, InvoiceKind
 from app.models.appointment_slot import AppointmentSlot, AppointmentSlotStatus
 from app.core.events import AppointmentCreated, AppointmentConfirmed, AppointmentStarted, \
     AppointmentCompleted, AppointmentCancelled, MileageUpdated
@@ -532,12 +534,14 @@ class AppointmentService:
         date_from: Optional[date] = None,
         date_to: Optional[date] = None,
         overdue: bool = False,
+        awaiting_invoice: bool = False,
         q: Optional[str] = None,
         skip: int = 0,
         limit: int = 50,
     ) -> dict:
         items, total = await self.appointment_repo.list_detailed(
             status=status, date_from=date_from, date_to=date_to, overdue=overdue,
+            awaiting_invoice=awaiting_invoice,
             q=q,
             skip=skip, limit=limit,
         )
@@ -551,8 +555,20 @@ class AppointmentService:
         financial = FinancialService(self.uow)
         health_cache: dict = {}
         serialized = []
+        invoice_links = {}
+        if items:
+            links = await self.uow.session.execute(select(Invoice.appointment_id, Invoice.id).where(
+                Invoice.service_center_id == self.uow.service_center_id,
+                Invoice.appointment_id.in_([a.id for a in items]),
+                Invoice.kind == InvoiceKind.INVOICE,
+                Invoice.is_active.is_(True),
+            ))
+            invoice_links = dict(links.all())
         for a in items:
             row = serialize_appointment(a)
+            final_invoice_id = invoice_links.get(a.id)
+            row["final_invoice_id"] = str(final_invoice_id) if final_invoice_id else None
+            row["awaiting_invoice"] = a.status == AppointmentStatus.COMPLETED and final_invoice_id is None
             vid = a.vehicle_id
             if vid not in health_cache:
                 try:

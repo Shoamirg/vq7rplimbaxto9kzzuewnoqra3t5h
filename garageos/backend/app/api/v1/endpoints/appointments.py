@@ -42,6 +42,7 @@ async def list_appointments(
     date_from: date | None = Query(default=None),
     date_to: date | None = Query(default=None),
     overdue: bool = Query(default=False),
+    awaiting_invoice: bool = Query(default=False),
     q: str | None = Query(default=None, max_length=100),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
@@ -49,6 +50,7 @@ async def list_appointments(
     service = AppointmentService(uow)
     result = await service.list_appointments(
         status=status, date_from=date_from, date_to=date_to, overdue=overdue,
+        awaiting_invoice=awaiting_invoice,
         q=q,
         skip=(page - 1) * page_size, limit=page_size,
     )

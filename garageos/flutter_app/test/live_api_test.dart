@@ -181,6 +181,10 @@ void main() {
       });
       expect(done.status, WorkStatus.completed);
       expect(done.notes, 'Tormoz tizimi tekshirildi');
+      final awaiting = await repo.works(query: '$stamp', awaitingInvoice: true);
+      expect(awaiting.items.single.id, work.id);
+      expect(awaiting.items.single.awaitingInvoice, isTrue);
+      expect(awaiting.items.single.finalInvoiceId, isNull);
       expect(await repo.billForWork(work.id), isNull);
       final lines = [
         BillLine('Diagnostika', 1.5, const Money(10000000)),
@@ -191,6 +195,14 @@ void main() {
       expect(bill.total.cents, 44800000);
       expect((await repo.createBill(done, lines, 12)).id, bill.id);
       expect((await repo.billForWork(work.id))!.id, bill.id);
+      expect(
+        (await repo.works(query: '$stamp', awaitingInvoice: true)).total,
+        0,
+      );
+      final listedDone = (await repo.works(query: '$stamp')).items
+          .singleWhere((row) => row.id == work.id);
+      expect(listedDone.awaitingInvoice, isFalse);
+      expect(listedDone.finalInvoiceId, bill.id);
       final key = const Uuid().v4();
       final partial = await repo.pay(
         bill.id,

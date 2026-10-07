@@ -34,6 +34,8 @@
   "allDates": "All dates",
   "ongoingWork": "Ongoing work",
   "ongoingWorkHint": "Started work across all visit dates.",
+  "awaitingInvoiceWork": "Awaiting invoice",
+  "awaitingInvoiceHint": "Completed work without a final invoice, across all dates.",
   "all": "All",
   "appointmentsLoading": "Loading appointments…",
   "appointmentsFailed": "Could not load appointments",

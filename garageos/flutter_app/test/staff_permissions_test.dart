@@ -33,6 +33,8 @@ void main() {
           (w) => w is Scrollable && w.axisDirection == AxisDirection.down,
         ),
       );
+      await tester.ensureVisible(find.text('Aziz Karimov'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Aziz Karimov'));
       await tester.pumpAndSettle();
       expect(find.text('Navbatni tasdiqlash'), findsNothing);

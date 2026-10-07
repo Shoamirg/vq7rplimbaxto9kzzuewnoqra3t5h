@@ -52,9 +52,16 @@ class ListRepository extends DemoRepository {
     int page = 1,
     DateTime? date,
     WorkStatus? status,
+    bool awaitingInvoice = false,
   }) {
     workLoads++;
-    return super.works(query: query, page: page, date: date, status: status);
+    return super.works(
+      query: query,
+      page: page,
+      date: date,
+      status: status,
+      awaitingInvoice: awaitingInvoice,
+    );
   }
 
   @override

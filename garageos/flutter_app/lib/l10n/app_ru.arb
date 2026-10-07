@@ -34,6 +34,8 @@
   "allDates": "Все даты",
   "ongoingWork": "Работы в процессе",
   "ongoingWorkHint": "Начатые работы за все даты посещений.",
+  "awaitingInvoiceWork": "Ожидают счёта",
+  "awaitingInvoiceHint": "Завершённые работы без итогового счёта за все даты.",
   "all": "Все",
   "appointmentsLoading": "Загрузка записей…",
   "appointmentsFailed": "Не удалось загрузить записи",

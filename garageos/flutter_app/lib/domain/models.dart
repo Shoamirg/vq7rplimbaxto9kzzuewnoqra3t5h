@@ -97,6 +97,8 @@ class Work {
     required this.status,
     this.mechanic,
     this.mechanicUserId,
+    this.finalInvoiceId,
+    this.awaitingInvoice,
     this.notes,
     this.customerNotes,
     this.serviceType,
@@ -113,6 +115,8 @@ class Work {
     status: WorkStatus.parse(j['status']),
     mechanic: j['mechanic_name'],
     mechanicUserId: j['mechanic_user_id'],
+    finalInvoiceId: j['final_invoice_id'],
+    awaitingInvoice: j['awaiting_invoice'],
     notes: j['notes'],
     customerNotes: j['customer_notes'],
     serviceType: j['service_type'],
@@ -123,6 +127,8 @@ class Work {
   final WorkStatus status;
   final String? mechanic, notes, customerNotes, serviceType;
   final String? mechanicUserId;
+  final String? finalInvoiceId;
+  final bool? awaitingInvoice;
   String? get plate =>
       RegExp(r'\(([^)]+)\)\s*$').firstMatch(vehicleLabel)?.group(1);
   String get car => vehicleLabel.replaceFirst(RegExp(r'\s*\([^)]+\)\s*$'), '');
@@ -134,6 +140,8 @@ class Work {
     String? mechanic,
     String? mechanicUserId,
     String? notes,
+    String? finalInvoiceId,
+    bool? awaitingInvoice,
   }) => Work(
     id: id,
     customerId: customerId,
@@ -146,6 +154,10 @@ class Work {
     status: status ?? this.status,
     mechanic: mechanic ?? this.mechanic,
     mechanicUserId: mechanic != null ? mechanicUserId : this.mechanicUserId,
+    finalInvoiceId: awaitingInvoice != null
+        ? finalInvoiceId
+        : this.finalInvoiceId,
+    awaitingInvoice: awaitingInvoice ?? this.awaitingInvoice,
     notes: notes ?? this.notes,
     customerNotes: customerNotes,
     serviceType: serviceType,
