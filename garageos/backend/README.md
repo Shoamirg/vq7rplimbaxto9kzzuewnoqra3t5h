@@ -14,8 +14,10 @@ From the repo's `garageos/` directory:
 ```bash
 # 1. Create the backend virtualenv and install deps
 python -m venv backend/.venv
-backend/.venv/Scripts/python -m pip install -r backend/requirements.txt   # Windows
-# backend/.venv/bin/python -m pip install -r backend/requirements.txt     # Linux/macOS
+backend/.venv/Scripts/python -m pip install --upgrade pip==26.2.1         # Windows
+backend/.venv/Scripts/python -m pip install -r backend/requirements-dev.txt
+# backend/.venv/bin/python -m pip install --upgrade pip==26.2.1          # Linux/macOS
+# backend/.venv/bin/python -m pip install -r backend/requirements-dev.txt
 
 # 2. One command: fresh DB + Redis, migrations, and a fully-populated demo
 bash scripts/demo.sh          # or:  make demo
@@ -23,6 +25,13 @@ bash scripts/demo.sh          # or:  make demo
 # 3. Run the API
 cd backend && .venv/Scripts/python -m uvicorn app.main:app --reload
 ```
+
+Use a fresh virtualenv when upgrading from the former python-jose requirement
+set: installing new requirements does not uninstall removed dependencies.
+`requirements.txt` contains production packages; `requirements-dev.txt` adds the
+patched test tooling. Jenkins selects a new private virtualenv for each changed
+requirement set and audits every installed distribution with a separate auditor.
+The production image has no pytest/pytest-asyncio or auditing tool.
 
 Then open http://localhost:8000/docs. System probes:
 

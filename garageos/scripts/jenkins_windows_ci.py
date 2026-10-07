@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import ctypes
 from ctypes import wintypes
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -28,7 +29,13 @@ FLUTTER = Path(os.environ.get("GARAGEOS_FLUTTER", str(Path(os.environ["LOCALAPPD
 BACKEND = ROOT / "garageos/backend"
 DASHBOARD = ROOT / "garageos/admin-dashboard"
 APP = ROOT / "garageos/flutter_app"
-PYTHON = BACKEND / ".venv/Scripts/python.exe"
+# Changing the requirement set selects a fresh owned environment. pip install
+# alone would leave removed packages (e.g. python-jose/ecdsa) installed.
+TOOLS = WORKSPACE / "ci-tools"
+DEPS_KEY = hashlib.sha256((BACKEND / "requirements.txt").read_bytes()
+                          + (BACKEND / "requirements-dev.txt").read_bytes()).hexdigest()[:12]
+PYTHON = TOOLS / ("backend-py312-" + DEPS_KEY) / "Scripts/python.exe"
+AUDITOR = TOOLS / "pip-audit-2.10.1/Scripts/python.exe"
 ENV = dict(os.environ, PYTHONUTF8="1", ENVIRONMENT="test", RATE_LIMIT_ENABLED="false",
            DATABASE_URL="postgresql+asyncpg://postgres@127.0.0.1:55444/garage_test",
            SECRET_KEY="jenkins-isolated-test-only-not-production",
@@ -195,8 +202,14 @@ def main(allow_missing_docker):
     else:
         docker_gate(docker_prefix, "test_dashboard_build_context.py", "build-context")
         docker_gate(docker_prefix, "test_public_routing.py", "public-routing")
-    run([sys.executable, "-m", "venv", BACKEND / ".venv"], ROOT, "python-environment")
-    run([PYTHON, "-m", "pip", "install", "-r", "requirements.txt"], BACKEND, "backend-dependencies")
+    run([sys.executable, "-m", "venv", PYTHON.parent.parent], ROOT, "python-environment")
+    run([PYTHON, "-m", "pip", "install", "--upgrade", "pip==26.2.1"], BACKEND, "backend-installer")
+    run([PYTHON, "-m", "pip", "install", "-r", "requirements-dev.txt"], BACKEND, "backend-dependencies")
+    run([PYTHON, "-m", "pip", "check"], BACKEND, "backend-dependency-check")
+    run([sys.executable, "-m", "venv", AUDITOR.parent.parent], ROOT, "audit-environment")
+    run([AUDITOR, "-m", "pip", "install", "--upgrade", "pip==26.2.1", "pip-audit==2.10.1"], ROOT, "audit-tool")
+    run([sys.executable, ROOT / "garageos/scripts/audit_python_environment.py", "--python", PYTHON,
+         "--auditor", AUDITOR, "--output", EVIDENCE], ROOT, "backend-audit")
     run(["npm.cmd", "ci"], ROOT / "garageos", "node-dependencies")
     run(["npm.cmd", "audit", "--json"], ROOT / "garageos", "node-audit")
     run(["npm.cmd", "audit", "--omit=dev", "--json"], ROOT / "garageos", "node-production-audit")

@@ -115,7 +115,9 @@ cp .env.example .env
 
 # 1. Backend: virtualenv + dependencies
 python -m venv backend/.venv
+backend/.venv/bin/python -m pip install --upgrade pip==26.2.1
 backend/.venv/bin/python -m pip install -r backend/requirements.txt
+# Windows: backend/.venv/Scripts/python -m pip install --upgrade pip==26.2.1
 # Windows: backend/.venv/Scripts/python -m pip install -r backend/requirements.txt
 
 # 2. One command: fresh Postgres + Redis, migrations and a fully populated demo garage

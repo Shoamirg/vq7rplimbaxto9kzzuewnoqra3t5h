@@ -56,8 +56,20 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: garageos/backend/requirements.txt
-      - run: pip install -r requirements.txt
+          cache-dependency-path: |
+            garageos/backend/requirements.txt
+            garageos/backend/requirements-dev.txt
+      - name: Install isolated backend and audit tooling
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip==26.2.1
+          .venv/bin/python -m pip install -r requirements-dev.txt
+          .venv/bin/python -m pip check
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+          python -m venv .audit-venv
+          .audit-venv/bin/python -m pip install pip==26.2.1 pip-audit==2.10.1
+      - name: Audit every installed backend distribution
+        run: python ../scripts/audit_python_environment.py --python "$PWD/.venv/bin/python" --auditor "$PWD/.audit-venv/bin/python" --output ../../ci-evidence/backend-audit
       - name: Apply migrations
         run: alembic upgrade head
       - name: Verify migrated schema matches model metadata
@@ -70,6 +82,12 @@ jobs:
         run: python -m app.seeds.demo --fresh
       - name: Pytest
         run: python -m pytest -q
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-dependency-audit
+          path: ci-evidence/backend-audit
+          retention-days: 7
 
   frontend:
     name: Frontend · typecheck · i18n · lint · build
@@ -152,7 +170,12 @@ jobs:
       - name: Prepare isolated API database
         working-directory: garageos/backend
         run: |
-          pip install -r requirements.txt
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip==26.2.1
+          .venv/bin/python -m pip install -r requirements.txt
+          .venv/bin/python -m pip check
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+          export PATH="$PWD/.venv/bin:$PATH"
           alembic upgrade head
           python ../flutter_app/tool/seed_api_smoke.py "$RUNNER_TEMP/flutter-smoke.json"
       - name: Unit, responsive workflow and real API tests
