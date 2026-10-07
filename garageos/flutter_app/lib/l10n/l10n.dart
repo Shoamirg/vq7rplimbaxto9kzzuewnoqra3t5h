@@ -102,6 +102,7 @@ extension LocalizedContext on BuildContext {
     "API manzilini /api/v1 bilan kiriting." ||
     "Enter an API address ending in /api/v1." ||
     "Введите адрес API, заканчивающийся на /api/v1." => l10n.apiAddressError,
+    "HTTPS API manzilini kiriting." => l10n.apiHttpsRequired,
     "Server javobini oʻqib boʻlmadi." ||
     "Could not read the server response." ||
     "Не удалось прочитать ответ сервера." => l10n.serverResponseError,

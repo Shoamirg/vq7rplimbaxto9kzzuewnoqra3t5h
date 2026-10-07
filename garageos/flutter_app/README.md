@@ -4,6 +4,9 @@ First working Flutter slice of the uploaded GarageOS design: **customer + car â†
 
 For iPhone build checks and partner installation through TestFlight, see the [Uzbek iOS guide](docs/ios.md) and [issue #8](https://github.com/Shoamirg/garageos/issues/8). A simulator/unsigned build is separate from a signed, installable iPhone release.
 
+Android private signing, explicit HTTPS API, split APKs and QA-only Jenkins
+packaging are described in the [Android release guide](docs/android-release.md).
+
 ## Approved design and languages
 
 The approved clean dashboard design is applied to the existing staff screens ([issue #9](https://github.com/Shoamirg/garageos/issues/9), [approved review frontend](https://garageos-mobile-maket-oct3.john-doe-4292.chatgpt.site)). Shared tokens provide white cards, orange primary actions, 16dp card corners and 8dp controls, with a matching dark theme. DM Sans is the body font, Plus Jakarta Sans is used for headings, and Golos Text supplies Cyrillic fallback. All fonts and their SIL OFL licenses are bundled locally.
@@ -48,7 +51,7 @@ Set backend `CORS_ORIGINS` to include the exact web origin `http://127.0.0.1:808
 | Physical Android device | Reachable HTTPS API, or local LAN HTTP in a debug build with an explicitly configured LAN server |
 | iOS | Reachable HTTPS API; iOS HTTP restrictions are retained |
 
-Only Android **debug** permits cleartext for local development. Release builds retain platform network restrictions. Access/refresh tokens remain in memory; closing or leaving the app requires sign-in again. Pending payment request UUID, amount and method are stored separately on the device, scoped by API/user/tenant, before sending. Uncertain responses retain the same request across navigation, re-login and app restart. Resolve that request before changing its amount; there is no offline write queue.
+Only Android **debug** permits cleartext for local development. Android release API requests require HTTPS and reject redirects, alongside the platform network restrictions. Access/refresh tokens remain in memory; closing or leaving the app requires sign-in again. Pending payment request UUID, amount and method are stored separately on the device, scoped by API/user/tenant, before sending. Uncertain responses retain the same request across navigation, re-login and app restart. Resolve that request before changing its amount; there is no offline write queue.
 
 Manual payment recording saves money already received. It does not charge a card or connect Payme/Click/Stripe. Server currency and totals remain authoritative; currencies are not converted or summed together. Invoice history uses server search and pages of 30: search by invoice code, customer, vehicle model or plate. Search resets to page 1; tab/detail return and language changes retain the current search/page/scroll. Loading, retry and clear-search states are available in UZ/EN/RU. Demo mode applies the same search and pagination in memory.
 
@@ -116,7 +119,7 @@ The preceding iOS increment on `5b9ff42` passed an unsigned iPhone release build
 
 ## Subsequent milestones
 
-The 100 HTML files are the complete reference, not 100 implemented Flutter screens. Customer app, console, real SMS/OTP/push, inspection/photos/signatures, richer job pipeline, estimates/approval UI, inventory, staff role screens, payment gateways, refunds UI, printable/shareable mobile documents and production rollout remain separate milestones. iOS project files exist; iOS signing/build/device tests require macOS/Xcode. Android APK signing currently uses a development key and is for local testing, not store publication.
+The 100 HTML files are the complete reference, not 100 implemented Flutter screens. Customer app, console, real SMS/OTP/push, inspection/photos/signatures, richer job pipeline, estimates/approval UI, inventory, staff role screens, payment gateways, refunds UI, printable/shareable mobile documents and production rollout remain separate milestones. iOS project files exist; iOS signing/build/device tests require macOS/Xcode. Android debug APKs use a development key; release builds require private signing and explicit HTTPS API. Temporary QA certificates do not prove owner/client distribution.
 
 ## Layout
 

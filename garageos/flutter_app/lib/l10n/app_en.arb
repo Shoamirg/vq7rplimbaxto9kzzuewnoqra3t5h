@@ -187,6 +187,7 @@
   "sent": "Sent",
   "genericError": "Could not load the data. Try again.",
   "apiAddressError": "Enter an API address ending in /api/v1.",
+  "apiHttpsRequired": "Enter an HTTPS API address.",
   "serverResponseError": "Could not read the server response.",
   "credentialsError": "Incorrect email or password.",
   "appointmentConflict": "The mechanic or vehicle is busy at this time. Choose another time.",

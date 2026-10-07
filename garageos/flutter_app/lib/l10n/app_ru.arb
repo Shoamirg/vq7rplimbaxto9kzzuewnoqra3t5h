@@ -187,6 +187,7 @@
   "sent": "Отправлен",
   "genericError": "Не удалось получить данные. Повторите попытку.",
   "apiAddressError": "Введите адрес API, заканчивающийся на /api/v1.",
+  "apiHttpsRequired": "Введите HTTPS-адрес API.",
   "serverResponseError": "Не удалось прочитать ответ сервера.",
   "credentialsError": "Неверная почта или пароль.",
   "appointmentConflict": "Механик или автомобиль занят в это время. Выберите другое время.",

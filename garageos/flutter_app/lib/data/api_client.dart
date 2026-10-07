@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../domain/models.dart';
@@ -23,15 +24,22 @@ class ApiClient {
     String address, {
     http.Client? client,
     this.refreshPath = '/auth/refresh',
-  }) : base = validateAddress(address),
+    bool? requireHttps,
+  }) : requireHttps = requireHttps ?? androidRelease,
+       base = validateAddress(address, requireHttps: requireHttps),
        _client = client ?? http.Client();
+  static bool get androidRelease =>
+      kReleaseMode &&
+      !kIsWeb &&
+      defaultTargetPlatform == TargetPlatform.android;
+  final bool requireHttps;
   final Uri base;
   final String refreshPath;
   final http.Client _client;
   String? accessToken, refreshToken;
   void Function()? onExpired;
   Future<void>? _refreshing;
-  static Uri validateAddress(String value) {
+  static Uri validateAddress(String value, {bool? requireHttps}) {
     final uri = Uri.tryParse(value.trim().replaceFirst(RegExp(r'/+$'), ''));
     if (uri == null ||
         !['http', 'https'].contains(uri.scheme) ||
@@ -41,6 +49,9 @@ class ApiClient {
         uri.hasFragment ||
         !uri.path.endsWith('/api/v1')) {
       throw const AppFailure('API manzilini /api/v1 bilan kiriting.');
+    }
+    if ((requireHttps ?? androidRelease) && uri.scheme != 'https') {
+      throw const AppFailure('HTTPS API manzilini kiriting.');
     }
     return uri;
   }
@@ -79,6 +90,15 @@ class ApiClient {
         query,
         idempotencyKey,
         authenticated,
+      );
+    }
+    if (requireHttps &&
+        response.statusCode >= 300 &&
+        response.statusCode < 400) {
+      throw AppFailure(
+        'Server javobini oʻqib boʻlmadi.',
+        status: response.statusCode,
+        uncertain: method != 'GET',
       );
     }
     if (response.statusCode == 401 && authenticated) {
@@ -146,6 +166,7 @@ class ApiClient {
   ) async {
     final uri = base.replace(path: '${base.path}$path', queryParameters: query);
     final request = http.Request(method, uri)
+      ..followRedirects = !requireHttps
       ..headers['Content-Type'] = 'application/json'
       ..headers['Accept'] = 'application/json';
     if (authenticated && accessToken != null) {

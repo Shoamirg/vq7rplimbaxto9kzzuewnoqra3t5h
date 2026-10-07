@@ -69,12 +69,24 @@ available fallback or Jenkins evidence. See
 The versioned runner creates a new loopback `garage_test` PostgreSQL cluster for
 each build and refuses occupied ports 55444,8010,3001. It runs migrations/schema,
 pre-seed public API checks, full backend tests, frontend typecheck/locales/lint/
-build, Flutter247-message validation/analyze/full live API tests/web build and
-the three existing production browser suites. Test services stop in `finally`,
+build, Flutter UZ/EN/RU message validation/analyze/full live API tests/web build and
+the four existing production browser suites. Test services stop in `finally`,
 the generated Flutter credential fixture is removed, and logs/JUnit results are
 archived under that build's `ci-evidence` directory. No existing database is reset.
 Build databases/logs are retained locally for diagnosis; no broad Docker or
 filesystem cleanup is performed.
+
+After browser tests, the owned API/database fixtures stop before Android release
+packaging starts. Android SDK36/build-tools36.0.0 and the private Java21 runtime
+are required on this agent; override their paths with `GARAGEOS_ANDROID_SDK` and
+`GARAGEOS_ANDROID_JAVA_HOME` if needed. The native gate exercises actual signing
+and API guard failures, builds three signed split APKs with a disposable QA key,
+verifies certificates/manifests/ABIs/hashes and preserves ordinary debug builds.
+Signing fixtures stay outside the checkout and evidence, then are deleted; only
+the marked `ci-tools/android-gradle` cache's daemons are stopped. Archived
+`QA-ONLY-*` APKs use a synthetic API and temporary identity; they must not be
+distributed to clients. See the [Android release guide](../../garageos/flutter_app/docs/android-release.md)
+for owner signing and physical-device acceptance still required for delivery.
 
 Docker Linux containers are required for the existing production Caddy routing
 and Docker build-context gates. When the engine is unavailable, all other gates

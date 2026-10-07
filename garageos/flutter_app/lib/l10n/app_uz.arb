@@ -187,6 +187,7 @@
   "sent": "Yuborilgan",
   "genericError": "Maʼlumotni olishda xatolik yuz berdi. Qayta urinib koʻring.",
   "apiAddressError": "API manzilini /api/v1 bilan kiriting.",
+  "apiHttpsRequired": "HTTPS API manzilini kiriting.",
   "serverResponseError": "Server javobini oʻqib boʻlmadi.",
   "credentialsError": "Email yoki parol notoʻgʻri.",
   "appointmentConflict": "Bu vaqtda usta yoki mashina band. Boshqa vaqtni tanlang.",

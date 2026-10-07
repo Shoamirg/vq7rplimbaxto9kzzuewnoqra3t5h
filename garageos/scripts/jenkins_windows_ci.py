@@ -259,6 +259,15 @@ def main(allow_missing_docker):
         run([FLUTTER, "build", "web", "--release", "--no-web-resources-cdn"], APP, "flutter-web")
         run(["npx.cmd", "playwright", "test", "e2e/staff-accounts.spec.ts", "e2e/service-work-invoice.spec.ts",
              "e2e/platform.spec.ts", "e2e/theme-compat.spec.ts", "--reporter=list"], DASHBOARD, "browser-tests")
+        # Release packaging needs no running API/database. Stop those fixtures
+        # before the native toolchain uses the machine's memory and CPU.
+        cleanup()
+        run([sys.executable, ROOT / "garageos/scripts/test_android_release.py", "--app", APP,
+             "--flutter", FLUTTER,
+             "--sdk", os.environ.get("GARAGEOS_ANDROID_SDK", str(Path(os.environ["LOCALAPPDATA"]) / "Android/Sdk")),
+             "--java-home", os.environ.get("GARAGEOS_ANDROID_JAVA_HOME", str(Path(os.environ["LOCALAPPDATA"]) / "GarageOS/jenkins/runtime/jdk-21.0.12.1+1")),
+             "--gradle-user-home", TOOLS / "android-gradle", "--private-directory", TOOLS / "android-private",
+             "--output", EVIDENCE / "android-release"], ROOT, "android-release")
         shutil.make_archive(str(EVIDENCE / "flutter-web"), "zip", APP / "build/web")
         if (DASHBOARD / "test-results").exists():
             shutil.copytree(DASHBOARD / "test-results", EVIDENCE / "browser-results", dirs_exist_ok=True)
