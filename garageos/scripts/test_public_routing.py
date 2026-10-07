@@ -74,9 +74,10 @@ class PublicRoutingTest(unittest.TestCase):
             try:
                 cls.request("/")
                 break
-            # A proxy can return a non-JSON 502 while the fixture starts.
-            # Only startup retries that response; normal requests still fail.
-            except (URLError, TimeoutError, json.JSONDecodeError):
+            # Docker can publish its port before Caddy accepts connections;
+            # the proxy can also return a non-JSON 502 while fixtures start.
+            # Retry only during startup; normal requests still fail.
+            except (URLError, TimeoutError, ConnectionResetError, json.JSONDecodeError):
                 time.sleep(0.25)
         else:
             raise RuntimeError("Caddy did not become ready: " + docker("logs", cls.proxy))
