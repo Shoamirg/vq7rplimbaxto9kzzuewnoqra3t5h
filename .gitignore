@@ -72,3 +72,6 @@ logs/
 **/test-results/
 **/playwright-report/
 **/.playwright/
+# Local Jenkins build evidence and fixture state (credentials stay outside Git).
+ci-evidence/
+ci-state/
