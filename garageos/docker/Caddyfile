@@ -1,6 +1,6 @@
 # GarageOS reverse proxy — automatic HTTPS via Let's Encrypt.
-# Only the dashboard is exposed publicly; the backend is reached internally by
-# the Next BFF over the Docker network, so it never faces the internet.
+# Native clients reach the versioned API through this proxy. The dashboard BFF
+# also reaches the backend over Docker; backend ports are never published.
 #
 # Requires DOMAIN and ACME_EMAIL in the environment (see .env.prod).
 
@@ -24,5 +24,14 @@
 		-Server
 	}
 
-	reverse_proxy dashboard:3000
+	# Keep the /api/v1 prefix: FastAPI registers its routes with that prefix.
+	@native_api path /api/v1 /api/v1/*
+	handle @native_api {
+		reverse_proxy backend:8000
+	}
+
+	# Next pages and its /api/auth/* and /api/proxy/* BFF stay on the dashboard.
+	handle {
+		reverse_proxy dashboard:3000
+	}
 }

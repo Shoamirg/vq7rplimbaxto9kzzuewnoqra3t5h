@@ -4,12 +4,15 @@ Phase 12 · Week 1 — Infrastructure. Goal: **someone outside your computer can
 use GarageOS**, over HTTPS, with backups.
 
 The whole platform runs as one Docker Compose stack behind Caddy (automatic
-Let's Encrypt HTTPS). Only ports 80/443 are exposed; the backend, Postgres, and
-Redis stay on the internal Docker network.
+Let's Encrypt HTTPS). Only ports 80/443 are exposed. Caddy proxies `/api/v1` and
+`/api/v1/*` to FastAPI for native clients; all other paths go to the dashboard,
+including its `/api/auth/*` and `/api/proxy/*` BFF. The backend has no published
+port; Postgres and Redis stay on the internal Docker network.
 
 ```
-Internet ─▶ Caddy (:443, auto-HTTPS) ─▶ dashboard (Next.js)
-                                            └─▶ backend (FastAPI) ─▶ Postgres / Redis
+Internet ─▶ Caddy (:443, auto-HTTPS) ─┬─▶ /api/v1/* ─▶ backend (FastAPI)
+                                    └─▶ dashboard (Next.js) ─▶ backend
+                                                              └─▶ Postgres / Redis
 telegram-bot ──▶ Telegram (long-poll, outbound only — no inbound port needed)
 ```
 
@@ -57,9 +60,36 @@ automatically. Caddy provisions the TLS certificate on first request (give it
 ~30s). Check status:
 
 ```bash
-docker compose -f docker-compose.prod.yml ps
+docker compose -f docker-compose.prod.yml --env-file .env.prod ps
 curl -fsS https://<DOMAIN>/            # dashboard
+curl -i https://<DOMAIN>/api/v1/auth/me # must be backend JSON 401 without a token
 ```
+
+The unauthenticated `401` confirms public routing and rejection, not successful
+login. In the Flutter API URL setting use **`https://<DOMAIN>/api/v1`**. Keep the
+version prefix; do not use the Docker hostname `backend`, `localhost` or the
+Android emulator alias `10.0.2.2` on a remote physical phone. Test staff/customer
+login with provisioned accounts and authorized history on the real phone before
+handover. API credentials are entered in the app; keep them out of commands/logs.
+Backend `/health`, `/ready`, `/docs` and `/openapi.json` are not exposed by the
+API matcher; use internal checks for backend readiness.
+
+The proxy keeps the URI, request body and Authorization header intact, using
+[Caddy handle](https://caddyserver.com/docs/caddyfile/directives/handle) and
+[reverse_proxy](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy).
+Run the isolated routing regression before deployment (Docker Linux containers
+and Python 3.12 required):
+
+```bash
+python scripts/test_public_routing.py
+```
+
+This runs the actual production Caddyfile with temporary HTTP transport fixtures
+and removes its own containers/network. It checks routing, request preservation,
+upstream `401`, security headers and forwarded-header spoofing. It also validates
+the HTTPS configuration; it does not obtain a certificate or prove real backend
+authentication, server reachability or physical-device acceptance. Existing
+backend/Flutter authentication tests remain separate gates.
 
 Before updating an existing database, take and restore-test a backup. Migration
 `b3c4d5e6f7a8` enforces per-garage active phone/plate/VIN uniqueness. It stops on
