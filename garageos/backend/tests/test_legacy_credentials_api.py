@@ -47,7 +47,7 @@ async def test_persisted_customer_old_hash_access_refresh_and_revocation(client,
         'full_name': 'Legacy customer', 'phone': '998' + str(uuid.uuid4().int)[:9]})
     assert created.status_code == 201, created.text
     customer_id = created.json()['id']
-    email = f'legacy-{uuid.uuid4().hex}@example.test'
+    email = f'legacy-{uuid.uuid4().hex}@example.com'
     account = await client.post(f'/api/v1/customers/{customer_id}/account', headers=owner,
                                json={'email': email, 'password': PASSWORD})
     assert account.status_code == 201, account.text
