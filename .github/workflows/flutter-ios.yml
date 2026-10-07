@@ -1,14 +1,7 @@
 name: Flutter iOS
 
 on:
-  push:
-    branches: [codex/service-work-demo]
-    paths:
-      - .github/workflows/flutter-ios.yml
-      - garageos/flutter_app/ios/**
-      - garageos/flutter_app/integration_test/**
-      - garageos/flutter_app/lib/**
-      - garageos/flutter_app/pubspec.*
+  # This Windows Jenkins installation has no Mac/Xcode agent.
   workflow_dispatch:
 
 permissions:

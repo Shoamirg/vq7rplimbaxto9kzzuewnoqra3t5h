@@ -1,17 +1,7 @@
 name: Staff browser workflow
 
 on:
-  push:
-    branches: [codex/service-work-demo]
-    paths:
-      - .github/workflows/staff-browser.yml
-      - garageos/admin-dashboard/**
-      - garageos/backend/**
-  pull_request:
-    paths:
-      - .github/workflows/staff-browser.yml
-      - garageos/admin-dashboard/**
-      - garageos/backend/**
+  # Retained as a manual hosted-runner fallback; Jenkins runs the browser gate.
   workflow_dispatch:
 
 permissions:

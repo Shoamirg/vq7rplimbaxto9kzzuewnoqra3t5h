@@ -57,8 +57,14 @@ The local `GarageOS-Windows-CI` Pipeline polls the trusted branch every five
 minutes. Its bootstrap fetches an independent checkout, records the attempted
 SHA and loads that checkout's `Jenkinsfile`. Unchanged SHAs are not rebuilt on
 every poll, including failed attempts; choose **FORCE_RUN** for an explicit retry.
-There is no automatic deployment, merge or tag. GitHub Actions workflows remain
-available as a manual fallback; they are not Jenkins evidence.
+There is no automatic deployment, merge or tag. GitHub Actions workflow
+definitions are retained with manual triggers. Dispatch is not yet verified:
+GitHub requires the workflow on the default branch, which currently contains
+only `ci.yml`; `staff-browser.yml` and `flutter-ios.yml` remain on this feature
+branch. Their activation needs an authorized merge/default-branch update and
+the account billing issue resolved. Preserved definitions are not an immediately
+available fallback or Jenkins evidence. See
+[GitHub manual workflow requirements](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow).
 
 The versioned runner creates a new loopback `garage_test` PostgreSQL cluster for
 each build and refuses occupied ports 55444,8010,3001. It runs migrations/schema,
