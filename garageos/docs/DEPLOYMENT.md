@@ -73,6 +73,26 @@ successful deployment. The production build itself checks the standalone bundle,
 TypeScript and lint. Verify startup, schema/readiness and authenticated routes on
 the target stack before client handover.
 
+Install JavaScript dependencies from the `garageos/` workspace root using
+`npm ci`. The root manifest overrides Next's pinned PostCSS with `8.5.29` to
+include the [source-map security fix](https://github.com/postcss/postcss/security/advisories/GHSA-fxqj-rqcc-2cmp).
+Retain that override until Next supplies a patched PostCSS version itself, then
+remove it only after checking the installed tree, audit and production build.
+Use npm 10, matching the production Docker build, to verify that
+`npm ls postcss --all` shows the patched version under Next and the application.
+On the same installed workspace, npm 11.11.0 reports a conflicting `8.4.31`
+requirement despite the override; `npx --yes npm@10.8.2 ls postcss --all` verifies
+the installed tree without that diagnostic. Audit exit codes and remaining alerts
+must be reported; this override
+does not resolve the separate build-tool glob/selector-parser advisories or prove
+that the entire platform has passed a security audit.
+
+The remaining glob/selector-parser alerts come through Tailwind's build tools.
+The locally verified standalone image contains patched PostCSS and excludes those
+named build-tool packages. This inventory is not an exploitability assessment of
+all bundled code; retain the alerts until an upstream patch or reviewed dependency
+migration resolves them.
+
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 ```

@@ -4,5 +4,10 @@
   "workspaces": [
     "admin-dashboard",
     "packages/*"
-  ]
+  ],
+  "overrides": {
+    "next": {
+      "postcss": "8.5.29"
+    }
+  }
 }
