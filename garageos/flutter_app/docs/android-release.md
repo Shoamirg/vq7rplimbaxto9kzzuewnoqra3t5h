@@ -67,6 +67,10 @@ commit va endpointni release receiptga yozing. Build xatosidan so'ng eski
 
 `scripts/test_android_release.py` actual Flutter/Gradle va Android tools orqali
 missing/invalid signing/API, uchta signed split APK va debug buildni tekshiradi.
+Har bir delivered APKda Flutter asset/font manifestlari, Material ikonlari,
+DM Sans/Golos Text/Plus Jakarta Sans fontlari, barcha manifest font fayllari va
+ABI AOT ilovasi ham tekshiriladi. Build/signature muvaffaqiyati bundle to'liq
+ekanini o'zi isbotlamaydi; resourcesiz APK bu gate'dan o'tmaydi.
 Vaqtinchalik QA kaliti repo va evidence katalogidan tashqarida yaratiladi;
 keyin o'chiriladi. Faqat markerli alohida QA Gradle home daemoni to'xtatiladi;
 umumiy `.gradle` yoki boshqa loyiha cache'ini bermang.
@@ -84,6 +88,8 @@ cache bo'lsin; umumiy yoki boshqa loyiha cache'ini ishlatmang.
 
 Owner signing/backup, client HTTPS API, physical Android/iPhone, account/work/
 invoice/payment/restart/network sinovlari va avtoservis piloti #10 da qoladi.
+Emulyatordagi native integration va oddiy QA release ochilishi uchun
+[Android runtime QA](android-runtime.md) yo'riqnomasiga qarang.
 
 Primary: [Flutter release](https://docs.flutter.dev/deployment/android),
 [Android signing](https://developer.android.com/studio/publish/app-signing),

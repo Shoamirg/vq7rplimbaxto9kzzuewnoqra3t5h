@@ -81,7 +81,8 @@ packaging starts. Android SDK36/build-tools36.0.0 and the private Java21 runtime
 are required on this agent; override their paths with `GARAGEOS_ANDROID_SDK` and
 `GARAGEOS_ANDROID_JAVA_HOME` if needed. The native gate exercises actual signing
 and API guard failures, builds three signed split APKs with a disposable QA key,
-verifies certificates/manifests/ABIs/hashes and preserves ordinary debug builds.
+verifies certificates/manifests/ABIs/hashes, actual packaged Flutter assets/fonts
+and per-ABI AOT application, and preserves ordinary debug builds.
 Signing fixtures stay outside the checkout and evidence, then are deleted; only
 the marked `%LOCALAPPDATA%/GarageOS/ci/android-gradle` cache's daemons are stopped.
 This short path avoids AAPT2 process startup failure when Windows resolves the

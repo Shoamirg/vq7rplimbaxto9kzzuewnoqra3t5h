@@ -204,6 +204,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   SizedBox(height: 16),
                   ExpansionTile(
                     tilePadding: EdgeInsets.zero,
+                    childrenPadding: const EdgeInsets.only(top: 8),
                     title: Text(context.l10n.connectionSettings),
                     children: [
                       TextFormField(

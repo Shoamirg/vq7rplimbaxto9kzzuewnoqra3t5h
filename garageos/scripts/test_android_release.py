@@ -25,6 +25,41 @@ API = "https://qa.garageos.example/api/v1"
 NS = "{http://schemas.android.com/apk/res/android}"
 
 
+def verify_flutter_bundle(apk):
+    """Inspect the delivered APK, independently of Gradle build success."""
+    prefix = "assets/flutter_assets/"
+    with zipfile.ZipFile(apk) as bundle:
+        def read(asset):
+            try:
+                data = bundle.read(prefix + asset)
+            except KeyError as error:
+                raise RuntimeError(f"{apk.name}: missing Flutter asset {asset}") from error
+            if not data:
+                raise RuntimeError(f"{apk.name}: empty Flutter asset {asset}")
+            return data
+
+        read("AssetManifest.bin")
+        fonts = json.loads(read("FontManifest.json"))
+        families = {entry["family"] for entry in fonts}
+        required = {"MaterialIcons", "DM Sans", "Golos Text", "Plus Jakarta Sans"}
+        if not required.issubset(families):
+            raise RuntimeError(f"{apk.name}: required icon/design font families are missing")
+        for entry in fonts:
+            if not entry.get("fonts"):
+                raise RuntimeError(f"{apk.name}: font family has no packaged fonts")
+            for font in entry["fonts"]:
+                data = read(font["asset"])
+                if data[:4] not in {b"OTTO", b"\x00\x01\x00\x00", b"ttcf"}:
+                    raise RuntimeError(f"{apk.name}: invalid packaged font {font['asset']}")
+        abis = {n.split('/')[1] for n in bundle.namelist()
+                if n.startswith('lib/') and n.endswith('/libflutter.so')}
+        for abi in abis:
+            if bundle.getinfo(f"lib/{abi}/libapp.so").file_size == 0:
+                raise RuntimeError(f"{apk.name}: empty AOT application")
+        return {"font_families": sorted(families),
+                "asset_count": sum(n.startswith(prefix) for n in bundle.namelist())}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--app", type=Path, required=True)
@@ -149,6 +184,10 @@ def main():
         if len(apks) != 3:
             raise RuntimeError("Expected three actual split APKs")
         for apk in apks:
+            flutter_assets = verify_flutter_bundle(apk)
+            results.append({"gate": apk.stem + "-flutter-assets", "exit_code": 0,
+                            "expected_failure": False})
+            print("Android gate passed: " + apk.stem + "-flutter-assets", flush=True)
             signature = run(signer + [apk], apk.stem + "-signature")
             digest = re.search(r"Signer #1 certificate SHA-256 digest: ([0-9a-f]+)", signature)
             assert digest and digest.group(1) == expected_fingerprint
@@ -168,7 +207,8 @@ def main():
             artifacts.append({"file": apk.name, "bytes": apk.stat().st_size, "sha256": hashlib.sha256(apk.read_bytes()).hexdigest(),
                               "certificate_sha256": expected_fingerprint, "application_id": tree.get("package"),
                               "version_name": tree.get(NS + "versionName"), "version_code": tree.get(NS + "versionCode"),
-                              "abi": abi, "debuggable": False, "manifest_cleartext_allowed": False})
+                              "abi": abi, "debuggable": False, "manifest_cleartext_allowed": False,
+                              "flutter_assets": flutter_assets})
             shutil.copyfile(apk, output / ("QA-ONLY-" + apk.name))
         assert {a["abi"][0] for a in artifacts} == {"armeabi-v7a", "arm64-v8a", "x86_64"}
         run([args.flutter, "build", "apk", "--debug", "--target-platform", "android-arm64"], "debug-build")
