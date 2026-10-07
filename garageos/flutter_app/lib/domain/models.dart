@@ -129,7 +129,12 @@ class Work {
   bool get canCancel =>
       status == WorkStatus.pending || status == WorkStatus.confirmed;
   bool get canAssignMechanic => canCancel;
-  Work changed({WorkStatus? status, String? mechanic, String? notes}) => Work(
+  Work changed({
+    WorkStatus? status,
+    String? mechanic,
+    String? mechanicUserId,
+    String? notes,
+  }) => Work(
     id: id,
     customerId: customerId,
     customerName: customerName,
@@ -140,7 +145,7 @@ class Work {
     duration: duration,
     status: status ?? this.status,
     mechanic: mechanic ?? this.mechanic,
-    mechanicUserId: mechanicUserId,
+    mechanicUserId: mechanic != null ? mechanicUserId : this.mechanicUserId,
     notes: notes ?? this.notes,
     customerNotes: customerNotes,
     serviceType: serviceType,

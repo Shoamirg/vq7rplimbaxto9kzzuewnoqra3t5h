@@ -123,8 +123,15 @@ class AppointmentDirectCreateRequest(BaseModel):
     appointment_time: str = Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
     estimated_duration_minutes: int = Field(default=60, ge=15, le=480)
     mechanic_name: str | None = None
+    mechanic_user_id: UUID | None = None
     maintenance_rule_id: UUID | None = None
     customer_notes: str | None = None
+
+    @model_validator(mode="after")
+    def reject_ambiguous_mechanic(self):
+        if self.mechanic_user_id is not None and self.mechanic_name is not None:
+            raise ValueError("Provide an account ID or a legacy name, not both")
+        return self
 
 
 class AppointmentCancelRequest(BaseModel):

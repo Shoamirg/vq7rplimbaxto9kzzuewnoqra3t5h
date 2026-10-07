@@ -145,6 +145,7 @@ async def create_appointment_direct(
         appointment_time=body.appointment_time,
         estimated_duration_minutes=body.estimated_duration_minutes,
         mechanic_name=body.mechanic_name,
+        mechanic_user_id=body.mechanic_user_id,
         maintenance_rule_id=body.maintenance_rule_id,
         customer_notes=body.customer_notes,
     )

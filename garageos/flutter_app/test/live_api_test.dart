@@ -129,6 +129,25 @@ void main() {
       final account = (await repo.mechanics()).singleWhere(
         (m) => m.email == fixture['read_only_email'],
       );
+      final bookedWithAccount = await repo.createWork({
+        'customer_id': customer.id,
+        'vehicle_id': car.id,
+        'appointment_date': dateKey(
+          DateTime.now().add(const Duration(days: 3)),
+        ),
+        'appointment_time': '16:30',
+        'estimated_duration_minutes': 60,
+        'mechanic_user_id': account.id,
+      });
+      expect(bookedWithAccount.mechanicUserId, account.id);
+      expect(bookedWithAccount.mechanic, account.name);
+      expect(
+        (await repo.work(bookedWithAccount.id)).mechanicUserId,
+        account.id,
+      );
+      await repo.changeWork(bookedWithAccount.id, 'cancel', {
+        'reason': 'Booking QA complete',
+      });
       await repo.changeWork(work.id, 'assign-mechanic', {
         'mechanic_user_id': account.id,
       });
@@ -151,8 +170,8 @@ void main() {
         isMechanic: true,
       );
       expect(
-        (await mechanicRepo.works(query: '$stamp')).items.single.id,
-        work.id,
+        (await mechanicRepo.works(query: '$stamp')).items.map((w) => w.id),
+        unorderedEquals([work.id, bookedWithAccount.id]),
       );
       await mechanicRepo.changeWork(work.id, 'start');
       final done = await mechanicRepo.changeWork(work.id, 'complete', {
@@ -228,8 +247,8 @@ void main() {
       final customerRepo = customerState.customerRepository!;
       expect((await customerRepo.history('vehicles')).total, 1);
       expect(
-        (await customerRepo.history('appointments')).items.single['id'],
-        work.id,
+        (await customerRepo.history('appointments')).items.map((w) => w['id']),
+        unorderedEquals([work.id, bookedWithAccount.id]),
       );
       expect(
         (await customerRepo.history('invoices')).items.single['id'],

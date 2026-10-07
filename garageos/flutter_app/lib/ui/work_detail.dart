@@ -67,22 +67,12 @@ class _WorkScreenState extends State<WorkScreen> {
   }
 
   Future<void> assign() async {
-    if (!widget.repository.isDemo) {
-      final mechanic = await openPage<Mechanic>(
-        context,
-        MechanicPicker(repository: widget.repository, initial: work.mechanic),
-      );
-      if (mechanic != null && mounted) {
-        await change('assign-mechanic', {'mechanic_user_id': mechanic.id});
-      }
-      return;
-    }
-    final name = await showDialog<String>(
-      context: context,
-      builder: (context) => MechanicDialog(initial: work.mechanic),
+    final mechanic = await openPage<Mechanic>(
+      context,
+      MechanicPicker(repository: widget.repository, initial: work.mechanic),
     );
-    if (name != null && mounted) {
-      await change('assign-mechanic', {'mechanic_name': name});
+    if (mechanic != null && mounted) {
+      await change('assign-mechanic', {'mechanic_user_id': mechanic.id});
     }
   }
 

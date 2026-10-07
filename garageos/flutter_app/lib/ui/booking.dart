@@ -7,6 +7,7 @@ import '../l10n/l10n.dart';
 import '../design/widgets.dart';
 import '../domain/models.dart';
 import 'customers.dart';
+import 'work_detail.dart';
 
 class BookingScreen extends StatefulWidget {
   const BookingScreen({
@@ -24,7 +25,8 @@ class BookingScreen extends StatefulWidget {
 
 class _BookingScreenState extends State<BookingScreen> {
   final form = GlobalKey<FormState>();
-  final mechanic = TextEditingController(), notes = TextEditingController();
+  final notes = TextEditingController();
+  Mechanic? mechanic;
   late Customer? customer = widget.customer;
   late Car? car = widget.car;
   List<Car> cars = [];
@@ -42,7 +44,6 @@ class _BookingScreenState extends State<BookingScreen> {
 
   @override
   void dispose() {
-    mechanic.dispose();
     notes.dispose();
     super.dispose();
   }
@@ -88,6 +89,7 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   Future<void> save() async {
+    if (!widget.repository.canWrite || busy) return;
     if (!validateForm(form)) return;
     if (customer == null || car == null) {
       setState(() => error = context.l10n.pickCustomerError);
@@ -105,9 +107,7 @@ class _BookingScreenState extends State<BookingScreen> {
         'appointment_time':
             '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}',
         'estimated_duration_minutes': duration,
-        'mechanic_name': mechanic.text.trim().isEmpty
-            ? null
-            : mechanic.text.trim(),
+        'mechanic_user_id': mechanic?.id,
         'customer_notes': notes.text.trim().isEmpty ? null : notes.text.trim(),
       });
       if (mounted) Navigator.pop(context, created);
@@ -122,6 +122,7 @@ class _BookingScreenState extends State<BookingScreen> {
   Widget build(BuildContext context) => PageFrame(
     title: context.l10n.newAppointment,
     demo: widget.repository.isDemo,
+    readOnly: !widget.repository.canWrite,
     hasChanges: dirty,
     isSaving: busy,
     body: Form(
@@ -147,7 +148,9 @@ class _BookingScreenState extends State<BookingScreen> {
                   SizedBox(height: 8),
                 ],
                 OutlinedButton.icon(
-                  onPressed: busy ? null : pickCustomer,
+                  onPressed: busy || !widget.repository.canWrite
+                      ? null
+                      : pickCustomer,
                   icon: Icon(Icons.person_search_outlined),
                   label: Text(
                     customer == null
@@ -184,7 +187,7 @@ class _BookingScreenState extends State<BookingScreen> {
                         : context.colors.secondary,
                   ),
                   selected: car?.id == item.id,
-                  onTap: busy
+                  onTap: busy || !widget.repository.canWrite
                       ? null
                       : () => setState(() {
                           car = item;
@@ -195,7 +198,7 @@ class _BookingScreenState extends State<BookingScreen> {
             ),
           if (customer != null)
             OutlinedButton.icon(
-              onPressed: busy || loadingCars
+              onPressed: busy || !widget.repository.canWrite || loadingCars
                   ? null
                   : () async {
                       final added = await openPage<Car>(
@@ -221,7 +224,7 @@ class _BookingScreenState extends State<BookingScreen> {
           ),
           SizedBox(height: 12),
           OutlinedButton.icon(
-            onPressed: busy
+            onPressed: busy || !widget.repository.canWrite
                 ? null
                 : () async {
                     final selected = await showDatePicker(
@@ -242,7 +245,7 @@ class _BookingScreenState extends State<BookingScreen> {
           ),
           SizedBox(height: 12),
           OutlinedButton.icon(
-            onPressed: busy
+            onPressed: busy || !widget.repository.canWrite
                 ? null
                 : () async {
                     final selected = await showTimePicker(
@@ -279,22 +282,55 @@ class _BookingScreenState extends State<BookingScreen> {
                   ),
                 )
                 .toList(),
-            onChanged: busy ? null : (v) => setState(() => duration = v!),
+            onChanged: busy || !widget.repository.canWrite
+                ? null
+                : (v) => setState(() => duration = v!),
           ),
           SizedBox(height: 16),
-          TextFormField(
-            controller: mechanic,
-            enabled: !busy,
-            maxLength: 255,
-            decoration: InputDecoration(
-              labelText: context.l10n.mechanic,
-              helperText: context.l10n.mechanicHint,
-            ),
+          Text(
+            context.l10n.mechanic,
+            style: Theme.of(context).textTheme.titleMedium,
           ),
+          if (mechanic != null) ...[
+            Text(mechanic!.name),
+            Text(mechanic!.email),
+          ] else
+            Text(context.l10n.unassigned),
+          OutlinedButton.icon(
+            onPressed: busy || !widget.repository.canWrite
+                ? null
+                : () async {
+                    final selected = await openPage<Mechanic>(
+                      context,
+                      MechanicPicker(
+                        repository: widget.repository,
+                        initial: mechanic?.name,
+                      ),
+                    );
+                    if (selected != null && mounted) {
+                      setState(() {
+                        mechanic = selected;
+                        dirty = true;
+                      });
+                    }
+                  },
+            icon: const Icon(Icons.person_search_outlined),
+            label: Text(context.l10n.assignMechanic),
+          ),
+          if (mechanic != null)
+            TextButton(
+              onPressed: busy || !widget.repository.canWrite
+                  ? null
+                  : () => setState(() {
+                      mechanic = null;
+                      dirty = true;
+                    }),
+              child: Text(context.l10n.unassigned),
+            ),
           SizedBox(height: 16),
           TextFormField(
             controller: notes,
-            enabled: !busy,
+            enabled: !busy && widget.repository.canWrite,
             maxLines: 3,
             maxLength: 1000,
             decoration: InputDecoration(labelText: context.l10n.customerNotes),
@@ -302,21 +338,25 @@ class _BookingScreenState extends State<BookingScreen> {
         ],
       ),
     ),
-    footer: Row(
-      children: [
-        TextButton(
-          onPressed: busy ? null : () => Navigator.maybePop(context),
-          child: Text(context.l10n.cancel),
-        ),
-        SizedBox(width: 8),
-        Expanded(
-          child: SaveButton(
-            label: context.l10n.createAppointment,
-            onPressed: save,
-            busy: busy,
+    footer: !widget.repository.canWrite
+        ? null
+        : Row(
+            children: [
+              TextButton(
+                onPressed: busy || !widget.repository.canWrite
+                    ? null
+                    : () => Navigator.maybePop(context),
+                child: Text(context.l10n.cancel),
+              ),
+              SizedBox(width: 8),
+              Expanded(
+                child: SaveButton(
+                  label: context.l10n.createAppointment,
+                  onPressed: save,
+                  busy: busy,
+                ),
+              ),
+            ],
           ),
-        ),
-      ],
-    ),
   );
 }

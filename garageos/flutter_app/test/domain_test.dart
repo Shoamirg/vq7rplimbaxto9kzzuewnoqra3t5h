@@ -3,7 +3,68 @@ import 'package:garageos_staff/domain/models.dart';
 import 'package:garageos_staff/data/demo_repository.dart';
 import 'package:garageos_staff/data/api_client.dart';
 
+class EqualNameDemo extends DemoRepository {
+  @override
+  Future<List<Mechanic>> mechanics() async => const [
+    Mechanic('first', 'Sherzod', 'first@example.com'),
+    Mechanic('second', 'Sherzod', 'second@example.com'),
+  ];
+}
+
 void main() {
+  test('demo booking uses account identity for equal names and retains legacy conflicts', () async {
+    final repo = EqualNameDemo();
+    final body = <String, dynamic>{
+      'customer_id': 'c1',
+      'vehicle_id': 'v1',
+      'appointment_date': '2030-05-02',
+      'appointment_time': '10:00',
+      'estimated_duration_minutes': 60,
+    };
+    final first = await repo.createWork({...body, 'mechanic_user_id': 'first'});
+    final second = await repo.createWork({
+      ...body,
+      'customer_id': 'c2',
+      'vehicle_id': 'v2',
+      'mechanic_user_id': 'second',
+    });
+    expect(first.mechanicUserId, 'first');
+    expect(second.mechanicUserId, 'second');
+    expect(first.mechanic, second.mechanic);
+    await expectLater(
+      repo.createWork({
+        ...body,
+        'customer_id': 'c3',
+        'vehicle_id': 'v3',
+        'mechanic_user_id': 'first',
+      }),
+      throwsA(isA<AppFailure>()),
+    );
+    await expectLater(
+      repo.createWork({
+        ...body,
+        'appointment_time': '12:00',
+        'mechanic_user_id': 'missing',
+      }),
+      throwsA(isA<AppFailure>()),
+    );
+    final legacy = await repo.createWork({
+      ...body,
+      'appointment_date': '2030-05-03',
+      'mechanic_name': '  SHERZOD  ',
+    });
+    expect(legacy.mechanicUserId, isNull);
+    await expectLater(
+      repo.createWork({
+        ...body,
+        'appointment_date': '2030-05-03',
+        'customer_id': 'c2',
+        'vehicle_id': 'v2',
+        'mechanic_user_id': 'second',
+      }),
+      throwsA(isA<AppFailure>()),
+    );
+  });
   test('money preserves currency, minor units and bounded input', () {
     expect(Money.parse('1 180 000')!.cents, 118000000);
     expect(Money.parse('0,10')!.cents, 10);
@@ -126,5 +187,53 @@ void main() {
     final page = await repo.customers(query: '1230011');
     expect(page.total, 1);
     expect((await repo.cars(customer.id)).single.plate, '01Z111ZZ');
+  });
+  test('demo booking reassignment moves account occupancy and legacy changes clear identity', () async {
+    final repo = EqualNameDemo();
+    final body = <String, dynamic>{
+      'customer_id': 'c1',
+      'vehicle_id': 'v1',
+      'appointment_date': '2030-05-02',
+      'appointment_time': '10:00',
+      'estimated_duration_minutes': 60,
+    };
+    final original = await repo.createWork({
+      ...body,
+      'mechanic_user_id': 'first',
+    });
+    final moved = await repo.changeWork(original.id, 'assign-mechanic', {
+      'mechanic_user_id': 'second',
+    });
+    expect(moved.mechanicUserId, 'second');
+    final released = await repo.createWork({
+      ...body,
+      'customer_id': 'c2',
+      'vehicle_id': 'v2',
+      'mechanic_user_id': 'first',
+    });
+    await expectLater(
+      repo.createWork({
+        ...body,
+        'customer_id': 'c3',
+        'vehicle_id': 'v3',
+        'mechanic_user_id': 'second',
+      }),
+      throwsA(isA<AppFailure>()),
+    );
+    await expectLater(
+      repo.changeWork(original.id, 'assign-mechanic', {
+        'mechanic_user_id': 'first',
+      }),
+      throwsA(isA<AppFailure>()),
+    );
+    expect((await repo.work(original.id)).mechanicUserId, 'second');
+    final legacy = await repo.changeWork(original.id, 'assign-mechanic', {
+      'mechanic_name': 'Legacy mechanic',
+    });
+    expect(legacy.mechanicUserId, isNull);
+    expect(
+      (await repo.changeWork(released.id, 'confirm')).mechanicUserId,
+      'first',
+    );
   });
 }

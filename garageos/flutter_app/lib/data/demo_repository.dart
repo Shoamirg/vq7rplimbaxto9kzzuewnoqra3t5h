@@ -56,6 +56,60 @@ class DemoRepository extends GarageRepository {
       >{};
   @override
   bool get isDemo => true;
+  @override
+  Future<List<Mechanic>> mechanics() async => const [
+    Mechanic('demo-mechanic-1', 'Sherzod Rahimov', 'sherzod@example.com'),
+    Mechanic('demo-mechanic-2', 'Bobur Aliyev', 'bobur@example.com'),
+  ];
+  Future<({String? name, String? id})> _assignment(Json data) async {
+    final id = data['mechanic_user_id'] as String?;
+    if (id == null) {
+      return (name: (data['mechanic_name'] as String?)?.trim(), id: null);
+    }
+    final matching = (await mechanics()).where((m) => m.id == id);
+    if (matching.isEmpty || data['mechanic_name'] != null) {
+      throw const AppFailure('Usta akkaunti topilmadi.');
+    }
+    return (name: matching.first.name, id: id);
+  }
+
+  void _checkSchedule({
+    required DateTime date,
+    required String time,
+    required int duration,
+    String? mechanic,
+    String? mechanicId,
+    String? vehicleId,
+    String? excludeId,
+  }) {
+    final start =
+        int.parse(time.substring(0, 2)) * 60 + int.parse(time.substring(3));
+    final name = mechanic?.trim().toLowerCase();
+    if (_works.any((w) {
+      final other =
+          int.parse(w.time.substring(0, 2)) * 60 +
+          int.parse(w.time.substring(3));
+      final sameName =
+          name != null &&
+          name.isNotEmpty &&
+          w.mechanic?.trim().toLowerCase() == name;
+      final sameMechanic = mechanicId == null
+          ? sameName
+          : w.mechanicUserId == mechanicId ||
+                (w.mechanicUserId == null && sameName);
+      return w.id != excludeId &&
+          dateKey(w.date) == dateKey(date) &&
+          ![WorkStatus.cancelled, WorkStatus.completed].contains(w.status) &&
+          ((vehicleId != null && w.vehicleId == vehicleId) || sameMechanic) &&
+          start < other + w.duration &&
+          other < start + duration;
+    })) {
+      throw const AppFailure(
+        'Bu vaqtda usta yoki mashina band. Boshqa vaqtni tanlang.',
+      );
+    }
+  }
+
   PageData<T> _page<T>(List<T> items, int page) => PageData(
     items.skip((page - 1) * 30).take(30).toList(),
     items.length,
@@ -91,27 +145,16 @@ class DemoRepository extends GarageRepository {
     );
     final date = civilDate(data['appointment_date']);
     final time = data['appointment_time'] as String;
-    final start =
-        int.parse(time.substring(0, 2)) * 60 + int.parse(time.substring(3));
     final duration = data['estimated_duration_minutes'] as int;
-    final mechanic = (data['mechanic_name'] as String?)?.trim();
-    if (_works.any((w) {
-      final other =
-          int.parse(w.time.substring(0, 2)) * 60 +
-          int.parse(w.time.substring(3));
-      return dateKey(w.date) == dateKey(date) &&
-          ![WorkStatus.cancelled, WorkStatus.completed].contains(w.status) &&
-          (w.vehicleId == car.id ||
-              (mechanic != null &&
-                  mechanic.isNotEmpty &&
-                  w.mechanic == mechanic)) &&
-          start < other + w.duration &&
-          other < start + duration;
-    })) {
-      throw const AppFailure(
-        'Bu vaqtda usta yoki mashina band. Boshqa vaqtni tanlang.',
-      );
-    }
+    final assignment = await _assignment(data);
+    _checkSchedule(
+      date: date,
+      time: time,
+      duration: duration,
+      mechanic: assignment.name,
+      mechanicId: assignment.id,
+      vehicleId: car.id,
+    );
     final value = Work(
       id: _uuid.v4(),
       customerId: customer.id,
@@ -122,7 +165,8 @@ class DemoRepository extends GarageRepository {
       time: time,
       duration: duration,
       status: WorkStatus.pending,
-      mechanic: mechanic,
+      mechanic: assignment.name,
+      mechanicUserId: assignment.id,
       customerNotes: data['customer_notes'],
     );
     _works.add(value);
@@ -148,6 +192,19 @@ class DemoRepository extends GarageRepository {
         'Avval ish holati va usta tayinlanganini tekshiring.',
       );
     }
+    final assignment = action == 'assign-mechanic'
+        ? await _assignment(data ?? {})
+        : null;
+    if (assignment != null) {
+      _checkSchedule(
+        date: old.date,
+        time: old.time,
+        duration: old.duration,
+        mechanic: assignment.name,
+        mechanicId: assignment.id,
+        excludeId: old.id,
+      );
+    }
     final value = old.changed(
       status: switch (action) {
         'confirm' => WorkStatus.confirmed,
@@ -156,7 +213,8 @@ class DemoRepository extends GarageRepository {
         'cancel' => WorkStatus.cancelled,
         _ => old.status,
       },
-      mechanic: data?['mechanic_name'],
+      mechanic: assignment?.name,
+      mechanicUserId: assignment?.id,
       notes: data?['notes'],
     );
     _works[index] = value;

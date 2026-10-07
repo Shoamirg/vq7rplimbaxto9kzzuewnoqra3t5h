@@ -6,7 +6,7 @@ import { Button, Dialog, DialogContent, DialogTitle, useToast } from "@garageos/
 
 import { clientFetch, ClientApiError } from "@/lib/api/client";
 import { useI18n } from "@/lib/i18n/context";
-import type { CaseMechanic, Customer360, CustomerListItem } from "@/lib/api/types";
+import type { MechanicAccount, Customer360, CustomerListItem } from "@/lib/api/types";
 import { CustomerPicker } from "@/components/intake/customer-picker";
 import { NewCustomerModal, NewVehicleModal } from "@/components/intake/intake-modals";
 
@@ -69,7 +69,7 @@ export function NewAppointmentModal({
     ? { id: preset.id, full_name: preset.name, phone: null, email: null, vehicle_count: 0, lifetime_value: 0, tier: "", last_visit: null }
     : null;
 
-  const [mechanics, setMechanics] = useState<CaseMechanic[]>([]);
+  const [mechanics, setMechanics] = useState<MechanicAccount[]>([]);
   const [customer, setCustomer] = useState<CustomerListItem | null>(presetCustomer);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [vehicleId, setVehicleId] = useState("");
@@ -82,6 +82,7 @@ export function NewAppointmentModal({
   const [saving, setSaving] = useState(false);
   const [vehicleError, setVehicleError] = useState(false);
   const [mechanicError, setMechanicError] = useState(false);
+  const [loadingMechanics, setLoadingMechanics] = useState(true);
   const [retryVehicles, setRetryVehicles] = useState(0);
   const [retryMechanics, setRetryMechanics] = useState(0);
   const [intake, setIntake] = useState<"customer" | "vehicle" | null>(null);
@@ -89,8 +90,10 @@ export function NewAppointmentModal({
   useEffect(() => {
     let active = true;
     setMechanicError(false);
-    clientFetch<CaseMechanic[]>("/cases/mechanics").then((data) => { if (active) setMechanics(data); })
-      .catch(() => { if (active) setMechanicError(true); });
+    setLoadingMechanics(true);
+    clientFetch<{ items: MechanicAccount[] }>("/mechanics").then((data) => { if (active) setMechanics(data.items); })
+      .catch(() => { if (active) setMechanicError(true); })
+      .finally(() => { if (active) setLoadingMechanics(false); });
     return () => { active = false; };
   }, [retryMechanics]);
 
@@ -128,7 +131,7 @@ export function NewAppointmentModal({
           appointment_date: date,
           appointment_time: time,
           estimated_duration_minutes: duration,
-          mechanic_name: mechanic || null,
+          mechanic_user_id: mechanic || null,
           customer_notes: notes.trim() || null,
         }),
       });
@@ -204,10 +207,11 @@ export function NewAppointmentModal({
             </div>
             <div>
               <label className={LABEL} htmlFor="appt-mechanic">{t("work.mechanic")}</label>
-              <select id="appt-mechanic" className={FIELD} value={mechanic} onChange={(e) => setMechanic(e.target.value)}>
-                <option value="">{t("work.unassigned")}</option>
-                {mechanics.map((m) => (<option key={m.id} value={m.name}>{m.name}</option>))}
+              <select id="appt-mechanic" className={FIELD} value={mechanic} onChange={(e) => setMechanic(e.target.value)} disabled={saving || loadingMechanics || mechanicError}>
+                <option value="">{loadingMechanics ? t("appointment.loading") : t("work.unassigned")}</option>
+                {mechanics.map((m) => (<option key={m.id} value={m.id}>{m.full_name} · {m.email}</option>))}
               </select>
+              {!loadingMechanics && !mechanicError && !mechanics.length ? <p className="mt-2 text-xs text-muted-foreground">{t("work.no_mechanics")}</p> : null}
               {mechanicError ? <p role="alert" className="mt-2 text-xs text-red-600">{t("intake.load_failed")} <button className="underline" onClick={() => setRetryMechanics((n) => n + 1)}>{t("intake.retry")}</button></p> : null}
             </div>
           </div>

@@ -205,6 +205,7 @@ class AppointmentService:
         appointment_time: str,  # "HH:MM"
         estimated_duration_minutes: int = 60,
         mechanic_name: Optional[str] = None,
+        mechanic_user_id: Optional[uuid.UUID] = None,
         maintenance_rule_id: Optional[uuid.UUID] = None,
         customer_notes: Optional[str] = None,
     ) -> dict:
@@ -228,8 +229,14 @@ class AppointmentService:
         )
 
         mechanic_name = mechanic_name.strip() or None if mechanic_name is not None else None
+        if mechanic_user_id is not None:
+            mechanic = await UserRepository(self.uow.session).mechanic(sc, mechanic_user_id)
+            if not mechanic:
+                raise UserNotFound()
+            mechanic_name = mechanic.full_name
         await self._check_schedule(
-            appt_dt, appointment_time, estimated_duration_minutes, mechanic_name
+            appt_dt, appointment_time, estimated_duration_minutes, mechanic_name,
+            mechanic_user_id=mechanic_user_id,
         )
 
         appointment = await self.appointment_repo.create(
@@ -237,6 +244,7 @@ class AppointmentService:
             vehicle_id=vehicle_id,
             maintenance_rule_id=maintenance_rule_id,
             mechanic_name=mechanic_name,
+            mechanic_user_id=mechanic_user_id,
             appointment_date=appt_dt,
             appointment_time=appointment_time,
             estimated_duration_minutes=estimated_duration_minutes,

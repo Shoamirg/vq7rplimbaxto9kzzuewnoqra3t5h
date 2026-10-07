@@ -38,15 +38,17 @@ async def workshop(client, identity):
         emails = [user.email for user in users]
         foreign_id = foreign.id
         brand_id, model_id = brand.id, str(model.id)
+        mechanic_role_id = role.id
     async def login(email):
         response = await client.post("/api/v1/auth/login", json={"email": email, "password": PASSWORD})
         assert response.status_code == 200, response.text
         return {"Authorization": f"Bearer {response.json()['access_token']}"}
     try:
-        yield {"ids": ids, "model": model_id, "admin": await login(identity["email"]),
+        yield {"ids": ids, "role": mechanic_role_id, "model": model_id, "admin": await login(identity["email"]),
                "mechanics": [await login(email) for email in emails]}
     finally:
         async with async_session_factory() as session:
+            await session.execute(update(Role).where(Role.id == mechanic_role_id).values(is_active=True))
             await session.execute(delete(User).where(User.id.in_([uuid.UUID(id) for id in ids])))
             await session.execute(delete(ServiceCenter).where(ServiceCenter.id.in_([foreign_id, identity["center"]])))
             await session.execute(delete(Brand).where(Brand.id == brand_id))
@@ -59,6 +61,70 @@ async def test_operator_roster_lists_real_own_mechanics_with_distinct_ids(client
     assert response.status_code == 200, response.text
     assert {item["id"] for item in response.json()["items"]} == set(workshop["ids"][:2])
     assert [item["full_name"] for item in response.json()["items"]] == ["Sherzod", "Sherzod"]
+
+
+async def booking_body(client, workshop):
+    job = await create_job(client, workshop)
+    existing = (await client.get(f"/api/v1/appointments/{job}", headers=workshop["admin"])).json()
+    return {"customer_id": existing["customer_id"], "vehicle_id": existing["vehicle_id"],
+            "appointment_date": "2030-05-02", "appointment_time": "10:00"}
+
+
+async def test_booking_assigns_selected_account_and_keeps_equal_names_independent(client, workshop):
+    body = await booking_body(client, workshop)
+    jobs = []
+    for uid in workshop["ids"][:2]:
+        response = await client.post("/api/v1/appointments/direct", headers=workshop["admin"],
+                                     json={**body, "mechanic_user_id": uid})
+        assert response.status_code == 201, response.text
+        assert response.json()["mechanic_user_id"] == uid
+        assert response.json()["mechanic_name"] == "Sherzod"
+        jobs.append(response.json()["id"])
+    for headers, job in zip(workshop["mechanics"][:2], jobs):
+        mine = (await client.get("/api/v1/mechanic/work", headers=headers)).json()
+        assert [row["id"] for row in mine["items"]] == [job]
+    duplicate = await client.post("/api/v1/appointments/direct", headers=workshop["admin"],
+                                  json={**body, "mechanic_user_id": workshop["ids"][0]})
+    assert duplicate.status_code == 409, duplicate.text
+    adjacent = await client.post("/api/v1/appointments/direct", headers=workshop["admin"],
+                                 json={**body, "appointment_time": "11:00", "mechanic_user_id": workshop["ids"][0]})
+    assert adjacent.status_code == 201, adjacent.text
+
+
+@pytest.mark.parametrize("target", ["foreign", "missing", "admin", "inactive", "role_inactive", "ambiguous"])
+async def test_booking_rejects_invalid_mechanic_without_creating_job(client, workshop, identity, target):
+    body = await booking_body(client, workshop)
+    uid = {"foreign": workshop["ids"][2], "missing": str(uuid.uuid4()),
+           "admin": str(identity["user"])}.get(target, workshop["ids"][0])
+    if target in ("inactive", "role_inactive"):
+        async with async_session_factory() as session:
+            if target == "inactive":
+                await session.execute(update(User).where(User.id == uuid.UUID(uid)).values(is_active=False))
+            else:
+                await session.execute(update(Role).where(Role.id == workshop["role"]).values(is_active=False))
+            await session.commit()
+    payload = {**body, "mechanic_user_id": uid}
+    if target == "ambiguous":
+        payload["mechanic_name"] = "Someone else"
+    before = (await client.get("/api/v1/appointments", headers=workshop["admin"])).json()["total"]
+    result = await client.post("/api/v1/appointments/direct", headers=workshop["admin"], json=payload)
+    assert result.status_code == (422 if target == "ambiguous" else 404), result.text
+    after = (await client.get("/api/v1/appointments", headers=workshop["admin"])).json()["total"]
+    assert after == before
+
+
+async def test_booking_keeps_legacy_name_unlinked_and_busy_for_matching_accounts(client, workshop):
+    body = await booking_body(client, workshop)
+    legacy = await client.post("/api/v1/appointments/direct", headers=workshop["admin"],
+                               json={**body, "mechanic_name": " Sherzod "})
+    assert legacy.status_code == 201
+    assert legacy.json()["mechanic_user_id"] is None
+    for uid in workshop["ids"][:2]:
+        conflict = await client.post("/api/v1/appointments/direct", headers=workshop["admin"],
+                                     json={**body, "mechanic_user_id": uid})
+        assert conflict.status_code == 409, conflict.text
+    for headers in workshop["mechanics"][:2]:
+        assert (await client.get("/api/v1/mechanic/work", headers=headers)).json()["items"] == []
 
 
 async def create_job(client, workshop, time="10:00"):

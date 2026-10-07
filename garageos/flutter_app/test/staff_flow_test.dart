@@ -17,7 +17,6 @@ void main() {
     ],
     'Navbatni tasdiqlash': ['Confirm appointment', 'Подтвердить запись'],
     'Usta tayinlash': ['Assign mechanic', 'Назначить механика'],
-    'Tayinlash': ['Assign', 'Назначить'],
     'Ishni boshlash': ['Start work', 'Начать работу'],
     'Ishni tugatish': ['Complete work', 'Завершить работу'],
     'Ish tugadi': ['Work completed', 'Работа завершена'],
@@ -74,8 +73,7 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.text(label('Usta tayinlash')));
         await tester.pumpAndSettle();
-        await tester.enterText(find.byType(TextFormField), 'Sherzod Rahimov');
-        await tester.tap(find.text(label('Tayinlash')));
+        await tester.tap(find.text('sherzod@example.com'));
         await tester.pumpAndSettle();
         await tester.tap(find.text(label('Ishni boshlash')));
         await tester.pumpAndSettle();

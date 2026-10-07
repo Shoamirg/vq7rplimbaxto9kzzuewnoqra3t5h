@@ -2,6 +2,43 @@ import { expect, test } from "@playwright/test";
 
 const CREDS = { email: "admin@demo.garageos.app", password: "demo1234" };
 
+test("new booking selects a mechanic account and persists its UUID", async ({ page }) => {
+  expect((await page.request.post("/api/auth/login", { data: CREDS })).ok()).toBeTruthy();
+  await page.context().addCookies([{ name: "garageos_locale", value: "uz", url: "http://localhost:3001" }]);
+  const customers = await page.request.get("/api/proxy/customers?limit=200");
+  const customer = (await customers.json()).items.find((item: { vehicle_count: number }) => item.vehicle_count > 0);
+  const roster = await page.request.get("/api/proxy/mechanics");
+  const mechanic = (await roster.json()).items[0];
+  expect(mechanic).toBeTruthy();
+  await page.goto("/appointments");
+  await page.getByRole("button", { name: "Yangi qabul" }).last().click();
+  const dialog = page.getByRole("dialog", { name: "Yangi navbat" });
+  await dialog.getByRole("textbox", { name: "Ism, telefon yoki pochta bo‘yicha qidirish…" }).fill(customer.full_name);
+  await dialog.getByRole("button", { name: customer.full_name }).first().click();
+  await expect(page.locator("#appt-vehicle option")).not.toHaveCount(1);
+  await page.locator("#appt-vehicle").selectOption({ index: 1 });
+  await page.locator("#appt-date").fill("2030-05-11");
+  await page.locator("#appt-time").fill("10:00");
+  await expect(page.locator("#appt-mechanic")).toBeEnabled();
+  await expect(page.locator("#appt-mechanic option", { hasText: mechanic.email })).toContainText(mechanic.full_name);
+  await page.locator("#appt-mechanic").selectOption(mechanic.id);
+  const createdPromise = page.waitForResponse((response) => response.url().includes("/api/proxy/appointments/direct") && response.request().method() === "POST");
+  await dialog.getByRole("button", { name: "Navbat yaratish", exact: true }).click();
+  const created = await createdPromise;
+  expect(created.ok(), await created.text()).toBeTruthy();
+  const job = await created.json();
+  try {
+    expect(created.request().postDataJSON().mechanic_user_id).toBe(mechanic.id);
+    expect(job.mechanic_user_id).toBe(mechanic.id);
+    expect(job.mechanic_name).toBe(mechanic.full_name);
+    const persisted = await page.request.get(`/api/proxy/appointments/${job.id}`);
+    expect((await persisted.json()).mechanic_user_id).toBe(mechanic.id);
+  } finally {
+    // Release the schedule even when an assertion fails before CI retries.
+    await page.request.patch(`/api/proxy/appointments/${job.id}/cancel`, { data: {} });
+  }
+});
+
 test("staff completes service work and shows one Uzbek UZS invoice", async ({ page }) => {
   const login = await page.request.post("/api/auth/login", { data: CREDS });
   expect(login.ok()).toBeTruthy();
