@@ -83,7 +83,11 @@ are required on this agent; override their paths with `GARAGEOS_ANDROID_SDK` and
 and API guard failures, builds three signed split APKs with a disposable QA key,
 verifies certificates/manifests/ABIs/hashes and preserves ordinary debug builds.
 Signing fixtures stay outside the checkout and evidence, then are deleted; only
-the marked `ci-tools/android-gradle` cache's daemons are stopped. Archived
+the marked `%LOCALAPPDATA%/GarageOS/ci/android-gradle` cache's daemons are stopped.
+This short path avoids AAPT2 process startup failure when Windows resolves the
+deep workspace path into an MSIX LocalCache path. `GARAGEOS_ANDROID_GRADLE_HOME`
+can select another short dedicated cache; the user's shared `.gradle` or an
+unmarked existing cache is refused. Archived
 `QA-ONLY-*` APKs use a synthetic API and temporary identity; they must not be
 distributed to clients. See the [Android release guide](../../garageos/flutter_app/docs/android-release.md)
 for owner signing and physical-device acceptance still required for delivery.

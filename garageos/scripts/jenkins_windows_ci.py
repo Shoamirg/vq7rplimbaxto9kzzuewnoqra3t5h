@@ -32,6 +32,11 @@ APP = ROOT / "garageos/flutter_app"
 # Changing the requirement set selects a fresh owned environment. pip install
 # alone would leave removed packages (e.g. python-jose/ecdsa) installed.
 TOOLS = WORKSPACE / "ci-tools"
+# Windows can resolve this app's paths into the longer MSIX LocalCache prefix.
+# Keep native executables out of the deep checkout cache (AAPT2 cannot launch
+# there once its resolved executable path exceeds the Windows process limit).
+ANDROID_GRADLE = Path(os.environ.get("GARAGEOS_ANDROID_GRADLE_HOME", str(
+    Path(os.environ["LOCALAPPDATA"]) / "GarageOS/ci/android-gradle")))
 DEPS_KEY = hashlib.sha256((BACKEND / "requirements.txt").read_bytes()
                           + (BACKEND / "requirements-dev.txt").read_bytes()).hexdigest()[:12]
 PYTHON = TOOLS / ("backend-py312-" + DEPS_KEY) / "Scripts/python.exe"
@@ -266,7 +271,7 @@ def main(allow_missing_docker):
              "--flutter", FLUTTER,
              "--sdk", os.environ.get("GARAGEOS_ANDROID_SDK", str(Path(os.environ["LOCALAPPDATA"]) / "Android/Sdk")),
              "--java-home", os.environ.get("GARAGEOS_ANDROID_JAVA_HOME", str(Path(os.environ["LOCALAPPDATA"]) / "GarageOS/jenkins/runtime/jdk-21.0.12.1+1")),
-             "--gradle-user-home", TOOLS / "android-gradle", "--private-directory", TOOLS / "android-private",
+             "--gradle-user-home", ANDROID_GRADLE, "--private-directory", TOOLS / "android-private",
              "--output", EVIDENCE / "android-release"], ROOT, "android-release")
         shutil.make_archive(str(EVIDENCE / "flutter-web"), "zip", APP / "build/web")
         if (DASHBOARD / "test-results").exists():

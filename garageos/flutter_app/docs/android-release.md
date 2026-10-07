@@ -77,6 +77,10 @@ ular owner relizi emas, endpoint sintetik, telefonda o'rnatish sinovi yo'q.
 Jenkins Android SDKni `GARAGEOS_ANDROID_SDK`, JDKni
 `GARAGEOS_ANDROID_JAVA_HOME` orqali almashtira oladi; default shu PCning SDK36
 va private Temurin21 runtime'idir.
+Android Gradle cache `%LOCALAPPDATA%/GarageOS/ci/android-gradle`da: qisqa yo'l
+AAPT2 executable'ining Windows process uzunlik chegarasidan oshishini oldini
+oladi. `GARAGEOS_ANDROID_GRADLE_HOME` muqobili ham qisqa, alohida markerli QA
+cache bo'lsin; umumiy yoki boshqa loyiha cache'ini ishlatmang.
 
 Owner signing/backup, client HTTPS API, physical Android/iPhone, account/work/
 invoice/payment/restart/network sinovlari va avtoservis piloti #10 da qoladi.
