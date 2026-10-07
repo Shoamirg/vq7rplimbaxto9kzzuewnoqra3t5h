@@ -55,7 +55,7 @@ export function ContextPanel({
 
         {/* Copilot — the single AI home */}
         {thread.ai_summary && (
-          <div className="rounded-xl border border-indigo-200 bg-gradient-to-b from-white to-indigo-50/40 p-3">
+          <div className="rounded-xl border border-indigo-200 bg-linear-to-b from-white to-indigo-50/40 p-3">
             <p className="flex items-center gap-1.5 text-[11px] font-bold text-indigo-700 mb-2">
               <Sparkles className="size-3.5" /> Dispatcher Copilot
             </p>

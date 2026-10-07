@@ -39,7 +39,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen grid place-items-center bg-gradient-to-br from-primary/5 via-background to-background p-4">
+    <main className="min-h-screen grid place-items-center bg-linear-to-br from-primary/5 via-background to-background p-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-1.5">
           <Logo size={26} theme="light" />
@@ -62,7 +62,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/40"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-hidden focus:ring-2 focus:ring-primary/40"
               />
             </div>
             <div className="space-y-1.5">
@@ -74,7 +74,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/40"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-hidden focus:ring-2 focus:ring-primary/40"
               />
             </div>
 

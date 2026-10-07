@@ -84,7 +84,7 @@ export function TopBar({ user }: { user?: ShellUser }) {
   }, [router]);
 
   return (
-    <header className="h-16 border-b border-border bg-background/95 backdrop-blur-sm flex items-center justify-between gap-4 pl-16 pr-4 lg:px-6 shrink-0 sticky top-0 z-30">
+    <header className="h-16 border-b border-border bg-background/95 backdrop-blur-xs flex items-center justify-between gap-4 pl-16 pr-4 lg:px-6 shrink-0 sticky top-0 z-30">
       {/* Left: Breadcrumbs + Search */}
       <div className="flex items-center gap-4 flex-1 min-w-0">
         <Breadcrumbs />

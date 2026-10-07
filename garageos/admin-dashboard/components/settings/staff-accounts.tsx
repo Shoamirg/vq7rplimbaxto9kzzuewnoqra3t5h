@@ -12,7 +12,7 @@ type Employee = { id: string; full_name: string; email: string; phone: string | 
 type StaffPage = { items: Employee[]; total: number; page: number; total_pages: number };
 type Editor = { id?: string; full_name: string; email: string; phone: string;
   password: string; role: EmployeeRole; is_active: boolean };
-const field = 'w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary';
+const field = 'w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-hidden focus-visible:ring-2 focus-visible:ring-primary';
 const roles: EmployeeRole[] = ['mechanic', 'manager', 'receptionist'];
 const roleKeys: Record<string, string> = { mechanic: 'accounts.mechanic', manager: 'accounts.manager',
   receptionist: 'accounts.receptionist', admin: 'accounts.admin', super_admin: 'accounts.super_admin' };
@@ -108,11 +108,11 @@ export function StaffAccounts({ allowed }: { allowed: boolean }) {
       </form>}
       <label className="relative block"><span className="sr-only">{t('accounts.search')}</span><Search aria-hidden className="absolute left-3 top-2.5 size-4 text-muted-foreground" /><input type="search" className={`${field} pl-9`} maxLength={100} placeholder={t('accounts.search')} value={query.q} onChange={(e) => setQuery({ q: e.target.value, page: 1 })} /></label>
       {loading && <p role="status" className="text-sm text-muted-foreground">{t('accounts.loading')}</p>}
-      {loadError && <p role="alert" className="text-sm text-destructive">{t('accounts.load_failed')} <button type="button" className="underline focus-visible:outline focus-visible:outline-primary" onClick={() => setRevision((value) => value + 1)}>{t('accounts.retry')}</button></p>}
+      {loadError && <p role="alert" className="text-sm text-destructive">{t('accounts.load_failed')} <button type="button" className="underline focus-visible:outline-solid focus-visible:outline-primary" onClick={() => setRevision((value) => value + 1)}>{t('accounts.retry')}</button></p>}
       {!loading && !loadError && result?.items.length === 0 && <div className="space-y-2 py-8"><h2 className="font-semibold">{t('accounts.empty')}</h2><p className="text-sm text-muted-foreground">{t('accounts.empty_hint')}</p></div>}
       {!loadError && result && <ul aria-busy={loading} className="divide-y divide-border rounded-xl border border-border bg-card">
         {result.items.map((employee) => <li key={employee.id} data-testid={`staff-${employee.id}`} className="flex flex-col items-start justify-between gap-3 p-4 sm:flex-row sm:items-center">
-          <div className="w-full min-w-0 flex-1 sm:w-auto"><h2 className="break-words font-semibold">{employee.full_name}</h2><p className="break-all text-sm text-muted-foreground">{employee.email}</p>
+          <div className="w-full min-w-0 flex-1 sm:w-auto"><h2 className="wrap-break-word font-semibold">{employee.full_name}</h2><p className="break-all text-sm text-muted-foreground">{employee.email}</p>
             <p className="mt-1 text-xs text-muted-foreground">{t(roleKeys[employee.role] ?? 'accounts.protected')} · {t(employee.is_active ? 'accounts.active' : 'accounts.inactive')}</p></div>
           {employee.editable ? <Button variant="secondary" size="sm" disabled={saving || loading || !!editor} onClick={() => open(employee)} leftIcon={<Pencil className="size-4" />}>{t('accounts.edit')}</Button>
             : <span className="flex items-center gap-1 text-xs text-muted-foreground"><ShieldCheck className="size-4" />{t('accounts.protected')}</span>}

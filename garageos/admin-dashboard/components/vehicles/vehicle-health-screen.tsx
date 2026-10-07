@@ -223,7 +223,7 @@ export function VehicleHealthScreen({ health, timeline }: Props) {
           <CardContent padding="lg">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
-                <div className="size-16 rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 grid place-items-center shrink-0">
+                <div className="size-16 rounded-2xl bg-linear-to-br from-primary/15 to-primary/5 grid place-items-center shrink-0">
                   <Gauge className="size-7 text-primary" />
                 </div>
                 <div>
@@ -251,7 +251,7 @@ export function VehicleHealthScreen({ health, timeline }: Props) {
 
         {/* Digital Vehicle Passport */}
         <Card className="relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent" />
+          <div className="absolute inset-0 bg-linear-to-br from-primary/5 to-transparent" />
           <CardContent padding="md">
             <div className="flex items-start gap-3">
               <div className="min-w-0 flex-1">
@@ -530,7 +530,7 @@ function InsightsCard({ band, full = false }: { band: HealthBand; full?: boolean
   const positive = band === "excellent" || band === "good";
   return (
     <Card className="relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-transparent" />
+      <div className="absolute inset-0 bg-linear-to-br from-violet-500/5 to-transparent" />
       <CardHeader>
         <div className="flex items-center gap-2">
           <div className="size-7 rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400 grid place-items-center">

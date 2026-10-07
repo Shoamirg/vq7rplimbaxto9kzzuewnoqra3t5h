@@ -22,7 +22,7 @@ export function PublicInvoice({ doc, locale = "uz" }: { doc: InvoiceDoc; locale?
     : "—";
 
   return (
-    <div id="print-invoice" className="mx-auto w-[820px] max-w-full bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+    <div id="print-invoice" className="mx-auto w-[820px] max-w-full bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
       {/* header */}
       <div className="px-7 py-6 text-white" style={{ background: "linear-gradient(120deg,#0F172A,#1E293B)" }}>
         <div className="flex items-start justify-between gap-4">

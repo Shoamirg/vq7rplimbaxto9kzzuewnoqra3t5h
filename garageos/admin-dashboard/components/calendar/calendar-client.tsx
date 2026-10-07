@@ -511,7 +511,7 @@ export function CalendarClient({ initial, initialDate }: Props) {
       {/* Floating drag preview */}
       {drag && drag.active && (
         <div
-          className="fixed z-[60] pointer-events-none rounded-lg border border-l-4 bg-card p-2 shadow-2xl rotate-2"
+          className="fixed z-60 pointer-events-none rounded-lg border border-l-4 bg-card p-2 shadow-2xl rotate-2"
           style={{
             left: drag.pointerX - drag.grabX, top: drag.pointerY - drag.grabY,
             width: drag.cardW, height: drag.cardH,
@@ -557,8 +557,8 @@ function CollisionPopover({ collision, onPick, onTomorrow, onClose }: { collisio
   const end = minToHm(hmToMin(c.appointment_time) + c.estimated_duration_minutes);
   return (
     <>
-      <div className="fixed inset-0 z-[70] bg-black/20" onClick={onClose} />
-      <div className="fixed z-[71] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-80 rounded-2xl border border-border bg-background shadow-2xl p-5 animate-fade-in">
+      <div className="fixed inset-0 z-70 bg-black/20" onClick={onClose} />
+      <div className="fixed z-71 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-80 rounded-2xl border border-border bg-background shadow-2xl p-5 animate-fade-in">
         <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
           <AlertTriangle className="size-5" />
           <p className="text-sm font-semibold">Mechanic unavailable</p>

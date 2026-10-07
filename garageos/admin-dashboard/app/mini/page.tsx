@@ -42,7 +42,7 @@ export default function HomePage() {
         href="/mini/roadside"
         aria-label={t("mini.home.sos_title")}
         onClick={() => haptic("heavy")}
-        className="flex items-center gap-4 rounded-3xl bg-gradient-to-br from-red-500 to-rose-600 p-4 text-white shadow-[0_12px_32px_-10px_rgba(220,38,38,0.6)] transition motion-safe:active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50"
+        className="flex items-center gap-4 rounded-3xl bg-linear-to-br from-red-500 to-rose-600 p-4 text-white shadow-[0_12px_32px_-10px_rgba(220,38,38,0.6)] transition motion-safe:active:scale-[0.99] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50"
       >
         <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-white/20">
           <LifeBuoy className="size-7" />
@@ -55,7 +55,7 @@ export default function HomePage() {
       </Link>
 
       {/* Book a service — primary action */}
-      <Card href="/mini/book" className="!bg-slate-900 !ring-slate-900">
+      <Card href="/mini/book" className="bg-slate-900! ring-slate-900!">
         <div className="flex items-center gap-3">
           <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-white/10 text-white">
             <CalendarClock className="size-6" aria-hidden />
@@ -94,7 +94,7 @@ export default function HomePage() {
 
       {/* Outstanding invoice */}
       {Object.values(home.balances_by_currency ?? { [home.balance_currency ?? "USD"]: home.outstanding_balance }).some((amount) => amount > 0.005) ? (
-        <Card href="/mini/billing" className="!bg-amber-50 !ring-amber-200/60">
+        <Card href="/mini/billing" className="bg-amber-50! ring-amber-200/60!">
           <div className="flex items-center gap-3">
             <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-amber-100 text-amber-700">
               <Receipt className="size-6" aria-hidden />
@@ -161,7 +161,7 @@ export default function HomePage() {
       {home.activity.length > 0 ? (
         <div>
           <SectionLabel>{t("mini.home.recent_activity")}</SectionLabel>
-          <Card className="!p-2">
+          <Card className="p-2!">
             <ul className="divide-y divide-slate-100">
               {home.activity.map((a, i) => (
                 <li key={i} className="flex items-start gap-3 px-2 py-3">

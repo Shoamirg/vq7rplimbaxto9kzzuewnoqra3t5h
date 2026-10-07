@@ -198,6 +198,9 @@ def main(allow_missing_docker):
     run([sys.executable, "-m", "venv", BACKEND / ".venv"], ROOT, "python-environment")
     run([PYTHON, "-m", "pip", "install", "-r", "requirements.txt"], BACKEND, "backend-dependencies")
     run(["npm.cmd", "ci"], ROOT / "garageos", "node-dependencies")
+    run(["npm.cmd", "audit", "--json"], ROOT / "garageos", "node-audit")
+    run(["npm.cmd", "audit", "--omit=dev", "--json"], ROOT / "garageos", "node-production-audit")
+    run(["npm.cmd", "run", "check:next-root-glob"], DASHBOARD, "next-root-glob")
     version = subprocess.check_output([str(FLUTTER), "--version", "--machine"], env=ENV, text=True, encoding="utf-8")
     if json.loads(version)["frameworkVersion"] != "3.47.6":
         raise RuntimeError("Expected Flutter3.47.6; update the local pinned SDK before building")
@@ -242,7 +245,7 @@ def main(allow_missing_docker):
              "--dart-define=API_URL=http://127.0.0.1:8010/api/v1", "--dart-define=SMOKE_FIXTURE=" + str(fixture)], APP, "flutter-tests-live")
         run([FLUTTER, "build", "web", "--release", "--no-web-resources-cdn"], APP, "flutter-web")
         run(["npx.cmd", "playwright", "test", "e2e/staff-accounts.spec.ts", "e2e/service-work-invoice.spec.ts",
-             "e2e/platform.spec.ts", "--reporter=list"], DASHBOARD, "browser-tests")
+             "e2e/platform.spec.ts", "e2e/theme-compat.spec.ts", "--reporter=list"], DASHBOARD, "browser-tests")
         shutil.make_archive(str(EVIDENCE / "flutter-web"), "zip", APP / "build/web")
         if (DASHBOARD / "test-results").exists():
             shutil.copytree(DASHBOARD / "test-results", EVIDENCE / "browser-results", dirs_exist_ok=True)

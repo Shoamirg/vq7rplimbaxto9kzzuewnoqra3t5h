@@ -207,7 +207,7 @@ function Financial({ customer: c }: { customer: Customer360 }) {
         {kpis.map((k) => (
           <div key={k.label} className="rounded-xl border border-border bg-card p-3">
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{k.label}</p>
-            <p className={cn("text-sm font-bold text-foreground mt-0.5 break-words", k.tone)}>{k.value}</p>
+            <p className={cn("text-sm font-bold text-foreground mt-0.5 wrap-break-word", k.tone)}>{k.value}</p>
           </div>
         ))}
       </div>
@@ -274,7 +274,7 @@ function Stat({ icon: Icon, label, value, valueClass }: { icon: React.ElementTyp
       <span className="grid size-9 place-items-center rounded-lg bg-muted text-muted-foreground shrink-0"><Icon className="size-4" /></span>
       <div className="min-w-0">
         <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
-        <p className={cn("text-sm font-semibold text-foreground break-words", valueClass)}>{value}</p>
+        <p className={cn("text-sm font-semibold text-foreground wrap-break-word", valueClass)}>{value}</p>
       </div>
     </div>
   );
@@ -309,7 +309,7 @@ function Overview({ customer: c }: { customer: Customer360 }) {
         </div>
         <VehicleCards customer={c} />
       </div>
-      <div className="rounded-2xl border border-border bg-gradient-to-br from-primary/5 to-transparent p-5 h-fit">
+      <div className="rounded-2xl border border-border bg-linear-to-br from-primary/5 to-transparent p-5 h-fit">
         <div className="flex items-center gap-2 text-primary mb-2">
           <Sparkles className="size-4" />
           <span className="text-xs font-semibold uppercase tracking-wide">{text("AI Summary")}</span>
@@ -356,7 +356,7 @@ function Passports({ customer: c }: { customer: Customer360 }) {
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {c.vehicles.map((v) => (
         <Link key={v.id} href={`/passport/${v.id}`} target="_blank"
-          className="rounded-2xl border border-border bg-card p-5 hover:border-primary/40 hover:shadow-sm transition-all group">
+          className="rounded-2xl border border-border bg-card p-5 hover:border-primary/40 hover:shadow-xs transition-all group">
           <div className="flex items-center justify-between">
             <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600"><QrCode className="size-3.5" /> {text("Verified")}</span>
             <span className={cn("text-lg font-bold", BAND_TEXT[v.band])}>{Math.round(v.score)}</span>
@@ -385,7 +385,7 @@ function Timeline({ customer: c }: { customer: Customer360 }) {
             : e.type === "service" ? "bg-emerald-500" : "bg-primary";
           return (
             <div key={i} className="relative pb-5 last:pb-0">
-              <span className={cn("absolute -left-[19px] top-0.5 size-3 rounded-full ring-2 ring-card", dot)} />
+              <span className={cn("absolute left-[-19px] top-0.5 size-3 rounded-full ring-2 ring-card", dot)} />
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-foreground">{e.type.startsWith("appointment_") ? t("customer.appointment_event", { status: t("status." + e.type.replace("appointment_", "")) }) : e.title}</p>

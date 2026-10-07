@@ -22,9 +22,9 @@ export default function MePage() {
     <div>
       <ScreenHeader title={t("mini.me.title")} />
 
-      <Card className="!p-5">
+      <Card className="p-5!">
         <div className="flex items-center gap-4">
-          <div className="grid size-16 place-items-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-xl font-bold text-white">
+          <div className="grid size-16 place-items-center rounded-full bg-linear-to-br from-blue-500 to-indigo-600 text-xl font-bold text-white">
             {initials}
           </div>
           <div>
@@ -54,7 +54,7 @@ export default function MePage() {
       </Card>
 
       <div className="mt-4 space-y-3">
-        <Card className="!p-2">
+        <Card className="p-2!">
           <ul className="divide-y divide-slate-100">
             {me.phone ? <Row icon={<Phone className="size-4" />} label={t("mini.me.phone")} value={me.phone} /> : null}
             {me.email ? <Row icon={<Mail className="size-4" />} label={t("mini.me.email")} value={me.email} /> : null}

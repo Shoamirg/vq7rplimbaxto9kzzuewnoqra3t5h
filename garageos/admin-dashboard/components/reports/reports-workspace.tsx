@@ -90,7 +90,7 @@ export function ReportsWorkspace() {
           {PERIODS.map((p) => (
             <button key={p.key} onClick={() => setPeriod(p.key)}
               className={cn("text-xs font-semibold px-3 py-1.5 rounded-md transition-colors",
-                period === p.key ? "bg-card shadow-sm text-foreground" : "text-muted-foreground")}>{t("reports.period." + p.key)}</button>
+                period === p.key ? "bg-card shadow-xs text-foreground" : "text-muted-foreground")}>{t("reports.period." + p.key)}</button>
           ))}
         </div>
         <label className="inline-flex gap-2 items-center text-xs">{t("reports.currency")}
@@ -181,7 +181,7 @@ function KpiCard({ k, currency }: { k: ReportKpi; currency: string }) {
     <Link href={k.drill} className="rounded-2xl border border-border bg-card p-3.5 hover:border-primary/40 hover:shadow-[0_6px_20px_-14px_rgba(37,99,235,.5)] transition-all relative group">
       <span className="absolute right-3 top-3.5 text-xs text-muted-foreground/50 group-hover:text-primary">↗</span>
       <p className="text-[11px] text-muted-foreground font-medium truncate">{text(k.label)}</p>
-      <p className={cn("text-lg lg:text-2xl font-extrabold mt-1 break-words", k.tone === "danger" ? "text-red-600" : k.tone === "success" ? "text-emerald-600" : "text-foreground")}>{fmtKpi(k)}</p>
+      <p className={cn("text-lg lg:text-2xl font-extrabold mt-1 wrap-break-word", k.tone === "danger" ? "text-red-600" : k.tone === "success" ? "text-emerald-600" : "text-foreground")}>{fmtKpi(k)}</p>
       {d && d.pct != null && (
         <div className="flex items-center gap-1.5 mt-1.5">
           <span className={cn("text-[11px] font-bold px-1.5 rounded", d.dir === "up" ? "text-emerald-600 bg-emerald-50" : d.dir === "down" ? "text-red-600 bg-red-50" : "text-muted-foreground bg-muted")}>

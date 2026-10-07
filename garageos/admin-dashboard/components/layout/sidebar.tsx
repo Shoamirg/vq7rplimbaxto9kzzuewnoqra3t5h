@@ -133,7 +133,7 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
       {/* Mobile hamburger (visible on small screens outside sidebar) */}
       <button
         onClick={() => setMobileOpen(true)}
-        className={cn("fixed top-3 left-3 z-40 lg:hidden p-2 rounded-lg bg-background border border-border shadow-sm", mobileOpen && "hidden")}
+        className={cn("fixed top-3 left-3 z-40 lg:hidden p-2 rounded-lg bg-background border border-border shadow-xs", mobileOpen && "hidden")}
         aria-label={t("action.open_menu")}
         aria-expanded={mobileOpen}
         aria-controls="staff-sidebar"
@@ -156,7 +156,7 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
           collapsed ? "justify-center px-0" : "px-4 gap-3"
         )}>
           <button onClick={() => setMobileOpen(false)} aria-label={t("action.close_menu")} className="lg:hidden p-2 ml-auto"><X className="size-4" /></button>
-          <div className="size-9 rounded-xl bg-primary flex items-center justify-center shrink-0 shadow-sm">
+          <div className="size-9 rounded-xl bg-primary flex items-center justify-center shrink-0 shadow-xs">
             <span className="text-primary-foreground font-bold text-sm">{brandMono}</span>
           </div>
           {!collapsed && (
@@ -172,7 +172,7 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
           <button
             className={cn(
               "flex items-center gap-2 w-full rounded-lg font-medium transition-all duration-150",
-              "bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 shadow-sm",
+              "bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 shadow-xs",
               collapsed
                 ? "justify-center h-10 w-10 mx-auto"
                 : "px-4 py-2.5 text-sm"

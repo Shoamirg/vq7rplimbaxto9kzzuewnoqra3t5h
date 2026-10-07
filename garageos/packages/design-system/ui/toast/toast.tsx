@@ -80,7 +80,7 @@ export function ToastProvider({
       {/* Toast Container */}
       <div
         className={cn(
-          "z-[100] flex flex-col gap-2 pointer-events-none",
+          "z-100 flex flex-col gap-2 pointer-events-none",
           positionClasses[position]
         )}
         aria-live="polite"

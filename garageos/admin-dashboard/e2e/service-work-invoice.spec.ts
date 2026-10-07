@@ -39,7 +39,7 @@ test("new booking selects a mechanic account and persists its UUID", async ({ pa
   }
 });
 
-test("staff completes service work and shows one Uzbek UZS invoice", async ({ page }) => {
+test("staff completes service work and shows one Uzbek UZS invoice", async ({ page }, info) => {
   const login = await page.request.post("/api/auth/login", { data: CREDS });
   expect(login.ok()).toBeTruthy();
   await page.context().addCookies([{
@@ -120,6 +120,12 @@ test("staff completes service work and shows one Uzbek UZS invoice", async ({ pa
   await page.goto(invoiceUrl);
   await expect(page.getByText("HISOB-FAKTURA")).toBeVisible();
   await expect(page.locator("#print-invoice")).toContainText("UZS");
+  await page.emulateMedia({ media: "print" });
+  await expect(page.locator("#print-invoice")).toHaveCSS("position", "fixed");
+  await expect(page.locator("#print-invoice")).toHaveCSS("border-top-width", "0px");
+  await expect(page.locator("#print-invoice")).toBeVisible();
+  await page.pdf({ path: info.outputPath("invoice-print.pdf"), format: "A4", printBackground: true });
+  await page.emulateMedia({ media: "screen" });
 
   expect((await page.request.post("/api/auth/login", { data: CREDS })).ok()).toBeTruthy();
   await page.context().addCookies([{ name: "garageos_locale", value: "uz", url: "http://localhost:3001" }]);

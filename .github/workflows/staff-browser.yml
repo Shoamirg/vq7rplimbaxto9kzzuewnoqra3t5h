@@ -77,7 +77,7 @@ jobs:
           done
           curl --fail --silent http://127.0.0.1:8010/health > /dev/null
           curl --fail --silent http://127.0.0.1:3001/healthz > /dev/null
-          npx playwright test e2e/staff-accounts.spec.ts e2e/service-work-invoice.spec.ts e2e/platform.spec.ts --reporter=list
+          npx playwright test e2e/staff-accounts.spec.ts e2e/service-work-invoice.spec.ts e2e/platform.spec.ts e2e/theme-compat.spec.ts --reporter=list
       - uses: actions/upload-artifact@v4
         if: always()
         with:

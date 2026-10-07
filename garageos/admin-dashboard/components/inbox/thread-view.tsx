@@ -184,7 +184,7 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
           onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); } }}
           rows={2}
           placeholder={composerTab === "note" ? "Internal note — @mention a teammate…" : `Reply to ${thread.customer_name ?? "customer"}…`}
-          className={cn("w-full resize-none rounded-lg border px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary",
+          className={cn("w-full resize-none rounded-lg border px-3 py-2 text-[13px] outline-hidden focus:ring-1 focus:ring-primary",
             composerTab === "note" ? "border-amber-200 bg-amber-50/40" : "border-border bg-background")}
         />
         <div className="flex items-center gap-1.5 mt-2">

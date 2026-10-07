@@ -176,7 +176,7 @@ export function CommandMenu() {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onInputKey}
             placeholder={t("command.search")}
-            className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/60"
+            className="flex-1 bg-transparent text-sm text-foreground outline-hidden placeholder:text-muted-foreground/60"
             aria-label={t("command.search")}
           />
           {loading && <Loader2 className="size-4 animate-spin text-muted-foreground" />}

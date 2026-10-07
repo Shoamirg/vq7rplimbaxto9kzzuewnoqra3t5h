@@ -8,7 +8,7 @@ import type { CustomerListItem, RegisteredVehicle, VehicleCatalog } from "@/lib/
 import { useI18n } from "@/lib/i18n/context";
 import { CustomerPicker } from "./customer-picker";
 
-const FIELD = "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
+const FIELD = "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40";
 
 export function NewCustomerModal({ onClose, onCreated }: {
   onClose: () => void; onCreated: (customer: CustomerListItem) => void;

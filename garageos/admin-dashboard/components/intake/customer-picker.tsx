@@ -36,7 +36,7 @@ export function CustomerPicker({ onSelect, id = "customer-search" }: {
       <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
       <input id={id} value={query} onChange={(e) => setQuery(e.target.value)} autoFocus
         aria-label={t("crm.search_customers")} placeholder={t("crm.search_customers")}
-        className="w-full rounded-lg border border-border bg-background pl-9 pr-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/40" />
+        className="w-full rounded-lg border border-border bg-background pl-9 pr-3 py-2 text-sm outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40" />
     </div>
     {loading ? <p role="status" className="mt-2 text-xs text-muted-foreground flex gap-2"><Loader2 className="size-3 animate-spin" />{t("crm.search_loading")}</p>
       : error ? <p role="alert" className="mt-2 text-xs text-red-600">{t("intake.load_failed")} <button type="button" className="underline" onClick={() => setRetry((n) => n + 1)}>{t("intake.retry")}</button></p>

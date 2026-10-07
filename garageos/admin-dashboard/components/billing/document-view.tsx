@@ -225,7 +225,7 @@ export function DocumentView({
               {doc.payments.map((p) => (
                 <div key={p.id} className="flex items-center gap-2.5 py-1.5 border-b border-dashed border-border last:border-0 text-[12.5px]">
                   <span className="grid size-6 place-items-center rounded-md bg-muted text-sm">{METHOD_ICON[p.method]}</span>
-                  <div className="min-w-0 break-words">
+                  <div className="min-w-0 wrap-break-word">
                     <span className="font-bold">{t(`billing.kind_${p.kind}`)}</span> · {t(`billing.method_${p.method === "bank_transfer" ? "bank" : p.method}`)} <span className="text-muted-foreground">· {t(`billing.source_${p.source}`)}</span>
                     <div className="text-[11px] text-muted-foreground">{fmtDate(p.received_at)}{p.reference ? ` · ${p.reference}` : ""}</div>
                   </div>
@@ -246,7 +246,7 @@ export function DocumentView({
               <span className="absolute left-1.5 top-1 bottom-1 w-px bg-border" />
               {doc.timeline.map((e, i) => (
                 <div key={i} className="relative pb-3 last:pb-0">
-                  <span className={cn("absolute -left-[15px] top-0.5 size-2.5 rounded-full ring-2 ring-card", isEstimate ? "bg-blue-500" : "bg-emerald-500")} />
+                  <span className={cn("absolute left-[-15px] top-0.5 size-2.5 rounded-full ring-2 ring-card", isEstimate ? "bg-blue-500" : "bg-emerald-500")} />
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-[13px] font-medium">{timelineTitle(e.title)}</p>
                     <p className="text-[11px] text-muted-foreground whitespace-nowrap">{fmtDate(e.date)}</p>
@@ -316,15 +316,15 @@ function PayModal({ balance, currency, onClose, onSubmit }: { balance: number; c
   };
   return (
     <Dialog open onOpenChange={(open) => { if (!open && !submitting.current) onClose(); }}>
-      <DialogContent hideClose aria-label={t("billing.record_payment")} className="w-[calc(100%_-_2rem)] max-h-[90dvh] overflow-y-auto p-5">
+      <DialogContent hideClose aria-label={t("billing.record_payment")} className="w-[calc(100%-2rem)] max-h-[90dvh] overflow-y-auto p-5">
         <DialogTitle className="text-base font-bold mb-2">{t("billing.record_payment")}</DialogTitle>
         <DialogDescription className="mb-3">{t("public.balance")}: {fmt.money(balance, currency)}</DialogDescription>
         <form onSubmit={save}>
         <label htmlFor="payment-amount" className="text-xs font-semibold text-muted-foreground">{t("public.amount")}</label>
         <input id="payment-amount" value={amount} disabled={busy} onChange={(e) => { setAmount(e.target.value); setError(null); }} inputMode="decimal" autoComplete="off" aria-invalid={error ? true : undefined} aria-describedby={error ? "payment-error" : undefined}
-          className="w-full mt-1 mb-3 rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-1 focus:ring-primary" />
+          className="w-full mt-1 mb-3 rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono outline-hidden focus:ring-1 focus:ring-primary" />
         <label htmlFor="payment-method" className="text-xs font-semibold text-muted-foreground">{t("billing.payment_method")}</label>
-        <select id="payment-method" value={method} disabled={busy} onChange={(e) => { setMethod(e.target.value); setError(null); }} className="w-full mt-1 mb-4 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none">
+        <select id="payment-method" value={method} disabled={busy} onChange={(e) => { setMethod(e.target.value); setError(null); }} className="w-full mt-1 mb-4 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-hidden">
           <option value="card">{t("billing.method_card")}</option><option value="cash">{t("billing.method_cash")}</option>
           <option value="bank_transfer">{t("billing.method_bank")}</option><option value="online">{t("billing.method_online")}</option>
         </select>

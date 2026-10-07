@@ -82,16 +82,31 @@ Use npm 10, matching the production Docker build, to verify that
 `npm ls postcss --all` shows the patched version under Next and the application.
 On the same installed workspace, npm 11.11.0 reports a conflicting `8.4.31`
 requirement despite the override; `npx --yes npm@10.8.2 ls postcss --all` verifies
-the installed tree without that diagnostic. Audit exit codes and remaining alerts
-must be reported; this override
-does not resolve the separate build-tool glob/selector-parser advisories or prove
-that the entire platform has passed a security audit.
+the installed tree without that diagnostic.
 
-The remaining glob/selector-parser alerts come through Tailwind's build tools.
-The locally verified standalone image contains patched PostCSS and excludes those
-named build-tool packages. This inventory is not an exploitability assessment of
-all bundled code; retain the alerts until an upstream patch or reviewed dependency
-migration resolves them.
+The web CSS toolchain uses Tailwind4.3.3 and its dedicated PostCSS plugin, with
+tailwind-merge3.7.0 shared by the dashboard/design system. All web routes require
+Safari16.4+, Chrome111+ or Firefox128+ per the
+[Tailwind browser requirements](https://tailwindcss.com/docs/upgrade-guide).
+Native Flutter requirements are separate. Tokens, legacy outline variants,
+animations and print rules are retained; Inter/Manrope are served by Next's local
+font assets, without a browser request to Google Fonts.
+
+A version-scoped override replaces only Next15.5.27 lint's `fast-glob` dependency
+with `tinyglobby0.2.17`. The installed implementation is tinyglobby, using its
+compatible `globSync(pattern, {onlyDirectories:true})` API for Next root discovery;
+the fast-glob/micromatch/braces implementation chain is removed. Next lint rules
+and framework versions are retained. `npm run check:next-root-glob` exercises the
+actual installed internal-link rule against monorepo/brace/Windows paths and valid
+link controls. Reevaluate this override/test when upgrading the Next lint plugin.
+Use `npx --yes npm@10.8.2 ls fast-glob --all` for tree verification; npm11 also
+reports the alias against the original pinned requirement as invalid, even when
+fresh `npm ci` and both unsuppressed audits succeed.
+
+Jenkins records full and production-only `npm audit --json` results and rejects
+new alerts. An audit is a known-advisory check, not a proof of all code's security.
+The production image uses Node22 LTS/npm10; Node20 has reached end of life. See the
+[Node support schedule](https://nodejs.org/en/about/previous-releases).
 
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build

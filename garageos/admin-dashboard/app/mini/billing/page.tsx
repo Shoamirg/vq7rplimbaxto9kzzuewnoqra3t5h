@@ -35,7 +35,7 @@ export default function BillingPage() {
 
       {/* One primary action */}
       {b.has_balance ? (
-        <div className="rounded-3xl bg-gradient-to-br from-slate-900 to-slate-700 p-5 text-white shadow-xl">
+        <div className="rounded-3xl bg-linear-to-br from-slate-900 to-slate-700 p-5 text-white shadow-xl">
           <p className="text-sm text-white/70">{t("mini.home.balance_due")}</p>
           <p className="mt-1 text-4xl font-bold tracking-tight">{balanceText}</p>
           {b.primary_invoice ? (
@@ -46,14 +46,14 @@ export default function BillingPage() {
               haptic("medium");
               setPayNote(true);
             }}
-            className="mt-4 min-h-[48px] w-full rounded-2xl bg-green-500 py-3.5 text-base font-bold text-white transition motion-safe:active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            className="mt-4 min-h-[48px] w-full rounded-2xl bg-green-500 py-3.5 text-base font-bold text-white transition motion-safe:active:scale-[0.99] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70"
           >
             {t("mini.billing.pay", { amount: balanceText })}
           </button>
           {payNote ? <p className="mt-2 text-center text-xs text-white/70">{t("mini.billing.pay_soon")}</p> : null}
         </div>
       ) : (
-        <Card className="!bg-green-50 !ring-green-200/60">
+        <Card className="bg-green-50! ring-green-200/60!">
           <div className="flex items-center gap-3">
             <CheckCircle2 className="size-8 text-green-600" aria-hidden />
             <div>
@@ -80,7 +80,7 @@ export default function BillingPage() {
       {b.receipts.length > 0 ? (
         <div className="mt-5">
           <SectionLabel>{t("mini.billing.receipts")}</SectionLabel>
-          <Card className="!p-2">
+          <Card className="p-2!">
             <ul className="divide-y divide-slate-100">
               {b.receipts.map((r) => (
                 <li key={r.id} className="flex items-center gap-3 px-2 py-3">
@@ -101,7 +101,7 @@ export default function BillingPage() {
       {paid.length > 0 ? (
         <div className="mt-5">
           <SectionLabel>{t("mini.billing.paid_invoices")}</SectionLabel>
-          <Card className="!p-2">
+          <Card className="p-2!">
             <ul className="divide-y divide-slate-100">
               {paid.map((i) => (
                 <li key={i.id} className="flex items-center justify-between px-2 py-3">
@@ -182,14 +182,14 @@ function EstimateCard({ estimate, onChange }: { estimate: BillingDoc; onChange: 
             <button
               onClick={() => decide("approve")}
               disabled={!!busy}
-              className="min-h-[44px] rounded-xl bg-green-600 text-sm font-semibold text-white transition motion-safe:active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-1 disabled:opacity-40"
+              className="min-h-[44px] rounded-xl bg-green-600 text-sm font-semibold text-white transition motion-safe:active:scale-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-1 disabled:opacity-40"
             >
               {busy === "approve" ? "…" : t("mini.billing.approve")}
             </button>
             <button
               onClick={() => decide("decline")}
               disabled={!!busy}
-              className="min-h-[44px] rounded-xl bg-slate-100 text-sm font-semibold text-slate-600 transition motion-safe:active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 disabled:opacity-40"
+              className="min-h-[44px] rounded-xl bg-slate-100 text-sm font-semibold text-slate-600 transition motion-safe:active:scale-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-300 disabled:opacity-40"
             >
               {t("mini.billing.decline")}
             </button>
@@ -200,7 +200,7 @@ function EstimateCard({ estimate, onChange }: { estimate: BillingDoc; onChange: 
               }}
               disabled={!!busy}
               aria-expanded={asking}
-              className="min-h-[44px] rounded-xl bg-slate-100 text-sm font-semibold text-slate-600 transition motion-safe:active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 disabled:opacity-40"
+              className="min-h-[44px] rounded-xl bg-slate-100 text-sm font-semibold text-slate-600 transition motion-safe:active:scale-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-300 disabled:opacity-40"
             >
               {t("mini.billing.ask")}
             </button>
@@ -213,12 +213,12 @@ function EstimateCard({ estimate, onChange }: { estimate: BillingDoc; onChange: 
                 onKeyDown={(e) => e.key === "Enter" && submitQuestion()}
                 placeholder={t("mini.billing.ask_placeholder")}
                 aria-label={t("mini.billing.ask_placeholder")}
-                className="flex-1 rounded-xl bg-slate-50 px-3 py-2 text-sm outline-none ring-1 ring-slate-900/[0.06] focus:ring-2 focus:ring-blue-500"
+                className="flex-1 rounded-xl bg-slate-50 px-3 py-2 text-sm outline-hidden ring-1 ring-slate-900/6 focus:ring-2 focus:ring-blue-500"
               />
               <button
                 onClick={submitQuestion}
                 disabled={!question.trim() || !!busy}
-                className="min-h-[40px] rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white transition motion-safe:active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-40"
+                className="min-h-[40px] rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white transition motion-safe:active:scale-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-40"
               >
                 {t("mini.billing.send")}
               </button>

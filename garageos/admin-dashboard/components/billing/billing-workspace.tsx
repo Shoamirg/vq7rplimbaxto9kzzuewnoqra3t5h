@@ -95,7 +95,7 @@ export function BillingWorkspace() {
         <FileText className="size-5 text-primary" />
         <span className="font-bold text-foreground">{t("billing.title")}</span>
         {kpis && (
-          <div className="order-last w-full flex items-center gap-5 overflow-x-auto sm:order-none sm:w-auto sm:ml-4">
+          <div className="order-last w-full flex items-center gap-5 overflow-x-auto sm:order-0 sm:w-auto sm:ml-4">
             <Kpi k={t("billing.outstanding")} v={money(kpis.outstanding, kpis.currency)} tone="text-red-600" />
             <Kpi k={t("billing.overdue")} v={money(kpis.overdue, kpis.currency)} tone="text-amber-600" />
             <Kpi k={t("billing.paid_month")} v={money(kpis.paid_this_month, kpis.currency)} tone="text-emerald-600" />

@@ -22,7 +22,7 @@ import type { InputProps } from "./input.types";
  *   <InputLabel>Custom</InputLabel>
  *   <InputField>
  *     <InputPrefix><Search /></InputPrefix>
- *     <input className="flex-1 bg-transparent outline-none" />
+ *     <input className="flex-1 bg-transparent outline-hidden" />
  *   </InputField>
  * </InputRoot>
  * ```
@@ -121,7 +121,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             disabled={disabled}
             type={resolvedType}
             className={cn(
-              "peer flex-1 bg-transparent outline-none border-none p-0 m-0 h-full",
+              "peer flex-1 bg-transparent outline-hidden border-none p-0 m-0 h-full",
               "text-foreground placeholder:text-muted-foreground/60",
               "disabled:cursor-not-allowed",
               "[&::-ms-reveal]:hidden" // Hide Edge password toggle (we have our own)

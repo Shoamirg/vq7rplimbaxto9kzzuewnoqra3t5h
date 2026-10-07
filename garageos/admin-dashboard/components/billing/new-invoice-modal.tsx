@@ -10,7 +10,7 @@ import type { Appointment, Customer360, CustomerListItem, InvoiceDoc } from "@/l
 import { CustomerPicker } from "@/components/intake/customer-picker";
 import { NewCustomerModal, NewVehicleModal } from "@/components/intake/intake-modals";
 
-const FIELD = "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
+const FIELD = "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40";
 const LABEL = "block text-xs font-semibold text-muted-foreground mb-1.5";
 const LINE_KINDS = [["part", "Part"], ["labor", "Labor"], ["fee", "Fee"], ["discount", "Discount"]] as const;
 

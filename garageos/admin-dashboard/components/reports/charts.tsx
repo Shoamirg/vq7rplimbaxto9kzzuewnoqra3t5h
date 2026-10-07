@@ -120,7 +120,7 @@ export function BarRows({ rows, color = "#2563EB", fmt = (n: number) => String(n
           <span className="flex-1 h-2.5 rounded-full bg-muted overflow-hidden">
             <span className="block h-full rounded-full" style={{ width: `${(r.value / max) * 100}%`, background: bandColors ? bandFill[i % 4] : color }} />
           </span>
-          <span className="max-w-[45%] text-right font-bold font-mono break-words">{fmt(r.value)}</span>
+          <span className="max-w-[45%] text-right font-bold font-mono wrap-break-word">{fmt(r.value)}</span>
         </div>
       ))}
     </div>

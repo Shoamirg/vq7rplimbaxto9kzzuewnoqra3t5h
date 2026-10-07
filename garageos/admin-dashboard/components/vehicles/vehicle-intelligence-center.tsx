@@ -121,7 +121,7 @@ function CarStage({ subsystems, onPick, active }: {
     <div className="relative mt-2 grid h-[240px] place-items-center">
       <div className="twin-glow pointer-events-none absolute bottom-9 h-[110px] w-[380px] rounded-full"
         style={{ background: "radial-gradient(closest-side, rgba(37,99,235,.4), transparent)", filter: "blur(8px)" }} />
-      <svg className="twin-float relative z-[2] w-full max-w-[420px]" width="420" height="176" viewBox="0 0 440 180" fill="none">
+      <svg className="twin-float relative z-2 w-full max-w-[420px]" width="420" height="176" viewBox="0 0 440 180" fill="none">
         <defs>
           <linearGradient id="ic-body" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#dfe7f2" /><stop offset="1" stopColor="#8aa0c4" /></linearGradient>
           <linearGradient id="ic-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#2b3c5c" /><stop offset="1" stopColor="#0f1a30" /></linearGradient>
@@ -139,7 +139,7 @@ function CarStage({ subsystems, onPick, active }: {
         const isActive = active === s.name;
         return (
           <button key={s.name} onClick={() => onPick(s)} data-testid="vic-hotspot"
-            className="absolute z-[3] -translate-x-1/2 -translate-y-1/2"
+            className="absolute z-3 -translate-x-1/2 -translate-y-1/2"
             style={{ left: `${pos.x}%`, top: `${pos.y}%` }} aria-label={`${vt(s.name)} ${Math.round(s.score)}`}>
             <span className="relative grid place-items-center">
               <span className={`absolute inline-flex h-6 w-6 rounded-full ${warn ? "bg-amber-400/40" : "bg-blue-500/40"} motion-safe:animate-ping`} />
@@ -184,7 +184,7 @@ export function VehicleIntelligenceCenter({ data }: { data: VehicleIntelligence 
         </div>
         <div className="flex flex-wrap gap-2">
           <Link href={`/passport/${v.id}`} target="_blank"
-            className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 px-4 py-2 text-sm font-bold text-amber-950 transition hover:brightness-105">
+            className="inline-flex items-center gap-1.5 rounded-xl bg-linear-to-br from-amber-400 to-amber-600 px-4 py-2 text-sm font-bold text-amber-950 transition hover:brightness-105">
             <Star className="size-4" /> {vt("View Passport")}
           </Link>
           <button onClick={() => setBook(true)} className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white transition hover:bg-slate-800">
@@ -220,7 +220,7 @@ export function VehicleIntelligenceCenter({ data }: { data: VehicleIntelligence 
       <div className="flex gap-1 overflow-x-auto rounded-2xl bg-muted p-1 text-sm font-semibold sm:w-fit">
         {TABS.map((name) => (
           <button key={name} onClick={() => setTab(name)} aria-pressed={tab === name}
-            className={`shrink-0 flex-1 rounded-xl px-3 py-1.5 transition sm:flex-none ${tab === name ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}>
+            className={`shrink-0 flex-1 rounded-xl px-3 py-1.5 transition sm:flex-none ${tab === name ? "bg-background text-foreground shadow-xs" : "text-muted-foreground"}`}>
             {vt(name[0].toUpperCase() + name.slice(1))}
           </button>
         ))}
@@ -241,7 +241,7 @@ export function VehicleIntelligenceCenter({ data }: { data: VehicleIntelligence 
               style={{ background: "radial-gradient(120% 90% at 30% 0%, #1a2740 0%, #0e1626 45%, #0B1220 100%)" }}>
               <div className="pointer-events-none absolute inset-0 opacity-50"
                 style={{ backgroundImage: "linear-gradient(rgba(148,163,184,.12) 1px,transparent 1px),linear-gradient(90deg,rgba(148,163,184,.12) 1px,transparent 1px)", backgroundSize: "34px 34px", maskImage: "radial-gradient(70% 60% at 50% 40%,#000,transparent)" }} />
-              <div className="relative z-[2] flex flex-wrap items-start justify-between gap-3">
+              <div className="relative z-2 flex flex-wrap items-start justify-between gap-3">
                 <div>
                   {tier && (
                     <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-400/10 px-2.5 py-1 font-brand text-[11px] font-bold uppercase tracking-[0.14em] text-amber-200">
@@ -260,7 +260,7 @@ export function VehicleIntelligenceCenter({ data }: { data: VehicleIntelligence 
 
               {/* subsystem detail on click */}
               {active ? (
-                <div className="relative z-[2] mt-1 flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3">
+                <div className="relative z-2 mt-1 flex items-center gap-4 rounded-2xl border border-white/10 bg-white/6 px-4 py-3">
                   <div className="grid size-11 place-items-center rounded-xl bg-white/10">
                     {(() => { const I = sysIcon(active.name); return <I className="size-5 text-white" />; })()}
                   </div>
@@ -276,7 +276,7 @@ export function VehicleIntelligenceCenter({ data }: { data: VehicleIntelligence 
                   </div>
                 </div>
               ) : (
-                <div className="relative z-[2] mt-1 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="relative z-2 mt-1 grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <Vital k={vt("Mileage")} val={v.mileage != null ? `${fmt.number(v.mileage)} km` : "—"} />
                   <Vital k={vt("Compliance")} val={`${fmt.number(passport.compliance)}%`} />
                   <Vital k={vt("Owned")} val={t("vehicle.years", { count: passport.vitals.ownership_years })} />
@@ -318,13 +318,13 @@ export function VehicleIntelligenceCenter({ data }: { data: VehicleIntelligence 
 
 // ── sub-cards ────────────────────────────────────────────────────────────────
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`rounded-3xl border border-border bg-card p-5 shadow-sm ${className}`}>{children}</div>;
+  return <div className={`rounded-3xl border border-border bg-card p-5 shadow-xs ${className}`}>{children}</div>;
 }
 function CardTitle({ children, right }: { children: React.ReactNode; right?: React.ReactNode }) {
   return <div className="mb-3 flex items-center justify-between"><h3 className="font-brand text-[15px] font-extrabold text-foreground">{children}</h3>{right}</div>;
 }
 function Vital({ k, val }: { k: string; val: string }) {
-  return <div className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2">
+  return <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2">
     <div className="text-[10px] uppercase tracking-wider text-slate-500">{k}</div>
     <div className="font-brand mt-0.5 text-base font-bold text-white">{val}</div>
   </div>;
@@ -425,7 +425,7 @@ function TimelineCard({ events, compact, onHistory }: { events: VehicleIntellige
           const dot = e.type?.includes("service") ? "bg-green-500" : e.severity === "info" ? "bg-blue-500" : "bg-slate-300";
           return (
             <li key={i} className="mb-3.5 ml-4">
-              <span className={`absolute -left-[5px] mt-1.5 size-2.5 rounded-full ${dot}`} />
+              <span className={`absolute left-[-5px] mt-1.5 size-2.5 rounded-full ${dot}`} />
               <div className="flex items-baseline justify-between gap-2">
                 <p className="text-[13px] font-semibold text-foreground">{e.type.startsWith("appointment_") ? `${t("billing.appointment")} · ${t("status." + e.type.slice("appointment_".length))}` : vt(e.title)}</p>
               </div>
@@ -444,7 +444,7 @@ function OwnerCard({ owner, commercial }: { owner: NonNullable<VehicleIntelligen
     <Card>
       <CardTitle>{vt("Owner")}</CardTitle>
       <div className="flex items-center gap-3">
-        <div className="grid size-11 place-items-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 font-bold text-white">
+        <div className="grid size-11 place-items-center rounded-full bg-linear-to-br from-blue-500 to-indigo-600 font-bold text-white">
           {(owner.name ?? "?").split(" ").map((p) => p[0]).slice(0, 2).join("")}
         </div>
         <div>
@@ -481,7 +481,7 @@ function PassportCard({ passport, vehicleId, large }: { passport: VehicleIntelli
           <div className="font-mono text-[11px] tracking-[0.2em] text-slate-400">{passport.code}</div>
           <div className="mt-1.5 flex flex-wrap gap-1">
             {passport.highlights.filter((h) => h.ok).slice(0, 3).map((h) => (
-              <span key={h.label} className="rounded-full bg-white/[0.08] px-2 py-0.5 text-[10px] text-slate-300">{vt(h.label)}</span>
+              <span key={h.label} className="rounded-full bg-white/8 px-2 py-0.5 text-[10px] text-slate-300">{vt(h.label)}</span>
             ))}
           </div>
           <Link href={`/passport/${vehicleId}`} target="_blank" className="mt-2 inline-block text-xs font-bold text-amber-300">{vt("Share & download")} →</Link>

@@ -41,7 +41,7 @@ export function MiniShell({ children }: { children: React.ReactNode }) {
 
   if (state === "loading") {
     return (
-      <div className="grid min-h-[100dvh] place-items-center bg-slate-950" dir={dir}>
+      <div className="grid min-h-dvh place-items-center bg-slate-950" dir={dir}>
         <div className="flex flex-col items-center gap-4">
           <LogoTile size={84} />
           <div className="text-center">
@@ -56,7 +56,7 @@ export function MiniShell({ children }: { children: React.ReactNode }) {
 
   if (state === "error") {
     return (
-      <div className="grid min-h-[100dvh] place-items-center bg-slate-50 px-8" dir={dir}>
+      <div className="grid min-h-dvh place-items-center bg-slate-50 px-8" dir={dir}>
         <div className="max-w-xs text-center">
           <LogoMark size={40} className="mx-auto mb-3" />
           <AlertCircle className="mx-auto size-9 text-slate-300" />
@@ -64,7 +64,7 @@ export function MiniShell({ children }: { children: React.ReactNode }) {
           <p className="mt-1 text-sm text-slate-500">{t("mini.signin_hint")}</p>
           <button
             onClick={() => window.location.reload()}
-            className="mt-5 min-h-[44px] rounded-full bg-blue-600 px-6 text-sm font-semibold text-white transition motion-safe:active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50"
+            className="mt-5 min-h-[44px] rounded-full bg-blue-600 px-6 text-sm font-semibold text-white transition motion-safe:active:scale-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50"
           >
             {t("mini.retry")}
           </button>
@@ -74,7 +74,7 @@ export function MiniShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="mx-auto min-h-[100dvh] max-w-md bg-slate-50" dir={dir}>
+    <div className="mx-auto min-h-dvh max-w-md bg-slate-50" dir={dir}>
       {!online ? (
         <div
           className="sticky top-0 z-30 flex items-center justify-center gap-2 bg-slate-900 py-2 text-xs font-medium text-white"

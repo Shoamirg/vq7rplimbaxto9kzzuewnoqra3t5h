@@ -107,7 +107,7 @@ export function ConversationPane({ detail }: { detail: CaseDetail | null }) {
           <button className="grid size-8 place-items-center rounded-lg text-muted-foreground"><Camera className="size-4" /></button>
           <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); send(); } }}
             placeholder={internal ? `Internal note…` : `Message ${first}…`}
-            className={cn("flex-1 rounded-lg px-3 py-2 text-sm outline-none border", internal ? "bg-amber-50/50 border-amber-200" : "bg-muted/50 border-transparent")} />
+            className={cn("flex-1 rounded-lg px-3 py-2 text-sm outline-hidden border", internal ? "bg-amber-50/50 border-amber-200" : "bg-muted/50 border-transparent")} />
           <button className="grid size-8 place-items-center rounded-lg text-muted-foreground"><Mic className="size-4" /></button>
           <button onClick={send} disabled={!text.trim()} className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground disabled:opacity-40"><Send className="size-4" /></button>
         </div>

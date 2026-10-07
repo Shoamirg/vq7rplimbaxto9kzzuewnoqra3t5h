@@ -8,7 +8,7 @@ import { Section, Specimen } from "./kit";
 // calendar-client; this mirrors its look for the catalog).
 function AppointmentCardSpecimen() {
   return (
-    <div className="w-56 rounded-lg border border-border bg-card p-2.5 border-l-4 border-l-emerald-500 shadow-sm">
+    <div className="w-56 rounded-lg border border-border bg-card p-2.5 border-l-4 border-l-emerald-500 shadow-xs">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
           <Wrench className="size-3.5 text-muted-foreground" /> Oil &amp; Filter Change
