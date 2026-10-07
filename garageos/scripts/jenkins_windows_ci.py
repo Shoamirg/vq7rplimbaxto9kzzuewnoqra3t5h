@@ -130,6 +130,49 @@ def ready(url):
         return False
 
 
+def docker_environment():
+    """Keep Linux Docker gates on the configured WSL host, without a public API."""
+    distro = os.environ.get("GARAGEOS_DOCKER_WSL_DISTRO")
+    if distro:
+        prefix = ["wsl.exe", "--distribution", distro, "--exec"]
+        probe = [*prefix, "/usr/bin/docker", "info"]
+        try:
+            started = subprocess.run(["wsl.exe", "--distribution", distro, "--user", "root", "--exec",
+                                      "/usr/bin/systemctl", "start", "docker"],
+                                     capture_output=True, timeout=30)
+            if started.returncode:
+                print("LIMIT: Configured WSL Docker service did not start.", flush=True)
+                return prefix, False
+        except (OSError, subprocess.TimeoutExpired):
+            return prefix, False
+    else:
+        prefix = []
+        executable = shutil.which("docker")
+        probe = [executable, "info"] if executable else []
+    # WSL may need a moment to boot systemd/Docker on the first invocation.
+    for attempt in range(6 if distro else 1):
+        try:
+            if probe and subprocess.run(probe, capture_output=True, timeout=30).returncode == 0:
+                return prefix, True
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+        if distro and attempt < 5:
+            time.sleep(2)
+    return prefix, False
+
+
+def docker_gate(prefix, script, name):
+    path = ROOT / "garageos/scripts" / script
+    if prefix:
+        # The daemon and bind-mounted fixture files must use the same Linux paths.
+        linux_path = subprocess.check_output([*prefix, "/usr/bin/wslpath", "-u", str(path)],
+                                             text=True, encoding="utf-8", timeout=30).strip()
+        command = [*prefix, "/usr/bin/python3", linux_path]
+    else:
+        command = [sys.executable, path]
+    run(command, ROOT, name)
+
+
 def main(allow_missing_docker):
     if os.name != "nt" or ROOT.name != "checkout":
         raise RuntimeError("Run only from an isolated Windows Jenkins checkout directory")
@@ -142,11 +185,7 @@ def main(allow_missing_docker):
     if STATE.exists():
         raise RuntimeError("Prior owned fixture state needs --cleanup-only before a new build")
     EVIDENCE.mkdir(parents=True, exist_ok=True)
-    docker = shutil.which("docker")
-    try:
-        available = docker and subprocess.run([docker, "info"], capture_output=True, timeout=30).returncode == 0
-    except (OSError, subprocess.TimeoutExpired):
-        available = False
+    docker_prefix, available = docker_environment()
     missing = not available
     if missing and not allow_missing_docker:
         raise RuntimeError("Docker Linux engine is required for production transport gates")
@@ -154,8 +193,8 @@ def main(allow_missing_docker):
         (EVIDENCE / "unavailable-gates.txt").write_text("NOT RUN: Docker production routing and dashboard build-context gates.\n", encoding="utf-8")
         print("LIMIT: Docker transport gates unavailable; result cannot be SUCCESS.", flush=True)
     else:
-        run([sys.executable, ROOT / "garageos/scripts/test_dashboard_build_context.py"], ROOT, "build-context")
-        run([sys.executable, ROOT / "garageos/scripts/test_public_routing.py"], ROOT, "public-routing")
+        docker_gate(docker_prefix, "test_dashboard_build_context.py", "build-context")
+        docker_gate(docker_prefix, "test_public_routing.py", "public-routing")
     run([sys.executable, "-m", "venv", BACKEND / ".venv"], ROOT, "python-environment")
     run([PYTHON, "-m", "pip", "install", "-r", "requirements.txt"], BACKEND, "backend-dependencies")
     run(["npm.cmd", "ci"], ROOT / "garageos", "node-dependencies")
@@ -208,7 +247,8 @@ def main(allow_missing_docker):
         if (DASHBOARD / "test-results").exists():
             shutil.copytree(DASHBOARD / "test-results", EVIDENCE / "browser-results", dirs_exist_ok=True)
         revision = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
-        (EVIDENCE / "result.json").write_text(json.dumps({"sha": revision, "docker_gates": "unavailable" if missing else "passed", "application_gates": "passed"}, indent=2), encoding="utf-8")
+        (EVIDENCE / "result.json").write_text(json.dumps({"sha": revision, "docker_gates": "unavailable" if missing else "passed", "application_gates": "passed",
+            "docker_environment": "WSL " + os.environ["GARAGEOS_DOCKER_WSL_DISTRO"] if docker_prefix else "Windows Docker context"}, indent=2), encoding="utf-8")
         return 3 if missing else 0
     finally:
         cleanup()

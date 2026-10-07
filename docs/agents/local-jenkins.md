@@ -83,6 +83,26 @@ artifacts. Such a build is not full CI acceptance. Once Docker is available,
 retry with FORCE_RUN; routing failures fail the build normally. Native iOS still
 requires a separate Mac/Xcode agent and signing remains a release gate.
 
+This PC now uses a separate Docker Engine in the existing `Ubuntu-24.04` WSL
+distro for those two Linux-container gates. `runtime.json` sets
+`dockerWslDistro` to `Ubuntu-24.04`; the launcher passes it as
+`GARAGEOS_DOCKER_WSL_DISTRO`. The runner starts that distro's local Docker service
+with WSL's root user, probes it as the default Linux user, and executes the
+unchanged routing/build-context scripts there using Linux paths. All application
+checks still run on the Windows agent. Docker Engine was installed from Docker's
+signed official Ubuntu apt repository; the existing Linux user belongs to its
+Docker group. No TCP Docker API or SSH server is exposed. Windows Docker Desktop
+storage/context are separate; its startup defect remains unresolved.
+
+Docker's systemd service starts when WSL starts. After editing `runtime.json` or
+the launcher, wait for builds to finish, stop only the recorded matching
+`build-agent` process, then run the launcher to refresh the agent environment.
+The existing controller can stay running. WSL tests stop their own uniquely
+named containers/networks through the existing suite cleanup. After builds finish,
+`wsl --distribution Ubuntu-24.04 --user root --exec systemctl stop docker docker.socket`
+stops this engine; the next build starts it again. Do not terminate the whole distro while unrelated Linux work
+is running. Other Ubuntu activity is outside Jenkins ownership.
+
 The local Windows tool paths are held in `runtime.json`, outside Git. The Flutter
 SDK must be3.47.6. Python3.12, Node, Git/GitHub CLI, PostgreSQL binaries and the
 user's GitHub keyring must stay available to the logged-in build agent.

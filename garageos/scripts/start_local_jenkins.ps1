@@ -6,6 +6,11 @@ $env:JENKINS_HOME = Join-Path $InstallRoot 'home'
 $env:GARAGEOS_PYTHON = $config.python
 $env:GARAGEOS_FLUTTER = $config.flutter
 $env:GARAGEOS_PGBIN = $config.pgbin
+if ($config.dockerWslDistro) {
+    $env:GARAGEOS_DOCKER_WSL_DISTRO = $config.dockerWslDistro
+} else {
+    Remove-Item -LiteralPath Env:GARAGEOS_DOCKER_WSL_DISTRO -ErrorAction SilentlyContinue
+}
 $env:PYTHONUTF8 = '1'
 $toolDirs = @((Split-Path $config.python), (Split-Path $config.flutter), $config.pgbin,
     (Split-Path $config.node), (Split-Path $config.git), (Split-Path $config.gh))
