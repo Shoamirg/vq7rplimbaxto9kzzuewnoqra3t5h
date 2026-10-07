@@ -32,6 +32,8 @@
   "searchAppointments": "Navbat qidirish",
   "appointmentSearchHint": "Mijoz, mashina yoki usta…",
   "allDates": "Barcha sanalar",
+  "ongoingWork": "Davom etayotgan ishlar",
+  "ongoingWorkHint": "Barcha sanalarda boshlangan va tugamagan ishlar.",
   "all": "Barchasi",
   "appointmentsLoading": "Navbatlar yuklanmoqda…",
   "appointmentsFailed": "Navbatlarni yuklab boʻlmadi",

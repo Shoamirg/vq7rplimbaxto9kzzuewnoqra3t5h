@@ -198,6 +198,7 @@ class _WorkListState extends State<WorkList> {
   }
 
   WorkStatus? status;
+  bool get ongoing => !today && status == WorkStatus.inProgress;
 
   void updateSearch(String value) {
     if (query == value) return;
@@ -251,6 +252,8 @@ class _WorkListState extends State<WorkList> {
                   Text(
                     widget.repository.isMechanic
                         ? context.l10n.myWork
+                        : ongoing
+                        ? context.l10n.ongoingWork
                         : today
                         ? context.l10n.today
                         : context.l10n.allAppointments,
@@ -259,6 +262,8 @@ class _WorkListState extends State<WorkList> {
                   Text(
                     widget.repository.isMechanic
                         ? context.l10n.assignedWorkHint
+                        : ongoing
+                        ? context.l10n.ongoingWorkHint
                         : today
                         ? context.date(DateTime.now())
                         : context.l10n.receptionSubtitle,
@@ -285,6 +290,20 @@ class _WorkListState extends State<WorkList> {
             label: context.l10n.searchAppointments,
             hint: context.l10n.appointmentSearchHint,
             onSearch: updateSearch,
+          ),
+          SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilterChip(
+              avatar: const Icon(Icons.build_outlined, size: 18),
+              label: Text(context.l10n.ongoingWork),
+              selected: ongoing,
+              onSelected: (selected) => setState(() {
+                today = false;
+                status = selected ? WorkStatus.inProgress : null;
+                page = 1;
+              }),
+            ),
           ),
           SizedBox(height: 12),
           if (!widget.repository.isMechanic)

@@ -32,6 +32,8 @@
   "searchAppointments": "Search appointments",
   "appointmentSearchHint": "Customer, vehicle or mechanic…",
   "allDates": "All dates",
+  "ongoingWork": "Ongoing work",
+  "ongoingWorkHint": "Started work across all visit dates.",
   "all": "All",
   "appointmentsLoading": "Loading appointments…",
   "appointmentsFailed": "Could not load appointments",

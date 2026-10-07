@@ -32,6 +32,8 @@
   "searchAppointments": "Поиск записей",
   "appointmentSearchHint": "Клиент, автомобиль или механик…",
   "allDates": "Все даты",
+  "ongoingWork": "Работы в процессе",
+  "ongoingWorkHint": "Начатые работы за все даты посещений.",
   "all": "Все",
   "appointmentsLoading": "Загрузка записей…",
   "appointmentsFailed": "Не удалось загрузить записи",

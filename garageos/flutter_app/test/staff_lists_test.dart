@@ -203,6 +203,7 @@ void main() {
       expect(tester.widget<ChoiceChip>(confirmed).selected, isTrue);
       final clear = find.widgetWithText(OutlinedButton, 'Filtrlarni tozalash');
       await tester.ensureVisible(clear);
+      await tester.pumpAndSettle();
       await tester.tap(clear);
       await tester.pumpAndSettle();
       expect(find.text('3 ta navbat topildi'), findsOneWidget);
