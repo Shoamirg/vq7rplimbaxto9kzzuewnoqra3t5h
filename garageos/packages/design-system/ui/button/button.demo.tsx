@@ -81,7 +81,7 @@ export function ButtonDemo() {
       </Section>
 
       <Section title="Form Footer" description="Standard form action pattern">
-        <div className="flex items-center gap-3 p-4 border rounded-lg bg-muted/30">
+        <div className="flex flex-wrap items-center gap-3 p-4 border rounded-lg bg-muted/30">
           <Button variant="ghost">Cancel</Button>
           <Button variant="outline">Save Draft</Button>
           <Button leftIcon={<Plus />}>Create Customer</Button>
