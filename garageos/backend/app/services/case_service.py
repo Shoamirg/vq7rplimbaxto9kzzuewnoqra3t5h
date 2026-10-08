@@ -10,20 +10,23 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select, text
+from sqlalchemy.sql import quoted_name
 
 from app.core.events import CaseAssigned, CaseOpened, CaseResolved, CaseStatusChanged
-from app.exceptions import NotFoundError, ValidationError
+from app.exceptions import GarageException, NotFoundError, ValidationError
+from app.models.brand import Brand
 from app.models.customer import Customer
 from app.models.notification import Notification
-from app.models.operational_case import CaseStatus, CaseType, OperationalCase
+from app.models.operational_case import CaseStatus, CaseType, OPEN_CASE_STATUSES, OperationalCase
 from app.models.user import User
 from app.models.vehicle import Vehicle
+from app.models.vehicle_model import VehicleModel
 from app.repositories.tenant_references import local_reference, local_reference_exists
 from app.repositories.unit_of_work import UnitOfWork
 from app.repositories.user_repository import UserRepository
 from app.services.maintenance_service import MaintenanceService
-from app.services.vehicle_health_service import _band, _vehicle_label
+from app.services.vehicle_health_service import _band, _vehicle_label, format_vehicle_label
 
 _TYPE_SLA = {  # first-response SLA minutes by type
     CaseType.EMERGENCY: 15, CaseType.TOWING: 20, CaseType.VIP: 30,
@@ -37,6 +40,12 @@ class CaseNotFound(NotFoundError):
 
 class CaseVehicleOwnerMismatch(ValidationError):
     detail = "Vehicle does not belong to the selected customer"
+
+
+class CaseSearchUnavailable(GarageException):
+    status_code = 503
+    code = "CASE_SEARCH_UNAVAILABLE"
+    detail = "Case search is temporarily unavailable"
 
 
 class CaseService:
@@ -154,21 +163,65 @@ class CaseService:
         ]
 
     # ── read ──────────────────────────────────────────────────
-    async def list_cases(self, *, status_group: str | None = None, case_type: str | None = None) -> dict:
-        stmt = select(OperationalCase).where(*self._safe_where())
+    async def list_cases(
+        self, *, status_group: str | None = None, case_type: str | None = None,
+        q: str | None = None, limit: int = 60, offset: int = 0,
+    ) -> dict:
+        # Scalar joins avoid Customer/Vehicle selectin collections on list reads.
+        stmt = select(OperationalCase).join(Customer, and_(
+            Customer.id == OperationalCase.customer_id, Customer.service_center_id == self.sc,
+        )).where(*self._safe_where())
         if case_type and case_type != "all":
             stmt = stmt.where(OperationalCase.case_type == case_type)
         if status_group == "active":
             stmt = stmt.where(OperationalCase.status.notin_([CaseStatus.RESOLVED, CaseStatus.CLOSED]))
         elif status_group == "resolved":
             stmt = stmt.where(OperationalCase.status.in_([CaseStatus.RESOLVED, CaseStatus.CLOSED]))
-        stmt = stmt.order_by(OperationalCase.created_at.desc()).limit(60)
-        rows = (await self.session.execute(stmt)).scalars().all()
-        active = sum(1 for c in rows if c.is_open())
+        query = (q or "").strip()
+        if query:
+            await self._require_search_collation()
+            pattern = "%" + query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+            # Fixed trusted identifier, explicitly schema-qualified; q stays bound data.
+            collation = quoted_name('pg_catalog."und-x-icu"', quote=False)
+            stmt = stmt.where(or_(*[
+                field.collate(collation).ilike(pattern, escape="\\")
+                for field in (OperationalCase.code, OperationalCase.title, Customer.full_name)
+            ]))
+        totals = (await self.session.execute(stmt.with_only_columns(
+            func.count(), func.count().filter(OperationalCase.status.in_(OPEN_CASE_STATUSES)),
+            maintain_column_froms=True,
+        ))).one()
+        page = stmt.add_columns(Customer.full_name, Vehicle.id, Brand.name, VehicleModel.name, Vehicle.license_plate).outerjoin(
+            Vehicle, and_(Vehicle.id == OperationalCase.vehicle_id, Vehicle.service_center_id == self.sc, Vehicle.is_active.is_(True)),
+        ).outerjoin(VehicleModel, VehicleModel.id == Vehicle.vehicle_model_id).outerjoin(
+            Brand, Brand.id == VehicleModel.brand_id,
+        ).order_by(OperationalCase.created_at.desc(), OperationalCase.id.desc()).limit(limit).offset(offset)
+        items = []
+        for case, name, vehicle_id, brand, model, plate in (await self.session.execute(page)).all():
+            item = self._fields(case)
+            item["customer_name"] = name
+            if case.vehicle_id:
+                item["vehicle_label"] = format_vehicle_label(brand, model, plate) if vehicle_id else None
+            items.append(item)
         return {
-            "items": [await self.serialize(c) for c in rows],
-            "active_count": active,
+            "items": items, "active_count": totals[1], "total": totals[0],
+            "limit": limit, "offset": offset,
         }
+
+    async def _require_search_collation(self) -> None:
+        available = await self.session.scalar(text("""
+            SELECT EXISTS (
+                SELECT 1 FROM pg_catalog.pg_collation c
+                JOIN pg_catalog.pg_namespace n ON n.oid = c.collnamespace
+                JOIN pg_catalog.pg_database d ON d.datname = current_database()
+                WHERE n.nspname = 'pg_catalog' AND c.collname = 'und-x-icu'
+                  AND c.collprovider = 'i' AND c.collisdeterministic
+                  AND c.collencoding IN (-1, d.encoding)
+                  AND pg_catalog.to_regcollation('pg_catalog."und-x-icu"') = c.oid
+            )
+        """))
+        if not available:
+            raise CaseSearchUnavailable()
 
     async def get_case(self, case_id: uuid.UUID) -> dict:
         case = await self.get_record(case_id)
@@ -190,10 +243,11 @@ class CaseService:
             for n in rows
         ]
 
-    async def serialize(self, case: OperationalCase, full: bool = False) -> dict:
+    @staticmethod
+    def _fields(case: OperationalCase) -> dict:
         elapsed = int((datetime.now(timezone.utc) - _utc(case.created_at)).total_seconds())
         sla_seconds = case.sla_response_minutes * 60
-        out = {
+        return {
             "id": str(case.id), "code": case.code, "case_type": case.case_type,
             "status": case.status, "severity": case.severity, "title": case.title,
             "description": case.description, "channel": case.channel,
@@ -208,6 +262,9 @@ class CaseService:
             "is_open": case.is_open(),
             "created_at": case.created_at.isoformat() if case.created_at else None,
         }
+
+    async def serialize(self, case: OperationalCase, full: bool = False) -> dict:
+        out = self._fields(case)
         if full:
             customer = await local_reference(self.session, Customer, case.customer_id, self.sc)
             out["customer"] = {

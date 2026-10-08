@@ -146,7 +146,7 @@ async def test_unsafe_legacy_case_is_hidden_and_cannot_mutate_or_open_thread(
     monkeypatch.setattr(event_bus, "dispatch", events.append)
     listing = await client.get("/api/v1/cases", headers=refs["admin"])
     assert listing.status_code == 200
-    assert listing.json() == {"items": [], "active_count": 0}
+    assert listing.json()["items"] == [] and listing.json()["active_count"] == 0
     for method, suffix, body in [("GET", "", None), ("GET", "/conversation", None),
                                  ("PATCH", "", {"status": "resolved"})]:
         options = {"headers": refs["admin"]}

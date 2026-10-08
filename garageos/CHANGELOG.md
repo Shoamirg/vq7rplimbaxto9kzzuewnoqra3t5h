@@ -23,6 +23,11 @@ not a release tag, deployment or real garage acceptance.
 
 ### Fixed
 
+- Operational case reads support server pagination, literal EN/RU/UZ search and
+  complete filtered counts, preserving tenant/history and label contracts with
+  bounded page queries. [Case list API](docs/case-list-api.md) records ICU preflight,
+  count semantics and the remaining dashboard integration.
+
 - Operational cases reject foreign/inactive create references and ineligible
   mechanic assignments before mutation. Unsafe legacy case links are hidden;
   case-thread entry validates independent links and child tenant/parent edges.

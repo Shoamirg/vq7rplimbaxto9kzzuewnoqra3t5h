@@ -86,7 +86,12 @@ def _vehicle_label(vehicle) -> str:
     brand = vm.brand.name if vm and getattr(vm, "brand", None) else ""
     model = vm.name if vm else ""
     plate = vehicle.license_plate or ""
-    label = f"{brand} {model}".strip()
+    return format_vehicle_label(brand, model, plate)
+
+
+def format_vehicle_label(brand: str | None, model: str | None, plate: str | None) -> str:
+    """The same catalog label for scalar list projections and full vehicle reads."""
+    label = f"{brand or ''} {model or ''}".strip()
     return f"{label} ({plate})" if plate else label
 
 

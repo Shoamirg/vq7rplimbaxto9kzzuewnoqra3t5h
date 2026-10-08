@@ -251,6 +251,9 @@ export interface CaseDetail extends Omit<CaseListItem, "customer_name" | "vehicl
 export interface CaseList {
   items: CaseListItem[];
   active_count: number;
+  total: number;
+  limit: number;
+  offset: number;
 }
 
 export interface CaseMechanic {

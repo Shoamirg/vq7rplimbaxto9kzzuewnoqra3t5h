@@ -34,10 +34,10 @@ class CaseStatus:
     CLOSED = "closed"
 
 
-_OPEN_STATUSES = {
+OPEN_CASE_STATUSES = frozenset({
     CaseStatus.NEW, CaseStatus.ACKNOWLEDGED, CaseStatus.ASSIGNED,
     CaseStatus.EN_ROUTE, CaseStatus.IN_PROGRESS, CaseStatus.WAITING_CUSTOMER,
-}
+})
 
 
 class OperationalCase(BaseModelMixin, ServiceCenterMixin, Base):
@@ -76,4 +76,4 @@ class OperationalCase(BaseModelMixin, ServiceCenterMixin, Base):
     sla_response_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=15, server_default="15")
 
     def is_open(self) -> bool:
-        return self.status in _OPEN_STATUSES
+        return self.status in OPEN_CASE_STATUSES
