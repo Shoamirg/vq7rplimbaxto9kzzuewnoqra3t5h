@@ -70,6 +70,11 @@ class DatabaseRecoveryTest(unittest.TestCase):
         cls.image = 'garageos-recovery:' + cls.tag
         cls.image_created = False
         cls.addClassCleanup(cls.cleanup)
+        # Docker bind mounts must be native Linux files. Packaged Windows app
+        # checkout paths can be readable by WSL yet fail inside a container.
+        cls.fixture = cls.private/'recovery_fixture.py'
+        cls.fixture.write_bytes((ROOT/'scripts/recovery_fixture.py').read_bytes())
+        cls.fixture.chmod(0o644)  # Nonsecret code must be readable by the image's app user.
         cls.source_sha = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
         production = (ROOT / 'docker-compose.prod.yml').read_text()
         cls.pg_image = re.search(r'  postgres:\n    image: ([^\n]+)', production)[1].strip()
@@ -139,6 +144,7 @@ class DatabaseRecoveryTest(unittest.TestCase):
         version = cls.query(cls.source, 'SHOW server_version;')
         assert version.startswith('16.')
         cls.identities = {'source_sha': cls.source_sha, 'backend_image_id': cls.inspect('image', cls.image)['Id'],
+                          'fixture_sha256': hashlib.sha256(cls.fixture.read_bytes()).hexdigest(),
                           'postgres_image_id': cls.inspect('image', cls.pg_image)['Id'],
                           'postgres_version': version, 'role': 'recovery_role',
                           'source_restart_preserved': True}
@@ -164,7 +170,7 @@ class DatabaseRecoveryTest(unittest.TestCase):
         cls.containers.append(name)
         return cls.docker('run', '--rm', '--name', name, '--label', OWNER + '=' + cls.tag,
                           '--network', cls.network, '--env-file', env_file, '--mount',
-                          f'type=bind,src={ROOT}/scripts/recovery_fixture.py,dst=/recovery_fixture.py,readonly',
+                          f'type=bind,src={cls.fixture},dst=/recovery_fixture.py,readonly',
                           cls.image, *command, log=suffix, timeout=180)
 
     @classmethod
@@ -173,7 +179,7 @@ class DatabaseRecoveryTest(unittest.TestCase):
         cls.containers.append(name)
         cls.docker('run', '-d', '--name', name, '--label', OWNER + '=' + cls.tag,
                    '--network', cls.network, '--env-file', env_file, '--mount',
-                   f'type=bind,src={ROOT}/scripts/recovery_fixture.py,dst=/recovery_fixture.py,readonly', cls.image)
+                   f'type=bind,src={cls.fixture},dst=/recovery_fixture.py,readonly', cls.image)
         for _ in range(60):
             result = cls.docker('exec', name, 'curl', '-fsS', 'http://127.0.0.1:8000/health', allow_failure=True)
             if not result.returncode:
