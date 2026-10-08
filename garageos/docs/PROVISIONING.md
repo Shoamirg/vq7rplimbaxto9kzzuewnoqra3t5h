@@ -5,6 +5,9 @@ konteynerida ishlaydi. Avtoservis va xodim hisoblarini yaratadi; mijoz, mashina,
 navbat, hisob-faktura va to‘lov namunalarini qo‘shmaydi. Rol va mashina modellari
 umumiy katalogini tayyorlaydi. Ommaviy ro‘yxatdan o‘tish ekrani emas.
 
+Platforma superadmini uchun alohida [operator enrollment buyrug‘i](PLATFORM-ACCOUNTS.md)
+bor. Ushbu garage/staff manifesti platforma rol/flagini bera olmaydi.
+
 ## 1. Konfiguratsiyani tayyorlash
 
 `backend/provisioning.example.json`dan nusxa olib, avtoservis va xodimlarning

@@ -12,6 +12,8 @@ Server: [DEPLOYMENT.md](DEPLOYMENT.md). Dastlabki servis/egasi:
 [Android](../flutter_app/docs/android-release.md),
 [iOS](../flutter_app/docs/ios.md). Texnik chiqarish gate’lari:
 [RELEASE_CHECKLIST.md](../RELEASE_CHECKLIST.md).
+Platforma operatori uchun alohida [superadmin enrollment](PLATFORM-ACCOUNTS.md)
+tartibi bor; tenant owner akkauntini shu huquqqa avtomatik ko‘tarmang.
 
 ## 1. Birinchi foydalanishdan oldin
 
@@ -22,6 +24,9 @@ qayd etadi:
   admin brauzer manzili, servis nomi va xodimlar. Public demo o‘chirilgan bo‘lsin.
 - Admin, qabul/menejer, usta va mijoz loginlarini o‘z vazifalarida tekshirish.
   Parollar har bir egasiga shaxsiy usulda yetkaziladi; demo hisoblari ishlatilmaydi.
+- Platforma operatori kerak bo‘lsa, alohida login va mavjud faol bog‘langan
+  servisni tanlang. Global read hamda shu servisdagi mavjud staff.read/write
+  doirasini operator bilsin; haqiqiy platforma login/chegaralarini ham tekshiring.
 - Yordam mas’uli, yopiq aloqa, ish vaqti va favqulodda aloqa. Javob vaqti/SLA,
   ruxsat etilgan yo‘qotish davri (RPO) va qayta ishga tushirish muddati (RTO)
   egasi bilan kelishiladi; ushbu hujjat ularning qiymatini va’da qilmaydi.
@@ -182,6 +187,7 @@ tekshiruvchi va saqlangan natija joyini yozing. Bo‘sh katak **kutilmoqda**:
 | Joriy/yangi/oldingi SHA, image digest, migration revision | |
 | Compose project/volume mapping va private config recovery joyi | |
 | Admin/qabul/usta/mijoz rol va tenant tekshiruvlari | |
+| Platforma login/anchoring garage va global/tenant huquq qabuli | |
 | Android ID/owner certificate/hash/versiya/API/tarqatish dalili | |
 | Owner keystore backup egasi va tiklash sinovi | |
 | Apple signing/tarqatish, Android va iPhone qurilma dalillari | |

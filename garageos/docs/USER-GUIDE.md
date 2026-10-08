@@ -19,6 +19,8 @@ Haqiqiy server, telefon va avtoservisdagi qabul natijasi
 Har kim o‘z loginidan foydalanadi. Usta akkaunti mijozlar yoki hisoblar umumiy
 ro‘yxatini ochmaydi. Mijoz loginini xodim rejimida ishlatib bo‘lmaydi.
 Superadmin huquqini avtoservis egasi xodim yaratish sahifasidan bera olmaydi.
+Superadmin loginini vakolatli operator alohida
+[platforma sozlash tartibi](PLATFORM-ACCOUNTS.md) bilan ochadi.
 
 ## Kirish, til va ulanish
 

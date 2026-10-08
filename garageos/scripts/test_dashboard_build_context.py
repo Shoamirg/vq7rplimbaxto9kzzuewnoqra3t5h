@@ -1,4 +1,4 @@
-"""Verify dashboard input filtering with Docker itself and synthetic files.
+"""Verify dashboard/backend input filtering with Docker and synthetic files.
 
 Requires Docker Linux containers. Does not read local credentials or build the app.
 Run from repo root: python garageos/scripts/test_dashboard_build_context.py
@@ -30,6 +30,34 @@ class DashboardBuildContextTest(unittest.TestCase):
             "admin-dashboard/tsconfig.tsbuildinfo",
         )
         with tempfile.TemporaryDirectory(prefix="garageos-context-check-") as directory:
+            workspace = Path(directory)
+            context, output = workspace / "context", workspace / "output"
+            context.mkdir()
+            for name in keep + exclude:
+                file = context / name
+                file.parent.mkdir(parents=True, exist_ok=True)
+                file.write_text("synthetic-sentinel", encoding="utf-8")
+            shutil.copyfile(root / ".dockerignore", context / ".dockerignore")
+            result = subprocess.run(
+                ["docker", "build", "--progress=plain", "--output", f"type=local,dest={output}",
+                 "-f", "-", str(context)],
+                input="FROM scratch\nCOPY . /context/\n", capture_output=True, text=True, timeout=120,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            for name in keep:
+                with self.subTest(required=name):
+                    self.assertTrue((output / "context" / name).exists())
+            for name in exclude:
+                with self.subTest(excluded=name):
+                    self.assertFalse((output / "context" / name).exists())
+
+    def test_backend_keeps_operator_code_but_excludes_private_manifests(self):
+        root = Path(__file__).resolve().parents[1] / "backend"
+        keep = ("requirements.txt", "app/commands/enroll_platform.py",
+                "app/schemas/platform_enrollment.py", "platform-enrollment.example.json", "alembic/env.py")
+        exclude = ("platform.local.json", "garage.local.json", ".env", ".env.prod",
+                   ".venv/sentinel", ".pytest_cache/sentinel", "app/__pycache__/sentinel.pyc")
+        with tempfile.TemporaryDirectory(prefix="garageos-backend-context-check-") as directory:
             workspace = Path(directory)
             context, output = workspace / "context", workspace / "output"
             context.mkdir()

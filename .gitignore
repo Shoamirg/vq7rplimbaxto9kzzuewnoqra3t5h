@@ -6,6 +6,7 @@
 *.pem
 *.key
 /garageos/backend/garage.local.json
+/garageos/backend/platform.local.json
 
 # ---- Backups / runtime data ----
 backups/

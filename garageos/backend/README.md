@@ -265,5 +265,11 @@ from server-verified platform permissions. It exposes reads, searches and filter
 Tenant endpoints retain their original center/role policy, with no global bypass.
 Deep vehicle health/inbox/audit drill-down and exports remain later explicit work.
 There is no HTTP platform enrollment or global write API. Real platform enrollment
-requires a trusted operator and is not performed against production by this slice;
-existing staff provisioning cannot elevate roles/flags. See ADR0006.
+uses the separate trusted-operator CLI described in
+[PLATFORM-ACCOUNTS.md](../docs/PLATFORM-ACCOUNTS.md):
+`python -m app.commands.enroll_platform --config platform.local.json` plans;
+`--apply` creates only a new fixed role+flag identity or keeps an exact existing
+match. It requires an explicit active anchoring garage/current role catalog and
+reports both global reads and the role's existing tenant staff capabilities.
+Production enrollment is performed privately by its authorized operator;
+ordinary staff provisioning cannot elevate roles/flags. See ADR0006.
