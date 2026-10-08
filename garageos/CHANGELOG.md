@@ -23,6 +23,11 @@ not a release tag, deployment or real garage acceptance.
 
 ### Fixed
 
+- Invoice/estimate staff and public print views use the actual owning garage's
+  current branding/business contacts instead of a fixed demo identity; optional
+  contacts stay absent and standalone EN/RU/UZ numbers/dates use shared formatters.
+  See [document issuer](docs/document-issuer.md) for public UUID and current-profile limits.
+
 - Staff notification filters/counts/relative timestamps and contextual error and
   loading messages now follow EN/RU/UZ. Named loading statuses and the phone
   notification menu are verified; the localization audit reports the remaining

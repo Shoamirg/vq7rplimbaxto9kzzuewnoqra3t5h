@@ -12,8 +12,10 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   const doc = await getPublicInvoice(id).catch(() => null);
-  if (!doc) return { title: "Invoice", robots: { index: false } };
-  return { title: `${doc.kind === "estimate" ? "Estimate" : "Invoice"} ${doc.code}`, robots: { index: false } };
+  const localeCookie = (await cookies()).get(LOCALE_COOKIE)?.value;
+  const locale = isLocale(localeCookie) ? localeCookie : "uz";
+  const noun = translate(locale, doc?.kind === "estimate" ? "public.estimate" : "public.invoice");
+  return { title: doc ? `${noun} ${doc.code}` : noun, robots: { index: false } };
 }
 
 export default async function PublicInvoicePage({ params }: { params: Promise<{ id: string }> }) {

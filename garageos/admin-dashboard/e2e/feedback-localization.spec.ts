@@ -21,7 +21,7 @@ for (const locale of ["en", "ru", "uz"] as const) {
   test(`feedback server rendering ${locale}`, async ({ page }) => {
     // Real components/provider rendered on the server, with the locale the
     // authenticated layout selects from its cookie; no substitute UI modules.
-    const { skeletons, errors }: { skeletons: string[]; errors: string[] } = JSON.parse(execFileSync(process.execPath, ["e2e/support/feedback-render.cjs", locale], { encoding: "utf8" }));
+    const { skeletons, errors, legacyIssuer }: { skeletons: string[]; errors: string[]; legacyIssuer: string } = JSON.parse(execFileSync(process.execPath, ["e2e/support/feedback-render.cjs", locale], { encoding: "utf8" }));
     expect(skeletons).toHaveLength(4);
     expect(errors).toHaveLength(2);
     for (const [i, html] of skeletons.entries()) {
@@ -38,6 +38,13 @@ for (const locale of ["en", "ru", "uz"] as const) {
       if (locale !== "en") expect(html).not.toMatch(/We couldn&#x27;t|Retry, or check|Loading calendar/);
       expect(html).not.toMatch(/feedback\.[a-z_.]+/);
     }
+    // An older document payload supplies no identity/contacts. Render the real
+    // shared issuer's translated fallback without creating a mock API issuer.
+    await page.setContent(legacyIssuer);
+    const generic = { en: "Your garage", ru: "Ваш автосервис", uz: "Avtoservisingiz" };
+    await expect(page.locator("[data-document-issuer]")).toContainText(generic[locale]);
+    await expect(page.getByRole("link")).toHaveCount(0);
+    expect(legacyIssuer).not.toMatch(/Demo Workshop|Precision Auto Care|\+998|public\.garage/);
   });
 
   for (const width of [360, 1280]) {

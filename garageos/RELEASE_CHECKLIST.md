@@ -16,6 +16,9 @@ cut. Keep it honest — a red box blocks the release, not the checklist.
       browser prerequisites in [local Jenkins](../docs/agents/local-jenkins.md).
       A selected account/platform subset is not the complete release gate.
       Synthetic signed Mini App launch data stays private; disable auth traces.
+      Include actual owning-garage invoice/estimate screen and print checks in
+      EN/RU/UZ at phone/desktop widths; see [document issuer](docs/document-issuer.md).
+      The private browser fixture also contains synthetic staff credentials.
 - [ ] **No accessibility regressions** — keyboard-navigable, visible focus rings,
       labelled icon-only controls, ≥44px touch targets, contrast AA, reduced
       motion respected (spot-check `/mini` + one staff screen)

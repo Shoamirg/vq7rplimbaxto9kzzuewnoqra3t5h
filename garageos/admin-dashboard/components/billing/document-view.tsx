@@ -13,6 +13,7 @@ import { clientFetch, ClientApiError } from "@/lib/api/client";
 import { useI18n } from "@/lib/i18n/context";
 import type { InvoiceDoc, LineKind } from "@/lib/api/types";
 import { LINE_ICON, METHOD_ICON } from "./shared";
+import { DocumentIssuer } from "./document-issuer";
 
 const ABTN = "text-[12.5px] font-bold px-3.5 py-2 rounded-lg border border-border bg-card text-slate-600 inline-flex items-center gap-1.5 hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-wait";
 const TIMELINE_LABELS: Record<string, string> = {
@@ -125,12 +126,8 @@ export function DocumentView({
         {/* header */}
         <div className="relative px-4 sm:px-7 py-6 text-white" style={{ background: "linear-gradient(120deg,#0F172A,#1E293B)" }}>
           <div className="flex flex-wrap items-center gap-3">
-            <span className={cn("grid size-11 place-items-center rounded-xl text-lg font-extrabold", isEstimate ? "bg-blue-600" : "bg-emerald-600")}>G</span>
-            <div>
-              <p className="text-[17px] font-extrabold">GarageOS Demo Workshop</p>
-              <p className="text-[11.5px] text-slate-400">Precision Auto Care · Tashkent · +998 71 200 7000</p>
-            </div>
-            <div className="ml-auto text-right">
+            <DocumentIssuer issuer={doc.issuer} fallbackName={t("public.garage")} accent={isEstimate ? "#2563eb" : "#059669"} />
+            <div className="ml-auto min-w-0 text-right [overflow-wrap:anywhere]">
               <p className={cn("text-2xl font-extrabold tracking-wide", isEstimate ? "text-blue-300" : "text-emerald-300")}>
                 {t(isEstimate ? "public.estimate" : "public.invoice")}
               </p>
@@ -201,7 +198,7 @@ export function DocumentView({
           <div className="w-full max-w-[280px]">
             <TRow k={t("public.subtotal")} v={money(doc.subtotal)} />
             {doc.discount_total > 0 && <TRow k={t("public.discount")} v={"−" + money(doc.discount_total)} green />}
-            <TRow k={`${t("public.vat")} (${doc.tax_rate}%)`} v={money(doc.tax_total)} />
+            <TRow k={`${t("public.vat")} (${fmt.number(doc.tax_rate)}%)`} v={money(doc.tax_total)} />
             <div className="flex justify-between text-lg font-extrabold border-t-2 border-border mt-1 pt-2.5">
               <span>{t("public.total")}</span><span className="font-mono">{money(doc.total)}</span>
             </div>

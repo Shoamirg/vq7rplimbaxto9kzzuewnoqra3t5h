@@ -31,6 +31,8 @@ import httpx
 from app.core.config import settings
 from app.exceptions import ValidationError
 from app.models.customer import Customer
+from app.models.service_center import ServiceCenter
+from app.schemas.branding import branding_dict
 from app.models.brand import Brand
 from app.models.vehicle_model import VehicleModel
 from app.models.appointment import Appointment, AppointmentStatus
@@ -678,6 +680,22 @@ class InvoiceService:
     async def get_document(self, invoice_id: uuid.UUID) -> dict:
         inv = await self._get(invoice_id)
         data = await self.serialize_row(inv, full=True)
+        # The document's owner supplies current business presentation. Select
+        # only these columns: loading the center ORM would fan out its selectin
+        # relationships and expose unrelated private data to this read path.
+        center = (await self.session.execute(select(
+            ServiceCenter.name, ServiceCenter.brand_name, ServiceCenter.tagline,
+            ServiceCenter.monogram, ServiceCenter.phone, ServiceCenter.address,
+        ).where(ServiceCenter.id == inv.service_center_id))).first()
+        if center is None:
+            data["issuer"] = None
+        else:
+            brand = branding_dict(center)
+            data["issuer"] = {
+                "name": brand["name"], "tagline": brand["tagline"],
+                "monogram": brand["monogram"], "phone": center.phone,
+                "address": center.address,
+            }
         # Query children explicitly — the identity-mapped `inv` may carry a stale
         # selectin collection after an in-session mutation (e.g. record_payment).
         items = list((await self.session.execute(

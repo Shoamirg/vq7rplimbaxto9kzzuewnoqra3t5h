@@ -70,7 +70,7 @@ The versioned runner creates a new loopback `garage_test` PostgreSQL cluster for
 each build and refuses occupied ports 55444,8010,3001. It runs migrations/schema,
 pre-seed public API checks, full backend tests, frontend typecheck/locales/lint/
 build, Flutter UZ/EN/RU message validation/analyze/full live API tests/web build and
-the complete configured production browser suite (currently75 tests in10 files),
+the complete configured production browser suite (currently81 tests in11 files),
 including staff core pages/intelligence/search, daily intake/conflict/payment
 retry, Telegram Mini App/passport/roadside and runtime translations as well as
 account/service/platform/theme regressions. The runner does not select a subset.
@@ -88,7 +88,11 @@ reads a linked seeded customer with vehicles and writes signed launch data using
 exclusive creation outside the checkout. It refuses a non-test/non-loopback
 `garage_test`, DEBUG auth, a non-QA key, external browser origin or repository
 output path. `GARAGEOS_BROWSER_FIXTURE` points Playwright at that private file.
-No customer/account is created or promoted by this fixture command.
+The command also creates two owned synthetic garages/staff and invoice/estimate
+documents for [issuer checks](../../garageos/docs/document-issuer.md); synthetic
+staff credentials stay in the same private file. No real customer/Telegram
+login identity is created or promoted. The caller removes the owned database
+and private fixture after the complete gate.
 
 The Mini App tests provide only the synthetic browser SDK launch data; actual
 API/BFF signature verification, ownership and httpOnly session cookies stay in

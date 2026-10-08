@@ -1,7 +1,7 @@
 import type { InvoiceDoc, LineKind } from "@/lib/api/types";
 import { type Locale, translate } from "@/lib/i18n/dictionaries";
-
-const intlLocale: Record<Locale, string> = { en: "en-US", ru: "ru-RU", uz: "uz-Latn-UZ" };
+import { makeFormatters } from "@/lib/i18n/formatters";
+import { DocumentIssuer } from "./document-issuer";
 
 const GROUPS: { kind: LineKind; labelKey: string }[] = [
   { kind: "labor", labelKey: "invoice.kind_labor" }, { kind: "part", labelKey: "invoice.kind_part" },
@@ -14,26 +14,17 @@ export function PublicInvoice({ doc, locale = "uz" }: { doc: InvoiceDoc; locale?
   const isEstimate = doc.kind === "estimate";
   const accent = isEstimate ? "#2563eb" : "#16a34a";
   const t = (key: string) => translate(locale, key);
-  const money = (n: number) => new Intl.NumberFormat(intlLocale[locale], {
-    style: "currency", currency: doc.currency || "UZS",
-  }).format(n || 0);
-  const fmtDate = (iso?: string | null) => iso
-    ? new Date(iso).toLocaleDateString(intlLocale[locale], { month: "short", day: "numeric", year: "numeric" })
-    : "—";
+  const fmt = makeFormatters(locale);
+  const money = (n: number) => fmt.money(n, doc.currency || "UZS");
+  const fmtDate = (iso?: string | null) => fmt.date(iso) || "—";
 
   return (
     <div id="print-invoice" className="mx-auto w-[820px] max-w-full bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
       {/* header */}
-      <div className="px-7 py-6 text-white" style={{ background: "linear-gradient(120deg,#0F172A,#1E293B)" }}>
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <span className="grid size-11 place-items-center rounded-xl text-lg font-extrabold" style={{ background: accent }}>G</span>
-            <div>
-              <div className="font-bold leading-tight">{t("public.garage")}</div>
-              <div className="text-xs text-slate-300">{t("public.powered")}</div>
-            </div>
-          </div>
-          <div className="text-right">
+      <div className="px-4 sm:px-7 py-6 text-white" style={{ background: "linear-gradient(120deg,#0F172A,#1E293B)" }}>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <DocumentIssuer issuer={doc.issuer} fallbackName={t("public.garage")} accent={accent} />
+          <div className="ml-auto min-w-0 text-right [overflow-wrap:anywhere]">
             <div className="text-2xl font-extrabold tracking-wide" style={{ color: accent }}>{t(isEstimate ? "public.estimate" : "public.invoice")}</div>
             <div className="text-xs text-slate-300 mt-0.5">{doc.code}</div>
             <div className="text-xs text-slate-300 mt-0.5">{doc.currency}</div>
@@ -44,7 +35,7 @@ export function PublicInvoice({ doc, locale = "uz" }: { doc: InvoiceDoc; locale?
       </div>
 
       {/* meta */}
-      <div className="px-7 py-5 grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm border-b border-slate-100">
+      <div className="px-4 sm:px-7 py-5 grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm border-b border-slate-100 [overflow-wrap:anywhere]">
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{t("public.billed_to")}</div>
           <div className="font-semibold text-slate-800 mt-1">{doc.customer_name ?? "—"}</div>
@@ -62,8 +53,9 @@ export function PublicInvoice({ doc, locale = "uz" }: { doc: InvoiceDoc; locale?
       </div>
 
       {/* line items */}
-      <div className="px-7 py-2">
-        <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400 border-b border-slate-100">
+      <div className="px-4 sm:px-7 py-2 overflow-x-auto">
+        <div className="min-w-[600px]">
+        <div className="grid grid-cols-[minmax(0,1fr)_60px_150px_150px] gap-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400 border-b border-slate-100">
           <span>{t("invoice.description")}</span><span className="text-right">{t("public.qty")}</span><span className="text-right">{t("public.rate")}</span><span className="text-right">{t("public.amount")}</span>
         </div>
         {GROUPS.map((g) => {
@@ -73,9 +65,9 @@ export function PublicInvoice({ doc, locale = "uz" }: { doc: InvoiceDoc; locale?
             <div key={g.kind}>
               <div className="pt-3 pb-1 text-[11px] font-bold uppercase tracking-wide text-slate-500">{t(g.labelKey)}</div>
               {rows.map((li) => (
-                <div key={li.id} className="grid grid-cols-[1fr_auto_auto_auto] gap-4 py-1.5 text-sm border-b border-slate-50">
-                  <span className="text-slate-800">{li.description}</span>
-                  <span className="text-right text-slate-500 tabular-nums">{li.quantity}</span>
+                <div key={li.id} className="grid grid-cols-[minmax(0,1fr)_60px_150px_150px] gap-4 py-1.5 text-sm border-b border-slate-50">
+                  <span className="text-slate-800 [overflow-wrap:anywhere]">{li.description}</span>
+                  <span className="text-right text-slate-500 tabular-nums">{fmt.number(li.quantity)}</span>
                   <span className="text-right text-slate-500 tabular-nums">{money(li.unit_price)}</span>
                   <span className="text-right font-medium text-slate-800 tabular-nums">{money(li.line_total)}</span>
                 </div>
@@ -83,14 +75,15 @@ export function PublicInvoice({ doc, locale = "uz" }: { doc: InvoiceDoc; locale?
             </div>
           );
         })}
+        </div>
       </div>
 
       {/* totals */}
-      <div className="px-7 py-4 flex justify-end">
-        <div className="w-64 text-sm space-y-1.5">
+      <div className="px-4 sm:px-7 py-4 flex justify-end">
+        <div className="w-full max-w-72 text-sm space-y-1.5">
           <Row label={t("public.subtotal")} value={money(doc.subtotal)} />
           {doc.discount_total > 0 && <Row label={t("public.discount")} value={`−${money(doc.discount_total)}`} />}
-          <Row label={`${t("public.vat")} (${doc.tax_rate}%)`} value={money(doc.tax_total)} />
+          <Row label={`${t("public.vat")} (${fmt.number(doc.tax_rate)}%)`} value={money(doc.tax_total)} />
           <div className="flex justify-between pt-2 mt-1 border-t border-slate-200">
             <span className="font-bold text-slate-900">{t("public.total")}</span>
             <span className="font-bold text-slate-900 tabular-nums">{money(doc.total)}</span>
@@ -105,8 +98,8 @@ export function PublicInvoice({ doc, locale = "uz" }: { doc: InvoiceDoc; locale?
         </div>
       </div>
 
-      {doc.notes ? <div className="px-7 pb-6 text-sm text-slate-500"><span className="font-semibold text-slate-600">{t("invoice.notes")}: </span>{doc.notes}</div> : null}
-      <div className="px-7 py-4 bg-slate-50 text-xs text-slate-400 text-center">{t("public.contact")}</div>
+      {doc.notes ? <div className="px-4 sm:px-7 pb-6 text-sm text-slate-500 [overflow-wrap:anywhere]"><span className="font-semibold text-slate-600">{t("invoice.notes")}: </span>{doc.notes}</div> : null}
+      <div className="px-4 sm:px-7 py-4 bg-slate-50 text-xs text-slate-500 text-center">{t("public.contact")} · {t("public.powered")}</div>
     </div>
   );
 }

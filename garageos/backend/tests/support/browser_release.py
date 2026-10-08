@@ -1,7 +1,8 @@
 """Write synthetic signed Mini App launch data for the complete browser gate.
 
-The bot key stays in the caller's environment. This command reads only the
-isolated seeded database; it never creates or promotes a customer identity.
+The bot key stays in the caller's environment. This command also creates owned
+synthetic issuer documents/staff in the isolated test database. It never creates
+or promotes a Telegram/customer login identity.
 """
 import argparse
 import asyncio
@@ -35,7 +36,7 @@ async def prepare(output: Path) -> None:
                 or target.scheme != 'http' or target.hostname not in {'localhost', '127.0.0.1'}
                 or target.username or target.password or target.path or target.query or target.fragment
                 or output.is_relative_to(repo) or output.name != 'browser-fixture.json'
-                or not output.parent.is_dir()):
+                or not output.parent.is_dir() or output.exists()):
             raise ValueError('Refused non-isolated browser fixture setup')
         async with async_session_factory() as session:
             customer = (await session.execute(select(Customer.id, Customer.service_center_id,
@@ -57,6 +58,9 @@ async def prepare(output: Path) -> None:
         # Exclusive creation refuses an existing private file; Linux mode0600.
         fd = os.open(output, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
         with os.fdopen(fd, 'w', encoding='utf-8') as file:
+            from tests.support.document_issuer import create_profiles
+            async with async_session_factory() as session:
+                receipt['issuer_profiles'] = await create_profiles(session)
             json.dump(receipt, file)
     finally:
         await engine.dispose()

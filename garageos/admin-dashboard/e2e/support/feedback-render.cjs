@@ -41,4 +41,9 @@ const errors = ["calendar", "dashboard"].map(name => render(React.createElement(
   require(path.join(dashboard, `app/(app)/${name}/error.tsx`)).default,
   { error: new Error("QA"), reset: () => {} },
 )));
-process.stdout.write(JSON.stringify({ skeletons, errors }));
+const { DocumentIssuer } = require(path.join(dashboard, "components/billing/document-issuer.tsx"));
+const { translate } = require(path.join(dashboard, "lib/i18n/dictionaries.ts"));
+const legacyIssuer = render(React.createElement(DocumentIssuer, {
+  fallbackName: translate(locale, "public.garage"), accent: "#2563eb",
+}));
+process.stdout.write(JSON.stringify({ skeletons, errors, legacyIssuer }));

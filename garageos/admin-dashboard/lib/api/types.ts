@@ -647,7 +647,17 @@ export interface PaymentRow {
   received_at: string | null;
 }
 
+/** Current owning garage presentation, not a historical legal identity snapshot. */
+export interface InvoiceIssuer {
+  name: string;
+  tagline: string | null;
+  monogram: string;
+  phone: string | null;
+  address: string | null;
+}
+
 export interface InvoiceDoc extends InvoiceListItem {
+  issuer?: InvoiceIssuer | null;
   customer?: { id: string; name: string; phone: string | null; email: string | null } | null;
   line_items: InvoiceLineItemRow[];
   payments: PaymentRow[];

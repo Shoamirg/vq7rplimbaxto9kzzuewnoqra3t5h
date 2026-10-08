@@ -33,7 +33,6 @@ const BASELINE = new Set([
   "components/operations/case-detail.tsx",
   "components/operations/conversation-pane.tsx",
   "components/vehicles/vehicle-health-screen.tsx",
-  "components/billing/document-view.tsx",
   "components/inbox/inbox-workspace.tsx",
   "components/inbox/thread-view.tsx",
   "components/inbox/conversation-list.tsx",

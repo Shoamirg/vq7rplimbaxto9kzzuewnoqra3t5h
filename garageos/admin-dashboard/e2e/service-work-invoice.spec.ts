@@ -111,14 +111,14 @@ test("staff completes service work and shows one Uzbek UZS invoice", async ({ pa
 
   await expect(page).toHaveURL(/\/invoice\/[0-9a-f-]{36}/);
   const invoiceUrl = page.url();
-  await expect(page.getByText("HISOB-FAKTURA")).toBeVisible();
+  await expect(page.locator("#print-invoice").getByText("HISOB-FAKTURA", { exact: true })).toBeVisible();
   await expect(page.getByText("Diagnostika")).toBeVisible();
   await expect(page.locator("#print-invoice")).toContainText("UZS");
   await expect(page.getByRole("button", { name: "Chop etish / PDF saqlash" })).toBeVisible();
 
   await page.context().clearCookies();
   await page.goto(invoiceUrl);
-  await expect(page.getByText("HISOB-FAKTURA")).toBeVisible();
+  await expect(page.locator("#print-invoice").getByText("HISOB-FAKTURA", { exact: true })).toBeVisible();
   await expect(page.locator("#print-invoice")).toContainText("UZS");
   await page.emulateMedia({ media: "print" });
   await expect(page.locator("#print-invoice")).toHaveCSS("position", "fixed");
