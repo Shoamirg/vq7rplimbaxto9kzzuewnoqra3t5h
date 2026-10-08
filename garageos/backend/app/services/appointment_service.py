@@ -649,12 +649,12 @@ class AppointmentService:
         return {"created": created, "skipped": skipped}
 
     # --- Calendar aggregation ----------------------------------------------
-    async def get_calendar(self, start: date, end: date) -> dict:
+    async def get_calendar(self, start: date, end: date, *, include_cancelled: bool = False) -> dict:
         """One-request calendar payload: mechanics, slots, appointments, blocked."""
         start_dt = datetime.combine(start, datetime.min.time(), tzinfo=timezone.utc)
         end_dt = datetime.combine(end, datetime.min.time(), tzinfo=timezone.utc)
 
-        appointments = await self.appointment_repo.list_in_range(start_dt, end_dt)
+        appointments = await self.appointment_repo.list_in_range(start_dt, end_dt, include_cancelled=include_cancelled)
         slots = await self.slot_repo.list_in_range(start_dt, end_dt)
         available_ids = {s.id for s in await self.slot_repo.list_in_range(start_dt, end_dt, available_only=True)}
         mechanics = await self._mechanics()
@@ -686,13 +686,12 @@ class AppointmentService:
         }
 
     async def _mechanics(self) -> List[dict]:
-        users = await UserRepository(self.uow.session).find_by_service_center(
+        users = await UserRepository(self.uow.session).mechanics(
             self.uow.service_center_id
         )
         return [
-            {"id": str(u.id), "name": u.full_name, "role": u.role.name if u.role else None}
+            {"id": str(u.id), "name": u.full_name, "role": "mechanic"}
             for u in users
-            if u.role and u.role.name == "mechanic"
         ]
 
     # --- Calendar drag/drop -------------------------------------------------

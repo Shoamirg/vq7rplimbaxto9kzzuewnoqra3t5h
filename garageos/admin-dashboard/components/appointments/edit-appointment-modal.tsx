@@ -1,15 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import { CalendarClock, Loader2, X } from "lucide-react";
-import { Button, useToast } from "@garageos/design-system";
+import { Button, Dialog, DialogContent, DialogTitle, useToast } from "@garageos/design-system";
 
 import { clientFetch, ClientApiError } from "@/lib/api/client";
 import { useI18n } from "@/lib/i18n/context";
 import type { Appointment, MechanicAccount } from "@/lib/api/types";
 
-const FIELD = "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40";
+const FIELD = "min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40";
 const LABEL = "block text-xs font-semibold text-muted-foreground mb-1.5";
 const DURATIONS = [30, 60, 90, 120, 180];
 
@@ -23,7 +22,7 @@ export function EditAppointmentModal({
   onSaved?: () => void;
 }) {
   const { toast } = useToast();
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
   const [mechanics, setMechanics] = useState<MechanicAccount[]>([]);
   const [date, setDate] = useState(appointment.appointment_date.slice(0, 10));
   const [time, setTime] = useState(appointment.appointment_time || "09:00");
@@ -61,7 +60,7 @@ export function EditAppointmentModal({
           notes: notes,
         }),
       });
-      toast({ title: t("appointment.updated"), description: `${date} ${time}`, variant: "success" });
+      toast({ title: t("appointment.updated"), description: `${fmt.date(date)} ${time}`, variant: "success" });
       onSaved?.();
       onClose();
     } catch (err) {
@@ -73,20 +72,16 @@ export function EditAppointmentModal({
     }
   }
 
-  if (typeof document === "undefined") return null;
-
-  return createPortal(
-    <div className="fixed inset-0 z-80 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div role="dialog" aria-modal="true" aria-label={t("appointment.edit")}
-        className="relative w-full max-w-md rounded-2xl border border-border bg-card shadow-2xl">
+  return (
+    <Dialog open onOpenChange={open => { if (!open && !saving) onClose(); }}>
+      <DialogContent hideClose noPadding aria-describedby={undefined} className="max-h-[90dvh] overflow-auto sm:max-w-md">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <h2 className="flex items-center gap-2 text-base font-bold"><CalendarClock className="size-4 text-primary" /> {t("appointment.edit")}</h2>
-          <button onClick={onClose} disabled={saving} className="p-1.5 rounded-lg hover:bg-muted transition-colors" aria-label={t("common.close")}><X className="size-4" /></button>
+          <DialogTitle className="flex items-center gap-2 text-base font-bold"><CalendarClock className="size-4 text-primary" /> {t("appointment.edit")}</DialogTitle>
+          <button onClick={onClose} disabled={saving} className="min-h-11 min-w-11 flex items-center justify-center rounded-lg hover:bg-muted transition-colors" aria-label={t("common.close")}><X className="size-4" /></button>
         </div>
 
         <div className="p-5 space-y-4">
-          {loadError && <div role="alert" className="text-sm text-red-600">{t("common.load_failed")} <button onClick={loadMechanics} className="underline">{t("common.retry")}</button></div>}
+          {loadError && <div role="alert" className="text-sm text-red-600">{t("common.load_failed")} <button onClick={loadMechanics} className="min-h-11 min-w-11 rounded-lg border border-border px-3 underline focus-visible:ring-2 focus-visible:ring-primary">{t("common.retry")}</button></div>}
           <div className="rounded-lg bg-muted/50 px-3 py-2 text-sm">
             <div className="font-medium">{appointment.customer_name || "—"}</div>
             <div className="text-muted-foreground text-xs">{appointment.vehicle_summary || ""}</div>
@@ -107,7 +102,7 @@ export function EditAppointmentModal({
             <div>
               <label className={LABEL} htmlFor="edit-duration">{t("appointment.duration")}</label>
               <select id="edit-duration" className={FIELD} value={duration} onChange={(e) => setDuration(Number(e.target.value))}>
-                {DURATIONS.map((d) => (<option key={d} value={d}>{t("appointment.minutes", { n: d })}</option>))}
+                {Array.from(new Set([...DURATIONS, appointment.estimated_duration_minutes])).sort((a, b) => a - b).map((d) => (<option key={d} value={d}>{t("appointment.minutes", { n: d })}</option>))}
               </select>
             </div>
             <div>
@@ -132,8 +127,7 @@ export function EditAppointmentModal({
             {saving ? t("invoice.saving") : t("invoice.save")}
           </Button>
         </div>
-      </div>
-    </div>,
-    document.body,
+      </DialogContent>
+    </Dialog>
   );
 }

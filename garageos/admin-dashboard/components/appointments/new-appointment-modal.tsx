@@ -10,7 +10,7 @@ import type { MechanicAccount, Customer360, CustomerListItem } from "@/lib/api/t
 import { CustomerPicker } from "@/components/intake/customer-picker";
 import { NewCustomerModal, NewVehicleModal } from "@/components/intake/intake-modals";
 
-const FIELD = "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40";
+const FIELD = "min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40";
 const LABEL = "block text-xs font-semibold text-muted-foreground mb-1.5";
 const DURATIONS = [30, 60, 90, 120, 180];
 
@@ -62,7 +62,7 @@ export function NewAppointmentModal({
   preset?: { id: string; name: string; vehicleId?: string };
 }) {
   const { toast } = useToast();
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
 
   // When opened from a customer/vehicle context, the customer is pre-selected.
   const presetCustomer: CustomerListItem | null = preset
@@ -135,7 +135,7 @@ export function NewAppointmentModal({
           customer_notes: notes.trim() || null,
         }),
       });
-      toast({ title: t("appointment.booked"), description: `${customer.full_name} · ${date} ${time}`, variant: "success" });
+      toast({ title: t("appointment.booked"), description: `${customer.full_name} · ${fmt.date(date)} ${time}`, variant: "success" });
       onCreated?.();
       onClose();
     } catch (err) {
@@ -151,10 +151,10 @@ export function NewAppointmentModal({
   return <>
     <Dialog open onOpenChange={(open) => { if (!open && !saving) onClose(); }}>
       <DialogContent size="md" noPadding hideClose aria-describedby={undefined}
-        className="max-h-[90vh] overflow-y-auto">
+        className="max-h-[90vh] overflow-y-auto [&_button]:min-h-11 [&_button]:min-w-11 [&_input]:min-h-11 [&_select]:min-h-11">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <DialogTitle className="flex items-center gap-2 text-base font-bold"><CalendarPlus className="size-4 text-primary" /> {t("appointment.new")}</DialogTitle>
-          <button onClick={onClose} disabled={saving} className="p-1.5 rounded-lg hover:bg-muted transition-colors" aria-label={t("common.close")}><X className="size-4" /></button>
+          <button onClick={onClose} disabled={saving} className="min-h-11 min-w-11 flex items-center justify-center rounded-lg hover:bg-muted transition-colors" aria-label={t("common.close")}><X className="size-4" /></button>
         </div>
 
         <div className="p-5 space-y-4">
@@ -202,7 +202,7 @@ export function NewAppointmentModal({
             <div>
               <label className={LABEL} htmlFor="appt-duration">{t("appointment.duration")}</label>
               <select id="appt-duration" className={FIELD} value={duration} onChange={(e) => setDuration(Number(e.target.value))}>
-                {DURATIONS.map((d) => (<option key={d} value={d}>{d} min</option>))}
+                {DURATIONS.map((d) => (<option key={d} value={d}>{t("appointment.minutes", { n: d })}</option>))}
               </select>
             </div>
             <div>

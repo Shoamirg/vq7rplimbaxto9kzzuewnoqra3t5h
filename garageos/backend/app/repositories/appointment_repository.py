@@ -129,18 +129,19 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
         result = await self.session.execute(stmt)
         return result.scalars().all(), total or 0
 
-    async def list_in_range(self, start: datetime, end: datetime) -> Sequence[Appointment]:
-        """Non-cancelled appointments in [start, end), detailed — for the calendar."""
+    async def list_in_range(self, start: datetime, end: datetime, *, include_cancelled: bool = False) -> Sequence[Appointment]:
+        """Active appointments in [start, end); cancelled records are opt-in."""
         stmt = self._scope(
             select(Appointment).where(
                 Appointment.is_active == True,
                 Appointment.appointment_date >= start,
                 Appointment.appointment_date < end,
-                Appointment.status != AppointmentStatus.CANCELLED,
             )
         ).options(*self._DETAIL_OPTIONS).order_by(
             Appointment.appointment_date, Appointment.appointment_time
         )
+        if not include_cancelled:
+            stmt = stmt.where(Appointment.status != AppointmentStatus.CANCELLED)
         result = await self.session.execute(stmt)
         return result.scalars().all()
 

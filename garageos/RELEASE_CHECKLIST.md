@@ -19,6 +19,9 @@ cut. Keep it honest — a red box blocks the release, not the checklist.
       Include actual owning-garage invoice/estimate screen and print checks in
       EN/RU/UZ at phone/desktop widths; see [document issuer](docs/document-issuer.md).
       The private browser fixture also contains synthetic staff credentials.
+      Include real Day/Week/Month, assigned mechanic retention, all-state details,
+      booking and controlled loading/retry regressions in EN/RU/UZ at phone and
+      desktop widths; see [calendar workflow](docs/calendar-workflow.md).
 - [ ] **No accessibility regressions** — keyboard-navigable, visible focus rings,
       labelled icon-only controls, ≥44px touch targets, contrast AA, reduced
       motion respected (spot-check `/mini` + one staff screen)

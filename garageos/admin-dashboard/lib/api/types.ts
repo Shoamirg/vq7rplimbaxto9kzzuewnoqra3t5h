@@ -351,6 +351,7 @@ export interface Customer360 {
   address: string | null;
   since: string | null;
   has_telegram: boolean;
+  telegram_username?: string | null;
   loyalty_points: number;
   tier: { label: string; stars: number };
   stats: {

@@ -347,6 +347,7 @@ class CustomerService:
             "address": customer.address,
             "since": customer.created_at.isoformat() if customer.created_at else None,
             "has_telegram": customer.telegram_id is not None,
+            "telegram_username": customer.telegram_username,
             "loyalty_points": customer.loyalty_points or 0,
             "tier": _tier(lifetime_value),
             "stats": {

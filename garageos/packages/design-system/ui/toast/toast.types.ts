@@ -35,6 +35,8 @@ export interface ToastProviderProps {
   duration?: number;
   /** Localized accessible name of the notification region. */
   label?: string;
+  /** Localized accessible name of the dismiss control. */
+  dismissLabel?: string;
 }
 
 export interface CreateToast extends Omit<Toast, "id"> {}

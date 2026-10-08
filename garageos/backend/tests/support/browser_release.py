@@ -59,8 +59,10 @@ async def prepare(output: Path) -> None:
         fd = os.open(output, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
         with os.fdopen(fd, 'w', encoding='utf-8') as file:
             from tests.support.document_issuer import create_profiles
+            from tests.support.calendar_browser import create_calendar_profiles
             async with async_session_factory() as session:
                 receipt['issuer_profiles'] = await create_profiles(session)
+                receipt['calendar_profiles'] = await create_calendar_profiles(session, receipt['issuer_profiles'])
             json.dump(receipt, file)
     finally:
         await engine.dispose()

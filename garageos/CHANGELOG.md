@@ -23,6 +23,13 @@ not a release tag, deployment or real garage acceptance.
 
 ### Fixed
 
+- Staff calendar Day/Week/Month load actual tenant ranges and preserve account
+  assignments when moving or resizing visits. Same-name UUID lanes, legacy and
+  off-grid records, cancelled opt-in, real booking/contacts and trapped localized
+  details replace incomplete controls; stale responses cannot replace a newer
+  period. Notification backgrounds/dismiss controls remain readable and localized.
+  See [calendar workflow](docs/calendar-workflow.md) for invariants and test seams.
+
 - Invoice/estimate staff and public print views use the actual owning garage's
   current branding/business contacts instead of a fixed demo identity; optional
   contacts stay absent and standalone EN/RU/UZ numbers/dates use shared formatters.
