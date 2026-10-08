@@ -10,15 +10,18 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 
 from app.core.events import CaseAssigned, CaseOpened, CaseResolved, CaseStatusChanged
-from app.exceptions import NotFoundError
+from app.exceptions import NotFoundError, ValidationError
 from app.models.customer import Customer
 from app.models.notification import Notification
 from app.models.operational_case import CaseStatus, CaseType, OperationalCase
 from app.models.user import User
+from app.models.vehicle import Vehicle
+from app.repositories.tenant_references import local_reference, local_reference_exists
 from app.repositories.unit_of_work import UnitOfWork
+from app.repositories.user_repository import UserRepository
 from app.services.maintenance_service import MaintenanceService
 from app.services.vehicle_health_service import _band, _vehicle_label
 
@@ -29,8 +32,11 @@ _TYPE_SLA = {  # first-response SLA minutes by type
 
 
 class CaseNotFound(NotFoundError):
-    def __init__(self):
-        super().__init__("Operational case not found")
+    detail = "Operational case or reference not found"
+
+
+class CaseVehicleOwnerMismatch(ValidationError):
+    detail = "Vehicle does not belong to the selected customer"
 
 
 class CaseService:
@@ -50,12 +56,24 @@ class CaseService:
         )
         return f"OPS-{year}-{int(n.scalar_one()) + 1:06d}"
 
-    async def _get(self, case_id: uuid.UUID) -> OperationalCase:
+    def _safe_where(self):
+        # Current eligibility belongs to writes, not to historical reads.
+        return (
+            OperationalCase.service_center_id == self.sc,
+            OperationalCase.is_active.is_(True),
+            local_reference_exists(Customer, OperationalCase.customer_id, self.sc),
+            or_(OperationalCase.vehicle_id.is_(None),
+                local_reference_exists(Vehicle, OperationalCase.vehicle_id, self.sc)),
+            or_(OperationalCase.assigned_user_id.is_(None),
+                local_reference_exists(User, OperationalCase.assigned_user_id, self.sc)),
+        )
+
+    async def get_record(self, case_id: uuid.UUID) -> OperationalCase:
+        """Validate a case before any case entry point reads or mutates it."""
         row = await self.session.execute(
             select(OperationalCase).where(
                 OperationalCase.id == case_id,
-                OperationalCase.service_center_id == self.sc,
-                OperationalCase.is_active.is_(True),
+                *self._safe_where(),
             )
         )
         case = row.scalar_one_or_none()
@@ -70,6 +88,15 @@ class CaseService:
         vehicle_id: uuid.UUID | None = None, location_text: str | None = None,
         location_lat: float | None = None, location_lng: float | None = None,
     ) -> dict:
+        customer = await local_reference(self.session, Customer, customer_id, self.sc, active=True)
+        if customer is None:
+            raise CaseNotFound()
+        if vehicle_id is not None:
+            vehicle = await local_reference(self.session, Vehicle, vehicle_id, self.sc, active=True)
+            if vehicle is None:
+                raise CaseNotFound()
+            if vehicle.customer_id != customer_id:
+                raise CaseVehicleOwnerMismatch()
         code = await self._next_code()
         case = OperationalCase(
             service_center_id=self.sc, code=code, case_type=case_type, status=CaseStatus.NEW,
@@ -88,11 +115,13 @@ class CaseService:
 
     # ── transitions ───────────────────────────────────────────
     async def assign(self, case_id: uuid.UUID, user_id: uuid.UUID) -> dict:
-        case = await self._get(case_id)
+        case = await self.get_record(case_id)
+        mechanic = await UserRepository(self.session).mechanic(self.sc, user_id)
+        if mechanic is None:
+            raise CaseNotFound()
         case.assigned_user_id = user_id
         if case.status in (CaseStatus.NEW, CaseStatus.ACKNOWLEDGED):
             case.status = CaseStatus.ASSIGNED
-        mechanic = await self.session.get(User, user_id)
         await self.session.flush()
         self.uow.add_event(CaseAssigned(
             service_center_id=self.sc, case_id=case.id, code=case.code,
@@ -102,7 +131,7 @@ class CaseService:
         return await self.serialize(case)
 
     async def set_status(self, case_id: uuid.UUID, status: str) -> dict:
-        case = await self._get(case_id)
+        case = await self.get_record(case_id)
         case.status = status
         await self.session.flush()
         if status in (CaseStatus.RESOLVED, CaseStatus.CLOSED):
@@ -118,18 +147,15 @@ class CaseService:
         return await self.serialize(case)
 
     async def list_mechanics(self) -> list:
-        from app.repositories.user_repository import UserRepository
-        users = await UserRepository(self.session).find_by_service_center(self.sc)
+        users = await UserRepository(self.session).mechanics(self.sc)
         return [
             {"id": str(u.id), "name": u.full_name}
-            for u in users if u.role and u.role.name == "mechanic"
+            for u in users
         ]
 
     # ── read ──────────────────────────────────────────────────
     async def list_cases(self, *, status_group: str | None = None, case_type: str | None = None) -> dict:
-        stmt = select(OperationalCase).where(
-            OperationalCase.service_center_id == self.sc, OperationalCase.is_active.is_(True)
-        )
+        stmt = select(OperationalCase).where(*self._safe_where())
         if case_type and case_type != "all":
             stmt = stmt.where(OperationalCase.case_type == case_type)
         if status_group == "active":
@@ -145,7 +171,7 @@ class CaseService:
         }
 
     async def get_case(self, case_id: uuid.UUID) -> dict:
-        case = await self._get(case_id)
+        case = await self.get_record(case_id)
         data = await self.serialize(case, full=True)
         data["timeline"] = await self._timeline(case_id)
         return data
@@ -183,13 +209,13 @@ class CaseService:
             "created_at": case.created_at.isoformat() if case.created_at else None,
         }
         if full:
-            customer = await self.session.get(Customer, case.customer_id)
+            customer = await local_reference(self.session, Customer, case.customer_id, self.sc)
             out["customer"] = {
                 "id": str(customer.id), "name": customer.full_name, "phone": customer.phone,
                 "email": customer.email,
             } if customer else None
             if case.assigned_user_id:
-                mech = await self.session.get(User, case.assigned_user_id)
+                mech = await local_reference(self.session, User, case.assigned_user_id, self.sc)
                 out["assigned_mechanic"] = mech.full_name if mech else None
             if case.vehicle_id:
                 report = await self.maintenance.calculate_due_services(case.vehicle_id)
@@ -200,7 +226,7 @@ class CaseService:
                     "score": report.overall_score, "band": _band(report.overall_score),
                 }
         else:
-            customer = await self.session.get(Customer, case.customer_id)
+            customer = await local_reference(self.session, Customer, case.customer_id, self.sc)
             out["customer_name"] = customer.full_name if customer else None
             if case.vehicle_id:
                 vehicle = await self.maintenance.vehicle_repo.get_with_model(case.vehicle_id)

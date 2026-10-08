@@ -32,7 +32,10 @@ from app.models.customer import Customer
 from app.models.notification import Notification
 from app.models.operational_case import OperationalCase
 from app.models.user import User
+from app.models.vehicle import Vehicle
+from app.repositories.tenant_references import local_reference, local_reference_exists
 from app.repositories.unit_of_work import UnitOfWork
+from app.services.case_service import CaseService
 from app.services.maintenance_service import MaintenanceService
 from app.services.vehicle_health_service import _band, _vehicle_label
 
@@ -240,6 +243,7 @@ class ConversationService:
         This is the proof that Operations and the Inbox are ONE system: a case's
         communication is a normal Conversation, linked by ``case_id``.
         """
+        case = await CaseService(self.uow).get_record(case_id)
         existing = (await self.session.execute(
             select(Conversation).where(
                 Conversation.service_center_id == self.sc,
@@ -248,16 +252,13 @@ class ConversationService:
             ).limit(1)
         )).scalar_one_or_none()
         if existing:
+            await self._validate_case_thread(existing)
             return await self.get_thread(existing.id)
-
-        case = await self.session.get(OperationalCase, case_id)
-        if not case or case.service_center_id != self.sc:
-            raise ConversationNotFound()
 
         if not allow_create:
             raise UnauthorizedAction()
 
-        customer = await self.session.get(Customer, case.customer_id)
+        customer = await local_reference(self.session, Customer, case.customer_id, self.sc)
         parts = [{"role": ParticipantRole.CUSTOMER,
                   "display_name": customer.full_name if customer else "Customer",
                   "customer_id": case.customer_id}]
@@ -275,6 +276,44 @@ class ConversationService:
             author_name="System",
         )
         return await self.get_thread(uuid.UUID(created["id"]))
+
+    async def _validate_case_thread(self, conv: Conversation) -> None:
+        """Reject a legacy aggregate with foreign or inconsistent references.
+
+        This guard belongs to the case entry point. It does not certify the
+        unrelated general Inbox entry points or rewrite historical snapshots.
+        """
+        local_links = [or_(reference.is_(None), local_reference_exists(model, reference, self.sc))
+                       for model, reference in [(Customer, Conversation.customer_id),
+                                                (Vehicle, Conversation.vehicle_id),
+                                                (User, Conversation.assigned_user_id)]]
+        safe = await self.session.scalar(select(Conversation.id).where(
+            Conversation.id == conv.id, Conversation.service_center_id == self.sc, *local_links))
+        if safe is None:
+            raise ConversationNotFound()
+
+        bad_participant = await self.session.scalar(select(Participant.id).where(
+            Participant.conversation_id == conv.id,
+            or_(Participant.service_center_id != self.sc,
+                ~or_(Participant.customer_id.is_(None), local_reference_exists(Customer, Participant.customer_id, self.sc)),
+                ~or_(Participant.user_id.is_(None), local_reference_exists(User, Participant.user_id, self.sc))),
+        ).limit(1))
+        bad_message = await self.session.scalar(select(Message.id).where(
+            Message.conversation_id == conv.id,
+            or_(Message.service_center_id != self.sc,
+                ~or_(Message.author_user_id.is_(None), local_reference_exists(User, Message.author_user_id, self.sc))),
+        ).limit(1))
+        # Include outgoing AND incoming edges: a message in this thread must
+        # not carry an attachment whose conversation points somewhere else.
+        bad_attachment = await self.session.scalar(select(Attachment.id).outerjoin(
+            Message, Attachment.message_id == Message.id,
+        ).where(
+            or_(Attachment.conversation_id == conv.id, Message.conversation_id == conv.id),
+            or_(Attachment.service_center_id != self.sc, Message.id.is_(None),
+                Message.service_center_id != self.sc, Attachment.conversation_id != Message.conversation_id),
+        ).limit(1))
+        if bad_participant is not None or bad_message is not None or bad_attachment is not None:
+            raise ConversationNotFound()
 
     # ── inbox (work queues) ───────────────────────────────────
     def _view_where(self, stmt, view: str, user_id: uuid.UUID | None):
@@ -342,7 +381,7 @@ class ConversationService:
     async def _sla_breached(self, conv: Conversation) -> bool:
         if not conv.case_id or not conv.is_open():
             return False
-        case = await self.session.get(OperationalCase, conv.case_id)
+        case = await local_reference(self.session, OperationalCase, conv.case_id, self.sc)
         if not case:
             return False
         elapsed = (datetime.now(timezone.utc) - _utc(case.created_at)).total_seconds()
@@ -444,17 +483,17 @@ class ConversationService:
         }
         # Lightweight labels every row needs.
         if conv.customer_id:
-            cust = await self.session.get(Customer, conv.customer_id)
+            cust = await local_reference(self.session, Customer, conv.customer_id, self.sc)
             out["customer_name"] = cust.full_name if cust else None
             out["customer_phone"] = cust.phone if cust else None
         if conv.vehicle_id:
             vehicle = await self.maintenance.vehicle_repo.get_with_model(conv.vehicle_id)
             out["vehicle_label"] = _vehicle_label(vehicle) if vehicle else None
         if conv.assigned_user_id:
-            u = await self.session.get(User, conv.assigned_user_id)
+            u = await local_reference(self.session, User, conv.assigned_user_id, self.sc)
             out["assigned_name"] = u.full_name if u else None
         if conv.case_id:
-            case = await self.session.get(OperationalCase, conv.case_id)
+            case = await local_reference(self.session, OperationalCase, conv.case_id, self.sc)
             if case:
                 elapsed = int((datetime.now(timezone.utc) - _utc(case.created_at)).total_seconds())
                 out["case_code"] = case.code
@@ -470,7 +509,7 @@ class ConversationService:
         """The context-sidebar cards — only present links appear."""
         cards: list[dict] = []
         if conv.case_id:
-            case = await self.session.get(OperationalCase, conv.case_id)
+            case = await local_reference(self.session, OperationalCase, conv.case_id, self.sc)
             if case:
                 cards.append({"kind": "case", "title": f"{case.code} · {case.case_type.title()}",
                               "subtitle": STATUS_LABEL.get(case.status, case.status),
@@ -483,7 +522,7 @@ class ConversationService:
                           "score": report.overall_score, "band": _band(report.overall_score),
                           "link": f"/vehicles/{conv.vehicle_id}"})
         if conv.customer_id:
-            cust = await self.session.get(Customer, conv.customer_id)
+            cust = await local_reference(self.session, Customer, conv.customer_id, self.sc)
             if cust:
                 cards.append({"kind": "customer", "title": cust.full_name,
                               "subtitle": "Customer 360", "phone": cust.phone,

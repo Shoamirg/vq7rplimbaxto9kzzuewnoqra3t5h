@@ -23,6 +23,12 @@ not a release tag, deployment or real garage acceptance.
 
 ### Fixed
 
+- Operational cases reject foreign/inactive create references and ineligible
+  mechanic assignments before mutation. Unsafe legacy case links are hidden;
+  case-thread entry validates independent links and child tenant/parent edges.
+  Local inactive history and legitimately transferred vehicles remain readable.
+  See [case references](docs/case-reference-safety.md) for scope and limits.
+
 - Transactional API writes commit before sending success, including first case
   conversation creation and customer Telegram association/username writes.
   Slot-booking replay IDs are cached after durable commit; failed commits release
