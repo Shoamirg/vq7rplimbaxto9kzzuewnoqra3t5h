@@ -27,9 +27,6 @@ const SKIP = [
 // Files known to still need translation (the backlog). The ratchet fails only
 // for staff files NOT listed here. Remove entries as they're localized.
 const BASELINE = new Set([
-  "components/operations/operations-console.tsx",
-  "components/operations/case-detail.tsx",
-  "components/operations/conversation-pane.tsx",
   "components/vehicles/vehicle-health-screen.tsx",
   "components/inbox/inbox-workspace.tsx",
   "components/inbox/thread-view.tsx",

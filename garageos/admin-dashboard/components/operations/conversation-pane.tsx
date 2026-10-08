@@ -1,151 +1,98 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Camera, Lock, Mic, Paperclip, Send } from "lucide-react";
 import { cn } from "@garageos/design-system";
-
-import { clientFetch } from "@/lib/api/client";
+import { clientFetch, ClientApiError } from "@/lib/api/client";
 import type { CaseDetail, ConvMessage, ThreadDetail } from "@/lib/api/types";
+import { useI18n } from "@/lib/i18n/context";
+import { enumLabel, operationControl, relTime } from "./shared";
+import { accessFailure, uncertainWrite, useOperationRead } from "./use-operation-read";
 
-// Operations' communication IS a Unified Inbox conversation (linked by case_id).
-// This pane renders that same live thread — proof the two surfaces share one
-// model — with a jump into the full Inbox workspace.
-function side(role: string): "them" | "me" | "mech" | "sys" {
-  if (role === "dispatcher" || role === "manager") return "me";
-  if (role === "mechanic") return "mech";
-  if (role === "system") return "sys";
-  return "them";
-}
-
-export function ConversationPane({ detail }: { detail: CaseDetail | null }) {
-  const [convo, setConvo] = useState<ThreadDetail | null>(null);
-  const [text, setText] = useState("");
-  const [internal, setInternal] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+type Draft = { text: string; revision: number };
+type SendOutcome = "saved" | "failed" | "uncertain";
+export function ConversationPane({ detail, identity, canWrite, onDenied, now }: {
+  detail: CaseDetail | null; identity: string | null; canWrite: boolean; onDenied: (error: unknown) => void; now: number;
+}) {
+  const { t } = useI18n();
   const caseId = detail?.id ?? null;
-
-  const load = useCallback(async () => {
-    if (!caseId) return;
-    try { setConvo(await clientFetch<ThreadDetail>(`/cases/${caseId}/conversation`)); } catch { /* keep */ }
-  }, [caseId]);
-
-  useEffect(() => { setConvo(null); load(); }, [load]);
-  useEffect(() => {
-    if (!caseId) return;
-    const t = setInterval(load, 8000);
-    return () => clearInterval(t);
-  }, [caseId, load]);
-  useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight }); }, [convo?.messages.length]);
-
-  const send = useCallback(async () => {
-    const body = text.trim();
-    if (!body || !convo) return;
-    setText("");
+  const current = useRef(caseId); current.current = caseId;
+  // Component remains mounted when changing phone panes/selection. No draft is
+  // persisted to storage or shared with another case or message kind.
+  const drafts = useRef<Record<string, Draft>>({});
+  const [, renderDraft] = useState(0);
+  const [modes, setModes] = useState<Record<string, boolean>>({});
+  const internal = caseId ? modes[caseId] ?? false : false;
+  const draftKey = `${caseId}:${internal ? "note" : "reply"}`;
+  const text = drafts.current[draftKey]?.text ?? "";
+  const [pending, setPending] = useState(false), guard = useRef(false);
+  const [outcomes, setOutcomes] = useState<Record<string, SendOutcome>>({});
+  const thread = useOperationRead<ThreadDetail>(caseId ? identity : null, caseId ? `/cases/${caseId}/conversation` : null, !pending, onDenied);
+  const convo = thread.data?.case_id === caseId ? thread.data : null;
+  const outcome = caseId ? outcomes[caseId] : undefined;
+  const clearOutcome = (id: string) => setOutcomes(old => { const next = { ...old }; delete next[id]; return next; });
+  const edit = (value: string) => {
+    drafts.current[draftKey] = { text: value, revision: (drafts.current[draftKey]?.revision ?? 0) + 1 };
+    renderDraft(old => old + 1);
+  };
+  const reconcile = async () => {
+    const target = current.current;
+    if (!target || guard.current) return;
+    const data = await thread.refresh();
+    if (data?.case_id === target && current.current === target) clearOutcome(target);
+  };
+  const send = async () => {
+    if (!caseId || !convo || !canWrite || guard.current || thread.error || outcome === "uncertain" || !text.trim()) return;
+    const replyChannel = convo.last_channel && convo.last_channel !== "internal" ? convo.last_channel
+      : [...convo.messages].reverse().find(message => !message.is_internal && message.channel !== "internal")?.channel ?? "web";
+    const target = { caseId, threadId: convo.id, body: text, draftKey, revision: drafts.current[draftKey]?.revision, internal, channel: replyChannel };
+    guard.current = true; setPending(true); thread.invalidate(); clearOutcome(target.caseId);
     try {
-      await clientFetch(`/conversations/${convo.id}/messages`, {
-        method: "POST",
-        body: JSON.stringify({
-          body, channel: convo.last_channel ?? "web", author_role: "dispatcher",
-          kind: internal ? "note" : "text", is_internal: internal,
-        }),
+      await clientFetch(`/conversations/${target.threadId}/messages`, {
+        method: "POST", body: JSON.stringify({ body: target.body, channel: target.channel, author_role: "dispatcher", kind: target.internal ? "note" : "text", is_internal: target.internal }),
       });
-      load();
-    } catch { /* keep */ }
-  }, [text, convo, internal, load]);
-
-  if (!detail) {
-    return <aside className="w-[400px] shrink-0 bg-card border-l border-border grid place-items-center text-sm text-muted-foreground">Select a case.</aside>;
-  }
-
-  const first = (detail.customer?.name ?? "customer").split(" ")[0];
-
-  return (
-    <aside className="w-[400px] shrink-0 bg-card border-l border-border flex flex-col">
-      {/* Header — shared-model cue + jump to Inbox */}
-      <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-border">
-        <div className="min-w-0">
-          <p className="text-sm font-bold text-foreground truncate">Conversation</p>
-          <p className="text-[11px] text-muted-foreground">One thread · any channel · shared with Inbox</p>
-        </div>
-        {convo && (
-          <Link href={`/inbox?c=${convo.id}`}
-            className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline shrink-0">
-            Open in Inbox <ArrowUpRight className="size-3.5" />
-          </Link>
-        )}
-      </div>
-
-      {/* Channel chip */}
-      {convo?.last_channel && (
-        <div className="px-3.5 py-1.5 border-b border-border">
-          <span className="text-[11px] px-2 py-0.5 rounded-full bg-sky-50 text-sky-600 border border-sky-200 capitalize">{convo.last_channel}</span>
-        </div>
-      )}
-
-      {/* Thread */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3.5 space-y-3 bg-muted/20">
-        {!convo && <p className="text-center text-xs text-muted-foreground pt-6">Loading conversation…</p>}
-        {convo?.messages.map((m) => <Bubble key={m.id} m={m} />)}
-        {convo && convo.messages.length === 0 && (
-          <p className="text-center text-[11px] text-muted-foreground pt-6">No messages yet — say hello to {first}.</p>
-        )}
-      </div>
-
-      {/* Composer */}
-      <div className="border-t border-border p-3">
-        <div className="flex gap-1.5 mb-2">
-          <button onClick={() => setInternal(false)}
-            className={cn("text-[11px] font-semibold px-2 py-0.5 rounded", !internal ? "bg-primary/10 text-primary" : "text-muted-foreground")}>Reply</button>
-          <button onClick={() => setInternal(true)}
-            className={cn("text-[11px] font-semibold px-2 py-0.5 rounded inline-flex items-center gap-1", internal ? "bg-amber-100 text-amber-700" : "text-muted-foreground")}>
-            <Lock className="size-3" /> Internal note
-          </button>
-        </div>
-        <div className="flex items-center gap-2">
-          <button className="grid size-8 place-items-center rounded-lg text-muted-foreground"><Paperclip className="size-4" /></button>
-          <button className="grid size-8 place-items-center rounded-lg text-muted-foreground"><Camera className="size-4" /></button>
-          <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); send(); } }}
-            placeholder={internal ? `Internal note…` : `Message ${first}…`}
-            className={cn("flex-1 rounded-lg px-3 py-2 text-sm outline-hidden border", internal ? "bg-amber-50/50 border-amber-200" : "bg-muted/50 border-transparent")} />
-          <button className="grid size-8 place-items-center rounded-lg text-muted-foreground"><Mic className="size-4" /></button>
-          <button onClick={send} disabled={!text.trim()} className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground disabled:opacity-40"><Send className="size-4" /></button>
-        </div>
-      </div>
-    </aside>
-  );
+      if (drafts.current[target.draftKey]?.revision === target.revision) {
+        drafts.current[target.draftKey] = { text: "", revision: (target.revision ?? 0) + 1 }; renderDraft(old => old + 1);
+      }
+      setOutcomes(old => ({ ...old, [target.caseId]: "saved" }));
+    } catch (error) {
+      if (accessFailure(error)) onDenied(error);
+      else setOutcomes(old => ({ ...old, [target.caseId]: uncertainWrite(error) ? "uncertain" : "failed" }));
+    } finally { guard.current = false; setPending(false); }
+  };
+  if (!detail) return <aside aria-label={t("ops.conversation")} className="grid min-h-0 flex-1 place-items-center p-4 text-sm text-foreground">{t("ops.select")}</aside>;
+  return <aside aria-label={t("ops.conversation")} className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <div className="space-y-2 border-b border-border p-3 [overflow-wrap:anywhere]">
+      <h2 tabIndex={-1} data-conversation-heading className="font-bold focus-visible:outline-2 focus-visible:outline-primary">{t("ops.conversation")}</h2>
+      <p className="text-sm font-medium">{detail.title}</p><p className="text-xs text-foreground">{t("ops.thread_shared")}</p>
+      {convo && <Link className={cn(operationControl, "inline-flex items-center")} href={`/inbox?c=${convo.id}`}>{t("ops.inbox")}</Link>}
+      <button className={operationControl} disabled={pending || thread.loading} onClick={() => void reconcile()}>{t("ops.refresh_thread")}</button>
+    </div>
+    {!!thread.error && <div role="alert" className="space-y-2 p-3 text-sm"><p>{t(convo ? "ops.stale" : thread.error instanceof ClientApiError && thread.error.code === "CASE_CONVERSATION_UNAVAILABLE" ? "ops.thread_not_started" : "ops.read_error")}</p><button className={operationControl} onClick={() => void reconcile()}>{t("ops.retry")}</button></div>}
+    {outcome && <p role={outcome === "saved" ? "status" : "alert"} className="p-3 text-sm">{t(outcome === "saved" ? "ops.sent" : outcome === "uncertain" ? "ops.send_uncertain" : "ops.send_failed")}</p>}
+    <div aria-busy={thread.loading} className="min-h-0 min-w-0 flex-1 space-y-3 overflow-y-auto bg-muted/20 p-3 [overflow-wrap:anywhere]">
+      {!convo && !thread.error && <p role="status" className="text-sm">{t("ops.loading")}</p>}
+      {convo?.messages.length === 0 && <p className="text-sm text-foreground">{t("ops.no_messages")}</p>}
+      {convo?.messages.map(message => <Bubble key={message.id} message={message} now={now} />)}
+    </div>
+    <div className="min-w-0 space-y-2 border-t border-border p-3">
+      {!canWrite && <p className="text-sm">{t("ops.readonly")}</p>}
+      <div className="flex flex-wrap gap-2"><button className={cn(operationControl, !internal && "bg-primary/10 font-bold text-foreground")} aria-pressed={!internal} onClick={() => setModes(old => ({ ...old, [caseId!]: false }))}>{t("ops.reply")}</button><button className={cn(operationControl, internal && "bg-primary/10 font-bold text-foreground")} aria-pressed={internal} onClick={() => setModes(old => ({ ...old, [caseId!]: true }))}>{t("ops.note")}</button></div>
+      <label className="block text-sm"><span>{t("ops.message")}</span><textarea aria-label={t("ops.message")} rows={3} value={text} disabled={!canWrite} onChange={event => edit(event.target.value)} onKeyDown={event => {
+        if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void send(); }
+      }} className="mt-1 min-h-11 w-full min-w-0 resize-y rounded-lg border border-border bg-background p-2 text-sm focus-visible:outline-2 focus-visible:outline-primary" /></label>
+      <button className={cn(operationControl, "w-full bg-primary text-primary-foreground hover:bg-primary/90")} disabled={!canWrite || pending || !convo || !!thread.error || outcome === "uncertain" || !text.trim()} onClick={() => void send()}>{pending ? t("ops.sending") : t("ops.send")}</button>
+    </div>
+  </aside>;
 }
 
-function Bubble({ m }: { m: ConvMessage }) {
-  const s = side(m.author_role);
-  if (s === "sys") {
-    return <p className="text-center text-[11px] text-muted-foreground">{m.body}</p>;
-  }
-  if (m.is_internal && m.kind === "note") {
-    return (
-      <div className="mx-auto w-[92%] rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
-        <p className="text-[9px] font-bold uppercase tracking-wide text-amber-700 mb-0.5">🔒 Internal</p>
-        <p className="text-[12.5px] text-amber-900">{m.body}</p>
-      </div>
-    );
-  }
-  return (
-    <div className={cn("max-w-[85%]", s === "me" ? "ml-auto" : "")}>
-      <p className={cn("text-[10px] font-semibold mb-1 px-1",
-        s === "me" ? "text-primary text-right" : s === "mech" ? "text-emerald-600" : "text-slate-600")}>
-        {m.author_name ?? m.author_role}
-      </p>
-      <div className={cn("px-3 py-2 rounded-xl text-[13px]",
-        s === "me" ? "bg-primary text-primary-foreground rounded-br-sm"
-          : s === "mech" ? "bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-bl-sm"
-            : "bg-card border border-border rounded-bl-sm")}>
-        {m.body}
-        {m.attachments.map((a) => (
-          <div key={a.id} className="mt-1 text-[11px] opacity-80">
-            {a.kind === "photo" ? "📷" : a.kind === "location" ? "📍" : a.kind === "voice" ? "🎤" : "📄"} {a.label}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+function Bubble({ message: m, now }: { message: ConvMessage; now: number }) {
+  const { t, fmt } = useI18n();
+  return <article className={cn("min-w-0 rounded-xl border border-border p-3 text-sm", m.is_internal ? "bg-primary/5" : "bg-card")}>
+    <p className="font-medium">{m.author_name ?? enumLabel(t, "role", m.author_role)}</p>
+    {m.is_internal && <p className="text-xs font-medium">{t("ops.note")}</p>}
+    <p className="whitespace-pre-wrap">{m.body}</p>
+    {m.attachments.map(attachment => <p key={attachment.id} className="mt-1 text-xs">{attachment.label}</p>)}
+    {m.created_at && <time dateTime={m.created_at} title={fmt.date(m.created_at)} className="text-xs text-foreground">{relTime(m.created_at, now, t, fmt.number)}</time>}
+  </article>;
 }

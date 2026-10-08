@@ -77,14 +77,12 @@ class CaseService:
                 local_reference_exists(User, OperationalCase.assigned_user_id, self.sc)),
         )
 
-    async def get_record(self, case_id: uuid.UUID) -> OperationalCase:
+    async def get_record(self, case_id: uuid.UUID, *, for_update: bool = False) -> OperationalCase:
         """Validate a case before any case entry point reads or mutates it."""
-        row = await self.session.execute(
-            select(OperationalCase).where(
-                OperationalCase.id == case_id,
-                *self._safe_where(),
-            )
-        )
+        statement = select(OperationalCase).where(OperationalCase.id == case_id, *self._safe_where())
+        if for_update:
+            statement = statement.with_for_update(of=OperationalCase)
+        row = await self.session.execute(statement)
         case = row.scalar_one_or_none()
         if not case:
             raise CaseNotFound()

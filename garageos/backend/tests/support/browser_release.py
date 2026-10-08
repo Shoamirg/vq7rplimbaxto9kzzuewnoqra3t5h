@@ -61,10 +61,18 @@ async def prepare(output: Path) -> None:
             from tests.support.document_issuer import create_profiles
             from tests.support.calendar_browser import create_calendar_profiles
             from tests.support.queue_browser import create_queue_profiles
+            from tests.support.operations_browser import create_operations_profiles
             async with async_session_factory() as session:
                 receipt['issuer_profiles'] = await create_profiles(session)
                 receipt['calendar_profiles'] = await create_calendar_profiles(session, receipt['issuer_profiles'])
                 receipt['queue_profiles'] = await create_queue_profiles(session, receipt['issuer_profiles'])
+                receipt['operations_profiles'] = await create_operations_profiles(session, receipt['issuer_profiles'])
+                # Trusted QA authentication seam: mint with the SAME service as
+                # /auth/demo, without enabling its disabled public entry route.
+                # Only live read-only auth/me/UoW/demo policy is exercised with
+                # this private HttpOnly cookie; no production/demo enrollment.
+                from app.api.deps import _auth_service
+                receipt['operations_demo_token'] = (await _auth_service(session).demo_login())['access_token']
             json.dump(receipt, file)
     finally:
         await engine.dispose()

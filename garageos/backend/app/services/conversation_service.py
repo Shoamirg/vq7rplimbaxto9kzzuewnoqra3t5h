@@ -62,6 +62,11 @@ class ConversationNotFound(NotFoundError):
         super().__init__("Conversation not found")
 
 
+class CaseConversationUnavailable(UnauthorizedAction):
+    code = "CASE_CONVERSATION_UNAVAILABLE"
+    detail = "This case conversation has not been started"
+
+
 class ConversationService:
     def __init__(self, uow: UnitOfWork):
         self.uow = uow
@@ -243,20 +248,23 @@ class ConversationService:
         This is the proof that Operations and the Inbox are ONE system: a case's
         communication is a normal Conversation, linked by ``case_id``.
         """
-        case = await CaseService(self.uow).get_record(case_id)
+        # GET creates a persisted aggregate on first open. Serialize creators on
+        # the already tenant/reference-validated case row until the UoW commits;
+        # concurrent first opens must not split messages into separate threads.
+        case = await CaseService(self.uow).get_record(case_id, for_update=allow_create)
         existing = (await self.session.execute(
             select(Conversation).where(
                 Conversation.service_center_id == self.sc,
                 Conversation.case_id == case_id,
                 Conversation.is_active.is_(True),
-            ).limit(1)
+            ).order_by(Conversation.created_at, Conversation.id).limit(1)
         )).scalar_one_or_none()
         if existing:
             await self._validate_case_thread(existing)
             return await self.get_thread(existing.id)
 
         if not allow_create:
-            raise UnauthorizedAction()
+            raise CaseConversationUnavailable()
 
         customer = await local_reference(self.session, Customer, case.customer_id, self.sc)
         parts = [{"role": ParticipantRole.CUSTOMER,

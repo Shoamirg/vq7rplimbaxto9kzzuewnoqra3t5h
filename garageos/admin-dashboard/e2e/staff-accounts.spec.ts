@@ -2,6 +2,9 @@ import { expect, test } from '@playwright/test';
 
 const owner = { email: 'admin@demo.garageos.app', password: 'demo1234' };
 const password = 'Account-test-only-2026!';
+const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:8010/api/v1';
+
+test.use({ trace: 'off' });
 
 test('owner opens customer password access; customer credentials cannot enter staff panel', async ({ page }) => {
   expect((await page.request.post('/api/auth/login', { data: owner })).ok()).toBeTruthy();
@@ -18,14 +21,14 @@ test('owner opens customer password access; customer credentials cannot enter st
   await form.getByRole('button', { name: 'Mijoz loginini yaratish' }).click();
   await expect(form).toBeHidden();
   await expect(page.getByText(email, { exact: false })).toBeVisible();
-  const login = await page.request.post('http://127.0.0.1:8010/api/v1/customer/auth/login', { data: { email, password } });
+  const login = await page.request.post(`${apiUrl}/customer/auth/login`, { data: { email, password } });
   expect(login.status()).toBe(200);
   const token = (await login.json()).access_token;
-  expect((await page.request.get('http://127.0.0.1:8010/api/v1/customer/history/vehicles', { headers: { Authorization: `Bearer ${token}` } })).status()).toBe(200);
-  expect((await page.request.post('http://127.0.0.1:8010/api/v1/auth/login', { data: { email, password } })).status()).toBe(401);
+  expect((await page.request.get(`${apiUrl}/customer/history/vehicles`, { headers: { Authorization: `Bearer ${token}` } })).status()).toBe(200);
+  expect((await page.request.post(`${apiUrl}/auth/login`, { data: { email, password } })).status()).toBe(401);
   await page.getByRole('button', { name: 'Parol bilan kirishni to‘xtatish' }).click();
   await expect(page.getByRole('button', { name: 'Parol bilan kirishni yoqish' })).toBeVisible();
-  expect((await page.request.get('http://127.0.0.1:8010/api/v1/customer/me', { headers: { Authorization: `Bearer ${token}` } })).status()).toBe(401);
+  expect((await page.request.get(`${apiUrl}/customer/me`, { headers: { Authorization: `Bearer ${token}` } })).status()).toBe(401);
 });
 
 test('owner creates, edits, suspends and restores a real mechanic account', async ({ page }) => {
@@ -49,7 +52,7 @@ test('owner creates, edits, suspends and restores a real mechanic account', asyn
   const row = page.getByTestId(`staff-${id}`);
   await expect(row).toContainText('Browser Sherzod');
   await expect(row).toContainText('Usta');
-  const login = await page.request.post('http://127.0.0.1:8010/api/v1/auth/login', { data: { email, password } });
+  const login = await page.request.post(`${apiUrl}/auth/login`, { data: { email, password } });
   expect(login.status()).toBe(200);
   const token = (await login.json()).access_token;
   await row.getByRole('button', { name: 'Xodimni tahrirlash' }).click();
@@ -62,13 +65,13 @@ test('owner creates, edits, suspends and restores a real mechanic account', asyn
   await expect(edit).toBeHidden();
   await expect(row).toContainText('Browser Sherzod Usta');
   await expect(row).toContainText('To‘xtatilgan');
-  expect((await page.request.get('http://127.0.0.1:8010/api/v1/auth/me', { headers: { Authorization: `Bearer ${token}` } })).status()).toBe(401);
+  expect((await page.request.get(`${apiUrl}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })).status()).toBe(401);
   await row.getByRole('button', { name: 'Xodimni tahrirlash' }).click();
   await edit.getByLabel('Akkaunt holati').selectOption('true');
   await edit.getByRole('button', { name: 'Xodimni saqlash' }).click();
   await expect(edit).toBeHidden();
   await expect(row).toContainText('Faol');
-  expect((await page.request.post('http://127.0.0.1:8010/api/v1/auth/login', { data: { email, password } })).status()).toBe(200);
+  expect((await page.request.post(`${apiUrl}/auth/login`, { data: { email, password } })).status()).toBe(200);
 });
 
 for (const locale of ['uz', 'en', 'ru']) {

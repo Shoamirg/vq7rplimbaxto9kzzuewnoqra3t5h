@@ -78,10 +78,11 @@ filters/counts, literal multilingual search, unsafe references, history/labels,
 permissions, no read events and bounded request SQL. These are regression bounds,
 not proof of agreed client workload/network latency.
 
-The dashboard still needs to consume server paging/search/counts. Its current
-first-page client filtering cannot find every old case. Paging controls, stale
-selection/detail/thread responses, mutation guards, failed-send drafts, phone
-layout and localization are follow-up work. General Inbox references and the
+The dashboard integration is implemented in the
+[Operations workflow](operations-workflow.md); its full verification belongs to
+[issue37](https://github.com/Shoamirg/garageos/issues/37). It consumes server
+paging/search/counts and guards selection, detail/thread responses, writes and
+drafts on localized phone/desktop views. General Inbox references and the
 client deployment/device/pilot gates remain tracked in
 [delivery issue10](https://github.com/Shoamirg/garageos/issues/10).
 Implementation and exact verification for this API increment belong to

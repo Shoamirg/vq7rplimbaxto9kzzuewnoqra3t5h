@@ -23,10 +23,16 @@ not a release tag, deployment or real garage acceptance.
 
 ### Fixed
 
+- Operations consumes server search/pages/counts with guarded selection and
+  async writes, full post-PATCH snapshots and per-case reply/note drafts.
+  UZ/EN/RU and phone navigation show recorded facts and available actions.
+  Parallel case first-open is serialized through normal UoW commit so it reuses
+  one Inbox thread. [Operations workflow](docs/operations-workflow.md) describes
+  the contracts; final issue37 verification and delivery gates remain open.
 - Operational case reads support server pagination, literal EN/RU/UZ search and
   complete filtered counts, preserving tenant/history and label contracts with
   bounded page queries. [Case list API](docs/case-list-api.md) records ICU preflight,
-  count semantics and the remaining dashboard integration.
+  count semantics and links to the Operations dashboard workflow.
 
 - Operational cases reject foreign/inactive create references and ineligible
   mechanic assignments before mutation. Unsafe legacy case links are hidden;
