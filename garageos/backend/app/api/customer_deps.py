@@ -33,7 +33,7 @@ def _customer_auth(session: AsyncSession) -> CustomerAuthService:
 
 
 async def get_customer_auth_service(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ) -> CustomerAuthService:
     """Auth service for pre-token flows (telegram sign-in, link, refresh)."""
     return _customer_auth(db)

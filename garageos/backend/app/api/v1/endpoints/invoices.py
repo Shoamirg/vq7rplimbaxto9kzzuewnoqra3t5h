@@ -75,14 +75,14 @@ async def get_document(invoice_id: uuid.UUID, uow: UnitOfWork = Depends(get_tena
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, summary="Create an estimate or invoice")
-async def create_document(body: InvoiceCreate, uow: UnitOfWork = Depends(get_tenant_uow)) -> dict:
+async def create_document(body: InvoiceCreate, uow: UnitOfWork = Depends(get_tenant_uow, scope="function")) -> dict:
     payload = body.model_dump()
     payload["line_items"] = [li for li in (payload.get("line_items") or [])]
     return await InvoiceService(uow).create(**payload)
 
 
 @router.delete("/{invoice_id}", summary="Delete (archive) an estimate or unpaid invoice")
-async def delete_document(invoice_id: uuid.UUID, uow: UnitOfWork = Depends(get_tenant_uow)) -> dict:
+async def delete_document(invoice_id: uuid.UUID, uow: UnitOfWork = Depends(get_tenant_uow, scope="function")) -> dict:
     await InvoiceService(uow).delete(invoice_id)
     return {"ok": True}
 
@@ -92,12 +92,12 @@ class SendTelegramRequest(BaseModel):
 
 
 @router.post("/{invoice_id}/send-telegram", summary="Send the document link to the customer via Telegram")
-async def send_telegram(invoice_id: uuid.UUID, body: SendTelegramRequest, uow: UnitOfWork = Depends(get_tenant_uow)) -> dict:
+async def send_telegram(invoice_id: uuid.UUID, body: SendTelegramRequest, uow: UnitOfWork = Depends(get_tenant_uow, scope="function")) -> dict:
     return await InvoiceService(uow).send_telegram(invoice_id, body.link)
 
 
 @router.put("/{invoice_id}", summary="Edit an estimate or unpaid invoice (line items, notes, …)")
-async def edit_document(invoice_id: uuid.UUID, body: InvoiceEdit, uow: UnitOfWork = Depends(get_tenant_uow)) -> dict:
+async def edit_document(invoice_id: uuid.UUID, body: InvoiceEdit, uow: UnitOfWork = Depends(get_tenant_uow, scope="function")) -> dict:
     payload = body.model_dump()
     if payload.get("line_items") is not None:
         payload["line_items"] = [li for li in payload["line_items"]]
@@ -106,7 +106,7 @@ async def edit_document(invoice_id: uuid.UUID, body: InvoiceEdit, uow: UnitOfWor
 
 @router.post("/{invoice_id}/payments", status_code=status.HTTP_201_CREATED, summary="Record a payment / refund")
 async def record_payment(
-    invoice_id: uuid.UUID, body: PaymentIn, uow: UnitOfWork = Depends(get_tenant_uow),
+    invoice_id: uuid.UUID, body: PaymentIn, uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
     idempotency_key: uuid.UUID | None = Header(default=None, alias="Idempotency-Key"),
 ) -> dict:
     return await InvoiceService(uow).record_payment(
@@ -116,17 +116,17 @@ async def record_payment(
 
 
 @router.post("/{invoice_id}/send", summary="Send an estimate/invoice to the customer")
-async def send_document(invoice_id: uuid.UUID, uow: UnitOfWork = Depends(get_tenant_uow)) -> dict:
+async def send_document(invoice_id: uuid.UUID, uow: UnitOfWork = Depends(get_tenant_uow, scope="function")) -> dict:
     return await InvoiceService(uow).send(invoice_id)
 
 
 @router.post("/{invoice_id}/convert", status_code=status.HTTP_201_CREATED, summary="Convert an approved estimate into an invoice")
-async def convert_document(invoice_id: uuid.UUID, uow: UnitOfWork = Depends(get_tenant_uow)) -> dict:
+async def convert_document(invoice_id: uuid.UUID, uow: UnitOfWork = Depends(get_tenant_uow, scope="function")) -> dict:
     return await InvoiceService(uow).convert_to_invoice(invoice_id)
 
 
 @router.patch("/{invoice_id}", summary="Update a document status (approve / reject / …)")
-async def update_document(invoice_id: uuid.UUID, body: InvoiceUpdate, uow: UnitOfWork = Depends(get_tenant_uow)) -> dict:
+async def update_document(invoice_id: uuid.UUID, body: InvoiceUpdate, uow: UnitOfWork = Depends(get_tenant_uow, scope="function")) -> dict:
     svc = InvoiceService(uow)
     if body.status is not None:
         return await svc.set_status(invoice_id, body.status)

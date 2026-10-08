@@ -41,6 +41,6 @@ async def post_message(
     conversation_id: uuid.UUID,
     body: PostMessageRequest,
     customer: Customer = Depends(get_current_customer),
-    uow: UnitOfWork = Depends(get_customer_uow),
+    uow: UnitOfWork = Depends(get_customer_uow, scope="function"),
 ) -> ThreadMessage:
     return await CustomerPortalService(uow, customer).post_message(conversation_id, body.body)

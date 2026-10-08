@@ -81,7 +81,7 @@ async def get_thread(
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, summary="Start a conversation")
-async def create_conversation(body: ConversationCreate, uow: UnitOfWork = Depends(get_tenant_uow)) -> dict:
+async def create_conversation(body: ConversationCreate, uow: UnitOfWork = Depends(get_tenant_uow, scope="function")) -> dict:
     payload = body.model_dump()
     if payload.get("participants") is not None:
         payload["participants"] = [p for p in payload["participants"]]
@@ -91,7 +91,7 @@ async def create_conversation(body: ConversationCreate, uow: UnitOfWork = Depend
 @router.post("/{conversation_id}/messages", status_code=status.HTTP_201_CREATED, summary="Post a message")
 async def post_message(
     conversation_id: uuid.UUID, body: MessageCreate,
-    uow: UnitOfWork = Depends(get_tenant_uow), me: User = Depends(get_current_user),
+    uow: UnitOfWork = Depends(get_tenant_uow, scope="function"), me: User = Depends(get_current_user),
 ) -> dict:
     payload = body.model_dump()
     atts = payload.pop("attachments", None)
@@ -105,7 +105,7 @@ async def post_message(
 @router.patch("/{conversation_id}", summary="Update a conversation (status / assign / read)")
 async def update_conversation(
     conversation_id: uuid.UUID, body: ConversationUpdate,
-    uow: UnitOfWork = Depends(get_tenant_uow), me: User = Depends(get_current_user),
+    uow: UnitOfWork = Depends(get_tenant_uow, scope="function"), me: User = Depends(get_current_user),
 ) -> dict:
     svc = ConversationService(uow)
     result = None
@@ -120,7 +120,7 @@ async def update_conversation(
 
 @router.post("/{conversation_id}/follow", summary="Follow a conversation (get updates unassigned)")
 async def follow(
-    conversation_id: uuid.UUID, uow: UnitOfWork = Depends(get_tenant_uow),
+    conversation_id: uuid.UUID, uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
     me: User = Depends(get_current_user),
 ) -> dict:
     return await ConversationService(uow).follow(conversation_id, user_id=me.id, display_name=me.full_name)
@@ -128,7 +128,7 @@ async def follow(
 
 @router.delete("/{conversation_id}/follow", summary="Stop following a conversation")
 async def unfollow(
-    conversation_id: uuid.UUID, uow: UnitOfWork = Depends(get_tenant_uow),
+    conversation_id: uuid.UUID, uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
     me: User = Depends(get_current_user),
 ) -> dict:
     return await ConversationService(uow).unfollow(conversation_id, user_id=me.id)

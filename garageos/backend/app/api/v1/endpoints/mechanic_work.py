@@ -49,7 +49,7 @@ async def get_work(appointment_id: uuid.UUID, user: User = Depends(get_current_u
 
 @router.patch("/{appointment_id}/start")
 async def start_work(appointment_id: uuid.UUID, user: User = Depends(get_current_user),
-                     uow: UnitOfWork = Depends(get_mechanic_uow)) -> dict:
+                     uow: UnitOfWork = Depends(get_mechanic_uow, scope="function")) -> dict:
     result = await AppointmentService(uow).start_appointment(appointment_id, mechanic_user_id=user.id)
     result.pop("total_cost", None)
     return result
@@ -58,7 +58,7 @@ async def start_work(appointment_id: uuid.UUID, user: User = Depends(get_current
 @router.patch("/{appointment_id}/complete")
 async def complete_work(appointment_id: uuid.UUID, body: MechanicCompleteRequest,
                         user: User = Depends(get_current_user),
-                        uow: UnitOfWork = Depends(get_mechanic_uow)) -> dict:
+                        uow: UnitOfWork = Depends(get_mechanic_uow, scope="function")) -> dict:
     result = await AppointmentService(uow).complete_appointment(
         appointment_id, mechanic_user_id=user.id, **body.model_dump(),
     )

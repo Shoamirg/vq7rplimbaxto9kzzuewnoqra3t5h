@@ -54,7 +54,7 @@ async def get_case(case_id: uuid.UUID, uow: UnitOfWork = Depends(get_tenant_uow)
 @router.get("/{case_id}/conversation", summary="The case's live conversation (shared UCP model)")
 async def case_conversation(
     case_id: uuid.UUID,
-    uow: UnitOfWork = Depends(get_tenant_uow),
+    uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
     permissions: list[str] = Depends(get_staff_permissions),
 ) -> dict:
     # Operations reuses the SAME conversation model as the Inbox — created on demand.
@@ -64,13 +64,13 @@ async def case_conversation(
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, summary="Open a case")
-async def create_case(body: CaseCreate, uow: UnitOfWork = Depends(get_tenant_uow)) -> dict:
+async def create_case(body: CaseCreate, uow: UnitOfWork = Depends(get_tenant_uow, scope="function")) -> dict:
     return await CaseService(uow).create_case(**body.model_dump())
 
 
 @router.patch("/{case_id}", summary="Update a case (assign / change status)")
 async def update_case(
-    case_id: uuid.UUID, body: CaseUpdate, uow: UnitOfWork = Depends(get_tenant_uow)
+    case_id: uuid.UUID, body: CaseUpdate, uow: UnitOfWork = Depends(get_tenant_uow, scope="function")
 ) -> dict:
     svc = CaseService(uow)
     result = None

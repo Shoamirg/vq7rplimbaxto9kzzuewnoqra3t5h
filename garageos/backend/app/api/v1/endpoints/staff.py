@@ -28,10 +28,10 @@ async def list_staff(q: str = Query('', max_length=100), page: int = Query(1, ge
 
 
 @router.post('', status_code=201)
-async def create_staff(data: StaffCreate, uow=Depends(owner_uow), user=Depends(get_current_user)):
+async def create_staff(data: StaffCreate, uow=Depends(owner_uow, scope="function"), user=Depends(get_current_user)):
     return await StaffService(uow, user).create(data)
 
 
 @router.patch('/{user_id}')
-async def update_staff(user_id: uuid.UUID, data: StaffUpdate, uow=Depends(owner_uow), user=Depends(get_current_user)):
+async def update_staff(user_id: uuid.UUID, data: StaffUpdate, uow=Depends(owner_uow, scope="function"), user=Depends(get_current_user)):
     return await StaffService(uow, user).update(user_id, data)

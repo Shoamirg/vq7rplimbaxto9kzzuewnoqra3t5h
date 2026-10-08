@@ -102,7 +102,7 @@ async def get_appointment_invoice(
 @router.post("", status_code=status.HTTP_201_CREATED, summary="Book an appointment")
 async def book_appointment(
     body: AppointmentBookRequest,
-    uow: UnitOfWork = Depends(get_tenant_uow),
+    uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> dict:
     service = AppointmentService(uow)
@@ -128,6 +128,10 @@ async def book_appointment(
         raise AppointmentStateError("A booking with this Idempotency-Key is already in progress")
     try:
         result = await _create()
+        # Publish a replayable ID only after the whole booking is durable.
+        # A commit failure must release the pending key just like creation
+        # failure, so retry cannot point at a rolled-back appointment.
+        await uow.commit()
     except Exception:
         await idempotency_store.release(key)
         raise
@@ -138,7 +142,7 @@ async def book_appointment(
 @router.post("/direct", status_code=status.HTTP_201_CREATED, summary="Create an appointment at a date/time (no slot)")
 async def create_appointment_direct(
     body: AppointmentDirectCreateRequest,
-    uow: UnitOfWork = Depends(get_tenant_uow),
+    uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
 ) -> dict:
     return await AppointmentService(uow).create_appointment_direct(
         customer_id=body.customer_id,
@@ -156,7 +160,7 @@ async def create_appointment_direct(
 @router.patch("/{appointment_id}/confirm", summary="Confirm a pending appointment")
 async def confirm_appointment(
     appointment_id: uuid.UUID,
-    uow: UnitOfWork = Depends(get_tenant_uow),
+    uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
 ) -> dict:
     return await AppointmentService(uow).confirm_appointment(appointment_id)
 
@@ -164,7 +168,7 @@ async def confirm_appointment(
 @router.patch("/{appointment_id}/start", summary="Start assigned service work")
 async def start_appointment(
     appointment_id: uuid.UUID,
-    uow: UnitOfWork = Depends(get_tenant_uow),
+    uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
 ) -> dict:
     return await AppointmentService(uow).start_appointment(appointment_id)
 
@@ -172,7 +176,7 @@ async def start_appointment(
 @router.patch("/{appointment_id}/cancel", summary="Cancel an appointment (frees its slot)")
 async def cancel_appointment(
     appointment_id: uuid.UUID,
-    uow: UnitOfWork = Depends(get_tenant_uow),
+    uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
     body: AppointmentCancelRequest | None = Body(default=None),
 ) -> dict:
     reason = body.reason if body else None
@@ -183,7 +187,7 @@ async def cancel_appointment(
 async def complete_appointment(
     appointment_id: uuid.UUID,
     body: AppointmentCompleteRequest,
-    uow: UnitOfWork = Depends(get_tenant_uow),
+    uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
 ) -> dict:
     return await AppointmentService(uow).complete_appointment(
         appointment_id,
@@ -215,7 +219,7 @@ async def update_appointment(
 async def move_appointment(
     appointment_id: uuid.UUID,
     body: MoveAppointmentRequest,
-    uow: UnitOfWork = Depends(get_tenant_uow),
+    uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
 ) -> dict:
     return await AppointmentService(uow).move_appointment(appointment_id, body.slot_id)
 
@@ -224,7 +228,7 @@ async def move_appointment(
 async def assign_mechanic(
     appointment_id: uuid.UUID,
     body: AssignMechanicRequest,
-    uow: UnitOfWork = Depends(get_tenant_uow),
+    uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
 ) -> dict:
     return await AppointmentService(uow).assign_mechanic(
         appointment_id, body.mechanic_name, mechanic_user_id=body.mechanic_user_id,

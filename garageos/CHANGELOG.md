@@ -23,6 +23,13 @@ not a release tag, deployment or real garage acceptance.
 
 ### Fixed
 
+- Transactional API writes commit before sending success, including first case
+  conversation creation and customer Telegram association/username writes.
+  Slot-booking replay IDs are cached after durable commit; failed commits release
+  pending keys for retry. Financial transactions, tenant/role checks and events
+  remain atomic. See [API transactions](docs/api-transactions.md) for inventory
+  and actual first-response-send PostgreSQL verification.
+
 - Operational appointments use readable phone cards/full desktop text, localized
   controls/status/duration/health/billing and truthful separate loading/error
   states. Current-page selection prevents hidden-query bulk mutations; actual

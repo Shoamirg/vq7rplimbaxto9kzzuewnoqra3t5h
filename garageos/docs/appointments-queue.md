@@ -22,7 +22,9 @@ The existing appointment update PATCH commits its tenant transaction before
 sending success. A failed commit returns an error and rolls back; immediate
 calendar/queue reads cannot treat a merely flushed update as saved. Its
 response, date and UUID assignment contracts stay the same. This guarantee
-is verified for this endpoint; other write endpoints need a separate review.
+is also applied to the reviewed write dependencies and conditional-write case
+conversation GET; see [API transaction boundaries](api-transactions.md) for
+ownership, booking replay and representative verification limits.
 
 Only successfully loaded visible current-page records can be selected. Query,
 date, status, page, pending load and failed-read transitions clear or suspend

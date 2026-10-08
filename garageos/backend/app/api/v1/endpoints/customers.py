@@ -28,7 +28,7 @@ async def list_customers(
 
 
 @router.post("", status_code=201, summary="Register a customer in the current service center")
-async def create_customer(data: StaffCustomerCreate, uow: UnitOfWork = Depends(get_tenant_uow)) -> dict:
+async def create_customer(data: StaffCustomerCreate, uow: UnitOfWork = Depends(get_tenant_uow, scope="function")) -> dict:
     return await CustomerService(uow).register_customer(data)
 
 
@@ -43,7 +43,7 @@ async def customer_360(
 @router.delete("/{customer_id}", summary="Delete (archive) a customer")
 async def delete_customer(
     customer_id: uuid.UUID,
-    uow: UnitOfWork = Depends(get_tenant_uow),
+    uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
 ) -> dict:
     await CustomerService(uow).delete_customer(customer_id)
     return {"ok": True}
@@ -58,9 +58,9 @@ async def customer_account(customer_id: uuid.UUID, uow=Depends(owner_uow), actor
     return CustomerAccountService.summary(await CustomerAccountService(uow, actor).account(customer_id))
 
 @router.post('/{customer_id}/account', status_code=201)
-async def open_customer_account(customer_id: uuid.UUID, data: CustomerAccountCreate, uow=Depends(owner_uow), actor=Depends(get_current_user)):
+async def open_customer_account(customer_id: uuid.UUID, data: CustomerAccountCreate, uow=Depends(owner_uow, scope="function"), actor=Depends(get_current_user)):
     return await CustomerAccountService(uow, actor).create(customer_id, data)
 
 @router.patch('/{customer_id}/account')
-async def customer_account_access(customer_id: uuid.UUID, data: CustomerAccountUpdate, uow=Depends(owner_uow), actor=Depends(get_current_user)):
+async def customer_account_access(customer_id: uuid.UUID, data: CustomerAccountUpdate, uow=Depends(owner_uow, scope="function"), actor=Depends(get_current_user)):
     return await CustomerAccountService(uow, actor).update(customer_id, data)

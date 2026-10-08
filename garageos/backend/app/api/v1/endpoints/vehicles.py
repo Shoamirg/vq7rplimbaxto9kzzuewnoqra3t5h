@@ -30,7 +30,7 @@ async def list_vehicles(
 
 
 @router.post("", status_code=201, summary="Register an owned vehicle in the current service center")
-async def create_vehicle(data: StaffVehicleCreate, uow: UnitOfWork = Depends(get_tenant_uow)) -> dict:
+async def create_vehicle(data: StaffVehicleCreate, uow: UnitOfWork = Depends(get_tenant_uow, scope="function")) -> dict:
     return await VehicleService(uow).register_vehicle(data)
 
 
@@ -74,7 +74,7 @@ async def vehicle_intelligence(
 @router.delete("/{vehicle_id}", summary="Delete (archive) a vehicle")
 async def delete_vehicle(
     vehicle_id: uuid.UUID,
-    uow: UnitOfWork = Depends(get_tenant_uow),
+    uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
 ) -> dict:
     await VehicleHealthService(uow).delete_vehicle(vehicle_id)
     return {"ok": True}

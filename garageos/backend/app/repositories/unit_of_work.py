@@ -40,7 +40,10 @@ class UnitOfWork:
         try:
             if exc_type is not None:
                 await self.rollback()
-            else:
+            elif self.session and self.session.in_transaction():
+                # A completed booking can commit before publishing its cache
+                # result. Avoid another empty commit on exit; a later query or
+                # write starts a new transaction and is still finalized here.
                 await self.commit()
         except Exception:
             await self.rollback()
