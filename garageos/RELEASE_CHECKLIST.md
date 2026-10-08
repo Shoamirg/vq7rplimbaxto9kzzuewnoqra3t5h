@@ -26,6 +26,10 @@ cut. Keep it honest — a red box blocks the release, not the checklist.
 - [ ] **Localization complete** — `cd admin-dashboard && npm run i18n:check`
       (fails on any key missing across EN/RU/UZ); no hard-coded user-facing
       English in changed surfaces; dates/currency/plurals formatted per locale
+      Also run `npm run i18n:audit` and `npm run i18n:audit -- --all`: a passing
+      ratchet still permits its reported backlog and does not prove complete
+      localization. See [feedback-localization.md](docs/feedback-localization.md)
+      for the completed feedback slice, test seams and remaining scope.
 - [ ] **Performance budget met** — landing/app JS within budget, no new render
       waterfalls, polling intervals unchanged or justified (measure, don't guess)
 - [ ] **Changelog updated** — new entry in `CHANGELOG.md`

@@ -23,6 +23,11 @@ not a release tag, deployment or real garage acceptance.
 
 ### Fixed
 
+- Staff notification filters/counts/relative timestamps and contextual error and
+  loading messages now follow EN/RU/UZ. Named loading statuses and the phone
+  notification menu are verified; the localization audit reports the remaining
+  backlog accurately in both modes. This completes seven feedback files; other
+  staff screens still require localization.
 - Selected browser accessibility release gate: allow Mini zoom and readable
   labels/SOS gradients; enlarge staff controls, exclude closed phone navigation
   from keyboard focus, restore the customer-dialog opener and respect reduced
