@@ -230,7 +230,47 @@ a different environment file.
 Corrupted gzip archives are rejected before a container is started. A passing
 restore test proves the checked schema/data can be restored; it does not prove
 off-host copies, retention scheduling, storage capacity or client acceptance.
-The test removes its own container and anonymous database volume on exit.
+The test refuses an existing restore container name and removes only the container
+ID created by that invocation, together with its anonymous database volume.
+`RESTORE_TEST_CONTAINER` can provide an isolated name for automated rehearsals.
+
+For a repeatable local rehearsal of the current application schema and records,
+run the Linux Docker/Compose gate from the repository root:
+
+```bash
+python3 garageos/scripts/test_database_recovery.py --output "$HOME/garageos-qa/recovery-evidence"
+```
+
+It builds the current production backend, migrates an isolated PostgreSQL16
+database and creates synthetic staff/customer identities in two garages, completed
+work, invoices and partial payments. No database/API port is published. A source
+database restart must preserve every public table, schema (including ownership
+and grants), Alembic revision and sequence state. The actual `backup.sh` runs
+through real Compose with spaced private paths and a non-default database role;
+its archive must be nonempty, valid gzip, mode 0600 and atomically published.
+
+The actual `restore-test.sh` must pass. A separate restore then compares all table
+row counts/content digests and schema/sequence state, and starts the production
+backend against the restored database. Staff/customer authentication, customer
+history, tenant denial and retained payment idempotency must match the source:
+retrying the same 100000 UZS payment still leaves one receipt and a 200000 UZS balance
+on the 300000 UZS invoice. Corrupt-gzip and invalid-SQL runs must fail and remove
+their own throwaway containers/anonymous volumes. A real name-collision test
+also requires an existing container and its anonymous volume to survive refusal.
+
+The gate removes only resources belonging to its unique QA run, plus temporary
+private credentials and archives. Evidence contains sanitized logs, identities,
+digests and results; it does not retain raw data, dumps, passwords or signing keys.
+Local Windows Jenkins invokes it through its configured WSL Linux Docker engine.
+The manual GitHub Linux CI definition includes the same gate; that definition
+alone is not evidence that a hosted run succeeded.
+
+This proves isolated recovery of the tested current schema and synthetic records.
+It does not replace client-environment backup/restore/rollback, role/config/secret
+backup, off-host copying and retention scheduling, storage-capacity checks or
+client pilot acceptance. PostgreSQL `pg_dump` saves one database; cluster-global
+roles/tablespaces need their own recovery plan. See the
+[PostgreSQL16 dump/restore guide](https://www.postgresql.org/docs/16/backup-dump.html).
 
 ## 6. Security & reliability (M2)
 

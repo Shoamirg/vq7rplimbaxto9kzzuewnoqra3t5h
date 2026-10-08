@@ -93,20 +93,27 @@ unmarked existing cache is refused. Archived
 distributed to clients. See the [Android release guide](../../garageos/flutter_app/docs/android-release.md)
 for owner signing and physical-device acceptance still required for delivery.
 
-Docker Linux containers are required for the existing production Caddy routing
-and Docker build-context gates. When the engine is unavailable, all other gates
+Docker Linux containers are required for production Caddy routing,
+Docker build-context and actual PostgreSQL recovery gates. The recovery gate
+also requires Linux Python/Bash and Docker Compose. It builds the current
+production backend, verifies restart/full archive restoration, staff/customer
+authentication, retained payment idempotency and real corrupt-gzip/SQL failures.
+Only sanitized evidence is archived; its own private credentials, archives and
+QA containers/volumes are removed. See the [recovery rehearsal](../../garageos/docs/DEPLOYMENT.md#5-backups).
+When the engine is unavailable, all other gates
 still run but the build is **UNSTABLE**, with the missing gates recorded in its
 artifacts. Such a build is not full CI acceptance. Once Docker is available,
-retry with FORCE_RUN; routing failures fail the build normally. Native iOS still
+retry with FORCE_RUN; routing/recovery failures fail the build normally. Native iOS still
 requires a separate Mac/Xcode agent and signing remains a release gate.
 
 This PC now uses a separate Docker Engine in the existing `Ubuntu-24.04` WSL
-distro for those two Linux-container gates. `runtime.json` sets
+distro for those Linux-container gates. `runtime.json` sets
 `dockerWslDistro` to `Ubuntu-24.04`; the launcher passes it as
 `GARAGEOS_DOCKER_WSL_DISTRO`. The runner starts that distro's local Docker service
 with WSL's root user, probes it as the default Linux user, and executes the
-unchanged routing/build-context scripts there using Linux paths. All application
-checks still run on the Windows agent. Docker Engine was installed from Docker's
+routing/build-context/recovery scripts there using Linux paths. The regular
+backend/Flutter/browser suites run on Windows; recovery additionally starts the
+actual Linux production backend. Docker Engine was installed from Docker's
 signed official Ubuntu apt repository; the existing Linux user belongs to its
 Docker group. No TCP Docker API or SSH server is exposed. Windows Docker Desktop
 storage/context are separate; its startup defect remains unresolved.

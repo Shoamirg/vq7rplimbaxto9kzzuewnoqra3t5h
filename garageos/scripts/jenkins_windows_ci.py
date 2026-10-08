@@ -173,7 +173,7 @@ def docker_environment():
     return prefix, False
 
 
-def docker_gate(prefix, script, name):
+def docker_gate(prefix, script, name, output=None):
     path = ROOT / "garageos/scripts" / script
     if prefix:
         # The daemon and bind-mounted fixture files must use the same Linux paths.
@@ -182,6 +182,12 @@ def docker_gate(prefix, script, name):
         command = [*prefix, "/usr/bin/python3", linux_path]
     else:
         command = [sys.executable, path]
+    if output is not None:
+        output_path = str(output)
+        if prefix:
+            output_path = subprocess.check_output([*prefix, '/usr/bin/wslpath', '-u', output_path],
+                                                 text=True, encoding='utf-8', timeout=30).strip()
+        command += ['--output', output_path]
     run(command, ROOT, name)
 
 
@@ -200,13 +206,14 @@ def main(allow_missing_docker):
     docker_prefix, available = docker_environment()
     missing = not available
     if missing and not allow_missing_docker:
-        raise RuntimeError("Docker Linux engine is required for production transport gates")
+        raise RuntimeError("Docker Linux engine is required for production transport/recovery gates")
     if missing:
-        (EVIDENCE / "unavailable-gates.txt").write_text("NOT RUN: Docker production routing and dashboard build-context gates.\n", encoding="utf-8")
-        print("LIMIT: Docker transport gates unavailable; result cannot be SUCCESS.", flush=True)
+        (EVIDENCE / "unavailable-gates.txt").write_text("NOT RUN: Docker production routing, dashboard build-context and database recovery gates.\n", encoding="utf-8")
+        print("LIMIT: Docker transport/recovery gates unavailable; result cannot be SUCCESS.", flush=True)
     else:
         docker_gate(docker_prefix, "test_dashboard_build_context.py", "build-context")
         docker_gate(docker_prefix, "test_public_routing.py", "public-routing")
+        docker_gate(docker_prefix, "test_database_recovery.py", "database-recovery", EVIDENCE / 'database-recovery')
     run([sys.executable, "-m", "venv", PYTHON.parent.parent], ROOT, "python-environment")
     run([PYTHON, "-m", "pip", "install", "--upgrade", "pip==26.2.1"], BACKEND, "backend-installer")
     run([PYTHON, "-m", "pip", "install", "-r", "requirements-dev.txt"], BACKEND, "backend-dependencies")
@@ -278,6 +285,7 @@ def main(allow_missing_docker):
             shutil.copytree(DASHBOARD / "test-results", EVIDENCE / "browser-results", dirs_exist_ok=True)
         revision = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
         (EVIDENCE / "result.json").write_text(json.dumps({"sha": revision, "docker_gates": "unavailable" if missing else "passed", "application_gates": "passed",
+            "database_recovery_gates": "unavailable" if missing else "passed",
             "docker_environment": "WSL " + os.environ["GARAGEOS_DOCKER_WSL_DISTRO"] if docker_prefix else "Windows Docker context"}, indent=2), encoding="utf-8")
         return 3 if missing else 0
     finally:

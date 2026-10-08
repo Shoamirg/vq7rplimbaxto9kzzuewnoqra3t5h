@@ -9,7 +9,7 @@ def runChecks() {
                     exit $LASTEXITCODE
                 ''')
                 if (result == 3) {
-                    unstable('Application gates passed; Docker production routing/build-context gates unavailable on this PC.')
+                    unstable('Application gates passed; Docker production routing/build-context/recovery gates unavailable on this PC.')
                 } else if (result != 0) {
                     error("GarageOS CI failed (${result}); inspect archived gate logs.")
                 }

@@ -16,7 +16,8 @@ set -euo pipefail
 
 BACKUP_DIR="${BACKUP_DIR:-./backups}"
 PG_IMAGE="${PG_IMAGE:-postgres:16-alpine}"    # match docker-compose.prod.yml
-CONTAINER="garageos-restore-test-$$"
+CONTAINER="${RESTORE_TEST_CONTAINER:-garageos-restore-test-$$}"
+CONTAINER_ID=""
 TEST_DB="restore_verify"
 TEST_PASS="verify"
 
@@ -52,21 +53,33 @@ fi
 echo "[restore-test] verifying: ${BACKUP_FILE} ($(du -h "${BACKUP_FILE}" | cut -f1))"
 
 # --- ephemeral postgres -------------------------------------------------------
-cleanup() { docker rm -fv "${CONTAINER}" >/dev/null 2>&1 || true; }
+if docker container inspect "${CONTAINER}" >/dev/null 2>&1; then
+  echo "[restore-test] FAIL: restore container name already exists; refusing to adopt it" >&2
+  exit 1
+fi
+cleanup() {
+  # Failed creation must never remove somebody else's database.
+  if [[ -n "${CONTAINER_ID}" ]]; then
+    docker rm -fv "${CONTAINER_ID}" >/dev/null 2>&1 || true
+  fi
+}
 trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 echo "[restore-test] starting throwaway ${PG_IMAGE} (${CONTAINER})"
-docker run -d --rm --name "${CONTAINER}" \
+CONTAINER_ID="$(docker run -d --rm --name "${CONTAINER}" \
+  --label "garageos.restore-test.run=${CONTAINER}" \
   -e POSTGRES_USER="${TEST_USER}" \
   -e POSTGRES_PASSWORD="${TEST_PASS}" \
   -e POSTGRES_DB="${TEST_DB}" \
-  "${PG_IMAGE}" >/dev/null
+  "${PG_IMAGE}")"
 
 echo -n "[restore-test] waiting for readiness"
 for _ in $(seq 1 30); do
   # The image briefly starts a socket-only server while initializing. TCP is
   # available only after the final server starts, so do not race its restart.
-  if docker exec "${CONTAINER}" pg_isready -h 127.0.0.1 -U "${TEST_USER}" -d "${TEST_DB}" >/dev/null 2>&1; then
+  if docker exec "${CONTAINER_ID}" pg_isready -h 127.0.0.1 -U "${TEST_USER}" -d "${TEST_DB}" >/dev/null 2>&1; then
     ready=1; break
   fi
   echo -n "."; sleep 1
@@ -79,13 +92,13 @@ fi
 
 # --- restore ------------------------------------------------------------------
 echo "[restore-test] restoring dump…"
-if ! gunzip -c "${BACKUP_FILE}" | docker exec -i "${CONTAINER}" \
+if ! gunzip -c "${BACKUP_FILE}" | docker exec -i "${CONTAINER_ID}" \
       psql -v ON_ERROR_STOP=1 -q -U "${TEST_USER}" -d "${TEST_DB}" >/dev/null; then
   echo "[restore-test] FAIL: psql restore reported errors" >&2
   exit 1
 fi
 
-q() { docker exec "${CONTAINER}" psql -tA -U "${TEST_USER}" -d "${TEST_DB}" -c "$1"; }
+q() { docker exec "${CONTAINER_ID}" psql -tA -U "${TEST_USER}" -d "${TEST_DB}" -c "$1"; }
 
 # --- assertions ---------------------------------------------------------------
 failures=0

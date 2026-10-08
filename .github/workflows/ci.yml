@@ -10,7 +10,7 @@ concurrency:
 
 jobs:
   public-routing:
-    name: Production · build context · public HTTP routing
+    name: Production · routing · database recovery
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,6 +21,14 @@ jobs:
         run: python garageos/scripts/test_dashboard_build_context.py
       - name: Verify native API and dashboard routes through production Caddyfile
         run: python garageos/scripts/test_public_routing.py
+      - name: Verify actual PostgreSQL backup and recovery
+        run: python garageos/scripts/test_database_recovery.py --output ci-evidence/database-recovery
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: database-recovery
+          path: ci-evidence/database-recovery
+          retention-days: 7
 
   backend:
     name: Backend · tests

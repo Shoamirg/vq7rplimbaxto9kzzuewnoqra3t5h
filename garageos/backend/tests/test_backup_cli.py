@@ -30,8 +30,12 @@ def backup_cli(tmp_path):
 set -euo pipefail
 printf '%s\\n' "$*" >> "$TEST_DOCKER_LOG"
 arguments=("$@")
+if [[ "${1:-}" == container && "${2:-}" == inspect ]]; then
+    exit 1
+fi
 if [[ "${1:-}" == run ]]; then
     touch "$TEST_VOLUME_FILE"
+    printf '%064d\\n' 1
 fi
 if [[ "${1:-}" == rm && "${2:-}" == -*v* ]]; then
     rm -f "$TEST_VOLUME_FILE"
