@@ -60,7 +60,7 @@ export default function RoadsidePage() {
     <div>
       <ScreenHeader title={t("mini.roadside.title")} subtitle={t("mini.roadside.subtitle")} />
 
-      <div className="mb-4 flex items-center gap-3 rounded-3xl bg-linear-to-br from-red-500 to-rose-600 p-4 text-white shadow-lg">
+      <div className="mb-4 flex items-center gap-3 rounded-3xl bg-linear-to-br from-red-700 to-rose-700 p-4 text-white shadow-lg">
         <div className="grid size-11 place-items-center rounded-2xl bg-white/20">
           <LifeBuoy className="size-6" aria-hidden />
         </div>

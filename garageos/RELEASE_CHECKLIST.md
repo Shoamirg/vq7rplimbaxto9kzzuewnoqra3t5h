@@ -19,6 +19,10 @@ cut. Keep it honest — a red box blocks the release, not the checklist.
 - [ ] **No accessibility regressions** — keyboard-navigable, visible focus rings,
       labelled icon-only controls, ≥44px touch targets, contrast AA, reduced
       motion respected (spot-check `/mini` + one staff screen)
+      Run the unsuppressed scans and actual keyboard/target/motion checks in
+      `e2e/accessibility.spec.ts`; review the inconclusive attachments and
+      localized screenshots as described in [accessibility-release.md](docs/accessibility-release.md).
+      Automation does not replace client-device/assistive-technology acceptance.
 - [ ] **Localization complete** — `cd admin-dashboard && npm run i18n:check`
       (fails on any key missing across EN/RU/UZ); no hard-coded user-facing
       English in changed surfaces; dates/currency/plurals formatted per locale

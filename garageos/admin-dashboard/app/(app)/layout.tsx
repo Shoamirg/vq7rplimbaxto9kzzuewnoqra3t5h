@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { ToastProvider } from "@garageos/design-system";
+import { LocalizedToastProvider } from "@/components/providers/localized-toast-provider";
 
 import { CommandMenu } from "@/components/layout/command-menu";
 import { DemoBanner } from "@/components/layout/demo-banner";
@@ -35,7 +35,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <I18nProvider initialLocale={initialLocale}>
-      <ToastProvider position="bottom-right">
+      <LocalizedToastProvider>
         <div className="flex h-screen overflow-hidden" style={brandCssVars(user.branding)}>
           <Sidebar user={shellUser} branding={user.branding} />
           <div className="flex-1 flex flex-col overflow-hidden">
@@ -45,7 +45,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
           <CommandMenu />
         </div>
-      </ToastProvider>
+      </LocalizedToastProvider>
     </I18nProvider>
   );
 }

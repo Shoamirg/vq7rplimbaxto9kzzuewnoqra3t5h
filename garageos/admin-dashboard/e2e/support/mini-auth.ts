@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { expect, type Page } from '@playwright/test';
 
 /** Use genuine verified launch data against production BFF/backend auth. */
-export async function prepareMini(page: Page, baseURL: string | undefined, locale: 'en' | 'ru' = 'en') {
+export async function prepareMini(page: Page, baseURL: string | undefined, locale: 'en' | 'ru' | 'uz' = 'en') {
   let fixture: { qa_only: boolean; base_origin: string; init_data: string; customer_id: string };
   try {
     const file = process.env.GARAGEOS_BROWSER_FIXTURE;

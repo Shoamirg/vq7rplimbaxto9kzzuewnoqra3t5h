@@ -33,6 +33,8 @@ export interface ToastProviderProps {
   position?: ToastPosition;
   /** Default duration in ms */
   duration?: number;
+  /** Localized accessible name of the notification region. */
+  label?: string;
 }
 
 export interface CreateToast extends Omit<Toast, "id"> {}

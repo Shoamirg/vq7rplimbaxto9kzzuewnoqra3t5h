@@ -23,6 +23,13 @@ not a release tag, deployment or real garage acceptance.
 
 ### Fixed
 
+- Selected browser accessibility release gate: allow Mini zoom and readable
+  labels/SOS gradients; enlarge staff controls, exclude closed phone navigation
+  from keyboard focus, restore the customer-dialog opener and respect reduced
+  motion. Toast/notification names follow EN/RU/UZ, and branded button text uses
+  a readable foreground. Unsuppressed scans and actual keyboard/44px/motion
+  regressions retain the existing functional suite; client-device acceptance
+  remains separate.
 - Tenant/account lifecycle, duplicate identity and financial consistency;
   invoice-history query growth and vulnerable dashboard/backend dependencies.
 - Browser release gate coverage: execute every configured spec instead of the

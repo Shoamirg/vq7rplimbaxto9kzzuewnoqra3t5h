@@ -46,6 +46,7 @@ export function ToastProvider({
   maxVisible = 5,
   position = "bottom-right",
   duration = 5000,
+  label = "Notifications",
 }: ToastProviderProps) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const counterRef = useRef(0);
@@ -84,7 +85,7 @@ export function ToastProvider({
           positionClasses[position]
         )}
         aria-live="polite"
-        aria-label="Notifications"
+        role="region" aria-label={label}
       >
         {toasts.map((t) => (
           <ToastItem

@@ -31,7 +31,7 @@ export default function HomePage() {
   return (
     <div className="space-y-5">
       <header className="px-1">
-        <p className="text-sm font-medium text-slate-400">{home.garage.name}</p>
+        <p className="text-sm font-medium text-slate-600">{home.garage.name}</p>
         <h1 className="text-[28px] font-bold tracking-tight text-slate-900">
           {t("mini.home.greeting", { name: home.greeting })} 👋
         </h1>
@@ -42,14 +42,14 @@ export default function HomePage() {
         href="/mini/roadside"
         aria-label={t("mini.home.sos_title")}
         onClick={() => haptic("heavy")}
-        className="flex items-center gap-4 rounded-3xl bg-linear-to-br from-red-500 to-rose-600 p-4 text-white shadow-[0_12px_32px_-10px_rgba(220,38,38,0.6)] transition motion-safe:active:scale-[0.99] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50"
+        className="flex items-center gap-4 rounded-3xl bg-linear-to-br from-red-700 to-rose-700 p-4 text-white shadow-[0_12px_32px_-10px_rgba(220,38,38,0.6)] transition motion-safe:active:scale-[0.99] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50"
       >
         <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-white/20">
           <LifeBuoy className="size-7" />
         </div>
         <div className="flex-1">
           <p className="text-lg font-bold leading-tight">{t("mini.home.sos_title")}</p>
-          <p className="text-sm text-white/85">{t("mini.home.sos_sub")}</p>
+          <p className="text-sm text-white">{t("mini.home.sos_sub")}</p>
         </div>
         <ChevronRight className="size-5 text-white/80" aria-hidden />
       </Link>
@@ -64,7 +64,7 @@ export default function HomePage() {
             <p className="font-semibold text-white">{t("mini.home.book_service")}</p>
             <p className="text-sm text-slate-300">{t("mini.home.book_service_sub")}</p>
           </div>
-          <ChevronRight className="size-5 text-slate-400" aria-hidden />
+          <ChevronRight className="size-5 text-slate-600" aria-hidden />
         </div>
       </Card>
 
@@ -165,13 +165,13 @@ export default function HomePage() {
             <ul className="divide-y divide-slate-100">
               {home.activity.map((a, i) => (
                 <li key={i} className="flex items-start gap-3 px-2 py-3">
-                  <div className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-400">
+                  <div className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-600">
                     <Bell className="size-4" aria-hidden />
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-medium text-slate-800">{a.title}</p>
                     {a.detail ? <p className="text-sm text-slate-500">{a.detail}</p> : null}
-                    <p className="mt-0.5 text-xs text-slate-400">{fmt.date(a.date, DAY_DATE)}</p>
+                    <p className="mt-0.5 text-xs text-slate-600">{fmt.date(a.date, DAY_DATE)}</p>
                   </div>
                 </li>
               ))}

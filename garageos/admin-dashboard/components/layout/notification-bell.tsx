@@ -9,6 +9,7 @@ import {
 
 import { clientFetch } from "@/lib/api/client";
 import type { NotificationFeed, NotificationItem, NotificationSeverity } from "@/lib/api/types";
+import { useI18n } from "@/lib/i18n/context";
 
 const SEVERITY_DOT: Record<NotificationSeverity, string> = {
   critical: "bg-red-600", high: "bg-red-500", medium: "bg-amber-500", low: "bg-blue-500", info: "bg-slate-400",
@@ -33,6 +34,7 @@ function relTime(iso: string): string {
 const FILTERS = ["all", "appointment", "vehicle", "passport", "customer"] as const;
 
 export function NotificationBell() {
+  const { t } = useI18n();
   const router = useRouter();
   const [feed, setFeed] = useState<NotificationFeed>({ items: [], unread_count: 0 });
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("all");
@@ -75,10 +77,10 @@ export function NotificationBell() {
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <button className="relative p-2 rounded-lg hover:bg-muted transition-colors" aria-label="Notifications">
+        <button className="relative grid size-11 place-items-center rounded-lg hover:bg-muted transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring" aria-label={t("menu.notifications")}>
           <Bell className="size-4 text-muted-foreground" />
           {feed.unread_count > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 grid min-w-[16px] h-4 place-items-center rounded-full bg-danger px-1 text-[9px] font-bold text-white">
+            <span className="absolute -top-0.5 -right-0.5 grid min-w-[16px] h-4 place-items-center rounded-full bg-red-700 px-1 text-[9px] font-bold text-white">
               {feed.unread_count > 9 ? "9+" : feed.unread_count}
             </span>
           )}

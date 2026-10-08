@@ -34,7 +34,7 @@ export function TabBar() {
                 aria-current={active ? "page" : undefined}
                 onClick={() => haptic("selection")}
                 className={`flex min-h-[48px] flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-medium transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                  active ? "text-blue-600" : "text-slate-400"
+                  active ? "text-blue-600" : "text-slate-600"
                 }`}
               >
                 <Icon className="size-[22px]" strokeWidth={active ? 2.4 : 1.9} aria-hidden />

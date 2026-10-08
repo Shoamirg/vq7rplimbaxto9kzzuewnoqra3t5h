@@ -61,7 +61,7 @@ export function Card({
 
 export function SectionLabel({ children }: { children: ReactNode }) {
   return (
-    <div className="px-1 pb-2 pt-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+    <div className="px-1 pb-2 pt-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
       {children}
     </div>
   );
@@ -165,7 +165,7 @@ export function EmptyState({ icon, title, note }: { icon?: ReactNode; title: str
     <div className="grid place-items-center rounded-3xl bg-white/60 px-6 py-10 text-center ring-1 ring-slate-900/4">
       {icon ? <div className="mb-2 text-slate-300">{icon}</div> : null}
       <p className="font-medium text-slate-700">{title}</p>
-      {note ? <p className="mt-1 text-sm text-slate-400">{note}</p> : null}
+      {note ? <p className="mt-1 text-sm text-slate-600">{note}</p> : null}
     </div>
   );
 }
@@ -185,7 +185,7 @@ export function ScreenError({
     <div className="grid place-items-center rounded-3xl bg-white/60 px-6 py-12 text-center ring-1 ring-slate-900/4" role="alert">
       {offline ? <WifiOff className="mb-2 size-8 text-slate-300" /> : null}
       <p className="font-medium text-slate-700">{offline ? t("mini.offline") : (message ?? t("mini.error_generic"))}</p>
-      <p className="mt-1 text-sm text-slate-400">{offline ? t("mini.offline_hint") : t("mini.error_hint")}</p>
+      <p className="mt-1 text-sm text-slate-600">{offline ? t("mini.offline_hint") : t("mini.error_hint")}</p>
       {onRetry ? (
         <button
           onClick={() => {

@@ -70,7 +70,7 @@ The versioned runner creates a new loopback `garage_test` PostgreSQL cluster for
 each build and refuses occupied ports 55444,8010,3001. It runs migrations/schema,
 pre-seed public API checks, full backend tests, frontend typecheck/locales/lint/
 build, Flutter UZ/EN/RU message validation/analyze/full live API tests/web build and
-the complete configured production browser suite (currently43 tests in8 files),
+the complete configured production browser suite (currently64 tests in9 files),
 including staff core pages/intelligence/search, daily intake/conflict/payment
 retry, Telegram Mini App/passport/roadside and runtime translations as well as
 account/service/platform/theme regressions. The runner does not select a subset.

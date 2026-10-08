@@ -93,11 +93,11 @@ export function TopBar({ user }: { user?: ShellUser }) {
         <button
           type="button"
           onClick={() => window.dispatchEvent(new Event(OPEN_EVENT))}
-          className="hidden sm:flex items-center gap-2 rounded-lg border border-border hover:border-muted-foreground/30 bg-muted/30 transition-colors flex-1 max-w-md text-left"
+          className="min-h-11 hidden sm:flex items-center gap-2 rounded-lg border border-border hover:border-muted-foreground/30 bg-muted/30 transition-colors flex-1 max-w-md text-left"
           aria-label={t("command.search")}
         >
           <Search className="size-4 text-muted-foreground shrink-0 ml-3" />
-          <span className="flex-1 text-sm text-muted-foreground/60 py-2.5 truncate">
+          <span className="flex-1 text-sm text-muted-foreground py-2.5 truncate">
             {t("topbar.search")}
           </span>
           <kbd className="hidden md:inline-flex items-center gap-0.5 rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground mr-3">
@@ -111,7 +111,7 @@ export function TopBar({ user }: { user?: ShellUser }) {
         {/* Theme Toggle */}
         <button
           onClick={toggleTheme}
-          className="p-2 rounded-lg hover:bg-muted transition-colors"
+          className="grid size-11 place-items-center rounded-lg hover:bg-muted transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
           aria-label={t(resolvedTheme === "dark" ? "menu.light_mode" : "menu.dark_mode")}
         >
           {resolvedTheme === "dark" ? (
@@ -130,7 +130,7 @@ export function TopBar({ user }: { user?: ShellUser }) {
         {/* User Profile Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-lg hover:bg-muted transition-colors" aria-label={t("menu.user")}>
+            <button className="flex items-center gap-2 min-h-11 min-w-11 pl-2 pr-3 py-1.5 rounded-lg hover:bg-muted transition-colors" aria-label={t("menu.user")}>
               <Avatar size="sm" fallback={initials(user?.name)} />
               <span className="hidden md:inline text-sm font-medium text-foreground">{user?.name ?? t("menu.user")}</span>
               <ChevronDown className="size-3.5 text-muted-foreground hidden md:inline" />

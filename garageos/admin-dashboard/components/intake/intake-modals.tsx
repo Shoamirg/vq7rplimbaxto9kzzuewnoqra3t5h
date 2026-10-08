@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type RefObject } from "react";
 import { X } from "lucide-react";
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from "@garageos/design-system";
 import { clientFetch, ClientApiError } from "@/lib/api/client";
@@ -8,10 +8,11 @@ import type { CustomerListItem, RegisteredVehicle, VehicleCatalog } from "@/lib/
 import { useI18n } from "@/lib/i18n/context";
 import { CustomerPicker } from "./customer-picker";
 
-const FIELD = "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40";
+const FIELD = "min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-hidden focus-visible:ring-2 focus-visible:ring-primary";
 
-export function NewCustomerModal({ onClose, onCreated }: {
+export function NewCustomerModal({ onClose, onCreated, returnFocusRef }: {
   onClose: () => void; onCreated: (customer: CustomerListItem) => void;
+  returnFocusRef?: RefObject<HTMLElement | null>;
 }) {
   const { t } = useI18n();
   const [name, setName] = useState("");
@@ -34,8 +35,13 @@ export function NewCustomerModal({ onClose, onCreated }: {
     } finally { setSaving(false); }
   }
   return <Dialog open onOpenChange={(open) => { if (!open && !saving) onClose(); }}>
-    <DialogContent size="md" hideClose className="max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
-      <button type="button" onClick={onClose} disabled={saving} aria-label={t("common.close")} className="absolute right-4 top-4 rounded p-1 hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary"><X className="size-4" /></button>
+    <DialogContent size="md" hideClose className="max-h-[90vh] overflow-y-auto" aria-describedby={undefined}
+      onCloseAutoFocus={(event) => {
+        // Conditional dialogs have no Radix DialogTrigger. The caller supplies
+        // its real opener rather than guessing from the already focused input.
+        if (returnFocusRef?.current?.isConnected) { event.preventDefault(); returnFocusRef.current.focus(); }
+      }}>
+      <button type="button" onClick={onClose} disabled={saving} aria-label={t("common.close")} className="absolute right-3 top-3 grid size-11 place-items-center rounded hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary"><X className="size-4" /></button>
       <DialogHeader><DialogTitle>{t("intake.new_customer")}</DialogTitle></DialogHeader>
       <form onSubmit={save} className="space-y-4">
         <label className="block text-sm space-y-1"><span>{t("intake.full_name")}</span><input className={FIELD} autoFocus value={name} onChange={(e) => setName(e.target.value)} required maxLength={255} autoComplete="name" /></label>
