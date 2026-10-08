@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import secrets
 import shutil
 import socket
 import subprocess
@@ -101,6 +102,9 @@ def cleanup():
     fixture = Path(state["fixture"]).resolve()
     if fixture != data.parent / "flutter-fixture.json":
         raise RuntimeError("Refusing cleanup of an unowned credential fixture")
+    browser_fixture = Path(state["browser_fixture"]).resolve() if "browser_fixture" in state else None
+    if browser_fixture is not None and browser_fixture != data.parent / "browser-fixture.json":
+        raise RuntimeError("Refusing cleanup of an unowned browser fixture")
     for process in reversed(state.get("processes", [])):
         if process["born"] is not None and process_birth(process["pid"]) == process["born"]:
             subprocess.run(["taskkill.exe", "/PID", str(process["pid"]), "/T", "/F"],
@@ -118,6 +122,8 @@ def cleanup():
     if (data / "postmaster.pid").exists():
         run([PG / "pg_ctl.exe", "-D", data, "-m", "fast", "-w", "stop"], ROOT, "postgres-stop")
     fixture.unlink(missing_ok=True)
+    if browser_fixture is not None:
+        browser_fixture.unlink(missing_ok=True)
     STATE.unlink()
     print("Owned fixtures stopped; credential fixture removed.", flush=True)
 
@@ -232,8 +238,9 @@ def main(allow_missing_docker):
         raise RuntimeError("Expected Flutter3.47.6; update the local pinned SDK before building")
     data = STATE_ROOT / os.environ["BUILD_NUMBER"] / "pgdata"
     fixture = data.parent / "flutter-fixture.json"
+    browser_fixture = data.parent / "browser-fixture.json"
     data.parent.mkdir(parents=True, exist_ok=False)
-    save({"pgdata": str(data), "fixture": str(fixture)})
+    save({"pgdata": str(data), "fixture": str(fixture), "browser_fixture": str(browser_fixture)})
     try:
         run([PG / "initdb.exe", "-D", data, "-U", "postgres", "--auth=trust", "--encoding=UTF8", "--locale=C"], ROOT, "postgres-init")
         run([PG / "pg_ctl.exe", "-D", data, "-l", EVIDENCE / "postgres.log", "-o", "-p 55444 -h 127.0.0.1", "-w", "start"], ROOT, "postgres-start")
@@ -254,7 +261,14 @@ def main(allow_missing_docker):
         run([dart, "run", "tool/check_l10n.dart"], APP, "flutter-locales")
         run([FLUTTER, "gen-l10n"], APP, "flutter-generate-locales")
         run([FLUTTER, "analyze"], APP, "flutter-analyze")
+        # The production Mini BFF uses genuine Telegram verification. The key
+        # is synthetic, never printed/persisted, and authenticates only against
+        # this owned test API; no development-auth fallback is enabled.
+        ENV["DEBUG"] = "false"
+        ENV["TELEGRAM_BOT_TOKEN"] = "GARAGEOS_QA_BROWSER_" + secrets.token_urlsafe(32)
+        ENV["GARAGEOS_BROWSER_FIXTURE"] = str(browser_fixture)
         run([PYTHON, "-m", "tests.support.platform_browser"], BACKEND, "platform-fixture")
+        run([PYTHON, "-m", "tests.support.browser_release", "--output", browser_fixture], BACKEND, "browser-fixture")
         run([PYTHON, APP / "tool/seed_api_smoke.py", fixture], BACKEND, "flutter-fixture")
         run(["npx.cmd", "playwright", "install", "chromium"], DASHBOARD, "browser-runtime")
         start([PYTHON, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8010"], BACKEND, "api")
@@ -270,8 +284,9 @@ def main(allow_missing_docker):
         run([FLUTTER, "test", "--reporter", "expanded", "--dart-define=RUN_LIVE_API=true",
              "--dart-define=API_URL=http://127.0.0.1:8010/api/v1", "--dart-define=SMOKE_FIXTURE=" + str(fixture)], APP, "flutter-tests-live")
         run([FLUTTER, "build", "web", "--release", "--no-web-resources-cdn"], APP, "flutter-web")
-        run(["npx.cmd", "playwright", "test", "e2e/staff-accounts.spec.ts", "e2e/service-work-invoice.spec.ts",
-             "e2e/platform.spec.ts", "e2e/theme-compat.spec.ts", "--reporter=list"], DASHBOARD, "browser-tests")
+        # Discover every spec through playwright.config.ts. Failure traces can
+        # contain auth bodies/cookies, so keep them off for this private gate.
+        run(["npx.cmd", "playwright", "test", "--retries=0", "--trace=off", "--reporter=list"], DASHBOARD, "browser-tests")
         # Release packaging needs no running API/database. Stop those fixtures
         # before the native toolchain uses the machine's memory and CPU.
         cleanup()

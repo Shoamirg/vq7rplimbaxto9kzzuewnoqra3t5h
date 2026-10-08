@@ -33,7 +33,16 @@ test("every core staff surface renders", async ({ page }) => {
     "/dashboard", "/calendar", "/appointments", "/vehicles",
     "/customers", "/operations", "/inbox", "/billing", "/reports",
   ]) {
-    await page.goto(path, { waitUntil: "networkidle" });
+    // Inbox prefetches a linked operations page. Its background request is
+    // unrelated to the already-loaded queue/thread and can prevent networkidle.
+    const inbox = path === '/inbox' ? page.waitForResponse((response) =>
+      response.url().includes('/api/proxy/conversations?') && response.ok()) : null;
+    await page.goto(path, { waitUntil: path === '/inbox' ? 'domcontentloaded' : 'networkidle' });
+    if (inbox) {
+      const data = await (await inbox).json();
+      expect(data.items.length).toBeGreaterThan(0);
+      await expect(page.getByText(data.items[0].customer_name, { exact:true }).first()).toBeVisible();
+    }
     await expectHealthyPage(page, path);
   }
 });

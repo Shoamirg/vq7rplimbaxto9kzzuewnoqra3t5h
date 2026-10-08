@@ -1,13 +1,12 @@
 import { test, expect } from "@playwright/test";
+import { prepareMini } from './support/mini-auth';
 
-// Customer journey — the Telegram Mini App in a browser (dev sign-in, no
-// Telegram). Walks Home → Vehicles → Passport → Billing → Messages → Roadside.
+// Synthetic signed Telegram launch through production authentication.
+// Walks Home → Vehicles → Passport → Billing → Messages → Roadside.
+test.use({ trace: 'off' }); // Launch data and cookies must not enter failure traces.
 
-test.beforeEach(async ({ request }) => {
-  // Compile and verify the dev sign-in route before the first Mini App render.
-  // A cold Next dev compile must not be mistaken for a customer-facing failure.
-  const auth = await request.post("/api/mini/auth", { data: { init_data: "" } });
-  expect(auth.ok(), await auth.text()).toBeTruthy();
+test.beforeEach(async ({ page, baseURL }) => {
+  await prepareMini(page, baseURL);
 });
 
 test("mini home authenticates and renders the essentials", async ({ page }) => {

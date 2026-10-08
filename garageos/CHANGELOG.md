@@ -3,6 +3,42 @@
 All notable milestones for GarageOS. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); dates are ISO-8601.
 
+## [Unreleased] — First-client candidate — 2026-10-08
+
+The `codex/service-work-demo` / PR5 candidate is tracked in
+[delivery issue10](https://github.com/Shoamirg/garageos/issues/10). This entry is
+not a release tag, deployment or real garage acceptance.
+
+### Added
+
+- Flutter staff/mechanic workflows and a separate password-customer portal,
+  UZ/EN/RU; owner browser management of employee and customer access.
+- Real mechanic-account assignment, active work across dates, completed work
+  awaiting an invoice, server search/pagination and safe manual-payment retries.
+- Explicit GET-only superadmin registry/statistics and a separate trusted
+  operator enrollment CLI with immutable reapply/conflict refusal.
+- Local Windows Jenkins, Android signing/packaging preparation and native
+  emulator evidence; production database recovery and invoice-volume rehearsals.
+- Source-grounded Uzbek usage and private operator handoff guides.
+
+### Fixed
+
+- Tenant/account lifecycle, duplicate identity and financial consistency;
+  invoice-history query growth and vulnerable dashboard/backend dependencies.
+- Browser release gate coverage: execute every configured spec instead of the
+  selected account/platform subset. Production Mini App tests use private
+  synthetic signed launch data; conflict selectors use mechanic UUIDs and mobile
+  geometry checks wait for the actual opening animation to finish.
+
+### Delivery limits
+
+Actual client HTTPS/accounts and operator enrollment, scheduled off-host backup
+and target recovery/rollback, owner Android/Apple distribution and physical
+devices, agreed workload/network checks and daily pilot/support acceptance remain
+required. Global health/inbox/audit drilldowns and exports are outside the current
+platform registry slice. Historical milestones below keep their original scope;
+current evidence and limits belong to issue10.
+
 ## [1.0.0-core] — 2026-07-05 — Complete operational platform
 
 Every daily garage workflow now works end to end: a customer books, an advisor

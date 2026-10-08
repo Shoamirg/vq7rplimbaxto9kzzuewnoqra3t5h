@@ -69,21 +69,27 @@ jobs:
         working-directory: garageos/admin-dashboard
       - run: npm run build
         working-directory: garageos/admin-dashboard
-      - name: Verify account management and service assignment in real browsers
+      - name: Verify the complete production browser release suite
         working-directory: garageos/admin-dashboard
         run: |
+          export DEBUG=false
+          export TELEGRAM_BOT_TOKEN="$(python -c 'import secrets; print("GARAGEOS_QA_BROWSER_" + secrets.token_urlsafe(32))')"
+          echo "::add-mask::$TELEGRAM_BOT_TOKEN"
+          export GARAGEOS_BROWSER_FIXTURE="$RUNNER_TEMP/browser-fixture.json"
+          trap 'rm -f -- "$GARAGEOS_BROWSER_FIXTURE"; unset TELEGRAM_BOT_TOKEN' EXIT
+          (cd ../backend && python -m tests.support.browser_release --output "$GARAGEOS_BROWSER_FIXTURE")
           (cd ../backend && python -m uvicorn app.main:app --host 127.0.0.1 --port 8010) > "$RUNNER_TEMP/api.log" 2>&1 &
           api_pid=$!
-          npm run start -- --hostname 127.0.0.1 --port 3001 > "$RUNNER_TEMP/web.log" 2>&1 &
+          node ../node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3001 > "$RUNNER_TEMP/web.log" 2>&1 &
           web_pid=$!
-          trap 'kill "$api_pid" "$web_pid" 2>/dev/null || true' EXIT
+          trap 'kill "$api_pid" "$web_pid" 2>/dev/null || true; rm -f -- "$GARAGEOS_BROWSER_FIXTURE"; unset TELEGRAM_BOT_TOKEN' EXIT
           for attempt in $(seq 1 60); do
             if curl --fail --silent http://127.0.0.1:8010/health > /dev/null && curl --fail --silent http://127.0.0.1:3001/healthz > /dev/null; then break; fi
             sleep 1
           done
           curl --fail --silent http://127.0.0.1:8010/health > /dev/null
           curl --fail --silent http://127.0.0.1:3001/healthz > /dev/null
-          npx playwright test e2e/staff-accounts.spec.ts e2e/service-work-invoice.spec.ts e2e/platform.spec.ts e2e/theme-compat.spec.ts --reporter=list
+          npx playwright test --retries=0 --trace=off --reporter=list
       - uses: actions/upload-artifact@v4
         if: always()
         with:

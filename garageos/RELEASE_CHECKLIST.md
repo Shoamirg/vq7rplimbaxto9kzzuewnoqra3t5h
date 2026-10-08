@@ -12,6 +12,10 @@ cut. Keep it honest — a red box blocks the release, not the checklist.
       (staff journey: login → dashboard → calendar → appointments → customer 360
       → operations → inbox → billing → reports; + customer journey: `/mini` home
       → vehicle passport → billing estimate → roadside → messages)
+      Run every spec in `playwright.config.ts`, with the isolated production
+      browser prerequisites in [local Jenkins](../docs/agents/local-jenkins.md).
+      A selected account/platform subset is not the complete release gate.
+      Synthetic signed Mini App launch data stays private; disable auth traces.
 - [ ] **No accessibility regressions** — keyboard-navigable, visible focus rings,
       labelled icon-only controls, ≥44px touch targets, contrast AA, reduced
       motion respected (spot-check `/mini` + one staff screen)

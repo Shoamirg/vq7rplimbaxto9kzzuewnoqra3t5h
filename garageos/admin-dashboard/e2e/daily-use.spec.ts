@@ -87,10 +87,10 @@ test("reception sees a clear mechanic conflict and keeps the entered booking", a
   const detail = await page.request.get(`/api/proxy/customers/${owner.id}`);
   const car = (await detail.json()).vehicles[0];
   const mechanics = await page.request.get("/api/proxy/cases/mechanics");
-  const mechanic = (await mechanics.json())[0].name;
+  const mechanic = (await mechanics.json())[0];
   const booked = await page.request.post("/api/proxy/appointments/direct", { data: {
     customer_id: owner.id, vehicle_id: car.id, appointment_date: "2033-10-02",
-    appointment_time: "09:00", estimated_duration_minutes: 60, mechanic_name: mechanic,
+    appointment_time: "09:00", estimated_duration_minutes: 60, mechanic_user_id: mechanic.id,
   } });
   expect(booked.ok(), await booked.text()).toBeTruthy();
   const existing = await booked.json();
@@ -104,7 +104,7 @@ test("reception sees a clear mechanic conflict and keeps the entered booking", a
     await dialog.locator("#appt-vehicle").selectOption(car.id);
     await dialog.locator("#appt-date").fill("2033-10-02");
     await dialog.locator("#appt-time").fill("09:30");
-    await dialog.locator("#appt-mechanic").selectOption({ label: mechanic });
+    await dialog.locator("#appt-mechanic").selectOption(mechanic.id);
     const rejected = page.waitForResponse((r) => r.url().endsWith("/appointments/direct") && r.request().method() === "POST");
     await dialog.getByRole("button", { name: "Navbat yaratish", exact: true }).click();
     expect((await rejected).status()).toBe(409);
@@ -215,6 +215,9 @@ test("phone navigation closes and invoice fields fit at 360px", async ({ page })
   const dialog = page.getByRole("dialog", { name: "Yangi hisob-faktura" });
   await dialog.getByRole("textbox", { name: "Tavsif", exact: true }).fill("Diagnostika");
   await dialog.getByRole("spinbutton", { name: "Birlik narxi" }).fill("150000");
+  await dialog.evaluate(async (element) => {
+    await Promise.all(element.getAnimations().map((animation) => animation.finished));
+  });
   const box = await dialog.boundingBox();
   expect(box!.x).toBeGreaterThanOrEqual(0);
   expect(box!.x + box!.width).toBeLessThanOrEqual(360);

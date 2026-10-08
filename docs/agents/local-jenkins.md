@@ -70,11 +70,35 @@ The versioned runner creates a new loopback `garage_test` PostgreSQL cluster for
 each build and refuses occupied ports 55444,8010,3001. It runs migrations/schema,
 pre-seed public API checks, full backend tests, frontend typecheck/locales/lint/
 build, Flutter UZ/EN/RU message validation/analyze/full live API tests/web build and
-the four existing production browser suites. Test services stop in `finally`,
-the generated Flutter credential fixture is removed, and logs/JUnit results are
+the complete configured production browser suite (currently43 tests in8 files),
+including staff core pages/intelligence/search, daily intake/conflict/payment
+retry, Telegram Mini App/passport/roadside and runtime translations as well as
+account/service/platform/theme regressions. The runner does not select a subset.
+Test services stop in `finally`, both private browser and Flutter fixtures are removed,
+and logs/JUnit results are
 archived under that build's `ci-evidence` directory. No existing database is reset.
 Build databases/logs are retained locally for diagnosis; no broad Docker or
 filesystem cleanup is performed.
+
+Production Next keeps its normal Telegram authentication and secure cookies.
+After backend tests, the browser API uses `DEBUG=false`. A fresh synthetic
+`GARAGEOS_QA_BROWSER_` key stays in the runner/API environment; it is not a real
+bot key. `tests.support.browser_release --output <private-dir>/browser-fixture.json`
+reads a linked seeded customer with vehicles and writes signed launch data using
+exclusive creation outside the checkout. It refuses a non-test/non-loopback
+`garage_test`, DEBUG auth, a non-QA key, external browser origin or repository
+output path. `GARAGEOS_BROWSER_FIXTURE` points Playwright at that private file.
+No customer/account is created or promoted by this fixture command.
+
+The Mini App tests provide only the synthetic browser SDK launch data; actual
+API/BFF signature verification, ownership and httpOnly session cookies stay in
+the request path. This proves browser/application behavior, not a real Telegram
+client/bot launch. Failure traces are disabled because they can contain launch
+data and auth cookies; only public screenshots/results may be archived. The
+private fixture is recorded under the owned CI database directory and removed
+on success/failure before archiving. Manual hosted fallback uses the same full
+suite and private fixture; its source is prepared on this branch, activation on
+the default branch/billing remains a separate prerequisite.
 
 After browser tests, the owned API/database fixtures stop before Android release
 packaging starts. Android SDK36/build-tools36.0.0 and the private Java21 runtime
