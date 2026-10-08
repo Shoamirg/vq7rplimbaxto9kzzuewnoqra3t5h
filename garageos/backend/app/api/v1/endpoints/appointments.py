@@ -198,7 +198,7 @@ async def complete_appointment(
 async def update_appointment(
     appointment_id: uuid.UUID,
     body: AppointmentUpdate,
-    uow: UnitOfWork = Depends(get_tenant_uow),
+    uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
 ) -> dict:
     return await AppointmentService(uow).update_appointment(
         appointment_id,

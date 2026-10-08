@@ -38,9 +38,10 @@ existing locale dictionaries/formatters. ToastProvider notifications have opaque
 card backgrounds and localized 44px dismiss controls so underlying schedule text
 cannot reduce their contrast. Remaining staff modules need their own localization
 work; dictionary coverage and the audit heuristic do not prove full translation.
-Only the completed calendar entry is removed from the staff i18n baseline after
-manual dynamic-copy/screenshot review: 13 entries remain, with 85 heuristic
-strings in 12 files. Appointments, operations/inbox and health/passport remain.
+At the issue32 boundary, removing the completed calendar entry after manual
+review left13 baseline entries and85 heuristic strings in12 files. The later
+[operational queue increment](appointments-queue.md) records the appointments
+follow-up; operations/inbox and health/passport remain separate work.
 
 ## Verification seams
 

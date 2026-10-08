@@ -221,17 +221,27 @@ async function contrastEvidence(locator: Locator) {
       };
     }
     const nearbySvg = el.parentElement?.querySelector("svg");
-    const textRect = el.getBoundingClientRect(),
-      nearbyRect = nearbySvg?.getBoundingClientRect();
+    // A heading/control can contain both an icon and text. Its union element
+    // rectangle overlaps the icon even when no glyph is painted above it.
+    // Measure actual text ranges; retain the element fallback for non-text
+    // controls rather than assuming an unknown overlap is safe.
+    const textRects: DOMRect[] = [];
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      if (!node.textContent?.trim() || node.parentElement?.closest("svg")) continue;
+      const range = document.createRange(); range.selectNodeContents(node);
+      textRects.push(...Array.from(range.getClientRects()));
+    }
+    if (!textRects.length) textRects.push(el.getBoundingClientRect());
+    const nearbyRect = nearbySvg?.getBoundingClientRect();
     // An adjacent icon cannot form the text background. An opaque badge also
     // paints over it. Only overlapping transparent text needs an SVG review.
     const svg =
       nearbyRect &&
       rgba(style.backgroundColor)[3] < 1 &&
-      textRect.left < nearbyRect.right &&
-      textRect.right > nearbyRect.left &&
-      textRect.top < nearbyRect.bottom &&
-      textRect.bottom > nearbyRect.top
+      textRects.some(textRect => textRect.left < nearbyRect.right &&
+        textRect.right > nearbyRect.left && textRect.top < nearbyRect.bottom &&
+        textRect.bottom > nearbyRect.top)
         ? nearbySvg
         : null;
     if (svg) {
@@ -284,7 +294,7 @@ export async function assertAccessible(
     ).toContain(rule.id);
     for (const node of rule.nodes) {
       if (rule.id === "aria-hidden-focus") {
-        expect(state).toBe("staff-dialog");
+        expect(["staff-dialog", "queue-invoice"]).toContain(state);
         await expect(page.getByRole("dialog")).toBeVisible();
         evidence.push({
           rule: rule.id,

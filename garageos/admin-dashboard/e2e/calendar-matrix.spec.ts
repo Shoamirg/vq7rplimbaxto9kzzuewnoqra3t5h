@@ -248,6 +248,8 @@ for (const locale of ["en", "ru", "uz"] as Locale[]) for (const width of [360, 1
       await collision.getByRole("button", { name: t("calendar.keep"), exact: true }).click(); expect((await stored(moving)).appointment_time).toBe("10:00");
       await dragTo(page, card(moving), 960); await expect(collision).toBeVisible();
       const tomorrow = patchPromise(moving); await collision.getByRole("button", { name: t("calendar.tomorrow"), exact: true }).click(); const tomorrowResponse = await tomorrow; expect(tomorrowResponse.ok()).toBeTruthy();
+      expect(tomorrowResponse.request().postDataJSON().appointment_date.slice(0, 10)).toBe(nextDay(date));
+      expect((await tomorrowResponse.json()).appointment_date.slice(0, 10)).toBe(nextDay(date));
       expect(tomorrowResponse.request().postDataJSON()).not.toHaveProperty("mechanic_user_id"); expect((await stored(moving)).appointment_date.slice(0, 10)).toBe(nextDay(date)); expect((await stored(moving)).mechanic_user_id).toBe(users[0]);
       await expect(card(moving)).toHaveCount(0); await fillDate(nextDay(date)); await expect(card(moving)).toBeVisible();
       await main.getByRole("button", { name: t("calendar.week"), exact: true }).click(); await expect(card(moving)).toBeVisible();

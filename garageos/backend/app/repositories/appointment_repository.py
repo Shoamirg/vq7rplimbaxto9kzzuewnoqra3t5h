@@ -262,6 +262,7 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
         # Today's appointments
         today_stmt = select(func.count()).select_from(Appointment).where(
             Appointment.service_center_id == service_center_id,
+            Appointment.is_active.is_(True),
             Appointment.appointment_date >= datetime.combine(today, datetime.min.time()),
             Appointment.appointment_date < datetime.combine(today, datetime.max.time()),
         )

@@ -23,6 +23,14 @@ not a release tag, deployment or real garage acceptance.
 
 ### Fixed
 
+- Operational appointments use readable phone cards/full desktop text, localized
+  controls/status/duration/health/billing and truthful separate loading/error
+  states. Current-page selection prevents hidden-query bulk mutations; actual
+  failures/ineligible states are reported and overlapping dispatch is guarded.
+  Whole-tenant Today counts exclude inactive records. Appointment invoice controls
+  meet44px without changing financial payloads or calculations. See
+  [queue workflow](docs/appointments-queue.md) for date/count semantics and seams.
+
 - Staff calendar Day/Week/Month load actual tenant ranges and preserve account
   assignments when moving or resizing visits. Same-name UUID lanes, legacy and
   off-grid records, cancelled opt-in, real booking/contacts and trapped localized

@@ -10,7 +10,7 @@ import type { Appointment, Customer360, CustomerListItem, InvoiceDoc } from "@/l
 import { CustomerPicker } from "@/components/intake/customer-picker";
 import { NewCustomerModal, NewVehicleModal } from "@/components/intake/intake-modals";
 
-const FIELD = "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40";
+const FIELD = "min-h-11 min-w-0 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40";
 const LABEL = "block text-xs font-semibold text-muted-foreground mb-1.5";
 const LINE_KINDS = [["part", "Part"], ["labor", "Labor"], ["fee", "Fee"], ["discount", "Discount"]] as const;
 
@@ -123,7 +123,7 @@ export function NewInvoiceModal({
 
   return <>
     <Dialog open onOpenChange={(open) => { if (!open && !saving) onClose(); }}>
-      <DialogContent size="lg" hideClose noPadding aria-describedby={undefined} className="max-h-[92vh] overflow-y-auto">
+      <DialogContent size="lg" hideClose noPadding aria-describedby={undefined} className="max-h-[92vh] overflow-y-auto [&_button]:min-h-11 [&_button]:min-w-11 [&_input]:min-h-11 [&_select]:min-h-11">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <DialogTitle className="flex items-center gap-2 text-base font-bold">
             <Receipt className={`size-4 ${isEstimate ? "text-blue-600" : "text-emerald-600"}`} /> {t(isEdit ? "invoice.edit" : "invoice.new")}{isEdit && edit ? ` · ${edit.code}` : ""}
