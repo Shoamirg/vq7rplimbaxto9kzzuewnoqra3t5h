@@ -1,8 +1,10 @@
 # Admin tayinlovi va ustaning shaxsiy ishlari
 
-Bu #18 dagi birinchi bo‘lak: adminning brauzerdagi tayinlovi va ustaning
-Android/iOS Flutter oqimi. Mijoz Flutter paneli, adminning akkaunt yaratish
-ekrani va superadmin paneli ushbu bo‘lakda hali amalga oshirilmagan.
+Adminning brauzerdagi tayinlovi va ustaning Android/iOS Flutter oqimi.
+Admin xodim akkauntini [Sozlamalar orqali](STAFF-ACCOUNTS.md) yaratishi mumkin;
+operatorning dastlabki provisioning yo‘li ham saqlanadi. Mijoz login/tarixi va
+superadminning ko‘rish paneli alohida mavjud oqimlardir. Kundalik rollar va
+kirish uchun [foydalanish yo‘riqnomasiga](USER-GUIDE.md) qarang.
 
 ## Foydalanish
 

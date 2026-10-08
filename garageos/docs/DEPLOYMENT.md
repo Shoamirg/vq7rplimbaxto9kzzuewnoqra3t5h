@@ -25,6 +25,8 @@ ready. Verify those against the actual target environment before handover.
 The current staff API/Flutter permissions contract is documented in
 `backend/README.md` and `flutter_app/README.md`; update both together. Do not use
 seeded demo passwords or reset the client's database with `--fresh`.
+Prepare the private client receipt, backup/update/rollback and support procedure
+in [HANDOFF.md](HANDOFF.md). Give users the [Uzbek daily-use guide](USER-GUIDE.md).
 
 - A Linux host (2 vCPU / 4 GB RAM is enough to start) with Docker + Docker Compose.
 - A domain with an **A record** pointing at the host's public IP (e.g.
@@ -302,17 +304,28 @@ These controls are on by default and configured in `.env.prod`:
 
 ## Operate
 
+Use the [operator handoff procedure](HANDOFF.md#3-yangilash) for updates: select a
+verified full commit SHA, preserve previous image/config and volume identities,
+pause writes, back up and restore-test, verify schema compatibility and rehearse
+rollback before starting the candidate. Backend startup runs migrations.
+Fetching a branch or a green build alone is not a client deployment decision.
+
+From the deployed `garageos/` directory, inspect the configured stack:
+
 ```bash
 # logs
-docker compose -f docker-compose.prod.yml logs -f backend dashboard
-# update to a new version
-git pull && docker compose -f docker-compose.prod.yml up -d --build
-# restore a backup
-gunzip -c backups/garageos-YYYYMMDD-HHMMSS.sql.gz | \
-  docker compose -f docker-compose.prod.yml exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+docker compose -f docker-compose.prod.yml --env-file .env.prod logs -f backend dashboard
+# internal DB/Redis readiness
+docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T backend curl -fsS http://127.0.0.1:8000/ready
 # verify a backup actually restores (throwaway container, non-destructive)
-./scripts/restore-test.sh
+bash scripts/restore-test.sh
 ```
+
+For actual data recovery, restore to a separate database, check roles/schema/data
+and application behavior, then authorize a controlled connection switch. Plain
+SQL import into the active database is not a rollback. Account for writes since
+the chosen backup and preserve the existing database for reconciliation. See
+[rollback decisions](HANDOFF.md#4-yangilanishdan-qaytish).
 
 ## Still to come in Phase 12
 

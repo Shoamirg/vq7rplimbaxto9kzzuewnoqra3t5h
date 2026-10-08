@@ -2,6 +2,12 @@
 
 First working Flutter slice of the uploaded GarageOS design: **customer + car → appointment → assigned service work → one linked UZS invoice → manual payment record**. Scope: [GitHub issue #7](https://github.com/Shoamirg/garageos/issues/7). The existing Next.js dashboard and FastAPI backend remain available.
 
+Current daily use, mechanic/customer login and payment retry instructions:
+[Uzbek user guide](../docs/USER-GUIDE.md). Client hosting, release identity,
+backup/update and support acceptance: [operator handoff](../docs/HANDOFF.md).
+The milestone verification sections below are historical; current delivery
+status and exact-commit evidence live in [issue #10](https://github.com/Shoamirg/garageos/issues/10).
+
 For iPhone build checks and partner installation through TestFlight, see the [Uzbek iOS guide](docs/ios.md) and [issue #8](https://github.com/Shoamirg/garageos/issues/8). A simulator/unsigned build is separate from a signed, installable iPhone release.
 
 Android private signing, explicit HTTPS API, split APKs and QA-only Jenkins
@@ -119,7 +125,15 @@ The preceding iOS increment on `5b9ff42` passed an unsigned iPhone release build
 
 ## Subsequent milestones
 
-The 100 HTML files are the complete reference, not 100 implemented Flutter screens. Customer app, console, real SMS/OTP/push, inspection/photos/signatures, richer job pipeline, estimates/approval UI, inventory, staff role screens, payment gateways, refunds UI, printable/shareable mobile documents and production rollout remain separate milestones. iOS project files exist; iOS signing/build/device tests require macOS/Xcode. Android debug APKs use a development key; release builds require private signing and explicit HTTPS API. Temporary QA certificates do not prove owner/client distribution.
+The 100 HTML files are the complete reference, not 100 implemented Flutter screens.
+Mechanic assigned work and the customer password/history portal are implemented;
+owner employee/customer access screens and platform reads are in the browser.
+Real SMS/OTP/push, inspection/photos/signatures, richer job pipeline,
+estimates/approval UI, inventory, payment gateways, refunds UI,
+printable/shareable mobile documents and production rollout remain separate
+milestones. iOS signing/build/device tests require macOS/Xcode. Android debug
+APKs use a development key; release builds require private signing and explicit
+HTTPS API. Temporary QA certificates do not prove owner/client distribution.
 
 ## Layout
 

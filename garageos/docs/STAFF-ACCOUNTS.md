@@ -38,6 +38,7 @@ are retained when employees are suspended or their names/roles change.
   append an audit record in the same transaction, containing actor/target IDs
   and changed field names, without secret values.
 
-The customer Flutter login and global superadmin management are separate
-increments. Production hosting, signing, physical devices and client pilot
-acceptance remain separate delivery gates.
+The implemented customer password portal and global superadmin read panel have
+separate access contracts. See the [Uzbek usage guide](USER-GUIDE.md) for those
+flows. Production hosting, owner signing, physical devices and client pilot
+acceptance remain separate gates in the [operator handoff](HANDOFF.md).

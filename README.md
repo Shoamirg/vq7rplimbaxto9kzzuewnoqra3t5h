@@ -35,7 +35,7 @@ Every action emits a domain event (`AppointmentCreated`, `EstimateApproved`, …
 |---|---|
 | **Appointments & Calendar** | Book from the calendar, the vehicle page or Customer 360; reschedule, edit, delete |
 | **Service workflow** | Operations Center, operational cases, mechanic assignment, live status |
-| **Billing** | Estimates → invoices, editable line items, PDF with pay-QR, shareable public `/invoice/[id]` link, send by email or Telegram |
+| **Billing** | Estimates → invoices, editable line items, print/PDF, shareable public `/invoice/[id]` link and manual recording of money already received |
 | **Financial ledger** | Double-entry `LedgerEntry` model with a built-in integrity reconciliation (debit − credit = outstanding) |
 | **Vehicle Intelligence Center** | A "digital twin": health, certified passport, predictions and full timeline on one screen |
 | **Reports & Analytics** | Executive overview, commercial report, AR aging, conversion funnel, hand-built SVG charts |
@@ -161,11 +161,19 @@ npm run e2e      # Playwright
 
 The production stack (`docker-compose.prod.yml`) runs the API, dashboard, bot, Postgres and Redis behind Caddy with automatic HTTPS. Copy `.env.prod.example` to `.env.prod`, fill in the `__CHANGE_ME__` values, and follow [`garageos/docs/DEPLOYMENT.md`](garageos/docs/DEPLOYMENT.md). Run through [`RELEASE_CHECKLIST.md`](garageos/RELEASE_CHECKLIST.md) before each release.
 
+For daily owner/reception/mechanic/customer use, read the
+[Uzbek user guide](garageos/docs/USER-GUIDE.md). Operators use the
+[handoff procedure and private acceptance receipt](garageos/docs/HANDOFF.md)
+for backups, pinned updates/rollback, mobile delivery and support.
+
 > The Telegram Mini App only launches from a **public HTTPS** URL (`TELEGRAM_MINI_APP_URL`).
 
 ## Project status
 
-**v1.0.0-core** is the complete operational platform. Release gate: 72 backend tests, type check, lint, i18n, production build, and Playwright e2e 10/10.
+**v1.0.0-core** is a historical core milestone. Current implementation,
+exact-commit verification and remaining client delivery gates are tracked in
+[issue #10](https://github.com/Shoamirg/garageos/issues/10). Local/CI checks do
+not complete hosting, owner-signed physical-device or workshop pilot acceptance.
 See [`CHANGELOG.md`](garageos/CHANGELOG.md) for each milestone, from the multi-tenant core through the Unified Communications Platform (UCP), commercial operations, reports, the Telegram Mini App and production hardening.
 
 **Next up (v1.1):** garage branding on public invoices, online payments, and binary photo/voice storage for roadside requests.

@@ -30,6 +30,11 @@ cut. Keep it honest — a red box blocks the release, not the checklist.
 
 ## Process
 
+Current GarageOS client delivery uses `codex/service-work-demo` and PR #5;
+merging, tagging and deployment require their own authorization. The generic
+tagged-release process below does not authorize those actions. Current evidence
+and remaining gates live in [issue #10](https://github.com/Shoamirg/garageos/issues/10).
+
 1. Branch `feature/<name>`; build in verifiable increments.
 2. Run the gates above locally; fix reds.
 3. Update `CHANGELOG.md` + `docs/demo-flow.md` if the flow changed.
@@ -38,6 +43,10 @@ cut. Keep it honest — a red box blocks the release, not the checklist.
 
 ## Environment reminders
 
+These reminders and demo reseeding apply only to an isolated development/demo
+database. Never use `--fresh`, schema downgrade or volume deletion to repair a
+client deployment. Client update/rollback follows [HANDOFF.md](docs/HANDOFF.md).
+
 - Backend on **:8010** (no `--reload` — it spawns un-killable zombies); restart
   fully to pick up new routes.
 - Next dev on **:3000** (falls back to :3001 if held); restart to pick up new
@@ -45,3 +54,11 @@ cut. Keep it honest — a red box blocks the release, not the checklist.
 - Postgres on **:5433** (host :5432 is taken); use `127.0.0.1`, not `localhost`.
 - `PYTHONIOENCODING=utf-8` for any smoke script that prints non-ASCII.
 - After live tests that mutate data, re-seed `--fresh` for a clean demo.
+
+## Client handoff
+
+Use [HANDOFF.md](docs/HANDOFF.md) to record actual hosting/accounts,
+scheduled off-host backups and restore/rollback, owner signing and physical
+Android/iPhone checks, agreed performance, daily pilot and support owner.
+Give users [USER-GUIDE.md](docs/USER-GUIDE.md) and confirm they can follow it.
+Blank receipt fields and synthetic QA results leave those client gates pending.
