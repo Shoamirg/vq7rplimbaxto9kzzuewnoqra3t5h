@@ -208,12 +208,13 @@ def main(allow_missing_docker):
     if missing and not allow_missing_docker:
         raise RuntimeError("Docker Linux engine is required for production transport/recovery gates")
     if missing:
-        (EVIDENCE / "unavailable-gates.txt").write_text("NOT RUN: Docker production routing, dashboard build-context and database recovery gates.\n", encoding="utf-8")
+        (EVIDENCE / "unavailable-gates.txt").write_text("NOT RUN: Docker production routing, dashboard build-context, database recovery and invoice volume gates.\n", encoding="utf-8")
         print("LIMIT: Docker transport/recovery gates unavailable; result cannot be SUCCESS.", flush=True)
     else:
         docker_gate(docker_prefix, "test_dashboard_build_context.py", "build-context")
         docker_gate(docker_prefix, "test_public_routing.py", "public-routing")
         docker_gate(docker_prefix, "test_database_recovery.py", "database-recovery", EVIDENCE / 'database-recovery')
+        docker_gate(docker_prefix, "test_invoice_volume.py", "invoice-volume", EVIDENCE / 'invoice-volume')
     run([sys.executable, "-m", "venv", PYTHON.parent.parent], ROOT, "python-environment")
     run([PYTHON, "-m", "pip", "install", "--upgrade", "pip==26.2.1"], BACKEND, "backend-installer")
     run([PYTHON, "-m", "pip", "install", "-r", "requirements-dev.txt"], BACKEND, "backend-dependencies")
@@ -286,6 +287,7 @@ def main(allow_missing_docker):
         revision = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
         (EVIDENCE / "result.json").write_text(json.dumps({"sha": revision, "docker_gates": "unavailable" if missing else "passed", "application_gates": "passed",
             "database_recovery_gates": "unavailable" if missing else "passed",
+            "invoice_volume_gates": "unavailable" if missing else "passed",
             "docker_environment": "WSL " + os.environ["GARAGEOS_DOCKER_WSL_DISTRO"] if docker_prefix else "Windows Docker context"}, indent=2), encoding="utf-8")
         return 3 if missing else 0
     finally:

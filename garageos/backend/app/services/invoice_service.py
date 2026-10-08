@@ -13,6 +13,7 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 from sqlalchemy import func, or_, select, text
+from sqlalchemy.orm import joinedload, raiseload
 
 from app.core.events import (
     EstimateApproved,
@@ -605,10 +606,30 @@ class InvoiceService:
                         (Brand.name + " " + VehicleModel.name).ilike(pattern, escape="/"))).exists()
             filtered = filtered.where(or_(Invoice.code.ilike(pattern, escape="/"), customer_match, vehicle_match))
         total = int(await self.session.scalar(select(func.count()).select_from(filtered.subquery())) or 0)
-        stmt = filtered.order_by(Invoice.created_at.desc(), Invoice.id.desc()).offset(
+        stmt = filtered.options(raiseload("*")).order_by(Invoice.created_at.desc(), Invoice.id.desc()).offset(
             (page - 1) * page_size).limit(page_size)
         rows = list((await self.session.execute(stmt)).scalars().all())
-        items = [await self.serialize_row(inv) for inv in rows]
+        # History needs names/labels, not each customer's appointments/vehicles
+        # or every vehicle's service records. Fetch only this page's projections.
+        customer_ids = {inv.customer_id for inv in rows}
+        names = dict((await self.session.execute(select(Customer.id, Customer.full_name).where(
+            Customer.service_center_id == self.sc, Customer.id.in_(customer_ids),
+        ))).all()) if customer_ids else {}
+        vehicle_ids = {inv.vehicle_id for inv in rows if inv.vehicle_id}
+        labels = {}
+        if vehicle_ids:
+            vehicles = (await self.session.execute(select(Vehicle).where(
+                Vehicle.service_center_id == self.sc, Vehicle.id.in_(vehicle_ids),
+                Vehicle.is_active.is_(True),
+            ).options(raiseload("*"), joinedload(Vehicle.vehicle_model).joinedload(VehicleModel.brand)))).scalars().all()
+            labels = {vehicle.id: _vehicle_label(vehicle) for vehicle in vehicles}
+        items = []
+        for inv in rows:
+            item = self._serialize_fields(inv)
+            item["customer_name"] = names.get(inv.customer_id)
+            if inv.vehicle_id:
+                item["vehicle_label"] = labels.get(inv.vehicle_id)
+            items.append(item)
         return {"items": items, "counts": await self.counts(), "kpis": await self.kpis(), "view": view,
                 "total": total, "page": page, "page_size": page_size,
                 "total_pages": (total + page_size - 1) // page_size}
@@ -708,7 +729,8 @@ class InvoiceService:
         return [{"title": n.title, "detail": n.body, "date": n.created_at.isoformat(),
                  "severity": n.severity} for n in rows]
 
-    async def serialize_row(self, inv: Invoice, full: bool = False) -> dict:
+    @staticmethod
+    def _serialize_fields(inv: Invoice) -> dict:
         out = {
             "id": str(inv.id), "code": inv.code, "kind": inv.kind, "status": inv.status,
             "currency": inv.currency, "tax_rate": _f(inv.tax_rate),
@@ -730,6 +752,10 @@ class InvoiceService:
                            and inv.status in {InvoiceStatus.ISSUED, InvoiceStatus.PARTIAL, InvoiceStatus.OVERDUE}
                            and inv.due_date is not None and inv.due_date < date.today()),
         }
+        return out
+
+    async def serialize_row(self, inv: Invoice, full: bool = False) -> dict:
+        out = self._serialize_fields(inv)
         cust = (await self.session.execute(select(Customer).where(
             Customer.id == inv.customer_id, Customer.service_center_id == self.sc,
         ))).scalar_one_or_none()

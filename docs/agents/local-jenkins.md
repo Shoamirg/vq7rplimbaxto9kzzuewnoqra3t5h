@@ -94,10 +94,14 @@ distributed to clients. See the [Android release guide](../../garageos/flutter_a
 for owner signing and physical-device acceptance still required for delivery.
 
 Docker Linux containers are required for production Caddy routing,
-Docker build-context and actual PostgreSQL recovery gates. The recovery gate
+Docker build-context, actual PostgreSQL recovery and invoice-volume gates. The data gates
 also requires Linux Python/Bash and Docker Compose. It builds the current
 production backend, verifies restart/full archive restoration, staff/customer
 authentication, retained payment idempotency and real corrupt-gzip/SQL failures.
+The separate invoice-volume rehearsal adds20000 invoices across two garages,
+requires bounded query work at100-row pages and measures sequential/five-client
+HTTP reads with production defaults. Local timing receipts are not client-network,
+device or hardware-independent capacity acceptance.
 Only sanitized evidence is archived; its own private credentials, archives and
 QA containers/volumes are removed. See the [recovery rehearsal](../../garageos/docs/DEPLOYMENT.md#5-backups).
 When the engine is unavailable, all other gates
@@ -111,7 +115,7 @@ distro for those Linux-container gates. `runtime.json` sets
 `dockerWslDistro` to `Ubuntu-24.04`; the launcher passes it as
 `GARAGEOS_DOCKER_WSL_DISTRO`. The runner starts that distro's local Docker service
 with WSL's root user, probes it as the default Linux user, and executes the
-routing/build-context/recovery scripts there using Linux paths. The regular
+routing/build-context/recovery/invoice-volume scripts there using Linux paths. The regular
 backend/Flutter/browser suites run on Windows; recovery additionally starts the
 actual Linux production backend. Docker Engine was installed from Docker's
 signed official Ubuntu apt repository; the existing Linux user belongs to its

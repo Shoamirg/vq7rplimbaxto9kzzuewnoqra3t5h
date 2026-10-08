@@ -10,7 +10,7 @@ concurrency:
 
 jobs:
   public-routing:
-    name: Production · routing · database recovery
+    name: Production · routing · recovery · invoice volume
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,11 +23,15 @@ jobs:
         run: python garageos/scripts/test_public_routing.py
       - name: Verify actual PostgreSQL backup and recovery
         run: python garageos/scripts/test_database_recovery.py --output ci-evidence/database-recovery
+      - name: Verify bounded invoice queries and production volume reads
+        run: python garageos/scripts/test_invoice_volume.py --output ci-evidence/invoice-volume
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: database-recovery
-          path: ci-evidence/database-recovery
+          name: production-data-evidence
+          path: |
+            ci-evidence/database-recovery
+            ci-evidence/invoice-volume
           retention-days: 7
 
   backend:

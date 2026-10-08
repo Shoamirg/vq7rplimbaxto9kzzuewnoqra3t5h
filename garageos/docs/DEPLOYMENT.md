@@ -272,6 +272,10 @@ client pilot acceptance. PostgreSQL `pg_dump` saves one database; cluster-global
 roles/tablespaces need their own recovery plan. See the
 [PostgreSQL16 dump/restore guide](https://www.postgresql.org/docs/16/backup-dump.html).
 
+For the separate production invoice-history volume rehearsal and its query/timing
+evidence limits, see [PERFORMANCE.md](PERFORMANCE.md). Run it before deployment
+and record actual client/network/device measurements separately.
+
 ## 6. Security & reliability (M2)
 
 These controls are on by default and configured in `.env.prod`:
