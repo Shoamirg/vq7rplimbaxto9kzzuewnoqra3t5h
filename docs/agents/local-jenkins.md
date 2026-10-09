@@ -198,3 +198,35 @@ is running. Other Ubuntu activity is outside Jenkins ownership.
 The local Windows tool paths are held in `runtime.json`, outside Git. The Flutter
 SDK must be3.47.6. Python3.12, Node, Git/GitHub CLI, PostgreSQL binaries and the
 user's GitHub keyring must stay available to the logged-in build agent.
+
+
+## Bounded browser failure observation
+
+`settleMotion` still waits for `document.fonts.ready` and the original captured
+finite-animation `finished` promises. It writes an atomic numeric/enum motion
+snapshot during those waits, with a bounded 15-second sampling window. It never
+finishes/cancels animations, changes timeouts or skips an accessibility check.
+
+The initial staff navigation and single final Inbox unfollow action retain
+their original behavior and assertions. On failure their observer writes only
+bounded classified request/status metadata and native pointer/disabled state;
+it preserves the original error. URLs, queries, headers, bodies, DOM text,
+credentials and raw errors are excluded. Only `net::ERR_NO_BUFFER_SPACE`
+activates a read-only memory/TCP-count probe; its optional Windows subprocess
+has a 2.5-second timeout and neither endpoints nor individual ports are saved.
+Observers remove their own listeners; no global host restart is performed.
+
+Four standalone helper contracts run with the existing Playwright command from
+`garageos/admin-dashboard`:
+
+```
+npx playwright test e2e/failure-diagnostics.spec.ts --retries=0 --trace=off
+```
+
+They route synthetic loopback pages/fonts and need no app/API/database server.
+They verify pending real font/finite-animation waits, exact return/error
+identity, trusted pointers, classified network data, selected-only host probes
+and exclusion of private canaries. Keep trace, screenshot and video disabled
+for these contracts. Their success proves helper observation behavior; a green
+rerun alone does not establish the cause of an earlier intermittent failure.
+Production regression acceptance still requires the full real-API suite.

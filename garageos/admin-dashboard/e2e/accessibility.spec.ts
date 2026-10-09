@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { prepareMini } from "./support/mini-auth";
 import { brandCssVars } from "../lib/branding";
+import { withFailureDiagnostics } from "./support/failure-diagnostics";
 import {
   assertAccessible,
   assertKeyboardFocus,
@@ -115,7 +116,9 @@ for (const locale of ["en", "ru", "uz"] as const)
           data: { email: "admin@demo.garageos.app", password: "demo1234" },
         });
         expect(auth.ok()).toBeTruthy();
-        await page.goto("/customers");
+        await withFailureDiagnostics(page, info, "staff-initial-navigation", async () => {
+          await page.goto("/customers");
+        });
         const trigger = page.getByRole("button", {
           name: labels[locale].create,
           exact: true,

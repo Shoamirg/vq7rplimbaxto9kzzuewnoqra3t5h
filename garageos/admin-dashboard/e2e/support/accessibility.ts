@@ -1,23 +1,51 @@
 import AxeBuilder from "@axe-core/playwright";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import { observeMotion } from "./failure-diagnostics";
 import {
   expect,
+  test,
   type Locator,
   type Page,
   type TestInfo,
 } from "@playwright/test";
 
-export async function settleMotion(page: Page) {
-  await page.evaluate(async () => {
-    await document.fonts.ready;
-    await Promise.all(
-      document
-        .getAnimations()
-        .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity)
-        .map((a) => a.finished.catch(() => {})),
-    );
-  });
+export async function settleMotion(page: Page, info: TestInfo = test.info()) {
+  const observation = await observeMotion(page, info);
+  try {
+    await page.evaluate(async prefix => {
+      const started = performance.now();
+      let phase = "fonts", samples = 0;
+      let captured: Animation[] | undefined;
+      const finite = (value: unknown): number | null =>
+        typeof value === "number" && Number.isFinite(value) ? value : null;
+      const report = () => {
+        try {
+          console.debug(prefix + JSON.stringify({ phase, elapsedMs: performance.now() - started,
+            fonts: { status: document.fonts.status },
+            animations: (captured ?? document.getAnimations()).slice(0, 32).map(animation => {
+              const timing = animation.effect?.getComputedTiming();
+              return { playState: animation.playState, currentTime: finite(animation.currentTime),
+                startTime: finite(animation.startTime), duration: finite(timing?.duration),
+                iterations: timing?.iterations === Infinity ? "Infinity" : finite(timing?.iterations) };
+            }),
+          }));
+        } catch { /* Observation never changes animation/font completion. */ }
+      };
+      report();
+      const timer = setInterval(() => { report(); if (++samples >= 15) clearInterval(timer); }, 1000);
+      try {
+        await document.fonts.ready;
+        captured = document.getAnimations()
+          .filter(a => a.effect?.getComputedTiming().iterations !== Infinity);
+        // Capture the original finished promises before observing their state.
+        const waiting = captured.map(a => a.finished.catch(() => {}));
+        phase = "animations"; report();
+        await Promise.all(waiting);
+        phase = "settled"; report();
+      } finally { clearInterval(timer); }
+    }, observation.prefix);
+  } finally { await observation.close(); }
 }
 
 /** Measure the project's44px controls, including controls below the fold. */

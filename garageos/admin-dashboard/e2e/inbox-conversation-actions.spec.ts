@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
+import { withFailureDiagnostics } from "./support/failure-diagnostics";
 import { queueLogin, queueOverflow, queueTargets, switchQueueLocale } from "./support/queue";
 import { assertAccessible, assertKeyboardFocus } from "./support/accessibility";
 import { translate, type Locale } from "../lib/i18n/dictionaries";
@@ -117,8 +118,11 @@ for (const [locale, width] of [["uz", 360], ["en", 390], ["ru", 1280]] as const)
       await expect(status(page, locale)).toHaveValue(value);
       current = await stored(page, target.id); expect(current.status).toBe(value); expect(current.is_following).toBe(true);
     }
-    await page.getByRole("button", { name: translate(locale, "message.following"), exact: true }).click();
-    await expect(page.getByRole("button", { name: translate(locale, "message.follow"), exact: true })).toBeEnabled();
+    await withFailureDiagnostics(page, info, "inbox-final-unfollow", async () => {
+      await page.getByRole("button", { name: translate(locale, "message.following"), exact: true }).click();
+      await expect(page.getByRole("button", { name: translate(locale, "message.follow"), exact: true })).toBeEnabled();
+    }, { targetPath: `/api/proxy/conversations/${target.id}/follow`,
+      followingLabel: translate(locale, "message.following") });
     current = await stored(page, target.id); expect(current.is_following).toBe(false); expect(current.assigned_user_id).toBeNull();
     await queueOverflow(page); await queueTargets(page, page.locator("main"));
     await assertAccessible(page, info, `action-states-${locale}-${width}`);
