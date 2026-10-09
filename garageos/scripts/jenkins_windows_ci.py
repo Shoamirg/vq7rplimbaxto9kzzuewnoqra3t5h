@@ -153,10 +153,12 @@ def docker_environment():
     """Keep Linux Docker gates on the configured WSL host, without a public API."""
     distro = os.environ.get("GARAGEOS_DOCKER_WSL_DISTRO")
     if distro:
-        prefix = ["wsl.exe", "--distribution", distro, "--exec"]
+        # MSIX can redirect the Windows cwd into a package LocalCache directory.
+        # WSL cannot inherit that apparent cwd; scripts use absolute paths below.
+        prefix = ["wsl.exe", "--distribution", distro, "--cd", "/", "--exec"]
         probe = [*prefix, "/usr/bin/docker", "info"]
         try:
-            started = subprocess.run(["wsl.exe", "--distribution", distro, "--user", "root", "--exec",
+            started = subprocess.run(["wsl.exe", "--distribution", distro, "--cd", "/", "--user", "root", "--exec",
                                       "/usr/bin/systemctl", "start", "docker"],
                                      capture_output=True, timeout=30)
             if started.returncode:
@@ -184,13 +186,13 @@ def docker_gate(prefix, script, name, output=None):
     path = ROOT / "garageos/scripts" / script
     if prefix:
         # The daemon and bind-mounted fixture files must use the same Linux paths.
-        linux_path = subprocess.check_output([*prefix, "/usr/bin/wslpath", "-u", str(path)],
+        linux_path = subprocess.check_output([*prefix, "/usr/bin/wslpath", "-u", str(path.resolve())],
                                              text=True, encoding="utf-8", timeout=30).strip()
         command = [*prefix, "/usr/bin/python3", linux_path]
     else:
         command = [sys.executable, path]
     if output is not None:
-        output_path = str(output)
+        output_path = str(output.resolve()) if prefix else str(output)
         if prefix:
             output_path = subprocess.check_output([*prefix, '/usr/bin/wslpath', '-u', output_path],
                                                  text=True, encoding='utf-8', timeout=30).strip()
@@ -218,6 +220,9 @@ def main(allow_missing_docker):
         (EVIDENCE / "unavailable-gates.txt").write_text("NOT RUN: Docker production routing, dashboard build-context, database recovery and invoice volume gates.\n", encoding="utf-8")
         print("LIMIT: Docker transport/recovery gates unavailable; result cannot be SUCCESS.", flush=True)
     else:
+        if docker_prefix:
+            run([sys.executable, ROOT / "garageos/scripts/test_jenkins_wsl_transport.py"],
+                ROOT, "wsl-transport")
         docker_gate(docker_prefix, "test_dashboard_build_context.py", "build-context")
         docker_gate(docker_prefix, "test_public_routing.py", "public-routing")
         docker_gate(docker_prefix, "test_database_recovery.py", "database-recovery", EVIDENCE / 'database-recovery')

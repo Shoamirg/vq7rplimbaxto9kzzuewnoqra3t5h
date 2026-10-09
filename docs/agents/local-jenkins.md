@@ -167,6 +167,16 @@ signed official Ubuntu apt repository; the existing Linux user belongs to its
 Docker group. No TCP Docker API or SSH server is exposed. Windows Docker Desktop
 storage/context are separate; its startup defect remains unresolved.
 
+The Windows app can redirect apparent `%LOCALAPPDATA%` paths into its package
+`LocalCache`. WSL sees the physical filesystem, so the runner resolves input and
+output paths before `wslpath` conversion and starts every WSL invocation with
+`--cd /`. Scripts use absolute paths and derive their source root from `__file__`.
+The `wsl-transport` gate verifies real synthetic source/output access before the
+original Docker gates; it does not relocate the agent or change its permissions.
+Run the same regression locally with the configured
+`GARAGEOS_DOCKER_WSL_DISTRO` and
+`python garageos/scripts/test_jenkins_wsl_transport.py`.
+
 Docker's systemd service starts when WSL starts. After editing `runtime.json` or
 the launcher, wait for builds to finish, stop only the recorded matching
 `build-agent` process, then run the launcher to refresh the agent environment.
