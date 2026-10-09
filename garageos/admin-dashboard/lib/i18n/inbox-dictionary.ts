@@ -2,6 +2,10 @@ import type { Locale } from "./dictionaries";
 
 export const INBOX_DICTIONARY: Record<Locale, Record<string, string>> = {
   en: {
+    "inbox.read.pending": "Acknowledging viewed history…", "inbox.read.acknowledged": "Viewed history acknowledged.",
+    "inbox.read.error": "Viewed history could not be acknowledged. Reload before trying again.",
+    "inbox.read.uncertain": "Acknowledgement could not be confirmed. Reload this conversation to reconcile.",
+    "inbox.read.retry": "Reload and acknowledge viewed history", "inbox.read.readonly": "Your current access permits reading this conversation only.",
     "inbox.empty": "No matching conversations.",
     "inbox.queue_navigation": "Conversation queues and filters", "inbox.work_queues": "Work queues",
     "inbox.count_scope": "Counts cover all matching conversations within the channel, type and search filters.",
@@ -21,6 +25,10 @@ export const INBOX_DICTIONARY: Record<Locale, Record<string, string>> = {
     "inbox.channel.email": "Email", "inbox.channel.sms": "SMS", "inbox.channel.internal": "Internal",
   },
   ru: {
+    "inbox.read.pending": "Подтверждаем просмотренную историю…", "inbox.read.acknowledged": "Просмотренная история подтверждена.",
+    "inbox.read.error": "Не удалось подтвердить просмотр. Обновите переписку перед повторной попыткой.",
+    "inbox.read.uncertain": "Подтверждение просмотра неизвестно. Обновите переписку для проверки.",
+    "inbox.read.retry": "Обновить и подтвердить просмотренную историю", "inbox.read.readonly": "Текущий доступ разрешает только чтение переписки.",
     "inbox.empty": "Подходящих переписок нет.",
     "inbox.queue_navigation": "Очереди переписок и фильтры", "inbox.work_queues": "Рабочие очереди",
     "inbox.count_scope": "Числа учитывают все переписки, соответствующие фильтрам канала, типа и поиска.",
@@ -40,6 +48,10 @@ export const INBOX_DICTIONARY: Record<Locale, Record<string, string>> = {
     "inbox.channel.email": "Электронная почта", "inbox.channel.sms": "SMS", "inbox.channel.internal": "Внутренний",
   },
   uz: {
+    "inbox.read.pending": "Ko‘rilgan tarix tasdiqlanmoqda…", "inbox.read.acknowledged": "Ko‘rilgan tarix tasdiqlandi.",
+    "inbox.read.error": "Ko‘rilgan tarixni tasdiqlab bo‘lmadi. Qayta urinishdan oldin suhbatni yangilang.",
+    "inbox.read.uncertain": "Ko‘rilgan tarix tasdig‘i noma’lum. Holatni tekshirish uchun suhbatni yangilang.",
+    "inbox.read.retry": "Yangilash va ko‘rilgan tarixni tasdiqlash", "inbox.read.readonly": "Joriy ruxsatingiz bilan suhbatni faqat o‘qish mumkin.",
     "inbox.empty": "Mos suhbatlar topilmadi.",
     "inbox.queue_navigation": "Suhbat navbatlari va filtrlar", "inbox.work_queues": "Ish navbatlari",
     "inbox.count_scope": "Sonlar kanal, tur va qidiruv filtrlariga mos barcha suhbatlarni hisoblaydi.",

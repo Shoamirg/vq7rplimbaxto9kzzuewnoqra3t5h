@@ -27,6 +27,7 @@ from app.models.invoice import (
 from app.models.ledger import LedgerEntry
 from app.models.audit_log import AuditLog
 from app.models.message_intent import MessageIntent
+from app.models.conversation_read_observation import ConversationReadObservation
 
 __all__ = [
     "BaseModelMixin",
@@ -56,4 +57,5 @@ __all__ = [
     "LedgerEntry",
     "AuditLog",
     "MessageIntent",
+    "ConversationReadObservation",
 ]

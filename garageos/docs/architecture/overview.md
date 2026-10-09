@@ -1,6 +1,6 @@
 # GarageOS — loyiha arxitekturasi
 
-Yangilangan: 2026-10-08. Ushbu hujjat repozitoriydagi amaldagi kodni tasvirlaydi.
+Yangilangan: 2026-10-09. Ushbu hujjat repozitoriydagi amaldagi kodni tasvirlaydi.
 Joriy tayyorlik va topshirish dalillari [delivery issue10](https://github.com/Shoamirg/garageos/issues/10)
 da yuritiladi. Arxitektura hujjati mijozga topshirish tugaganini bildirmaydi.
 
@@ -162,6 +162,18 @@ tekshiruvi umumiy Inbox’ning barcha kirish yo‘llari sertifikatlanganini angl
 [Case references](../case-reference-safety.md) va [case list API](../case-list-api.md)
 shu doirani belgilaydi. API qidiruv/sahifalashi bilan panel integratsiyasi alohida
 qatlamlardir; faqat API o‘zgarishi paneldagi eski yozuv qidiruvini yakunlamaydi.
+
+Conversation’dagi o‘qilmagan xabar va faoliyat soni avtoservis xodimlari uchun
+umumiy holatdir. Staff thread GET bazaga shu xodim, suhbat va ko‘rilgan
+generatsiyalarga bog‘langan, 24 soat amal qiluvchi tasdiq ID’sini saqlaydi;
+muvaffaqiyat javobi commitdan keyin yuboriladi. “O‘qildi” amali faqat shu
+ko‘rilgan chegarani tasdiqlaydi: undan keyin kelgan xabarlar o‘qilmagan qoladi.
+Takroriy tasdiq yangi xabarlarni tozalamaydi. Bu alohida har bir xodimning
+o‘qish tarixi yoki mijoz xabarni olganining tasdig‘i emas. Oddiy backup ushbu
+qaydlar va suhbat holatini birga saqlashi kerak; muddati tugagan qaydlar
+avtoservis bo‘yicha cheklangan batch’larda tozalanadi.
+[ADR0008](../ADRs/0008-observed-shared-conversation-read.md) qaror, migratsiya
+va tiklash chegaralarini belgilaydi; tekshiruv dalillari issue39’da yuritiladi.
 
 ## 6. Deploy va CI oqimi
 

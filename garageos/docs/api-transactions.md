@@ -3,8 +3,10 @@
 Existing transactional writes finish PostgreSQL commit before the first HTTP
 success response is sent. A failed commit rolls back and returns an error,
 so an immediate refresh cannot mistake a flushed change for a saved change.
-Response bodies, permissions, tenant boundaries and financial calculations are
-unchanged. Services still flush within one transaction; financial operations
+Business values, permissions, tenant boundaries and financial calculations are
+preserved. Staff thread GET responses now include `read_observation`; mark-read
+requires that observed boundary in its PATCH input. Services still flush within
+one transaction; financial operations
 are not split into several commits.
 
 ## Dependency inventory and ownership
@@ -13,13 +15,18 @@ The reviewed inventory contains 52 POST/PUT/PATCH/DELETE endpoint functions.
 44 declare a yielding UnitOfWork dependency; all now use explicit function scope.
 The existing `GET /cases/{case_id}/conversation` can create a conversation,
 participants and opening message, so it also uses function scope. Its existing
-`allow_create="staff.write" in permissions` guard remains.
+`allow_create="staff.write" in permissions` guard remains. Both staff thread
+GETs (`GET /cases/{case_id}/conversation` and `GET /conversations/{id}`) also
+persist an actor-bound read observation, using function scope to commit it
+before the first success response. This does not grant read-only/demo staff
+permission to create a thread or acknowledge it. Internal/customer thread
+reads do not issue staff observations. See [ADR0008](ADRs/0008-observed-shared-conversation-read.md).
 
 | Endpoint module | Transaction dependency | Actual route functions |
 | --- | --- | --- |
 | `appointments.py` | `get_tenant_uow` | `book_appointment`, `create_appointment_direct`, `confirm_appointment`, `start_appointment`, `cancel_appointment`, `complete_appointment`, `update_appointment`, `move_appointment`, `assign_mechanic` |
 | `cases.py` | `get_tenant_uow` | `case_conversation`, `create_case`, `update_case` |
-| `conversations.py` | `get_tenant_uow` | `create_conversation`, `post_message`, `update_conversation`, `follow`, `unfollow` |
+| `conversations.py` | `get_tenant_uow` | `get_thread`, `create_conversation`, `post_message`, `update_conversation`, `follow`, `unfollow` |
 | `customers.py` | `get_tenant_uow` / `owner_uow` | `create_customer`, `delete_customer`, `open_customer_account`, `customer_account_access` |
 | `invoices.py` | `get_tenant_uow` | `create_document`, `delete_document`, `send_telegram`, `edit_document`, `record_payment`, `send_document`, `convert_document`, `update_document` |
 | `mechanic_work.py` | `get_mechanic_uow` | `start_work`, `complete_work` |

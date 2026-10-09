@@ -35,7 +35,7 @@ async def migration_database():
         def migrate(*args):
             env = {**os.environ, "DATABASE_URL": child.render_as_string(hide_password=False)}
             return subprocess.run([sys.executable, "-m", "alembic", *args], cwd=BACKEND,
-                                  env=env, capture_output=True, text=True, encoding="utf-8")
+                                  env=env, capture_output=True, text=True, encoding="utf-8", timeout=120)
 
         result = migrate("upgrade", "a2b3c4d5e6f7")
         assert result.returncode == 0, result.stderr
@@ -111,8 +111,15 @@ async def test_upgrade_adopts_seed_created_inbox_and_rollback_keeps_messages(mig
         "Base.metadata.remove(Base.metadata.tables['message_intents']); asyncio.run(init_db())"
     )
     created = subprocess.run([sys.executable, "-c", seed_schema],
-                             cwd=BACKEND, env=env, capture_output=True, text=True, encoding="utf-8")
+                             cwd=BACKEND, env=env, capture_output=True, text=True, encoding="utf-8", timeout=120)
     assert created.returncode == 0, created.stderr
+    # Reproduce the pre-observation seed's actual legacy columns. Today's
+    # metadata has newer generations/authority which that seed never created.
+    await connection.execute("DROP TABLE conversation_read_observations")
+    for name in ['ck_conversation_message_generation', 'ck_conversation_activity_generation']:
+        await connection.execute(f'ALTER TABLE conversations DROP CONSTRAINT "{name}"')
+    for name in ['message_generation', 'activity_generation', 'acknowledged_message_generation', 'acknowledged_activity_generation']:
+        await connection.execute(f'ALTER TABLE conversations DROP COLUMN "{name}"')
     center, conversation, message, participant, attachment = (uuid.uuid4() for _ in range(5))
     await connection.execute("INSERT INTO service_centers (id, name, timezone, is_active) VALUES ($1, 'Existing inbox garage', 'UTC', true)", center)
     await connection.execute("INSERT INTO conversations (id, service_center_id, subject, conv_type, status, priority, unread_messages, unread_activity, summary_version, is_active) VALUES ($1, $2, 'Existing thread', 'general', 'open', 'medium', 1, 0, 0, true)", conversation, center)

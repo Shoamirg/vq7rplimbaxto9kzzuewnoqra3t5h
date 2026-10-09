@@ -42,6 +42,7 @@ from app.repositories.inbox_query import inbox_page, safe_conversation, sla_trac
 from app.repositories.tenant_references import local_reference, local_reference_exists
 from app.repositories.unit_of_work import UnitOfWork
 from app.services.case_service import CaseService
+from app.services.conversation_read_service import ConversationReadService
 from app.services.maintenance_service import MaintenanceService
 from app.services.message_intent import FINGERPRINT_VERSION, MessageIntentConflict, MessageSubmission, fingerprint
 from app.services.vehicle_health_service import _band, _vehicle_label
@@ -91,6 +92,14 @@ class ConversationService:
         conv = row.scalar_one_or_none()
         if not conv:
             raise ConversationNotFound()
+        if for_update:
+            # A foreign child/reference can commit while the initial statement
+            # waits on an existing FK/row lock. Recheck under a fresh statement
+            # snapshot after acquisition; this transaction already owns the row.
+            safe = await self.session.scalar(select(Conversation.id).where(
+                Conversation.id == conv.id, *safe_conversation(self.sc)))
+            if safe is None:
+                raise ConversationNotFound()
         return conv
 
     # ── create ────────────────────────────────────────────────
@@ -216,11 +225,10 @@ class ConversationService:
         # Hold the aggregate lock until the normal UoW commits or rolls back.
         # Refresh previously loaded customer-owned rows after lock acquisition:
         # parallel distinct intents must not increment a stale unread counter.
-        conv = await self.session.scalar(select(Conversation).where(
-            Conversation.id == conversation_id, *safe_conversation(self.sc),
-        ).with_for_update(of=Conversation).execution_options(populate_existing=True))
-        if conv is None:
-            raise ConversationNotFound()
+        # The initial lock statement can wait while a linked record changes.
+        # Reuse the aggregate guard's fresh post-lock owning-reference snapshot
+        # before any legacy/keyed staff or customer replay/effect.
+        conv = await self._get(conversation_id, for_update=True)
         # Customer ownership is an authorization boundary even when a legacy
         # caller omits a key. Recheck the freshly locked row, not a pre-lock
         # CustomerPortalService read that could precede an ownership transfer.
@@ -292,7 +300,8 @@ class ConversationService:
         conv.last_sender_role = author_role
         inbound = author_role == ParticipantRole.CUSTOMER
         if inbound and not internal:
-            conv.unread_messages = (conv.unread_messages or 0) + 1
+            conv.message_generation += 1
+            conv.unread_messages = conv.message_generation - conv.acknowledged_message_generation
             if conv.status in (ConvStatus.WAITING_CUSTOMER, ConvStatus.SNOOZED):
                 conv.status = ConvStatus.OPEN  # ball's back in our court
         await self.session.flush()
@@ -350,7 +359,8 @@ class ConversationService:
 
     async def update_conversation(self, conversation_id: uuid.UUID, *, status: str | None = None,
             assigned_user_id: uuid.UUID | None = None, assignment_supplied: bool = False,
-            mark_read: bool = False) -> dict:
+            mark_read: bool = False, read_observation: uuid.UUID | None = None,
+            actor_id: uuid.UUID | None = None) -> dict:
         conv = await self._get(conversation_id, for_update=True)
         if status is not None and status not in {
                 ConvStatus.OPEN, ConvStatus.WAITING_CUSTOMER, ConvStatus.WAITING_TECHNICIAN,
@@ -358,6 +368,8 @@ class ConversationService:
             raise ConversationReferenceMismatch()
         if assignment_supplied and assigned_user_id is not None:
             await self._eligible_staff(assigned_user_id)
+        reads = ConversationReadService(self.uow)
+        observation = await reads.validate(conv, read_observation, actor_id) if mark_read else None
         changed = ((status is not None and status != conv.status)
             or (assignment_supplied and assigned_user_id != conv.assigned_user_id))
         if status is not None:
@@ -366,22 +378,22 @@ class ConversationService:
             conv.assigned_user_id = assigned_user_id
         if changed:
             self._bump_activity(conv)
-        # Observed read authority is implemented separately; keep legacy
-        # callers coherent until issuance and every consumer are coupled.
-        if mark_read:
-            conv.unread_messages = 0
-            conv.unread_activity = 0
+        if observation is not None:
+            reads.acknowledge(conv, observation)
         await self.session.flush()
         return await self.serialize_row(conv)
 
-    async def mark_read(self, conversation_id: uuid.UUID) -> dict:
-        return await self.update_conversation(conversation_id, mark_read=True)
+    async def mark_read(self, conversation_id: uuid.UUID, *, read_observation: uuid.UUID,
+            actor_id: uuid.UUID) -> dict:
+        return await self.update_conversation(conversation_id, mark_read=True,
+            read_observation=read_observation, actor_id=actor_id)
 
     def _bump_activity(self, conv: Conversation) -> None:
         """Non-message work (assignment, status change, linked events) still
         floats the thread up and registers as unread activity."""
         conv.last_activity_at = datetime.now(timezone.utc)
-        conv.unread_activity = (conv.unread_activity or 0) + 1
+        conv.activity_generation += 1
+        conv.unread_activity = conv.activity_generation - conv.acknowledged_activity_generation
 
     async def follow(self, conversation_id: uuid.UUID, *, user_id: uuid.UUID, display_name: str) -> dict:
         conv = await self._get(conversation_id, for_update=True)
@@ -422,7 +434,8 @@ class ConversationService:
     }
     _SEV_TO_PRIORITY = {"critical": "high", "high": "high", "medium": "medium", "low": "low"}
 
-    async def get_or_create_for_case(self, case_id: uuid.UUID, *, allow_create: bool = True) -> dict:
+    async def get_or_create_for_case(self, case_id: uuid.UUID, *, allow_create: bool = True,
+            user_id: uuid.UUID | None = None, observe_read: bool = False) -> dict:
         """Return the thread for a dispatch case, creating it on first open.
 
         This is the proof that Operations and the Inbox are ONE system: a case's
@@ -441,7 +454,7 @@ class ConversationService:
         )).scalar_one_or_none()
         if existing:
             await self._validate_case_thread(existing)
-            return await self.get_thread(existing.id)
+            return await self.get_thread(existing.id, user_id=user_id, observe_read=observe_read)
 
         if not allow_create:
             raise CaseConversationUnavailable()
@@ -464,7 +477,7 @@ class ConversationService:
             channel=case.channel or Channel.WEB, author_role=ParticipantRole.SYSTEM,
             author_name="System",
         )
-        return await self.get_thread(uuid.UUID(created["id"]))
+        return await self.get_thread(uuid.UUID(created["id"]), user_id=user_id, observe_read=observe_read)
 
     async def _validate_case_thread(self, conv: Conversation) -> None:
         """Reject a legacy aggregate with foreign or inconsistent references.
@@ -518,8 +531,9 @@ class ConversationService:
         return result
 
     # ── thread detail ─────────────────────────────────────────
-    async def get_thread(self, conversation_id: uuid.UUID, *, user_id: uuid.UUID | None = None) -> dict:
-        conv = await self._get(conversation_id)
+    async def get_thread(self, conversation_id: uuid.UUID, *, user_id: uuid.UUID | None = None,
+            observe_read: bool = False) -> dict:
+        conv = await self._get(conversation_id, for_update=observe_read)
         data = await self.serialize_row(conv, full=True)
 
         msgs = list((await self.session.execute(
@@ -546,6 +560,10 @@ class ConversationService:
 
         data["activity"] = await self._activity(conv, data["messages"])
         data["pinned_notes"] = conv.pinned_notes or []
+        if observe_read:
+            if user_id is None:
+                raise UnauthorizedAction()
+            data["read_observation"] = await ConversationReadService(self.uow).issue(conv, user_id)
         return data
 
     async def _attachments_for(self, conversation_id: uuid.UUID) -> dict:

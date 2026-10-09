@@ -88,6 +88,7 @@ class ConversationUpdate(BaseModel):
     status: Literal['open', 'waiting_customer', 'waiting_technician', 'waiting_approval', 'snoozed', 'resolved'] | None = None
     assigned_user_id: uuid.UUID | None = None
     mark_read: bool | None = None
+    read_observation: uuid.UUID | None = None
 
     @field_validator('status')
     @classmethod
@@ -117,10 +118,10 @@ async def list_inbox(
 
 @router.get("/{conversation_id}", summary="Full thread (messages, activity, linked cards)")
 async def get_thread(
-    conversation_id: uuid.UUID, uow: UnitOfWork = Depends(get_tenant_uow),
+    conversation_id: uuid.UUID, uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
     me: User = Depends(get_current_user),
 ) -> dict:
-    return await ConversationService(uow).get_thread(conversation_id, user_id=me.id)
+    return await ConversationService(uow).get_thread(conversation_id, user_id=me.id, observe_read=True)
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, summary="Start a conversation")
@@ -157,7 +158,7 @@ async def update_conversation(
     return await svc.update_conversation(conversation_id, status=body.status,
         assigned_user_id=body.assigned_user_id,
         assignment_supplied='assigned_user_id' in body.model_fields_set,
-        mark_read=bool(body.mark_read))
+        mark_read=bool(body.mark_read), read_observation=body.read_observation, actor_id=me.id)
 
 
 @router.post("/{conversation_id}/follow", summary="Follow a conversation (get updates unassigned)")

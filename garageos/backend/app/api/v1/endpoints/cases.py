@@ -6,7 +6,8 @@ import uuid
 from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel
 
-from app.api.deps import get_staff_permissions, get_tenant_uow
+from app.api.deps import get_current_user, get_staff_permissions, get_tenant_uow
+from app.models.user import User
 from app.repositories.unit_of_work import UnitOfWork
 from app.services.case_service import CaseService
 from app.services.conversation_service import ConversationService
@@ -61,10 +62,11 @@ async def case_conversation(
     case_id: uuid.UUID,
     uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
     permissions: list[str] = Depends(get_staff_permissions),
+    me: User = Depends(get_current_user),
 ) -> dict:
     # Operations reuses the SAME conversation model as the Inbox — created on demand.
     return await ConversationService(uow).get_or_create_for_case(
-        case_id, allow_create="staff.write" in permissions,
+        case_id, allow_create="staff.write" in permissions, user_id=me.id, observe_read=True,
     )
 
 

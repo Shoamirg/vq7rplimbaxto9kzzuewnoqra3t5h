@@ -151,12 +151,13 @@ test("Inbox phone keeps existing queue and channel controls reachable", async ({
 test("Inbox already authorized draft stays editable during a held thread refresh", async ({ page, baseURL }) => {
   const { items } = await operationCases(page, baseURL!), thread = await storedThread(page, items[1].id);
   await page.goto(`/inbox?c=${thread.id}`); const composer = page.getByRole("textbox", { name: "Message", exact: true }); await expect(composer).toBeEnabled();
-  let release!: () => void, seen!: () => void; const held = new Promise<void>(r => release = r), fetched = new Promise<void>(r => seen = r);
+  let release!: () => void, seen!: () => void, heldOnce = false; const held = new Promise<void>(r => release = r), fetched = new Promise<void>(r => seen = r);
   await page.route(`**/api/proxy/conversations/${thread.id}`, async route => {
-    if (route.request().method() !== "GET") return route.continue();
+    if (route.request().method() !== "GET" || heldOnce) return route.continue();
+    heldOnce = true;
     const response = await route.fetch(); seen(); await held;
     try { await route.fulfill({ response }); } catch (error) { if (!(error instanceof Error) || !error.message.includes("already handled")) throw error; }
-  }, { times: 1 });
+  });
   try {
     await page.getByRole("button", { name: "Refresh conversation", exact: true }).click(); await fetched;
     await expect(composer).toBeEnabled(); await composer.fill("Draft while refreshing"); await expect(composer).toBeFocused();
@@ -344,16 +345,33 @@ test("Inbox invalidated session hides and suspends its receipt until same-actor 
   page.on("request", r => { if (r.method() === "POST" && r.url().endsWith(path)) posts++; });
   await page.route(`**${path}`, async route => { key = route.request().headers()["idempotency-key"]; expect((await route.fetch()).status()).toBe(201); await route.abort("failed"); }, { times: 1 });
   await composer.fill(body); await composer.press("Enter"); await expect(page.getByRole("button", { name: "Retry original message", exact: true })).toBeVisible();
-  await page.context().addCookies([{ name: "garageos_token", value: "QA-invalidated-token", url: baseURL!, httpOnly: true }]);
-  await page.getByRole("button", { name: "Retry original message", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Verify session and access", exact: true })).toBeVisible(); await expect(composer).toHaveCount(0); expect(posts).toBe(1);
-  const receipt = await page.evaluate(() => { const active = sessionStorage.getItem("garageos.message-intents.v1:actor")!; return JSON.parse(sessionStorage.getItem(active)!).intents[0]; });
-  expect(receipt.key).toBe(key); expect(receipt.payload.body).toBe(body); expect(receipt.status).toBe("suspended");
-  await queueLogin(page, baseURL!, "en", 1280); await page.getByRole("button", { name: "Verify session and access", exact: true }).click();
-  await expect(composer).toHaveValue(body); expect(posts).toBe(1);
-  const retry = page.waitForRequest(r => r.method() === "POST" && r.url().endsWith(path)); await page.getByRole("button", { name: "Retry original message", exact: true }).click();
-  expect((await retry).headers()["idempotency-key"]).toBe(key); await expect(page.getByRole("status").filter({ hasText: "Message sent." })).toBeVisible();
-  expect(posts).toBe(2); expect((await storedThread(page, item.id)).messages.filter((m: { body: string }) => m.body === body)).toHaveLength(1);
+  // Invalidate only after the authorized thread read has restored deliberate
+  // retry readiness; an in-flight read may otherwise reject the cookie first.
+  await expect(page.getByRole("status").filter({ hasText: "Viewed history acknowledged." })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Retry original message", exact: true })).toBeEnabled();
+  // Exercise the deliberate retry boundary before a concurrent background
+  // read paints its denial. Hold only real upstream 401 responses; neither
+  // authentication nor response content is replaced by the fixture.
+  let releaseDenials!: () => void;
+  const deniedReplies = new Promise<void>(resolve => { releaseDenials = resolve; });
+  await page.route("**/api/proxy/**", async route => {
+    const response = await route.fetch();
+    if (response.status() === 401) await deniedReplies;
+    await route.fulfill({ response });
+  });
+  try {
+    await page.context().addCookies([{ name: "garageos_token", value: "QA-invalidated-token", url: baseURL!, httpOnly: true }]);
+    await page.getByRole("button", { name: "Retry original message", exact: true }).click();
+    releaseDenials();
+    await expect(page.getByRole("button", { name: "Verify session and access", exact: true })).toBeVisible(); await expect(composer).toHaveCount(0); expect(posts).toBe(1);
+    const receipt = await page.evaluate(() => { const active = sessionStorage.getItem("garageos.message-intents.v1:actor")!; return JSON.parse(sessionStorage.getItem(active)!).intents[0]; });
+    expect(receipt.key).toBe(key); expect(receipt.payload.body).toBe(body); expect(receipt.status).toBe("suspended");
+    await queueLogin(page, baseURL!, "en", 1280); await page.getByRole("button", { name: "Verify session and access", exact: true }).click();
+    await expect(composer).toHaveValue(body); expect(posts).toBe(1);
+    const retry = page.waitForRequest(r => r.method() === "POST" && r.url().endsWith(path)); await page.getByRole("button", { name: "Retry original message", exact: true }).click();
+    expect((await retry).headers()["idempotency-key"]).toBe(key); await expect(page.getByRole("status").filter({ hasText: "Message sent." })).toBeVisible();
+    expect(posts).toBe(2); expect((await storedThread(page, item.id)).messages.filter((m: { body: string }) => m.body === body)).toHaveLength(1);
+  } finally { releaseDenials(); await page.unrouteAll({ behavior: "wait" }); }
 });
 
 test("Inbox late A mark-read denial cannot suspend a newly verified B session", async ({ page, baseURL }) => {

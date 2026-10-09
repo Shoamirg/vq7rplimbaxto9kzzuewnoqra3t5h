@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef } from "react";
+import { forwardRef, type ReactNode } from "react";
 import Link from "next/link";
 import {
   ArrowUpRight, Check, Megaphone, Moon, PanelRightOpen, Pin, Send, Siren,
@@ -32,13 +32,14 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
   canWrite: boolean;
   loading: boolean;
   readError: boolean;
+  readAcknowledgement?: ReactNode;
   onSend: () => void;
   onStatus: (s: string) => void;
   onToggleFollow: () => void;
   contextOpen: boolean;
   onOpenContext: () => void;
 }>(function ThreadView(
-  { thread, mode, onMode, composerTab, onComposerTab, composer, canWrite, loading, readError, onSend, onStatus, onToggleFollow, contextOpen, onOpenContext },
+  { thread, mode, onMode, composerTab, onComposerTab, composer, canWrite, loading, readError, readAcknowledgement, onSend, onStatus, onToggleFollow, contextOpen, onOpenContext },
   composerRef,
 ) {
   const { t } = useI18n();
@@ -48,6 +49,7 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
     <div className="flex-1 min-h-0 min-w-0 flex flex-col bg-muted/20 [overflow-wrap:anywhere]">
       {/* Header */}
       <div role="region" aria-label={t("message.overview")} tabIndex={0} className="max-h-[25%] lg:max-h-[45%] overflow-y-auto bg-card border-b border-border px-4 pt-3 shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
+        {readAcknowledgement}
         <div className="flex flex-wrap items-center gap-3">
           <span className="grid size-9 place-items-center rounded-xl bg-slate-800 text-white text-sm font-bold">
             {(thread.customer_name ?? "?").split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}

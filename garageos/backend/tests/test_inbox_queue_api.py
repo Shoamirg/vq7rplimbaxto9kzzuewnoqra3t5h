@@ -46,6 +46,7 @@ async def inbox_rows(references, identity):
                 assigned_user_id=identity['user'] if i == 2 else None,
                 case_id=cases[i-3].id if i in (3, 4) else None,
                 unread_messages=1 if i == 5 else 0,
+                message_generation=1 if i == 5 else 0,
                 last_activity_at=origin + timedelta(seconds=i//3))
             rows.append(row)
         session.add_all(rows)

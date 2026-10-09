@@ -582,6 +582,7 @@ export interface ActivityItem {
 }
 
 export interface ThreadDetail extends InboxItem {
+  read_observation: string;
   messages: ConvMessage[];
   participants: ConvParticipant[];
   activity: ActivityItem[];

@@ -6,11 +6,11 @@ import { cn } from "@garageos/design-system";
 import { clientFetch, ClientApiError } from "@/lib/api/client";
 import type { Channel, ConvMessage, InboxResponse, ThreadDetail } from "@/lib/api/types";
 import { useI18n } from "@/lib/i18n/context";
-import type { MessageMode } from "@/lib/message-intents";
+import type { MessageActor, MessageMode } from "@/lib/message-intents";
 import { MessageStorageError } from "@/lib/message-intents";
 import { useMessageComposer } from "@/lib/use-message-composer";
 import { useStaffMessageSession, verifyStaffMessageActor } from "@/lib/use-staff-message-session";
-import { useOperationRead, accessFailure } from "../operations/use-operation-read";
+import { useOperationRead, accessFailure, uncertainWrite } from "../operations/use-operation-read";
 import { ConversationList } from "./conversation-list";
 import { ContextPanel } from "./context-panel";
 import { QueueRail } from "./queue-rail";
@@ -19,6 +19,7 @@ import { VIEWS } from "./shared";
 
 const control = "min-h-11 min-w-11 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50";
 const PAGE_SIZE = 50;
+type ReadAcknowledgement = { actor: MessageActor; observation: string; state: "pending" | "acknowledged" | "error" | "uncertain" };
 
 export function InboxWorkspace() {
   const { t } = useI18n(), session = useStaffMessageSession();
@@ -77,14 +78,49 @@ export function InboxWorkspace() {
   // A failed authorization/ownership read never exposes a saved receipt. A
   // non-auth refresh failure retains the already validated thread and its ACK.
   const thread = read.data?.id === activeId && !(read.error instanceof ClientApiError && read.error.status === 404) ? read.data : null;
-  const markedRead = useRef<string | null>(null);
+  const currentReadKey = useRef(readKey); currentReadKey.current = readKey;
+  const readAckActor = useRef(actor), readAckLocks = useRef(new Map<string, ReadAcknowledgement>());
+  const [readAcks, setReadAcks] = useState<{ actor: MessageActor | null; records: Record<string, ReadAcknowledgement> }>({ actor: null, records: {} });
+  if (readAckActor.current !== actor) { readAckActor.current = actor; readAckLocks.current = new Map(); }
+  const readAck = thread && readAcks.actor === actor ? readAcks.records[thread.id] : undefined;
+  const acknowledgeViewedHistory = async (capturedThread: ThreadDetail, reconcile = false) => {
+    if (!actor || !authorized() || !session.canWrite || readAckLocks.current.has(capturedThread.id)) return;
+    if (!reconcile && (read.loading || read.error || readAck && (readAck.state !== "acknowledged" || readAck.observation === capturedThread.read_observation))) return;
+    const capturedActor = actor, epoch = verification.current, capturedKey = readKey;
+    const ownedLocks = readAckLocks.current;
+    const pending: ReadAcknowledgement = { actor: capturedActor, observation: capturedThread.read_observation, state: "pending" };
+    ownedLocks.set(capturedThread.id, pending); // synchronous guard includes reconciliation GET/auth
+    const current = () => mounted.current && epoch === verification.current && currentActor.current === capturedActor
+      && ownedLocks === readAckLocks.current && authorized();
+    const store = (value: ReadAcknowledgement) => { if (current()) setReadAcks(old => ({ actor: capturedActor,
+      records: { ...(old.actor === capturedActor ? old.records : {}), [capturedThread.id]: value } })); };
+    store(pending);
+    let dispatched = false;
+    try {
+      const observed = reconcile ? await read.refresh() : capturedThread;
+      if (!current()) return;
+      if (!observed || observed.id !== capturedThread.id || reconcile && currentReadKey.current !== capturedKey
+          || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(observed.read_observation ?? ""))
+        throw new Error("A current observed conversation is required");
+      const fresh = await verifyStaffMessageActor(current, capturedActor);
+      if (!current()) return;
+      if (!fresh.canWrite) throw new ClientApiError("Read acknowledgement unavailable", 403);
+      dispatched = true;
+      await clientFetch(`/conversations/${observed.id}`, { method: "PATCH", body: JSON.stringify({
+        mark_read: true, read_observation: observed.read_observation,
+      }) });
+      store({ ...pending, observation: observed.read_observation, state: "acknowledged" });
+      if (current()) void list.refresh(); // a later read failure does not undo the acknowledgement
+    } catch (error) {
+      if (!current()) return;
+      if (accessFailure(error)) onDenied(error);
+      else store({ ...pending, state: dispatched && uncertainWrite(error) ? "uncertain" : "error" });
+    } finally {
+      if (ownedLocks.get(capturedThread.id) === pending) ownedLocks.delete(capturedThread.id);
+    }
+  };
   useEffect(() => {
-    if (!thread || !actor || !authorized() || !session.canWrite || markedRead.current === readKey) return;
-    markedRead.current = readKey;
-    const capturedActor = actor, epoch = verification.current;
-    void clientFetch(`/conversations/${thread.id}`, { method: "PATCH", body: JSON.stringify({ mark_read: true }) })
-      .then(() => { if (mounted.current && epoch === verification.current && currentActor.current === capturedActor && authorized()) void list.refresh(); })
-      .catch(error => { if (mounted.current && epoch === verification.current && currentActor.current === capturedActor && accessFailure(error)) onDenied(error); });
+    if (thread) void acknowledgeViewedHistory(thread);
   });
   const composerTab = activeId ? modes[activeId] ?? "reply" : "reply";
   const [acknowledged, setAcknowledged] = useState<Record<string, ConvMessage[]>>({});
@@ -184,6 +220,13 @@ export function InboxWorkspace() {
       {!!read.error && <div role="alert" className="space-y-2 p-3 text-sm"><p>{t(composer.saved ? "message.refresh_error" : "message.read_error")}</p><button className={control} onClick={() => void read.refresh()}>{t("ops.retry")}</button></div>}
       {visibleThread ? <ThreadView ref={composerRef} thread={visibleThread} mode={mode} onMode={setMode} composerTab={composerTab} onComposerTab={onComposerTab}
         composer={composer} canWrite={session.canWrite} loading={read.loading} readError={!!read.error} onSend={send}
+        readAcknowledgement={readAck && <div role={readAck.state === "error" || readAck.state === "uncertain" ? "alert" : "status"} className="space-y-2 pb-3 text-sm">
+        <p>{t(`inbox.read.${readAck.state}`)}</p>
+        {(readAck.state === "error" || readAck.state === "uncertain") && <>
+          <button className={control} disabled={!session.canWrite || read.loading || readAckLocks.current.has(thread!.id)} onClick={() => void acknowledgeViewedHistory(thread!, true)}>{t("inbox.read.retry")}</button>
+          {!session.canWrite && <p>{t("inbox.read.readonly")}</p>}
+        </>}
+        </div>}
         onStatus={status => void mutate(`/conversations/${thread!.id}`, { method: "PATCH", body: JSON.stringify({ status }) })} onToggleFollow={toggleFollow}
         contextOpen={contextOpen} onOpenContext={() => setContextOpen(true)} />
         : <p role="status" className="p-4 text-sm">{t(read.loading ? "ops.loading" : "inbox.select")}</p>}

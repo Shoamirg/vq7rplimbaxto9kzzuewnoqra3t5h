@@ -24,7 +24,13 @@ async def migrate(*args):
         sys.executable, "-m", "alembic", *args, cwd=Path(__file__).resolve().parents[1],
         stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
     )
-    output, _ = await process.communicate()
+    try:
+        output, _ = await asyncio.wait_for(process.communicate(), timeout=120)
+    except BaseException:
+        if process.returncode is None:
+            process.kill()
+        await process.wait()
+        raise
     assert process.returncode == 0, output.decode()
 
 

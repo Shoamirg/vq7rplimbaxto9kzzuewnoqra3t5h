@@ -221,7 +221,22 @@ async def test_operator_can_create_case_thread_and_readonly_staff_can_read_it(cl
         assert (await client.get("/api/v1/conversations", headers=headers)).status_code == 403
         return
     assert existing.status_code == 200
-    assert existing.json() == created.json()
+    # Each authorized staff read records fresh observation authority, while
+    # the existing thread's business history remains exactly the same.
+    created_data, existing_data = created.json(), existing.json()
+    observation_ids = [uuid.UUID(data.pop("read_observation")) for data in (created_data, existing_data)]
+    assert observation_ids[0] != observation_ids[1]
+    assert existing_data == created_data
+    from app.models.conversation_read_observation import ConversationReadObservation
+    async with async_session_factory() as session:
+        observations = list(await session.scalars(select(ConversationReadObservation).where(
+            ConversationReadObservation.id.in_(observation_ids))))
+        assert {row.id for row in observations} == set(observation_ids)
+        assert all(row.service_center_id == identity["center"] and row.actor_id == identity["user"]
+                   and str(row.conversation_id) == created_data["id"] for row in observations)
+    denied = await client.patch(f'/api/v1/conversations/{created_data["id"]}', headers=headers,
+                               json={"mark_read": True, "read_observation": str(observation_ids[1])})
+    assert denied.status_code == 403
     listed = await client.get("/api/v1/conversations", headers=headers)
     assert listed.status_code == 200
     assert [item["id"] for item in listed.json()["items"]] == [created.json()["id"]]
