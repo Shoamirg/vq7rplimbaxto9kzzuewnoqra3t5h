@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { readFileSync } from "node:fs";
+import { freshOperationsDemoToken } from "./support/demo-session";
 import { randomUUID } from "node:crypto";
 import { operationCases, caseRow, operationsProfiles, storedCase, storedThread } from "./support/operations";
 import { queueLogin, queueProfiles, queueOverflow, queueTargets, switchQueueLocale } from "./support/queue";
@@ -163,14 +163,13 @@ test("fresh acknowledged case becomes writable after a different pending target 
 });
 
 test("real read-only demo claims retain case details when its thread has not started", async ({ page, baseURL }) => {
-  queueProfiles(baseURL!); // Guard isolated origin/owned fixture before token seam.
-  const fixture = JSON.parse(readFileSync(process.env.GARAGEOS_BROWSER_FIXTURE!, "utf8"));
-  expect(typeof fixture.operations_demo_token).toBe("string");
+  queueProfiles(baseURL!); // Guard the isolated origin before any request.
   // Actual normal password staff request creates only the case, not its thread.
   expect((await page.request.post("/api/auth/login", { data: { email: "admin@demo.garageos.app", password: "demo1234" } })).ok()).toBeTruthy();
   const customers = await (await page.request.get("/api/proxy/customers?limit=1")).json();
   const response = await page.request.post("/api/proxy/cases", { data: { customer_id: customers.items[0].id, title: `QA37 readonly ${randomUUID()}`, case_type: "support" } }); expect(response.ok()).toBeTruthy(); const item = await response.json();
-  await page.context().addCookies([{ name: "garageos_token", value: fixture.operations_demo_token, url: baseURL!, httpOnly: true }, { name: "garageos_demo", value: "1", url: baseURL!, httpOnly: true }, { name: "garageos_locale", value: "en", url: baseURL! }]);
+  const demoToken = await freshOperationsDemoToken(page, baseURL!);
+  await page.context().addCookies([{ name: "garageos_token", value: demoToken, url: baseURL!, httpOnly: true }, { name: "garageos_demo", value: "1", url: baseURL!, httpOnly: true }, { name: "garageos_locale", value: "en", url: baseURL! }]);
   const me = await (await page.request.get("/api/proxy/auth/me")).json(); expect(me.permissions).toEqual(["staff.read"]);
   expect((await page.request.patch(`/api/proxy/cases/${item.id}`, { data: { status: "resolved" } })).status()).toBe(403);
   expect((await page.request.get(`/api/proxy/cases/${item.id}/conversation`)).status()).toBe(403);

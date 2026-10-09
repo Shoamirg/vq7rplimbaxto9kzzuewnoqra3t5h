@@ -96,7 +96,16 @@ exclusive creation outside the checkout. It refuses a non-test/non-loopback
 `garage_test`, DEBUG auth, a non-QA key, external browser origin or repository
 output path. `GARAGEOS_BROWSER_FIXTURE` points Playwright at that private file.
 `GARAGEOS_BROWSER_PYTHON` identifies the same backend Python interpreter for
-clock-expiry checks. The test-only `tests.support.expiring_session` CLI accepts
+clock-expiry checks. Read-only Operations tests use
+`tests.support.demo_session` through a bounded private pipe immediately before
+the cookie switch. It validates the caller's current normal session against the
+configured demo actor and uses the normal `AuthService.demo_login` lifetime.
+A token saved before the suite can expire during a long run; it must not stand
+in for a fresh read-only downgrade. This seam keeps the public demo route
+disabled and refuses non-test/non-loopback/database/fixture contexts. No token
+output belongs in logs or artifacts.
+
+The test-only `tests.support.expiring_session` CLI accepts
 a currently valid normal access token over a private pipe, resolves its active
 staff or Telegram-customer principal, and uses the existing signer with a short
 lifetime. Browser tests prove normal `/me`200 followed by real clock-expired401

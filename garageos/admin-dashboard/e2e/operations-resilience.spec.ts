@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { readFileSync } from "node:fs";
+import { freshOperationsDemoToken } from "./support/demo-session";
 import { randomUUID } from "node:crypto";
 import { operationCases, caseRow, storedCase, storedThread } from "./support/operations";
 import { queueLogin, queueProfiles, queueOverflow, queueTargets, switchQueueLocale } from "./support/queue";
@@ -129,7 +129,7 @@ test("rejected internal note keeps exact text, mode and case through phone and l
 });
 
 for (const action of ["patch", "message"]) test(`real backend read-only session downgrade rejects a previously enabled ${action}`, async ({ page, baseURL }) => {
-  queueProfiles(baseURL!); const fixture = JSON.parse(readFileSync(process.env.GARAGEOS_BROWSER_FIXTURE!, "utf8"));
+  queueProfiles(baseURL!); // Guard the isolated origin before any request.
   expect((await page.request.post("/api/auth/login", { data: { email: "admin@demo.garageos.app", password: "demo1234" } })).ok()).toBeTruthy();
   await page.context().addCookies([{ name: "garageos_locale", value: "en", url: baseURL! }]);
   const customer = (await (await page.request.get("/api/proxy/customers?limit=1")).json()).items[0];
@@ -141,7 +141,8 @@ for (const action of ["patch", "message"]) test(`real backend read-only session 
   await expect(control).toBeEnabled();
   // Same owned demo center, actual AuthService read-only token and normal backend
   // authorization. No permission override or transport-invented denial.
-  await page.context().addCookies([{ name: "garageos_token", value: fixture.operations_demo_token, url: baseURL!, httpOnly: true }, { name: "garageos_demo", value: "1", url: baseURL!, httpOnly: true }]);
+  const demoToken = await freshOperationsDemoToken(page, baseURL!);
+  await page.context().addCookies([{ name: "garageos_token", value: demoToken, url: baseURL!, httpOnly: true }, { name: "garageos_demo", value: "1", url: baseURL!, httpOnly: true }]);
   let messagePosts = 0;
   page.on("request", r => { if (r.method() === "POST" && r.url().endsWith(`/conversations/${thread.id}/messages`)) messagePosts++; });
   const denied = page.waitForResponse(r => action === "patch" ? r.request().method() === "PATCH" && r.status() === 403 : r.url().endsWith("/api/proxy/auth/me") && r.ok());
