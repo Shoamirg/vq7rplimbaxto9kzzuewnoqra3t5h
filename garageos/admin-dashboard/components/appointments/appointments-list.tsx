@@ -33,13 +33,14 @@ export function AppointmentsList() {
   const [q, setQ] = useState(""), [list, setList] = useState<ListState>(), [statsState, setStatsState] = useState<StatsState>({ phase: "loading" });
   const [editing, setEditing] = useState<Appointment | null>(null), [invoicing, setInvoicing] = useState<Appointment | null>(null), [completing, setCompleting] = useState<Appointment | null>(null);
   const [selection, setSelection] = useState({ key: "", ids: new Set<string>() }), [busy, setBusy] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
   const search = q.trim(), key = JSON.stringify([tab, dateFilter, page, search]);
   const keyRef = useRef(key); keyRef.current = key;
   const listEpoch = useRef(0), statsEpoch = useRef(0), mutation = useRef(false);
   const invalidateList = useCallback(() => { listEpoch.current++; }, []);
   const invalidateStats = useCallback(() => { statsEpoch.current++; }, []);
   const mounted = useRef(true);
-  useEffect(() => { mounted.current = true; return () => { mounted.current = false; invalidateList(); invalidateStats(); }; }, [invalidateList, invalidateStats]);
+  useEffect(() => { mounted.current = true; setHydrated(true); return () => { mounted.current = false; invalidateList(); invalidateStats(); }; }, [invalidateList, invalidateStats]);
   const root = useRef<HTMLDivElement>(null), returnTo = useRef<string | null>(null);
   const data = list?.key === key && list.phase === "ready" ? list.data : null;
   const ready = data !== null, error = list?.key === key && list.phase === "error";
@@ -146,7 +147,8 @@ export function AppointmentsList() {
     { label: "status.confirmed", count: stats.confirmed_count }, { label: "status.completed", count: stats.completed_count }, { label: "status.cancelled", count: stats.cancelled_count },
   ] : [];
 
-  return <div ref={root} className="min-w-0 p-4 lg:p-6 space-y-4 animate-fade-in" data-testid="appointments-queue">
+  // The server-rendered shell must not accept actions before handlers mount.
+  return <fieldset disabled={!hydrated} aria-label={t("work.title")} className="contents"><div ref={root} className="min-w-0 p-4 lg:p-6 space-y-4 animate-fade-in" data-testid="appointments-queue">
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
       <div><h1 className="text-2xl font-bold text-foreground">{t("work.title")}</h1><p className="text-sm text-muted-foreground mt-1">{t("work.subtitle")}</p></div>
       <NewAppointmentButton label={t("action.new_appointment")} onCreated={refresh} />
@@ -193,5 +195,5 @@ export function AppointmentsList() {
     {editing && <EditAppointmentModal appointment={editing} onClose={closeForms} onSaved={() => { closeForms(); refresh(); }} />}
     {completing && <CompleteWorkModal appointment={completing} onClose={closeForms} onCompleted={() => { closeForms(); refresh(); }} />}
     {invoicing && <NewInvoiceModal appointment={invoicing} onClose={closeForms} onCreated={doc => { returnTo.current = null; closeForms(); refresh(); router.push(`/invoice/${doc.id}`); }} />}
-  </div>;
+  </div></fieldset>;
 }
