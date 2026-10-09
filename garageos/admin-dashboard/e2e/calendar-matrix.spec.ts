@@ -18,6 +18,46 @@ function privateProfiles(baseURL: string) {
   } catch { throw new Error("Prepare the private isolated calendar browser fixture before this gate"); }
 }
 
+test("calendar drag waits for a real success notification to clear", async ({ page, baseURL }, info) => {
+  const fixture = privateProfiles(baseURL!), owner = fixture.staff[0], person = fixture.calendars[0].contacts;
+  await page.setViewportSize({ width: 360, height: 700 });
+  expect((await page.request.post("/api/auth/login", { data: { email: owner.email, password: owner.password } })).ok()).toBeTruthy();
+  await page.context().addCookies([{ name: "garageos_locale", value: "en", url: baseURL! }]);
+  const created = await page.request.post("/api/proxy/appointments/direct", { data: {
+    customer_id: person.customer_id, vehicle_id: person.vehicle_id, appointment_date: "2034-07-05",
+    appointment_time: "09:00", estimated_duration_minutes: 60,
+  } });
+  expect(created.ok()).toBeTruthy(); const id = (await created.json()).id;
+  try {
+    await page.goto("/calendar"); const main = page.getByRole("main");
+    await expect.poll(async () => {
+      // A pre-hydration fill can leave the DOM value ahead of React state.
+      // Clear and reenter through the real input until the rendered date changes.
+      await main.getByRole("textbox", { name: "Calendar date", exact: true }).fill("");
+      await main.getByRole("textbox", { name: "Calendar date", exact: true }).fill("2034-07-05");
+      return main.locator("[data-calendar-period]").innerText();
+    }).toContain("2034");
+    const card = main.getByTestId(`calendar-appointment-${id}`);
+    await card.click();
+    await page.getByRole("dialog", { name: "Appointment details" }).getByRole("button", { name: "Edit appointment", exact: true }).click();
+    const edit = page.getByRole("dialog", { name: "Edit appointment" });
+    await edit.locator("#edit-time").fill("10:00");
+    const saved = page.waitForResponse(r => r.url().endsWith(`/api/proxy/appointments/${id}`) && r.request().method() === "PATCH");
+    await edit.getByRole("button", { name: "Save changes", exact: true }).click();
+    expect((await saved).ok()).toBeTruthy(); await expect(edit).toHaveCount(0);
+    const moved = page.waitForResponse(r => r.url().endsWith(`/api/proxy/appointments/${id}`) && r.request().method() === "PATCH");
+    const initialHit = await dragTo(page, card, 192);
+    expect(initialHit, "The drag helper itself must encounter a genuine notification").toMatchObject({ reachesCard: false, hitAlert: true });
+    const response = await moved; expect(response.ok()).toBeTruthy();
+    expect(response.request().postDataJSON().appointment_time).toBe("11:00");
+    const stored = await (await page.request.get(`/api/proxy/appointments/${id}`)).json();
+    expect(stored.appointment_time).toBe("11:00"); expect(stored.mechanic_user_id).toBeNull();
+    await page.screenshot({ path: info.outputPath("calendar-real-toast-dragged.png") });
+  } finally {
+    await page.request.patch(`/api/proxy/appointments/${id}/cancel`, { data: {} });
+  }
+});
+
 test("cross-account collision next-day choice keeps the chosen mechanic", async ({ page, baseURL }, info) => {
   test.setTimeout(90_000);
   const fixture = privateProfiles(baseURL!), owner = fixture.staff[0], person = fixture.calendars[0].contacts;
@@ -93,7 +133,18 @@ async function trapped(page: Page, dialog: Locator) {
   }
 }
 async function dragTo(page: Page, card: Locator, deltaY: number, lane?: Locator) {
-  await centerBoardTarget(card); const source = (await card.boundingBox())!;
+  await centerBoardTarget(card);
+  const pointerHit = () => card.evaluate(el => {
+    const box = el.getBoundingClientRect(), x = box.left + 30, y = box.top + 30;
+    const hit = document.elementFromPoint(x, y);
+    return { reachesCard: el.contains(hit), hitAlert: !!hit?.closest('[role="alert"]') };
+  });
+  const initial = await pointerHit();
+  // A recent successful edit can temporarily place a toast over this exact
+  // point. Await real pointer readiness; a permanently covered card still fails.
+  await expect.poll(async () => (await pointerHit()).reachesCard,
+    { message: "The real pointer must reach the calendar drag source" }).toBe(true);
+  const source = (await card.boundingBox())!;
   const targetX = lane ? (await lane.boundingBox())!.x + 80 : source.x + 30;
   expect(await card.evaluate(el => el.contains(document.elementFromPoint(el.getBoundingClientRect().left + 30, el.getBoundingClientRect().top + 30)))).toBe(true);
   await page.mouse.move(source.x + 30, source.y + 30); await page.mouse.down();
@@ -105,6 +156,7 @@ async function dragTo(page: Page, card: Locator, deltaY: number, lane?: Locator)
     const before = board.scrollTop; board.scrollTop += distance; return board.scrollTop - before;
   }, deltaY);
   await page.mouse.move(targetX, source.y + 30 + deltaY - scrolled, { steps: 10 }); await page.mouse.up();
+  return initial;
 }
 async function centerBoardTarget(control: Locator) {
   await control.scrollIntoViewIfNeeded();
