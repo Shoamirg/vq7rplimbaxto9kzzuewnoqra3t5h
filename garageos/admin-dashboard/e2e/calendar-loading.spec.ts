@@ -1,6 +1,7 @@
 import { expect, test, type Route } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
+import { writeFile } from "node:fs/promises";
 import { translate, type Locale } from "../lib/i18n/dictionaries";
 import { makeFormatters } from "../lib/i18n/formatters";
 import { assertTargets, settleMotion } from "./support/accessibility";
@@ -113,7 +114,31 @@ for (const locale of ["en", "ru", "uz"] as Locale[]) {
       await details.getByRole("button", { name: t("appointment.edit"), exact: true }).click();
       const edit = page.getByRole("dialog", { name: t("appointment.edit") });
       await expect(edit.getByRole("alert")).toContainText(t("common.load_failed"));
-      await expect(edit.locator("#edit-mechanic")).toBeDisabled(); await settleMotion(page); await assertTargets(page);
+      await expect(edit.locator("#edit-mechanic")).toBeDisabled(); await settleMotion(page);
+      try {
+        await assertTargets(page);
+      } catch (error) {
+        // Capture the actual failing state before cleanup can change it. This
+        // records styles and geometry, never input values or auth material.
+        const diagnostics = await edit.evaluate(dialog => ({
+          rootSpacing: getComputedStyle(document.documentElement).getPropertyValue("--spacing"),
+          dialogSpacing: getComputedStyle(dialog).getPropertyValue("--spacing"),
+          stylesheets: Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')).map(link => ({
+            href: link.href, media: link.media, disabled: link.disabled, loaded: link.sheet !== null,
+          })),
+          controls: Array.from(dialog.querySelectorAll<HTMLElement>("button,input,select,textarea")).map(control => {
+            const style = getComputedStyle(control), box = control.getBoundingClientRect();
+            return { tag: control.tagName, id: control.id, classes: control.className,
+              width: box.width, height: box.height, minWidth: style.minWidth, minHeight: style.minHeight,
+              display: style.display, fontSize: style.fontSize };
+          }),
+        }));
+        const diagnosticPath = test.info().outputPath("calendar-edit-target-styles.json");
+        await writeFile(diagnosticPath, JSON.stringify(diagnostics, null, 2), "utf8");
+        await test.info().attach("calendar-edit-target-styles", { path: diagnosticPath, contentType: "application/json" });
+        await page.screenshot({ path: test.info().outputPath("calendar-edit-target-failure.png"), fullPage: true });
+        throw error;
+      }
       await edit.getByRole("button", { name: t("common.retry"), exact: true }).click();
       await expect(edit.getByRole("alert")).toHaveCount(0); await expect(edit.locator("#edit-mechanic")).toBeEnabled();
       await page.keyboard.press("Escape"); await expect(details).toBeVisible();

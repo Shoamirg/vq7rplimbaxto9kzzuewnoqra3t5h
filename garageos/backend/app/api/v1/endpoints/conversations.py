@@ -5,7 +5,7 @@ import uuid
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Header, Query, status
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.api.deps import get_current_user, get_tenant_uow
 from app.models.user import User
@@ -17,25 +17,51 @@ router = APIRouter()
 
 
 class ParticipantIn(BaseModel):
-    role: str = "customer"
-    display_name: str
+    model_config = ConfigDict(extra="forbid")
+
+    role: Literal['customer', 'dispatcher', 'mechanic', 'manager', 'watcher', 'system'] = "customer"
+    display_name: str = Field(max_length=120)
     user_id: uuid.UUID | None = None
     customer_id: uuid.UUID | None = None
 
+    @field_validator('display_name')
+    @classmethod
+    def meaningful_name(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError('Display name must contain text')
+        return value
+
+    @model_validator(mode='after')
+    def identity_namespace(self) -> ParticipantIn:
+        if self.role == 'customer' and self.user_id is not None:
+            raise ValueError('Customer participants use customer_id')
+        if self.role != 'customer' and self.customer_id is not None:
+            raise ValueError('Staff participants use user_id')
+        return self
+
 
 class ConversationCreate(BaseModel):
-    subject: str | None = None
-    conv_type: str = "general"
-    priority: str = "medium"
+    model_config = ConfigDict(extra="forbid")
+
+    subject: str | None = Field(default=None, max_length=200)
+    conv_type: Literal['general', 'emergency', 'support', 'warranty', 'vip'] = "general"
+    priority: Literal['high', 'medium', 'low'] = "medium"
     customer_id: uuid.UUID | None = None
     vehicle_id: uuid.UUID | None = None
     appointment_id: uuid.UUID | None = None
     case_id: uuid.UUID | None = None
     invoice_id: uuid.UUID | None = None
     assigned_user_id: uuid.UUID | None = None
-    ai_summary: str | None = None
+    ai_summary: str | None = Field(default=None, max_length=200)
     pinned_notes: list[str] | None = None
     participants: list[ParticipantIn] | None = None
+
+    @field_validator('subject')
+    @classmethod
+    def meaningful_subject(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip():
+            raise ValueError('Subject must contain text or be omitted')
+        return value
 
 
 class AttachmentIn(BaseModel):
@@ -57,9 +83,18 @@ class MessageCreate(BaseModel):
 
 
 class ConversationUpdate(BaseModel):
-    status: str | None = None
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal['open', 'waiting_customer', 'waiting_technician', 'waiting_approval', 'snoozed', 'resolved'] | None = None
     assigned_user_id: uuid.UUID | None = None
     mark_read: bool | None = None
+
+    @field_validator('status')
+    @classmethod
+    def explicit_status(cls, value: str | None) -> str:
+        if value is None:
+            raise ValueError('An explicit status cannot be null')
+        return value
 
 
 @router.get("", summary="Inbox — a work-queue view of conversations")
@@ -119,14 +154,10 @@ async def update_conversation(
     uow: UnitOfWork = Depends(get_tenant_uow, scope="function"), me: User = Depends(get_current_user),
 ) -> dict:
     svc = ConversationService(uow)
-    result = None
-    if body.assigned_user_id is not None:
-        result = await svc.assign(conversation_id, body.assigned_user_id)
-    if body.status is not None:
-        result = await svc.set_status(conversation_id, body.status)
-    if body.mark_read:
-        result = await svc.mark_read(conversation_id)
-    return result or await svc.get_thread(conversation_id, user_id=me.id)
+    return await svc.update_conversation(conversation_id, status=body.status,
+        assigned_user_id=body.assigned_user_id,
+        assignment_supplied='assigned_user_id' in body.model_fields_set,
+        mark_read=bool(body.mark_read))
 
 
 @router.post("/{conversation_id}/follow", summary="Follow a conversation (get updates unassigned)")

@@ -498,25 +498,34 @@ export interface InboxItem {
   vehicle_label?: string | null;
   assigned_name?: string | null;
   case_code?: string | null;
+  case_status?: string | null;
+  sla_tracking_active?: boolean;
   sla_elapsed_seconds?: number;
   sla_response_minutes?: number;
   sla_breached?: boolean;
 }
 
 export interface InboxCounts {
+  all: number;
   needs_reply: number;
   assigned_me: number;
+  mentions: number;
+  sla_breached: number;
   waiting_customer: number;
   waiting_technician: number;
   waiting_approval: number;
   unread: number;
   resolved: number;
+  snoozed: number;
 }
 
 export interface InboxResponse {
   items: InboxItem[];
   counts: InboxCounts;
   view: string;
+  total: number;
+  limit: number;
+  offset: number;
 }
 
 export interface ConvAttachment {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@garageos/design-system";
 import { clientFetch, ClientApiError } from "@/lib/api/client";
@@ -18,11 +18,13 @@ import { ThreadView } from "./thread-view";
 import { VIEWS } from "./shared";
 
 const control = "min-h-11 min-w-11 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50";
+const PAGE_SIZE = 50;
 
 export function InboxWorkspace() {
   const { t } = useI18n(), session = useStaffMessageSession();
   const [view, setView] = useState("needs_reply"), [channel, setChannel] = useState<Channel | null>(null);
   const [type, setType] = useState("all"), [q, setQ] = useState("");
+  const [offset, setOffset] = useState(0);
   const [activeId, setActiveId] = useState<string | null>(null), [selection, setSelection] = useState(0);
   const [denied, setDenied] = useState(false), deniedRef = useRef(false);
   const mounted = useRef(true), composerRef = useRef<HTMLTextAreaElement>(null);
@@ -50,16 +52,24 @@ export function InboxWorkspace() {
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
   useEffect(() => { if (linkedId) selectThread(linkedId); }, [linkedId, selectThread]);
 
-  const qs = new URLSearchParams({ view });
+  const qs = new URLSearchParams({ view, limit: String(PAGE_SIZE), offset: String(offset) });
   if (channel) qs.set("channel", channel);
   if (type !== "all") qs.set("type", type);
+  if (q) qs.set("q", q);
   const list = useOperationRead<InboxResponse>(principal ? `${principal}:${qs}` : null,
     `/conversations?${qs}`, !!actor && authorized(), onDenied);
+  useEffect(() => { if (list.data) setLoadedAt(Date.now()); }, [list.data]);
   useEffect(() => {
-    if (!list.data) return;
-    setLoadedAt(Date.now());
+    if (!list.data || list.loading || list.error) return;
     if (!activeId && !linkedId && list.data.items[0]) selectThread(list.data.items[0].id);
-  }, [list.data, activeId, linkedId, selectThread]);
+  }, [list.data, list.loading, list.error, activeId, linkedId, selectThread]);
+  useEffect(() => {
+    const page = list.data;
+    if (!page || list.loading || list.error || page.offset === 0 || page.offset < page.total) return;
+    // A shrinking queue can invalidate its last page. Recover once from the
+    // current verified total; changed-query results have no authority here.
+    setOffset(page.total === 0 ? 0 : Math.floor((page.total - 1) / page.limit) * page.limit);
+  }, [list.data, list.loading, list.error]);
   const readKey = principal && activeId ? `${principal}:${activeId}:${selection}` : null;
   const [pausedRead, setPausedRead] = useState<string | null>(null);
   const read = useOperationRead<ThreadDetail>(readKey, activeId ? `/conversations/${activeId}` : null,
@@ -112,10 +122,7 @@ export function InboxWorkspace() {
   };
   const visibleThread = thread ? { ...thread, messages: [...thread.messages,
     ...(acknowledged[`${principal}:${thread.id}`] ?? []).filter(row => !thread.messages.some(saved => saved.id === row.id))] } : null;
-  const filtered = useMemo(() => {
-    const value = q.trim().toLowerCase(), rows = list.data?.items ?? [];
-    return value ? rows.filter(row => [row.customer_name, row.subject, row.vehicle_label].some(text => text?.toLowerCase().includes(value))) : rows;
-  }, [q, list.data]);
+  const filtered = list.data?.items ?? [];
   // Existing status/follow actions keep their scope. Completions refresh the
   // current read through its identity guard; they cannot restore an old thread.
   const mutate = async (path: string, init: RequestInit) => {
@@ -155,15 +162,19 @@ export function InboxWorkspace() {
     {(denied || !!session.error) && <button className={control} onClick={() => void verify()}>{t("message.verify")}</button>}
   </div>;
   return <div className="relative flex h-full min-w-0 flex-col overflow-hidden">
-    <div className="flex flex-wrap gap-2 border-b border-border p-2 2xl:hidden"><button className={control} aria-expanded={queuesOpen} onClick={() => setQueuesOpen(old => !old)}>{t("message.queues")}</button></div>
-    {!!list.error && <div role="alert" className="space-y-2 p-3 text-sm"><p>{t(composer.saved ? "message.refresh_error" : "ops.read_error")}</p><button className={control} onClick={() => void list.refresh()}>{t("ops.retry")}</button></div>}
+    <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border p-2">
+      <h1 className="min-w-0 flex-1 break-words px-2 text-base font-semibold">{t("nav.inbox")}</h1>
+      <button className={cn(control, "2xl:hidden")} aria-expanded={queuesOpen} onClick={() => setQueuesOpen(old => !old)}>{t("message.queues")}</button>
+    </div>
+    {!!list.error && <div role="alert" className="space-y-2 p-3 text-sm"><p>{t(list.error instanceof ClientApiError && list.error.code === "INBOX_SEARCH_UNAVAILABLE" ? "ops.search_unavailable" : composer.saved ? "message.refresh_error" : list.data ? "ops.stale" : "ops.read_error")}</p><button className={control} onClick={() => void list.refresh()}>{t("ops.retry")}</button></div>}
     <div className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
     <div className={cn("min-h-0 flex-col bg-card 2xl:static 2xl:flex", queuesOpen ? "absolute inset-y-0 left-0 z-30 flex max-w-full shadow-xl" : "hidden")}>
       <button className={cn(control, "2xl:hidden")} onClick={() => setQueuesOpen(false)}>{t("message.close_queues")}</button>
-      <QueueRail view={view} onView={setView} channel={channel} onChannel={setChannel} type={type} onType={setType} counts={list.data?.counts ?? null} />
+      <QueueRail view={view} onView={value => { setView(value); setOffset(0); }} channel={channel} onChannel={value => { setChannel(value); setOffset(0); }} type={type} onType={value => { setType(value); setOffset(0); }} counts={list.data?.counts ?? null} />
     </div>
     <div className={cn("min-h-0 min-w-0 flex-col border-r border-border lg:flex lg:w-[300px] lg:shrink-0", !activeId || listOpen ? "flex w-full" : "hidden")}>
-      <ConversationList items={filtered} activeId={activeId} onSelect={selectThread} q={q} onQ={setQ} title={VIEWS.find(v => v.key === view)?.label ?? t("nav.inbox")} now={now} loadedAt={loadedAt} loading={list.loading} verified={!!list.data} failed={!!list.error} />
+      <ConversationList items={filtered} activeId={activeId} onSelect={selectThread} q={q} onQ={value => { setQ(value); setOffset(0); }} title={t(VIEWS.find(v => v.key === view)?.label ?? "nav.inbox")} now={now} loadedAt={loadedAt} loading={list.loading} verified={!!list.data} failed={!!list.error}
+        total={list.data?.total ?? null} offset={list.data?.offset ?? offset} limit={list.data?.limit ?? PAGE_SIZE} onPage={setOffset} />
     </div>
     <section aria-label={t("nav.inbox")} className={cn("min-h-0 min-w-0 flex-1 flex-col lg:flex", activeId && !listOpen ? "flex" : "hidden")}>
       <div className="flex flex-wrap gap-2 border-b border-border p-2">
@@ -175,7 +186,7 @@ export function InboxWorkspace() {
         composer={composer} canWrite={session.canWrite} loading={read.loading} readError={!!read.error} onSend={send}
         onStatus={status => void mutate(`/conversations/${thread!.id}`, { method: "PATCH", body: JSON.stringify({ status }) })} onToggleFollow={toggleFollow}
         contextOpen={contextOpen} onOpenContext={() => setContextOpen(true)} />
-        : <p role="status" className="p-4 text-sm">{t(read.loading ? "ops.loading" : "ops.select")}</p>}
+        : <p role="status" className="p-4 text-sm">{t(read.loading ? "ops.loading" : "inbox.select")}</p>}
     </section>
     {visibleThread && contextOpen && <div className="absolute inset-y-0 right-0 z-20 flex max-w-full bg-card shadow-xl 2xl:static 2xl:shadow-none"><ContextPanel thread={visibleThread} onToggleFollow={toggleFollow} onCollapse={() => setContextOpen(false)} /></div>}
     </div>

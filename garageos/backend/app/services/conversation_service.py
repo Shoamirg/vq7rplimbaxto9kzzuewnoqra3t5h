@@ -17,7 +17,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import noload
 
 from app.core.events import ConversationStarted, MessagePosted
-from app.exceptions import NotFoundError, UnauthorizedAction
+from app.exceptions import NotFoundError, UnauthorizedAction, ValidationError
 from app.models.conversation import (
     Attachment,
     Channel,
@@ -34,10 +34,11 @@ from app.models.appointment import Appointment
 from app.models.invoice import Invoice
 from app.models.message_intent import MessageIntent
 from app.models.notification import Notification
+from app.models.role import Role
 from app.models.operational_case import OperationalCase
 from app.models.user import User
 from app.models.vehicle import Vehicle
-from app.repositories.inbox_query import inbox_page, safe_conversation
+from app.repositories.inbox_query import inbox_page, safe_conversation, sla_tracking_active
 from app.repositories.tenant_references import local_reference, local_reference_exists
 from app.repositories.unit_of_work import UnitOfWork
 from app.services.case_service import CaseService
@@ -67,6 +68,10 @@ class CaseConversationUnavailable(UnauthorizedAction):
     detail = "This case conversation has not been started"
 
 
+class ConversationReferenceMismatch(ValidationError):
+    detail = "Selected conversation references do not belong together"
+
+
 class ConversationService:
     def __init__(self, uow: UnitOfWork):
         self.uow = uow
@@ -75,13 +80,14 @@ class ConversationService:
         self.maintenance = MaintenanceService(uow.session, self.sc)
 
     # ── fetch ─────────────────────────────────────────────────
-    async def _get(self, conversation_id: uuid.UUID) -> Conversation:
-        row = await self.session.execute(
-            select(Conversation).where(
+    async def _get(self, conversation_id: uuid.UUID, *, for_update: bool = False) -> Conversation:
+        statement = select(Conversation).where(
                 Conversation.id == conversation_id,
                 *safe_conversation(self.sc),
             ).options(noload(Conversation.messages), noload(Conversation.participants))
-        )
+        if for_update:
+            statement = statement.with_for_update(of=Conversation).execution_options(populate_existing=True)
+        row = await self.session.execute(statement)
         conv = row.scalar_one_or_none()
         if not conv:
             raise ConversationNotFound()
@@ -95,7 +101,16 @@ class ConversationService:
         case_id: uuid.UUID | None = None, invoice_id: uuid.UUID | None = None,
         assigned_user_id: uuid.UUID | None = None, ai_summary: str | None = None,
         pinned_notes: list | None = None, participants: list[dict] | None = None,
+        _recorded_context: bool = False,
     ) -> dict:
+        # Only owning-model entry points may preserve an existing inactive or
+        # transferred snapshot when starting its first thread. Public creation
+        # always chooses currently eligible references.
+        await self._validate_creation_references(
+            customer_id=customer_id, vehicle_id=vehicle_id, appointment_id=appointment_id,
+            case_id=case_id, invoice_id=invoice_id, assigned_user_id=assigned_user_id,
+            participants=participants or [], recorded_context=_recorded_context,
+        )
         now = datetime.now(timezone.utc)
         conv = Conversation(
             service_center_id=self.sc, subject=subject, conv_type=conv_type,
@@ -128,6 +143,66 @@ class ConversationService:
     def _default_participants(self, customer_id: uuid.UUID | None) -> list[dict]:
         return []
 
+    async def _eligible_staff(self, user_id: uuid.UUID) -> User:
+        user = await self.session.scalar(select(User).join(Role).where(
+            User.id == user_id, User.service_center_id == self.sc,
+            User.is_active.is_(True), Role.is_active.is_(True),
+            Role.name.in_(['admin', 'manager', 'receptionist', 'mechanic', 'super_admin']),
+        ).with_for_update(read=True, of=(User, Role)).execution_options(populate_existing=True))
+        if user is None:
+            raise ConversationNotFound()
+        return user
+
+    async def _validate_creation_references(self, *, customer_id, vehicle_id,
+            appointment_id, case_id, invoice_id, assigned_user_id, participants, recorded_context):
+        if recorded_context and not any([appointment_id, case_id, invoice_id]):
+            raise ValueError('A recorded context requires its owning record')
+        customers = {customer_id} if customer_id is not None else set()
+        vehicles = {vehicle_id} if vehicle_id is not None else set()
+        for model, reference in [(Customer, customer_id), (Vehicle, vehicle_id)]:
+            if reference is not None and await local_reference(
+                    self.session, model, reference, self.sc, active=not recorded_context) is None:
+                raise ConversationNotFound()
+        if vehicle_id is not None:
+            vehicle = await local_reference(self.session, Vehicle, vehicle_id, self.sc)
+            if await local_reference(self.session, Customer, vehicle.customer_id, self.sc) is None:
+                raise ConversationNotFound()
+            if not recorded_context and customer_id is not None and vehicle.customer_id != customer_id:
+                raise ConversationReferenceMismatch()
+            if not recorded_context:
+                customers.add(vehicle.customer_id)
+        if assigned_user_id is not None:
+            await self._eligible_staff(assigned_user_id)
+        for model, reference in [(Appointment, appointment_id), (OperationalCase, case_id), (Invoice, invoice_id)]:
+            if reference is None:
+                continue
+            linked = await local_reference(self.session, model, reference, self.sc, active=True)
+            if linked is None:
+                raise ConversationNotFound()
+            for child_model, child in [(Customer, linked.customer_id), (Vehicle, linked.vehicle_id)]:
+                if child is not None:
+                    child_record = await local_reference(self.session, child_model, child, self.sc)
+                    if child_record is None:
+                        raise ConversationNotFound()
+                    if child_model is Vehicle and await local_reference(
+                            self.session, Customer, child_record.customer_id, self.sc) is None:
+                        raise ConversationNotFound()
+            if model is OperationalCase and linked.assigned_user_id is not None:
+                if await local_reference(self.session, User, linked.assigned_user_id, self.sc) is None:
+                    raise ConversationNotFound()
+            if linked.customer_id is not None:
+                customers.add(linked.customer_id)
+            if linked.vehicle_id is not None:
+                vehicles.add(linked.vehicle_id)
+        if len(customers) > 1 or len(vehicles) > 1:
+            raise ConversationReferenceMismatch()
+        for participant in participants:
+            if participant.get('user_id') is not None:
+                await self._eligible_staff(participant['user_id'])
+            if participant.get('customer_id') is not None and await local_reference(
+                    self.session, Customer, participant['customer_id'], self.sc, active=not recorded_context) is None:
+                raise ConversationNotFound()
+
     # ── post a message (any channel) ──────────────────────────
     async def post_message(
         self, conversation_id: uuid.UUID, *, body: str | None = None,
@@ -142,8 +217,7 @@ class ConversationService:
         # Refresh previously loaded customer-owned rows after lock acquisition:
         # parallel distinct intents must not increment a stale unread counter.
         conv = await self.session.scalar(select(Conversation).where(
-            Conversation.id == conversation_id, Conversation.service_center_id == self.sc,
-            Conversation.is_active.is_(True),
+            Conversation.id == conversation_id, *safe_conversation(self.sc),
         ).with_for_update(of=Conversation).execution_options(populate_existing=True))
         if conv is None:
             raise ConversationNotFound()
@@ -251,15 +325,15 @@ class ConversationService:
         await self._validate_case_thread(conv)
         if conv.case_id is not None:
             case = await CaseService(self.uow).get_record(conv.case_id)
-            if ((conv.customer_id is not None and case.customer_id != conv.customer_id)
-                    or (conv.vehicle_id is not None and case.vehicle_id != conv.vehicle_id)):
+            if ((conv.customer_id is not None and case.customer_id is not None and case.customer_id != conv.customer_id)
+                    or (conv.vehicle_id is not None and case.vehicle_id is not None and case.vehicle_id != conv.vehicle_id)):
                 raise ConversationNotFound()
         for model, reference in [(Appointment, conv.appointment_id), (Invoice, conv.invoice_id)]:
             if reference is None:
                 continue
             linked = await local_reference(self.session, model, reference, self.sc)
-            if (linked is None or (conv.customer_id is not None and linked.customer_id != conv.customer_id)
-                    or (conv.vehicle_id is not None and linked.vehicle_id != conv.vehicle_id)):
+            if (linked is None or (conv.customer_id is not None and linked.customer_id is not None and linked.customer_id != conv.customer_id)
+                    or (conv.vehicle_id is not None and linked.vehicle_id is not None and linked.vehicle_id != conv.vehicle_id)):
                 raise ConversationNotFound()
             # Owning snapshots can keep an inactive/transferred local vehicle,
             # but cannot point outside the authenticated center.
@@ -269,25 +343,39 @@ class ConversationService:
 
     # ── transitions ───────────────────────────────────────────
     async def set_status(self, conversation_id: uuid.UUID, status: str) -> dict:
-        conv = await self._get(conversation_id)
-        conv.status = status
-        self._bump_activity(conv)
-        await self.session.flush()
-        return await self.serialize_row(conv)
+        return await self.update_conversation(conversation_id, status=status)
 
     async def assign(self, conversation_id: uuid.UUID, user_id: uuid.UUID | None) -> dict:
-        conv = await self._get(conversation_id)
-        conv.assigned_user_id = user_id
-        self._bump_activity(conv)
+        return await self.update_conversation(conversation_id, assigned_user_id=user_id, assignment_supplied=True)
+
+    async def update_conversation(self, conversation_id: uuid.UUID, *, status: str | None = None,
+            assigned_user_id: uuid.UUID | None = None, assignment_supplied: bool = False,
+            mark_read: bool = False) -> dict:
+        conv = await self._get(conversation_id, for_update=True)
+        if status is not None and status not in {
+                ConvStatus.OPEN, ConvStatus.WAITING_CUSTOMER, ConvStatus.WAITING_TECHNICIAN,
+                ConvStatus.WAITING_APPROVAL, ConvStatus.SNOOZED, ConvStatus.RESOLVED}:
+            raise ConversationReferenceMismatch()
+        if assignment_supplied and assigned_user_id is not None:
+            await self._eligible_staff(assigned_user_id)
+        changed = ((status is not None and status != conv.status)
+            or (assignment_supplied and assigned_user_id != conv.assigned_user_id))
+        if status is not None:
+            conv.status = status
+        if assignment_supplied:
+            conv.assigned_user_id = assigned_user_id
+        if changed:
+            self._bump_activity(conv)
+        # Observed read authority is implemented separately; keep legacy
+        # callers coherent until issuance and every consumer are coupled.
+        if mark_read:
+            conv.unread_messages = 0
+            conv.unread_activity = 0
         await self.session.flush()
         return await self.serialize_row(conv)
 
     async def mark_read(self, conversation_id: uuid.UUID) -> dict:
-        conv = await self._get(conversation_id)
-        conv.unread_messages = 0
-        conv.unread_activity = 0
-        await self.session.flush()
-        return await self.serialize_row(conv)
+        return await self.update_conversation(conversation_id, mark_read=True)
 
     def _bump_activity(self, conv: Conversation) -> None:
         """Non-message work (assignment, status change, linked events) still
@@ -296,13 +384,16 @@ class ConversationService:
         conv.unread_activity = (conv.unread_activity or 0) + 1
 
     async def follow(self, conversation_id: uuid.UUID, *, user_id: uuid.UUID, display_name: str) -> dict:
-        conv = await self._get(conversation_id)
-        existing = (await self.session.execute(
+        conv = await self._get(conversation_id, for_update=True)
+        await self._eligible_staff(user_id)
+        existing = list(await self.session.scalars(
             select(Participant).where(
+                Participant.service_center_id == self.sc,
                 Participant.conversation_id == conv.id, Participant.user_id == user_id)
-        )).scalar_one_or_none()
+        ))
         if existing:
-            existing.is_following = True
+            for participant in existing:
+                participant.is_following = True
         else:
             self.session.add(Participant(
                 service_center_id=self.sc, conversation_id=conv.id,
@@ -312,13 +403,15 @@ class ConversationService:
         return {"conversation_id": str(conv.id), "following": True}
 
     async def unfollow(self, conversation_id: uuid.UUID, *, user_id: uuid.UUID) -> dict:
-        conv = await self._get(conversation_id)
-        existing = (await self.session.execute(
+        conv = await self._get(conversation_id, for_update=True)
+        await self._eligible_staff(user_id)
+        existing = list(await self.session.scalars(
             select(Participant).where(
+                Participant.service_center_id == self.sc,
                 Participant.conversation_id == conv.id, Participant.user_id == user_id)
-        )).scalar_one_or_none()
-        if existing:
-            existing.is_following = False
+        ))
+        for participant in existing:
+            participant.is_following = False
         await self.session.flush()
         return {"conversation_id": str(conv.id), "following": False}
 
@@ -362,6 +455,7 @@ class ConversationService:
             priority=self._SEV_TO_PRIORITY.get(case.severity, "medium"),
             customer_id=case.customer_id, vehicle_id=case.vehicle_id, case_id=case.id,
             ai_summary=None, participants=parts,
+            _recorded_context=True,
         )
         # An opening system line so the thread isn't blank (author=system → no bell).
         await self.post_message(
@@ -446,9 +540,9 @@ class ConversationService:
             for p in parts]
         # Is the current user Following this thread (even if unassigned)?
         data["is_following"] = any(
-            p.user_id == user_id and (p.is_following or p.role != ParticipantRole.WATCHER)
+            p.user_id == user_id and p.is_following
             for p in parts) if user_id else False
-        data["followers"] = sum(1 for p in parts if p.is_following)
+        data["followers"] = len({p.user_id for p in parts if p.is_following and p.user_id is not None})
 
         data["activity"] = await self._activity(conv, data["messages"])
         data["pinned_notes"] = conv.pinned_notes or []
@@ -535,9 +629,12 @@ class ConversationService:
             if case:
                 elapsed = int((datetime.now(timezone.utc) - _utc(case.created_at)).total_seconds())
                 out["case_code"] = case.code
+                out["case_status"] = case.status
+                tracking = sla_tracking_active(conv.status, case.status, case.is_active)
+                out["sla_tracking_active"] = tracking
                 out["sla_elapsed_seconds"] = elapsed
                 out["sla_response_minutes"] = case.sla_response_minutes
-                out["sla_breached"] = case.is_open() and elapsed > case.sla_response_minutes * 60
+                out["sla_breached"] = tracking and elapsed > case.sla_response_minutes * 60
 
         if full:
             out["linked"] = await self._linked_cards(conv)

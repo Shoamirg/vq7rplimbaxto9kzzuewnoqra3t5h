@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import uuid
+from itertools import combinations
 from datetime import datetime, timezone
 
 from sqlalchemy import String, and_, bindparam, case, cast, func, or_, select, text
@@ -24,6 +25,11 @@ OPEN_STATUSES = (ConvStatus.OPEN, ConvStatus.WAITING_CUSTOMER,
                  ConvStatus.WAITING_TECHNICIAN, ConvStatus.WAITING_APPROVAL)
 
 
+def sla_tracking_active(conversation_status, case_status, case_is_active):
+    return bool(conversation_status in OPEN_STATUSES and case_is_active
+        and case_status in OPEN_CASE_STATUSES)
+
+
 class InboxSearchUnavailable(GarageException):
     status_code = 503
     code = 'INBOX_SEARCH_UNAVAILABLE'
@@ -32,6 +38,13 @@ class InboxSearchUnavailable(GarageException):
 
 def optional_local(model, reference, center):
     return or_(reference.is_(None), local_reference_exists(model, reference, center))
+
+
+def local_vehicle_exists(reference, center):
+    return select(Vehicle.id).where(
+        Vehicle.id == reference, Vehicle.service_center_id == center,
+        local_reference_exists(Customer, Vehicle.customer_id, center),
+    ).correlate_except(Vehicle).exists()
 
 
 def safe_conversation(center):
@@ -46,19 +59,28 @@ def safe_conversation(center):
         predicates.append(optional_local(model, reference, center))
     # A vehicle's present owner may differ from the captured conversation owner,
     # but both identities must still be local to the owning garage.
-    predicates.append(or_(Conversation.vehicle_id.is_(None), select(Vehicle.id).where(
-        Vehicle.id == Conversation.vehicle_id, Vehicle.service_center_id == center,
-        local_reference_exists(Customer, Vehicle.customer_id, center),
-    ).correlate_except(Vehicle).exists()))
-    for model, reference in [(OperationalCase, Conversation.case_id),
-                             (Appointment, Conversation.appointment_id), (Invoice, Conversation.invoice_id)]:
+    predicates.append(or_(Conversation.vehicle_id.is_(None), local_vehicle_exists(Conversation.vehicle_id, center)))
+    owning_links = [(OperationalCase, Conversation.case_id),
+                   (Appointment, Conversation.appointment_id), (Invoice, Conversation.invoice_id)]
+    for model, reference in owning_links:
         linked = [model.id == reference, model.service_center_id == center,
-            optional_local(Customer, model.customer_id, center), optional_local(Vehicle, model.vehicle_id, center),
-            or_(Conversation.customer_id.is_(None), model.customer_id == Conversation.customer_id),
-            or_(Conversation.vehicle_id.is_(None), model.vehicle_id == Conversation.vehicle_id)]
+            optional_local(Customer, model.customer_id, center),
+            or_(model.vehicle_id.is_(None), local_vehicle_exists(model.vehicle_id, center)),
+            or_(Conversation.customer_id.is_(None), model.customer_id.is_(None), model.customer_id == Conversation.customer_id),
+            or_(Conversation.vehicle_id.is_(None), model.vehicle_id.is_(None), model.vehicle_id == Conversation.vehicle_id)]
         if model is OperationalCase:
             linked.append(optional_local(User, model.assigned_user_id, center))
         predicates.append(or_(reference.is_(None), select(model.id).where(*linked).correlate_except(model).exists()))
+    # Optional aggregate context cannot make contradictory owning snapshots
+    # safe. Compare only recorded nonmissing coordinates, preserving absent
+    # optional links and local historical vehicle transfers.
+    for (left, left_id), (right, right_id) in combinations(owning_links, 2):
+        incompatible = select(left.id).select_from(left).join(right, right.id == right_id).where(
+            left.id == left_id, left.service_center_id == center, right.service_center_id == center,
+            or_(and_(left.customer_id.is_not(None), right.customer_id.is_not(None), left.customer_id != right.customer_id),
+                and_(left.vehicle_id.is_not(None), right.vehicle_id.is_not(None), left.vehicle_id != right.vehicle_id)),
+        ).correlate_except(left, right).exists()
+        predicates.append(~incompatible)
     bad_participant = select(Participant.id).where(Participant.conversation_id == Conversation.id, or_(
         Participant.service_center_id != center,
         ~optional_local(Customer, Participant.customer_id, center),
@@ -188,10 +210,10 @@ async def inbox_page(session, center, *, view, channel, conv_type, user_id, q, l
             item['vehicle_label'] = format_vehicle_label(record['brand'], record['model'], record['plate'])
         if record['case_id']:
             elapsed = int((now - record['case_created_at']).total_seconds())
+            tracking = sla_tracking_active(record['status'], record['case_status'], record['case_is_active'])
             item.update(case_code=record['case_code'], case_status=record['case_status'],
+                sla_tracking_active=tracking,
                 sla_elapsed_seconds=elapsed, sla_response_minutes=record['sla_response_minutes'],
-                sla_breached=record['status'] in OPEN_STATUSES and record['case_is_active']
-                    and record['case_status'] in OPEN_CASE_STATUSES
-                    and elapsed > record['sla_response_minutes'] * 60)
+                sla_breached=tracking and elapsed > record['sla_response_minutes'] * 60)
         items.append(item)
     return dict(items=items, counts=dict(counts), total=counts[view], view=view, limit=limit, offset=offset)

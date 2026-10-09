@@ -71,16 +71,30 @@ def request_target(target, actor, key):
     return path, {**target[actor], "Idempotency-Key": key}
 
 
-async def wait_for_message_lock():
-    """Prove the competing request reached a real PostgreSQL row-lock wait."""
+async def wait_for_message_lock(blocker_pid):
+    """Prove the competitor waits behind this exact aggregate transaction.
+
+    PostgreSQL may truncate pg_stat_activity.query before a long statement's
+    FOR UPDATE clause. Actual blocking PIDs and relation locks remain observable.
+    """
     async with asyncio.timeout(10):
         while True:
             async with async_session_factory() as session:
                 waiting = await session.scalar(text("""
-                    SELECT 1 FROM pg_stat_activity WHERE datname = current_database()
-                    AND wait_event_type = 'Lock' AND query ILIKE '%conversations%'
-                    AND query ILIKE '%FOR UPDATE%' LIMIT 1
-                """))
+                    WITH RECURSIVE owned_waiters(pid) AS (
+                        SELECT pid FROM pg_stat_activity WHERE :blocker = ANY(pg_blocking_pids(pid))
+                        UNION
+                        SELECT activity.pid FROM pg_stat_activity activity
+                        JOIN owned_waiters parent ON parent.pid = ANY(pg_blocking_pids(activity.pid))
+                    )
+                    SELECT 1 FROM pg_stat_activity activity
+                    JOIN owned_waiters waiter ON waiter.pid = activity.pid
+                    JOIN pg_locks lock ON lock.pid = activity.pid
+                    WHERE activity.datname = current_database() AND activity.wait_event_type = 'Lock'
+                        AND lock.relation = 'public.conversations'::regclass
+                        AND lock.mode = 'RowShareLock' AND lock.granted
+                    LIMIT 1
+                """), {'blocker': blocker_pid})
             if waiting:
                 return
             await asyncio.sleep(.02)
@@ -230,13 +244,15 @@ async def test_duplicate_waits_for_first_commit_or_rollback(client, target, monk
     committing, release = asyncio.Event(), asyncio.Event()
     observed_events = []
     first = True
+    blocker_pid = None
     monkeypatch.setattr(event_bus, "dispatch", observed_events.append)
 
     async def paused_commit(uow):
-        nonlocal first
+        nonlocal first, blocker_pid
         intent = await uow.session.scalar(select(MessageIntent.id).where(MessageIntent.conversation_id == uuid.UUID(target["id"])))
         if intent is not None and first:
             first = False
+            blocker_pid = await uow.session.scalar(text('SELECT pg_backend_pid()'))
             committing.set()
             await release.wait()
             if rollback:
@@ -252,7 +268,8 @@ async def test_duplicate_waits_for_first_commit_or_rollback(client, target, monk
         second_call = asyncio.create_task(client.post(path, headers=headers, json={"body": "Wait for transaction"}))
         # Independent connections see no durable effect while the first commit
         # is paused; the duplicate has neither returned nor dispatched an event.
-        await wait_for_message_lock()
+        assert blocker_pid is not None
+        await wait_for_message_lock(blocker_pid)
         assert not second_call.done()
         assert (await snapshot(target))["ids"] == [] and observed_events == []
         release.set()
@@ -264,10 +281,14 @@ async def test_duplicate_waits_for_first_commit_or_rollback(client, target, monk
         assert len(saved["ids"]) == len(saved["intents"]) == len(observed_events) == saved["unread"] == 1
     finally:
         release.set()
-        for task in [first_call, second_call]:
-            if task is not None and not task.done():
-                task.cancel()
-        await asyncio.gather(*[task for task in [first_call, second_call] if task is not None], return_exceptions=True)
+        tasks = [task for task in [first_call, second_call] if task is not None]
+        try:
+            await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=True), timeout=20)
+        finally:
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
 
 
 async def test_parallel_distinct_customer_intents_increment_fresh_unread(client, target):
@@ -566,8 +587,9 @@ async def test_customer_owner_is_checked_after_lock_for_keyed_and_unkeyed_writes
             conv = await locker.scalar(select(Conversation).where(Conversation.id == uuid.UUID(target["id"])).with_for_update())
             conv.customer_id = uuid.UUID(other.json()["id"])
             await locker.flush()  # old owner remains visible to an unlocked MVCC read
+            blocker_pid = await locker.scalar(text("SELECT pg_backend_pid()"))
             pending = asyncio.create_task(client.post(path, headers=headers, json={"body": "Old owner cannot send"}))
-            await wait_for_message_lock()
+            await wait_for_message_lock(blocker_pid)
             assert not pending.done()
             await locker.commit()
         denied = await asyncio.wait_for(pending, timeout=10)
@@ -575,6 +597,12 @@ async def test_customer_owner_is_checked_after_lock_for_keyed_and_unkeyed_writes
         saved = await snapshot(target)
         assert saved["ids"] == saved["intents"] == [] and saved["unread"] == 0
     finally:
-        if pending is not None and not pending.done():
-            pending.cancel()
-            await asyncio.gather(pending, return_exceptions=True)
+        # The locker context has released its owned transaction before this
+        # bounded drain, including when an assertion or lock observation fails.
+        if pending is not None:
+            try:
+                await asyncio.wait_for(asyncio.gather(pending, return_exceptions=True), timeout=20)
+            finally:
+                if not pending.done():
+                    pending.cancel()
+                await asyncio.gather(pending, return_exceptions=True)

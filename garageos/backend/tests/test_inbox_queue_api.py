@@ -94,6 +94,29 @@ async def test_old_literal_unicode_search(client, inbox_rows, query):
     assert page['counts']['needs_reply'] == 1 and page['counts']['waiting_customer'] == 0
 
 
+@pytest.mark.parametrize('case_status,case_active,conversation_status,eligible', [
+    ('new', True, 'open', True), ('new', True, 'waiting_customer', True),
+    ('resolved', True, 'open', False), ('new', False, 'open', False),
+    ('new', True, 'resolved', False), ('new', True, 'snoozed', False),
+])
+async def test_sla_timer_capability_describes_current_case_and_communication_state(
+    client, inbox_rows, case_status, case_active, conversation_status, eligible,
+):
+    refs = inbox_rows
+    async with async_session_factory() as session:
+        conv = await session.get(Conversation, uuid.UUID(refs['sla']))
+        await session.execute(update(OperationalCase).where(OperationalCase.id == conv.case_id).values(
+            status=case_status, is_active=case_active))
+        conv.status = conversation_status
+        await session.commit()
+    page = await listing(client, refs, view='all', q=refs['sla'])
+    assert page['total'] == 1 and len(page['items']) == 1
+    row = page['items'][0]
+    assert row['id'] == refs['sla'] and row['case_status'] == case_status
+    assert row.get('sla_tracking_active') is eligible
+    assert row['sla_breached'] is eligible  # recorded 2020 deadline is long past
+
+
 async def test_each_count_keeps_filters_but_not_selected_view(client, inbox_rows):
     page = await listing(client, inbox_rows, view='waiting_customer', channel='phone', type='general')
     assert page['total'] == 1 and [row['id'] for row in page['items']] == [inbox_rows['waiting']]

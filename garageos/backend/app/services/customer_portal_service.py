@@ -327,6 +327,7 @@ class CustomerPortalService:
         created = await ConversationService(self.uow).create_conversation(
             subject=f"Estimate {inv.code}",
             customer_id=self.customer.id, vehicle_id=inv.vehicle_id, invoice_id=inv.id,
+            _recorded_context=True,
             participants=[{"role": ParticipantRole.CUSTOMER,
                            "display_name": self.customer.full_name,
                            "customer_id": self.customer.id}],
