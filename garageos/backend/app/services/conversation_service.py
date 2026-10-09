@@ -13,7 +13,8 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import or_, select
+from sqlalchemy.orm import noload
 
 from app.core.events import ConversationStarted, MessagePosted
 from app.exceptions import NotFoundError, UnauthorizedAction
@@ -36,6 +37,7 @@ from app.models.notification import Notification
 from app.models.operational_case import OperationalCase
 from app.models.user import User
 from app.models.vehicle import Vehicle
+from app.repositories.inbox_query import inbox_page, safe_conversation
 from app.repositories.tenant_references import local_reference, local_reference_exists
 from app.repositories.unit_of_work import UnitOfWork
 from app.services.case_service import CaseService
@@ -52,13 +54,7 @@ STATUS_LABEL = {
     ConvStatus.SNOOZED: "Snoozed",
     ConvStatus.RESOLVED: "Resolved",
 }
-_PRIORITY_RANK = {"high": 0, "medium": 1, "low": 2}
 
-# The work-queue views, in rail order. Each maps to a predicate below.
-VIEWS = [
-    "needs_reply", "assigned_me", "mentions", "waiting_customer",
-    "waiting_technician", "waiting_approval", "sla_breached", "unread", "resolved",
-]
 
 
 class ConversationNotFound(NotFoundError):
@@ -83,9 +79,8 @@ class ConversationService:
         row = await self.session.execute(
             select(Conversation).where(
                 Conversation.id == conversation_id,
-                Conversation.service_center_id == self.sc,
-                Conversation.is_active.is_(True),
-            )
+                *safe_conversation(self.sc),
+            ).options(noload(Conversation.messages), noload(Conversation.participants))
         )
         conv = row.scalar_one_or_none()
         if not conv:
@@ -416,76 +411,17 @@ class ConversationService:
             raise ConversationNotFound()
 
     # ── inbox (work queues) ───────────────────────────────────
-    def _view_where(self, stmt, view: str, user_id: uuid.UUID | None):
-        open_ = Conversation.status.in_(list(
-            {ConvStatus.OPEN, ConvStatus.WAITING_CUSTOMER,
-             ConvStatus.WAITING_TECHNICIAN, ConvStatus.WAITING_APPROVAL}))
-        if view == "needs_reply":
-            return stmt.where(Conversation.status == ConvStatus.OPEN)
-        if view == "assigned_me":
-            return stmt.where(Conversation.assigned_user_id == user_id, open_)
-        if view == "waiting_customer":
-            return stmt.where(Conversation.status == ConvStatus.WAITING_CUSTOMER)
-        if view == "waiting_technician":
-            return stmt.where(Conversation.status == ConvStatus.WAITING_TECHNICIAN)
-        if view == "waiting_approval":
-            return stmt.where(Conversation.status == ConvStatus.WAITING_APPROVAL)
-        if view == "unread":
-            return stmt.where(or_(Conversation.unread_messages > 0, Conversation.unread_activity > 0))
-        if view == "resolved":
-            return stmt.where(Conversation.status == ConvStatus.RESOLVED)
-        # mentions & sla_breached need per-row logic — handled after fetch.
-        return stmt.where(open_)
-
     async def list_inbox(
         self, *, view: str = "needs_reply", channel: str | None = None,
         conv_type: str | None = None, user_id: uuid.UUID | None = None,
+        q: str | None = None, limit: int = 80, offset: int = 0,
     ) -> dict:
-        base = select(Conversation).where(
-            Conversation.service_center_id == self.sc, Conversation.is_active.is_(True))
-        if channel and channel != "all":
-            base = base.where(Conversation.last_channel == channel)
-        if conv_type and conv_type != "all":
-            base = base.where(Conversation.conv_type == conv_type)
-
-        # Sort by last *activity*, not last message — work floats threads up.
-        stmt = self._view_where(base, view, user_id).order_by(Conversation.last_activity_at.desc().nullslast()).limit(80)
-        rows = list((await self.session.execute(stmt)).scalars().all())
-
-        if view == "mentions":
-            rows = [c for c in rows if await self._has_mentions(c.id)]
-        elif view == "sla_breached":
-            rows = [c for c in rows if await self._sla_breached(c)]
-
-        # Rows arrive newest-first from SQL; a *stable* sort by priority keeps
-        # newest-first within each band without any date gymnastics.
-        items = [await self.serialize_row(c) for c in rows]
-        items.sort(key=lambda r: _PRIORITY_RANK.get(r["priority"], 1))
-        return {"items": items, "counts": await self.queue_counts(user_id), "view": view}
-
-    async def queue_counts(self, user_id: uuid.UUID | None) -> dict:
-        base = select(func.count()).select_from(Conversation).where(
-            Conversation.service_center_id == self.sc, Conversation.is_active.is_(True))
-        out: dict[str, int] = {}
-        for v in ("needs_reply", "assigned_me", "waiting_customer",
-                  "waiting_technician", "waiting_approval", "unread", "resolved"):
-            out[v] = int(await self.session.scalar(self._view_where(base, v, user_id)) or 0)
-        return out
-
-    async def _has_mentions(self, conversation_id: uuid.UUID) -> bool:
-        return bool(await self.session.scalar(
-            select(func.count()).select_from(Message).where(
-                Message.conversation_id == conversation_id,
-                Message.mentions.isnot(None))))
-
-    async def _sla_breached(self, conv: Conversation) -> bool:
-        if not conv.case_id or not conv.is_open():
-            return False
-        case = await local_reference(self.session, OperationalCase, conv.case_id, self.sc)
-        if not case:
-            return False
-        elapsed = (datetime.now(timezone.utc) - _utc(case.created_at)).total_seconds()
-        return elapsed > case.sla_response_minutes * 60
+        result = await inbox_page(self.session, self.sc, view=view, channel=channel,
+            conv_type=conv_type, user_id=user_id, q=q, limit=limit, offset=offset)
+        # Retain the legacy API label until each consumer localizes raw status.
+        for item in result["items"]:
+            item["status_label"] = STATUS_LABEL.get(item["status"], item["status"])
+        return result
 
     # ── thread detail ─────────────────────────────────────────
     async def get_thread(self, conversation_id: uuid.UUID, *, user_id: uuid.UUID | None = None) -> dict:
@@ -493,14 +429,15 @@ class ConversationService:
         data = await self.serialize_row(conv, full=True)
 
         msgs = list((await self.session.execute(
-            select(Message).where(Message.conversation_id == conv.id)
-            .order_by(Message.created_at.asc())
+            select(Message).where(Message.conversation_id == conv.id, Message.service_center_id == self.sc)
+            .order_by(Message.created_at.asc(), Message.id.asc()).options(noload(Message.attachments))
         )).scalars().all())
         atts_by_msg = await self._attachments_for(conv.id)
         data["messages"] = [self._msg_dict(m, atts_by_msg.get(m.id, [])) for m in msgs]
 
         parts = list((await self.session.execute(
-            select(Participant).where(Participant.conversation_id == conv.id)
+            select(Participant).where(Participant.conversation_id == conv.id, Participant.service_center_id == self.sc)
+            .order_by(Participant.created_at, Participant.id)
         )).scalars().all())
         data["participants"] = [
             {"id": str(p.id), "role": p.role, "display_name": p.display_name,
@@ -519,7 +456,8 @@ class ConversationService:
 
     async def _attachments_for(self, conversation_id: uuid.UUID) -> dict:
         rows = list((await self.session.execute(
-            select(Attachment).where(Attachment.conversation_id == conversation_id)
+            select(Attachment).where(Attachment.conversation_id == conversation_id, Attachment.service_center_id == self.sc)
+            .order_by(Attachment.created_at, Attachment.id)
         )).scalars().all())
         out: dict[uuid.UUID, list] = {}
         for a in rows:
@@ -537,16 +475,16 @@ class ConversationService:
         events = list((await self.session.execute(
             select(Notification).where(
                 Notification.service_center_id == self.sc, or_(*ors),
-            ).order_by(Notification.created_at.desc()).limit(40)
+            ).order_by(Notification.created_at, Notification.id)
         )).scalars().all())
 
-        feed = [{"type": "event", "title": n.title, "detail": n.body,
+        feed = [{"id": str(n.id), "type": "event", "title": n.title, "detail": n.body,
                  "date": n.created_at.isoformat(), "severity": n.severity,
                  "category": n.category} for n in events]
-        feed += [{"type": "message", "title": m["author_name"] or m["author_role"],
+        feed += [{"id": m["id"], "type": "message", "title": m["author_name"] or m["author_role"],
                   "detail": m["body"], "date": m["created_at"], "severity": "info",
                   "author_role": m["author_role"], "channel": m["channel"]} for m in messages]
-        feed.sort(key=lambda x: x["date"] or "")
+        feed.sort(key=lambda x: (x["date"] or "", x["id"], x["type"]))
         return feed
 
     # ── serialization ─────────────────────────────────────────

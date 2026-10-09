@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import uuid
+from typing import Literal
 
 from fastapi import APIRouter, Depends, Header, Query, status
 from pydantic import BaseModel
@@ -65,12 +66,18 @@ class ConversationUpdate(BaseModel):
 async def list_inbox(
     uow: UnitOfWork = Depends(get_tenant_uow),
     me: User = Depends(get_current_user),
-    view: str = Query(default="needs_reply"),
-    channel: str | None = Query(default=None),
-    conv_type: str | None = Query(default=None, alias="type"),
+    view: Literal['all', 'needs_reply', 'assigned_me', 'mentions', 'waiting_customer',
+                  'waiting_technician', 'waiting_approval', 'sla_breached', 'unread',
+                  'resolved', 'snoozed'] = Query(default="needs_reply"),
+    channel: Literal['all', 'telegram', 'web', 'phone', 'email', 'sms', 'internal'] | None = Query(default=None),
+    conv_type: Literal['all', 'general', 'emergency', 'support', 'warranty', 'vip'] | None = Query(default=None, alias="type"),
+    q: str | None = Query(default=None, max_length=200),
+    limit: int = Query(default=80, ge=1, le=100),
+    offset: int = Query(default=0, ge=0, le=2147483647),
 ) -> dict:
     return await ConversationService(uow).list_inbox(
-        view=view, channel=channel, conv_type=conv_type, user_id=me.id)
+        view=view, channel=channel, conv_type=conv_type, user_id=me.id,
+        q=q, limit=limit, offset=offset)
 
 
 @router.get("/{conversation_id}", summary="Full thread (messages, activity, linked cards)")
