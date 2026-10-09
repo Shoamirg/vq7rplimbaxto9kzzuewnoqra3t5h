@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@garageos/design-system";
 import { clientFetch, ClientApiError } from "@/lib/api/client";
-import type { Channel, ConvMessage, InboxResponse, ThreadDetail } from "@/lib/api/types";
+import type { Channel, ConvMessage, ConvStatus, InboxResponse, ThreadDetail } from "@/lib/api/types";
 import { useI18n } from "@/lib/i18n/context";
 import type { MessageActor, MessageMode } from "@/lib/message-intents";
 import { MessageStorageError } from "@/lib/message-intents";
@@ -20,6 +20,7 @@ import { VIEWS } from "./shared";
 const control = "min-h-11 min-w-11 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50";
 const PAGE_SIZE = 50;
 type ReadAcknowledgement = { actor: MessageActor; observation: string; state: "pending" | "acknowledged" | "error" | "uncertain" };
+type ConversationAction = { state: "pending" | "acknowledged" | "error" | "uncertain" | "ready"; ready: boolean; reconciling: boolean };
 
 export function InboxWorkspace() {
   const { t } = useI18n(), session = useStaffMessageSession();
@@ -159,19 +160,81 @@ export function InboxWorkspace() {
   const visibleThread = thread ? { ...thread, messages: [...thread.messages,
     ...(acknowledged[`${principal}:${thread.id}`] ?? []).filter(row => !thread.messages.some(saved => saved.id === row.id))] } : null;
   const filtered = list.data?.items ?? [];
-  // Existing status/follow actions keep their scope. Completions refresh the
-  // current read through its identity guard; they cannot restore an old thread.
-  const mutate = async (path: string, init: RequestInit) => {
-    if (!actor || !thread || !authorized() || !session.canWrite) return;
-    const capturedActor = actor, epoch = verification.current;
+  // One synchronous owner per actor/thread covers header, context and keyboard
+  // paths. Settled unknown/rejected writes also block until a deliberate fresh
+  // read; a timer or a second click cannot replay a non-keyed action.
+  const actionActor = useRef(actor), actionRecords = useRef(new Map<string, ConversationAction>());
+  const [actions, setActions] = useState<{ actor: MessageActor | null; records: Record<string, ConversationAction> }>({ actor: null, records: {} });
+  if (actionActor.current !== actor) { actionActor.current = actor; actionRecords.current = new Map(); }
+  const action = thread && actions.actor === actor ? actions.records[thread.id] : undefined;
+  const currentConversation = useRef(activeId); currentConversation.current = activeId;
+  const actionBlocked = !session.canWrite || read.loading || !!read.error || !!action && !action.ready;
+  const captureAction = (reconcile = false) => {
+    if (!actor || !thread || !authorized() || !session.canWrite) return null;
+    const capturedActor = actor, target = thread.id, key = readKey, epoch = verification.current, records = actionRecords.current;
+    const previous = records.get(target);
+    if (previous?.state === "pending" || previous?.reconciling || !reconcile && (read.loading || read.error || previous && !previous.ready)) return null;
+    const current = () => mounted.current && epoch === verification.current && currentActor.current === capturedActor
+      && records === actionRecords.current && authorized();
+    const selected = () => current() && currentConversation.current === target;
+    const store = (value: ConversationAction) => {
+      if (!current()) return;
+      records.set(target, value);
+      setActions(old => ({ actor: capturedActor, records: { ...(old.actor === capturedActor ? old.records : {}), [target]: value } }));
+    };
+    store(reconcile ? { ...(previous ?? { state: "ready" }), ready: false, reconciling: true }
+      : { state: "pending", ready: false, reconciling: false });
+    return { capturedActor, target, key, current, selected, store, previous };
+  };
+  const reconcileAction = async () => {
+    const owner = captureAction(true); if (!owner) return;
     try {
-      await clientFetch(path, init);
-      if (mounted.current && epoch === verification.current && currentActor.current === capturedActor && authorized()) { void read.refresh(); void list.refresh(); }
+      const observed = await read.refresh();
+      if (!owner.current()) return;
+      if (!observed || observed.id !== owner.target || currentReadKey.current !== owner.key) {
+        owner.store({ state: owner.previous?.state ?? "error", ready: false, reconciling: false }); return;
+      }
+      const fresh = await verifyStaffMessageActor(owner.current, owner.capturedActor);
+      if (!owner.current()) return;
+      if (!fresh.canWrite) throw new ClientApiError("Conversation write access unavailable", 403);
+      if (currentReadKey.current !== owner.key) {
+        owner.store({ state: owner.previous?.state ?? "error", ready: false, reconciling: false }); return;
+      }
+      owner.store({ state: "ready", ready: true, reconciling: false });
     } catch (error) {
-      if (mounted.current && epoch === verification.current && currentActor.current === capturedActor && accessFailure(error)) onDenied(error);
+      if (!owner.current()) return;
+      if (accessFailure(error)) onDenied(error);
+      else owner.store({ state: owner.previous?.state ?? "error", ready: false, reconciling: false });
     }
   };
-  const toggleFollow = () => { if (thread) void mutate(`/conversations/${thread.id}/follow`, { method: thread.is_following ? "DELETE" : "POST" }); };
+  const mutate = async (operation: { patch: { status?: ConvStatus; assigned_user_id?: string | null } } | { following: boolean }) => {
+    const owner = captureAction(); if (!owner) return;
+    let dispatched = false;
+    try {
+      const fresh = await verifyStaffMessageActor(owner.current, owner.capturedActor);
+      if (!owner.current()) return;
+      if (!fresh.canWrite) throw new ClientApiError("Conversation write access unavailable", 403);
+      dispatched = true;
+      await clientFetch(`/conversations/${owner.target}${"following" in operation ? "/follow" : ""}`, {
+        method: "following" in operation ? operation.following ? "POST" : "DELETE" : "PATCH",
+        ...("patch" in operation ? { body: JSON.stringify(operation.patch) } : {}),
+      });
+      owner.store({ state: "acknowledged", ready: false, reconciling: false });
+      // A successful write stays acknowledged even if either subsequent GET
+      // fails. Only this target can acquire new detail readiness from its GET.
+      if (owner.current()) void list.refresh();
+      if (owner.selected()) {
+        const key = currentReadKey.current, observed = await read.refresh();
+        if (owner.selected() && currentReadKey.current === key && observed?.id === owner.target)
+          owner.store({ state: "acknowledged", ready: true, reconciling: false });
+      }
+    } catch (error) {
+      if (!owner.current()) return;
+      if (accessFailure(error)) onDenied(error);
+      else owner.store({ state: dispatched && uncertainWrite(error) ? "uncertain" : "error", ready: false, reconciling: false });
+    }
+  };
+  const toggleFollow = () => { if (thread) void mutate({ following: !thread.is_following }); };
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const el = document.activeElement;
@@ -220,6 +283,7 @@ export function InboxWorkspace() {
       {!!read.error && <div role="alert" className="space-y-2 p-3 text-sm"><p>{t(composer.saved ? "message.refresh_error" : "message.read_error")}</p><button className={control} onClick={() => void read.refresh()}>{t("ops.retry")}</button></div>}
       {visibleThread ? <ThreadView ref={composerRef} thread={visibleThread} mode={mode} onMode={setMode} composerTab={composerTab} onComposerTab={onComposerTab}
         composer={composer} canWrite={session.canWrite} loading={read.loading} readError={!!read.error} onSend={send}
+        actionBlocked={actionBlocked} actorId={actor.id} onAssign={id => void mutate({ patch: { assigned_user_id: id } })}
         readAcknowledgement={readAck && <div role={readAck.state === "error" || readAck.state === "uncertain" ? "alert" : "status"} className="space-y-2 pb-3 text-sm">
         <p>{t(`inbox.read.${readAck.state}`)}</p>
         {(readAck.state === "error" || readAck.state === "uncertain") && <>
@@ -227,11 +291,16 @@ export function InboxWorkspace() {
           {!session.canWrite && <p>{t("inbox.read.readonly")}</p>}
         </>}
         </div>}
-        onStatus={status => void mutate(`/conversations/${thread!.id}`, { method: "PATCH", body: JSON.stringify({ status }) })} onToggleFollow={toggleFollow}
+        actionNotice={action && <div role={action.state === "error" || action.state === "uncertain" ? "alert" : "status"} className="space-y-2 pb-3 text-sm">
+          <p>{t(`inbox.action.${action.state}`)}</p>
+          {action.state !== "pending" && !action.ready && <button className={control} disabled={!session.canWrite || action.reconciling || read.loading}
+            onClick={() => void reconcileAction()}>{t(action.reconciling ? "inbox.action.checking" : "inbox.action.reconcile")}</button>}
+        </div>}
+        onStatus={status => void mutate({ patch: { status } })} onToggleFollow={toggleFollow}
         contextOpen={contextOpen} onOpenContext={() => setContextOpen(true)} />
         : <p role="status" className="p-4 text-sm">{t(read.loading ? "ops.loading" : "inbox.select")}</p>}
     </section>
-    {visibleThread && contextOpen && <div className="absolute inset-y-0 right-0 z-20 flex max-w-full bg-card shadow-xl 2xl:static 2xl:shadow-none"><ContextPanel thread={visibleThread} onToggleFollow={toggleFollow} onCollapse={() => setContextOpen(false)} /></div>}
+    {visibleThread && contextOpen && <div className="absolute inset-y-0 right-0 z-20 flex max-w-full bg-card shadow-xl 2xl:static 2xl:shadow-none"><ContextPanel thread={visibleThread} actionBlocked={actionBlocked} onToggleFollow={toggleFollow} onCollapse={() => setContextOpen(false)} /></div>}
     </div>
   </div>;
 }

@@ -5,8 +5,11 @@ import { queueLogin, queueProfiles, queueOverflow, queueTargets, switchQueueLoca
 import { prepareMini } from "./support/mini-auth";
 import { assertAccessible, assertKeyboardFocus } from "./support/accessibility";
 import { translate, type Locale } from "../lib/i18n/dictionaries";
+import { beginLifecycleDiagnostic, lifecyclePhase, saveLifecycleDiagnostic } from "./support/message-lifecycle-diagnostics";
 
 test.use({ trace: "off" });
+test.beforeEach(({ page }, info) => beginLifecycleDiagnostic(page, info));
+test.afterEach(({ page }, info) => saveLifecycleDiagnostic(page, info));
 const prefix = "garageos.message-intents.v1:";
 const protectedKeys = (page: Page) => page.evaluate(p => Object.keys(sessionStorage).filter(key => key.startsWith(p)), prefix);
 async function assertUncoveredText(locator: Locator) {
@@ -136,30 +139,54 @@ test("rejected reset-cookie write plus failed HTTP logout still purges and keeps
 
 test("late pre-logout staff verification cannot dispatch after same-actor SPA login", async ({ page, baseURL }) => {
   const state = await uncertain(page, baseURL!);
+  await lifecyclePhase(page, "uncertain-ready");
   await page.evaluate(() => {
-    const original = window.fetch; let first = true;
-    const qa = window as unknown as { qaLogoutAuthHeld: boolean; qaLogoutAuthResumed: boolean; releaseLogoutAuth: () => void; qaSameWindow: string };
+    const original = window.fetch; let released = false;
+    const releases: (() => void)[] = [];
+    const qa = window as unknown as { qaHoldLogoutAuth: boolean; qaLogoutAuthStarted: number; qaLogoutAuthHeld: number; qaLogoutAuthResumed: number; releaseLogoutAuth: () => void; qaSameWindow: string };
     qa.qaSameWindow = "same-window";
+    qa.qaHoldLogoutAuth = true; qa.qaLogoutAuthStarted = 0; qa.qaLogoutAuthHeld = 0; qa.qaLogoutAuthResumed = 0;
+    qa.releaseLogoutAuth = () => { released = true; qa.qaHoldLogoutAuth = false; releases.splice(0).forEach(release => release()); };
     window.fetch = async (...args) => {
-      const capture = first && String(args[0]).endsWith("/api/proxy/auth/me"); if (capture) first = false;
+      // Read ACK and message retry both freshly verify. Hold every old-phase
+      // response; the first response alone need not belong to the retry.
+      const capture = qa.qaHoldLogoutAuth && String(args[0]).endsWith("/api/proxy/auth/me");
+      if (capture) qa.qaLogoutAuthStarted++;
       const response = await original(...args);
-      if (capture) { await new Promise<void>(resolve => { qa.releaseLogoutAuth = resolve; qa.qaLogoutAuthHeld = true; }); qa.qaLogoutAuthResumed = true; }
+      if (capture) {
+        qa.qaLogoutAuthHeld++;
+        if (!released) await new Promise<void>(resolve => { releases.push(resolve); });
+        qa.qaLogoutAuthResumed++;
+      }
       return response;
     };
   });
   let posts = 0; page.on("request", request => { if (request.method() === "POST" && request.url().endsWith(state.path)) posts++; });
   try {
+    await lifecyclePhase(page, "retry");
     await page.getByRole("button", { name: "Retry original message", exact: true }).click();
-    await page.waitForFunction(() => (window as unknown as { qaLogoutAuthHeld: boolean }).qaLogoutAuthHeld);
+    await page.waitForFunction(() => (window as unknown as { qaLogoutAuthHeld: number }).qaLogoutAuthHeld > 0);
+    await expect(page.getByRole("button", { name: "Sending…", exact: true })).toBeDisabled();
+    expect(posts, "The original retry must still be pre-dispatch before logout").toBe(0);
+    await lifecyclePhase(page, "pre-logout-auth-held");
     await topBarLogout(page); await expect(page).toHaveURL(/\/login$/);
+    expect(posts).toBe(0); expect(await protectedKeys(page)).toEqual([]);
+    // New SPA-login requests can complete while the old responses stay held.
+    await page.evaluate(() => { (window as unknown as { qaHoldLogoutAuth: boolean }).qaHoldLogoutAuth = false; });
+    await lifecyclePhase(page, "new-spa-login");
     await loginSameActorSPA(page, baseURL!, state.thread.id);
     expect(await page.evaluate(() => (window as unknown as { qaSameWindow: string }).qaSameWindow)).toBe("same-window");
     const composer = page.getByRole("textbox", { name: "Message", exact: true }); await composer.fill("Fresh independent draft");
+    await lifecyclePhase(page, "release-old-auth");
     await page.evaluate(() => (window as unknown as { releaseLogoutAuth: () => void }).releaseLogoutAuth());
-    await page.waitForFunction(() => (window as unknown as { qaLogoutAuthResumed: boolean }).qaLogoutAuthResumed);
+    await page.waitForFunction(() => {
+      const qa = window as unknown as { qaLogoutAuthStarted: number; qaLogoutAuthResumed: number };
+      return qa.qaLogoutAuthStarted > 0 && qa.qaLogoutAuthResumed === qa.qaLogoutAuthStarted;
+    });
     await expect(composer).toHaveValue("Fresh independent draft");
     await expect(page.getByRole("button", { name: "Send message", exact: true })).toBeEnabled(); expect(posts).toBe(0);
     await expect(page.getByRole("button", { name: "Retry original message", exact: true })).toHaveCount(0);
+    expect((await storedThread(page, state.caseId)).messages.filter((m: { body: string }) => m.body === state.body)).toHaveLength(1);
   } finally { await page.evaluate(() => (window as unknown as { releaseLogoutAuth?: () => void }).releaseLogoutAuth?.()); }
 });
 
@@ -249,17 +276,33 @@ test("Mini delayed authenticated response body cannot establish identity after l
 
 test("missing unwritable reset cookie hides receipts and refuses restoration", async ({ page, baseURL }) => {
   const state = await uncertain(page, baseURL!);
-  await page.evaluate(() => { document.cookie = "garageos_message_reset=; Path=/; Max-Age=0"; });
-  await page.addInitScript(() => {
+  await lifecyclePhase(page, "before-delete");
+  const blockAndDeleteReset = () => {
     const descriptor = Object.getOwnPropertyDescriptor(Document.prototype, "cookie")!;
-    Object.defineProperty(document, "cookie", { configurable: true, get() { return descriptor.get!.call(document); }, set(value: string) { if (value.startsWith("garageos_message_reset=")) throw new Error("QA reset epoch unavailable"); descriptor.set!.call(document, value); } });
-  });
+    const qa = window as unknown as { qaBlockedResetWrites: number }; qa.qaBlockedResetWrites = 0;
+    Object.defineProperty(document, "cookie", { configurable: true, get() { return descriptor.get!.call(document); }, set(value: string) {
+      if (value.startsWith("garageos_message_reset=")) { qa.qaBlockedResetWrites++; throw new Error("QA reset epoch unavailable"); }
+      descriptor.set!.call(document, value);
+    } });
+    // Atomic within this document: a pending ACK cannot repair the cookie
+    // between deletion and installation of the actual fault.
+    descriptor.set!.call(document, "garageos_message_reset=; Path=/; Max-Age=0");
+  };
+  await page.addInitScript(blockAndDeleteReset);
+  await page.evaluate(blockAndDeleteReset);
+  await lifecyclePhase(page, "blocked-and-deleted-old-document");
+  expect(await page.evaluate(() => document.cookie.split(";").some(part => part.trim().startsWith("garageos_message_reset=")))).toBe(false);
+  expect((await protectedKeys(page)).length).toBeGreaterThan(0);
+  await lifecyclePhase(page, "before-reload");
   await page.reload();
+  await lifecyclePhase(page, "after-reload");
   await expect(page.getByRole("alert").filter({ hasText: translate("en", "message.storage") })).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Message", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Retry original message", exact: true })).toHaveCount(0);
   expect(await page.getByText(state.body, { exact: true }).count()).toBe(0);
   expect((await protectedKeys(page)).length).toBeGreaterThan(0);
+  expect(await page.evaluate(() => document.cookie.split(";").some(part => part.trim().startsWith("garageos_message_reset=")))).toBe(false);
+  expect(await page.evaluate(() => (window as unknown as { qaBlockedResetWrites: number }).qaBlockedResetWrites)).toBeGreaterThan(0);
 });
 
 for (const locale of ["uz", "en", "ru"] as Locale[]) for (const width of [360, 390, 1280]) test(`logout failure ${locale} ${width} is localized accessible and keeps old recovery hidden`, async ({ page, baseURL }, info) => {

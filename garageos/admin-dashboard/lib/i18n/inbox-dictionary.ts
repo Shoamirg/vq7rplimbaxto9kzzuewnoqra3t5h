@@ -2,6 +2,13 @@ import type { Locale } from "./dictionaries";
 
 export const INBOX_DICTIONARY: Record<Locale, Record<string, string>> = {
   en: {
+    "inbox.action.pending": "Saving this conversation’s change…", "inbox.action.acknowledged": "Conversation change saved.",
+    "inbox.action.error": "The change was not acknowledged. Check the current conversation before another action.",
+    "inbox.action.uncertain": "The change’s outcome is unknown. Check the current conversation before another action.",
+    "inbox.action.ready": "Current conversation checked. Choose the next action deliberately.",
+    "inbox.action.reconcile": "Check current conversation", "inbox.action.checking": "Checking current conversation…",
+    "inbox.action.status": "Conversation status", "inbox.action.assigned": "Assigned responsibility", "inbox.action.unassigned": "Unassigned",
+    "inbox.action.assign_me": "Assign to me", "inbox.action.clear_assignment": "Clear assignment", "inbox.action.close_context": "Close context",
     "inbox.read.pending": "Acknowledging viewed history…", "inbox.read.acknowledged": "Viewed history acknowledged.",
     "inbox.read.error": "Viewed history could not be acknowledged. Reload before trying again.",
     "inbox.read.uncertain": "Acknowledgement could not be confirmed. Reload this conversation to reconcile.",
@@ -25,6 +32,13 @@ export const INBOX_DICTIONARY: Record<Locale, Record<string, string>> = {
     "inbox.channel.email": "Email", "inbox.channel.sms": "SMS", "inbox.channel.internal": "Internal",
   },
   ru: {
+    "inbox.action.pending": "Сохраняем изменение переписки…", "inbox.action.acknowledged": "Изменение переписки сохранено.",
+    "inbox.action.error": "Изменение не подтверждено. Проверьте переписку перед следующим действием.",
+    "inbox.action.uncertain": "Результат изменения неизвестен. Проверьте переписку перед следующим действием.",
+    "inbox.action.ready": "Переписка проверена. Выберите следующее действие.",
+    "inbox.action.reconcile": "Проверить текущую переписку", "inbox.action.checking": "Проверяем текущую переписку…",
+    "inbox.action.status": "Статус переписки", "inbox.action.assigned": "Ответственный сотрудник", "inbox.action.unassigned": "Не назначен",
+    "inbox.action.assign_me": "Назначить мне", "inbox.action.clear_assignment": "Снять назначение", "inbox.action.close_context": "Закрыть контекст",
     "inbox.read.pending": "Подтверждаем просмотренную историю…", "inbox.read.acknowledged": "Просмотренная история подтверждена.",
     "inbox.read.error": "Не удалось подтвердить просмотр. Обновите переписку перед повторной попыткой.",
     "inbox.read.uncertain": "Подтверждение просмотра неизвестно. Обновите переписку для проверки.",
@@ -48,6 +62,13 @@ export const INBOX_DICTIONARY: Record<Locale, Record<string, string>> = {
     "inbox.channel.email": "Электронная почта", "inbox.channel.sms": "SMS", "inbox.channel.internal": "Внутренний",
   },
   uz: {
+    "inbox.action.pending": "Suhbatdagi o‘zgarish saqlanmoqda…", "inbox.action.acknowledged": "Suhbatdagi o‘zgarish saqlandi.",
+    "inbox.action.error": "O‘zgarish tasdiqlanmadi. Keyingi amaldan oldin suhbatning joriy holatini tekshiring.",
+    "inbox.action.uncertain": "O‘zgarish natijasi noma’lum. Keyingi amaldan oldin suhbatning joriy holatini tekshiring.",
+    "inbox.action.ready": "Suhbatning joriy holati tekshirildi. Keyingi amalni tanlang.",
+    "inbox.action.reconcile": "Suhbatning joriy holatini tekshirish", "inbox.action.checking": "Suhbatning joriy holati tekshirilmoqda…",
+    "inbox.action.status": "Suhbat holati", "inbox.action.assigned": "Mas’ul xodim", "inbox.action.unassigned": "Tayinlanmagan",
+    "inbox.action.assign_me": "Menga tayinlash", "inbox.action.clear_assignment": "Tayinlovni bekor qilish", "inbox.action.close_context": "Kontekstni yopish",
     "inbox.read.pending": "Ko‘rilgan tarix tasdiqlanmoqda…", "inbox.read.acknowledged": "Ko‘rilgan tarix tasdiqlandi.",
     "inbox.read.error": "Ko‘rilgan tarixni tasdiqlab bo‘lmadi. Qayta urinishdan oldin suhbatni yangilang.",
     "inbox.read.uncertain": "Ko‘rilgan tarix tasdig‘i noma’lum. Holatni tekshirish uchun suhbatni yangilang.",

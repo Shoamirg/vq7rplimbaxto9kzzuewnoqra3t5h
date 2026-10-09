@@ -6,6 +6,7 @@ import { cn } from "@garageos/design-system";
 
 import { HealthGauge } from "@/components/vehicles/health-gauge";
 import type { LinkedCard, ThreadDetail } from "@/lib/api/types";
+import { useI18n } from "@/lib/i18n/context";
 import { roleColor } from "./shared";
 
 const CARD_ICON: Record<LinkedCard["kind"], string> = {
@@ -15,17 +16,19 @@ const CARD_ICON: Record<LinkedCard["kind"], string> = {
 // Column 4 — collapsible context. Assigned / Following / Participants are kept
 // visually distinct: responsibility vs. subscription vs. who has spoken.
 export function ContextPanel({
-  thread, onToggleFollow, onCollapse,
+  thread, actionBlocked, onToggleFollow, onCollapse,
 }: {
   thread: ThreadDetail;
+  actionBlocked: boolean;
   onToggleFollow: () => void;
   onCollapse: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <aside className="w-[300px] shrink-0 bg-card border-l border-border overflow-y-auto">
       <div className="flex items-center px-4 h-12 border-b border-border">
         <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Context</span>
-        <button onClick={onCollapse} className="ml-auto text-muted-foreground hover:text-foreground" aria-label="Collapse context">
+        <button onClick={onCollapse} className="ml-auto grid min-h-11 min-w-11 place-items-center text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary" aria-label={t("inbox.action.close_context")}>
           <PanelRightClose className="size-4" />
         </button>
       </div>
@@ -41,14 +44,14 @@ export function ContextPanel({
               {thread.assigned_name ?? <span className="text-muted-foreground font-normal">Unassigned</span>}
             </p>
           </div>
-          <button onClick={onToggleFollow}
+          <button onClick={onToggleFollow} disabled={actionBlocked} aria-label={t(thread.is_following ? "message.following" : "message.follow")}
             className={cn("rounded-xl border p-2.5 text-left transition-colors",
               thread.is_following ? "border-primary/40 bg-primary/5" : "border-border hover:bg-muted/50")}>
             <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1">
               {thread.is_following ? <Bell className="size-3" /> : <BellOff className="size-3" />} Following
             </p>
             <p className={cn("text-[13px] font-semibold", thread.is_following ? "text-primary" : "text-foreground")}>
-              {thread.is_following ? "You + " + Math.max(0, thread.followers - 1) : "Follow"}
+              {t(thread.is_following ? "message.following" : "message.follow")} · {thread.followers}
             </p>
           </button>
         </div>

@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { cn } from "@garageos/design-system";
 
-import type { ConvMessage, ThreadDetail } from "@/lib/api/types";
+import type { ConvMessage, ConvStatus, ThreadDetail } from "@/lib/api/types";
 import { useI18n } from "@/lib/i18n/context";
 import { useMessageComposer } from "@/lib/use-message-composer";
 import { MessageSubmissionStatus } from "@/components/message-submission-status";
@@ -33,13 +33,17 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
   loading: boolean;
   readError: boolean;
   readAcknowledgement?: ReactNode;
+  actionNotice?: ReactNode;
+  actionBlocked: boolean;
+  actorId: string;
+  onAssign: (id: string | null) => void;
   onSend: () => void;
-  onStatus: (s: string) => void;
+  onStatus: (s: ConvStatus) => void;
   onToggleFollow: () => void;
   contextOpen: boolean;
   onOpenContext: () => void;
 }>(function ThreadView(
-  { thread, mode, onMode, composerTab, onComposerTab, composer, canWrite, loading, readError, readAcknowledgement, onSend, onStatus, onToggleFollow, contextOpen, onOpenContext },
+  { thread, mode, onMode, composerTab, onComposerTab, composer, canWrite, loading, readError, readAcknowledgement, actionNotice, actionBlocked, actorId, onAssign, onSend, onStatus, onToggleFollow, contextOpen, onOpenContext },
   composerRef,
 ) {
   const { t } = useI18n();
@@ -50,6 +54,8 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
       {/* Header */}
       <div role="region" aria-label={t("message.overview")} tabIndex={0} className="max-h-[25%] lg:max-h-[45%] overflow-y-auto bg-card border-b border-border px-4 pt-3 shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
         {readAcknowledgement}
+        {actionNotice}
+        {!canWrite && <p className="pb-3 text-sm">{t("ops.readonly")}</p>}
         <div className="flex flex-wrap items-center gap-3">
           <span className="grid size-9 place-items-center rounded-xl bg-slate-800 text-white text-sm font-bold">
             {(thread.customer_name ?? "?").split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
@@ -69,16 +75,16 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
                 <Siren className="size-3.5" /> {t("message.open_case")} <ArrowUpRight className="size-3" />
               </Link>
             )}
-            <button onClick={onToggleFollow} disabled={blocked}
+            <button onClick={onToggleFollow} disabled={actionBlocked}
               className={cn("min-h-11 min-w-11 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-colors",
                 thread.is_following ? "border-primary/40 bg-primary/5 text-primary dark:text-blue-300" : "border-border text-slate-600 dark:text-slate-300 hover:bg-muted")}>
               {t(thread.is_following ? "message.following" : "message.follow")}
             </button>
-            <button onClick={() => onStatus("snoozed")} disabled={blocked}
+            <button onClick={() => onStatus("snoozed")} disabled={actionBlocked || thread.status === "snoozed"}
               className="min-h-11 min-w-11 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-border text-amber-800 dark:text-amber-300 hover:bg-muted inline-flex items-center gap-1">
               <Moon className="size-3.5" /> {t("message.snooze")}
             </button>
-            <button onClick={() => onStatus("resolved")} disabled={blocked}
+            <button onClick={() => onStatus("resolved")} disabled={actionBlocked || thread.status === "resolved"}
               className="min-h-11 min-w-11 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-emerald-700 text-white hover:bg-emerald-800 inline-flex items-center gap-1">
               <Check className="size-3.5" /> {t("message.close_thread")}
             </button>
@@ -88,6 +94,21 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
               </button>
             )}
           </div>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-end gap-2">
+          <label className="min-w-0 text-sm">{t("inbox.action.status")}
+            <select className="mt-1 block min-h-11 max-w-full rounded-lg border border-border bg-background px-3 py-2 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50"
+              value={thread.status} disabled={actionBlocked} onChange={event => onStatus(event.target.value as ConvStatus)}>
+              {(["open", "waiting_customer", "waiting_technician", "waiting_approval", "snoozed", "resolved"] as const).map(status =>
+                <option key={status} value={status}>{t(`inbox.status.${status}`)}</option>)}
+            </select>
+          </label>
+          <p className="min-w-0 break-words text-sm">{t("inbox.action.assigned")}: {thread.assigned_name ?? t("inbox.action.unassigned")}</p>
+          <button className="min-h-11 min-w-11 rounded-lg border border-border px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50"
+            disabled={actionBlocked || thread.assigned_user_id === actorId} onClick={() => onAssign(actorId)}>{t("inbox.action.assign_me")}</button>
+          <button className="min-h-11 min-w-11 rounded-lg border border-border px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50"
+            disabled={actionBlocked || !thread.assigned_user_id} onClick={() => onAssign(null)}>{t("inbox.action.clear_assignment")}</button>
         </div>
 
         {/* Linked pills */}

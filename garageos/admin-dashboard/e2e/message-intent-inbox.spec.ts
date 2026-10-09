@@ -1,11 +1,14 @@
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "node:crypto";
+import { beginLifecycleDiagnostic, lifecyclePhase, saveLifecycleDiagnostic } from "./support/message-lifecycle-diagnostics";
 import { operationCases, storedThread } from "./support/operations";
 import { queueLogin, queueOverflow, queueTargets, switchQueueLocale } from "./support/queue";
 import { assertAccessible, assertKeyboardFocus, settleMotion } from "./support/accessibility";
 import { translate, type Locale } from "../lib/i18n/dictionaries";
 
 test.use({ trace: "off" });
+test.beforeEach(({ page }, info) => beginLifecycleDiagnostic(page, info));
+test.afterEach(({ page }, info) => saveLifecycleDiagnostic(page, info));
 
 for (const [locale, width] of [["uz", 360], ["en", 390], ["ru", 1280]] as const)
 test(`Inbox dark recovery ${locale} ${width} keeps queue text readable and retries the original receipt`, async ({ page, baseURL }, info) => {
@@ -454,8 +457,19 @@ test("Inbox confirmed different actor purges old drafts even when the new actor 
   await page.route(`**/api/proxy/conversations/${thread.id}/messages`, route => route.fulfill({ status: 503, contentType: "application/json", body: "{}" }), { times: 1 });
   await composer.fill(body); await composer.press("Enter"); await expect(page.getByRole("button", { name: "Retry original message", exact: true })).toBeVisible();
   await page.evaluate(() => sessionStorage.setItem("qa-unrelated-preference", "keep"));
-  await queueLogin(page, baseURL!, "en", 1280, 1); await page.getByRole("button", { name: "Retry original message", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Verify session and access", exact: true })).toBeVisible();
+  await lifecyclePhase(page, "before-actor-change");
+  let posts = 0; page.on("request", request => { if (request.method() === "POST" && request.url().endsWith(`/api/proxy/conversations/${thread.id}/messages`)) posts++; });
+  await queueLogin(page, baseURL!, "en", 1280, 1);
+  await lifecyclePhase(page, "different-actor-login");
+  const retry = page.getByRole("button", { name: "Retry original message", exact: true });
+  const verify = page.getByRole("button", { name: "Verify session and access", exact: true });
+  try { await retry.click(); }
+  catch (error) {
+    // A genuine background read-ACK verification can already confirm B and
+    // replace A's retry with the denied-session UI. Only that transition is valid.
+    if (!await verify.isVisible() || await retry.count() !== 0) throw error;
+  }
+  await expect(verify).toBeVisible(); expect(posts).toBe(0);
   await expect(composer).toHaveCount(0);
   await page.route("**/api/proxy/conversations?*", route => route.fulfill({ status: 503, contentType: "application/json", body: "{}" }));
   await page.getByRole("button", { name: "Verify session and access", exact: true }).click();
