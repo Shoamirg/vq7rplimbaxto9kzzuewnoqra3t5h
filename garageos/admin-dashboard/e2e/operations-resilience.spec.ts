@@ -96,9 +96,9 @@ test("an acknowledged message stays saved when its follow-up thread read fails",
   });
   const composer = page.getByRole("textbox", { name: "Message", exact: true }); await composer.fill(body);
   await page.getByRole("button", { name: "Send message", exact: true }).click();
-  await expect(page.getByText("Message saved to the conversation.", { exact: true })).toBeVisible();
-  await expect(page.getByRole("alert").filter({ hasText: "Showing the last successful data" })).toBeVisible();
-  await expect(composer).toHaveValue(""); await expect(page.getByText("Message was not sent. Your draft is retained.", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(translate("en", "message.saved"), { exact: true })).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: translate("en", "message.refresh_error") })).toBeVisible();
+  await expect(composer).toHaveValue(""); await expect(page.getByText(translate("en", "message.rejected"), { exact: true })).toHaveCount(0);
   expect((await storedThread(page, item.id)).messages.filter((message: { body: string }) => message.body === body)).toHaveLength(1); expect(writes).toBe(1);
   await page.getByRole("button", { name: "Retry", exact: true }).click();
   await expect(page.getByRole("article").getByText(body, { exact: true })).toBeVisible(); expect(writes).toBe(1);
@@ -112,7 +112,7 @@ test("rejected internal note keeps exact text, mode and case through phone and l
   const thread = await storedThread(page, item.id), body = "  QA37 note\nO‘tkir <literal> & Русский  ";
   await page.route(`**/api/proxy/conversations/${thread.id}/messages`, route => route.fulfill({ status: 422, contentType: "application/json", body: "{}" }), { times: 1 });
   await page.getByRole("button", { name: "Internal note", exact: true }).click(); await page.getByRole("textbox", { name: "Message", exact: true }).fill(body);
-  await page.getByRole("button", { name: "Send message", exact: true }).click(); await expect(page.getByText("Message was not sent. Your draft is retained.", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Send message", exact: true }).click(); await expect(page.getByText(translate("en", "message.rejected"), { exact: true })).toBeVisible();
   await switchQueueLocale(page, "en", "ru");
   const label = (key: string) => translate("ru", `ops.${key}`);
   await expect(page.getByRole("textbox", { name: label("message"), exact: true })).toHaveValue(body);
@@ -121,6 +121,9 @@ test("rejected internal note keeps exact text, mode and case through phone and l
   await page.getByRole("button", { name: label("conversation"), exact: true }).click();
   await expect(page.getByRole("textbox", { name: label("message"), exact: true })).toHaveValue(body);
   expect((await storedThread(page, item.id)).messages.some((message: { body: string }) => message.body === body)).toBe(false);
+  await expect(page.getByRole("button", { name: label("send"), exact: true })).toBeDisabled();
+  await page.getByRole("button", { name: translate("ru", "message.resolve"), exact: true }).click();
+  await expect(page.getByRole("textbox", { name: label("message"), exact: true })).toHaveValue(body);
   await page.getByRole("button", { name: label("send"), exact: true }).click();
   await expect.poll(async () => (await storedThread(page, item.id)).messages.filter((message: { body: string; is_internal: boolean; channel: string }) => message.body === body && message.is_internal && message.channel === "internal").length).toBe(1);
 });
@@ -139,8 +142,11 @@ for (const action of ["patch", "message"]) test(`real backend read-only session 
   // Same owned demo center, actual AuthService read-only token and normal backend
   // authorization. No permission override or transport-invented denial.
   await page.context().addCookies([{ name: "garageos_token", value: fixture.operations_demo_token, url: baseURL!, httpOnly: true }, { name: "garageos_demo", value: "1", url: baseURL!, httpOnly: true }]);
-  const denied = page.waitForResponse(r => r.request().method() === (action === "patch" ? "PATCH" : "POST") && r.status() === 403);
-  await control.click(); await denied;
+  let messagePosts = 0;
+  page.on("request", r => { if (r.method() === "POST" && r.url().endsWith(`/conversations/${thread.id}/messages`)) messagePosts++; });
+  const denied = page.waitForResponse(r => action === "patch" ? r.request().method() === "PATCH" && r.status() === 403 : r.url().endsWith("/api/proxy/auth/me") && r.ok());
+  await control.click(); const verified = await denied;
+  if (action === "message") { expect((await verified.json()).permissions).not.toContain("staff.write"); expect(messagePosts).toBe(0); }
   await expect(page.getByRole("alert").filter({ hasText: "You no longer have access" })).toBeVisible();
   await expect(page.getByRole("heading", { name: item.title, exact: true })).toHaveCount(0); await expect(page.getByRole("textbox", { name: "Message", exact: true })).toHaveCount(0);
   expect((await storedCase(page, item.id)).status).toBe("new");
@@ -179,7 +185,7 @@ for (const action of ["patch", "message"]) test(`pending ${action} keeps its rea
       await page.getByRole("button", { name: label("detail"), exact: true }).click(); await expect(page.getByText(label("saved"), { exact: true })).toBeVisible();
       expect((await storedCase(page, item.id)).status).toBe("acknowledged");
     } else {
-      await expect(page.getByRole("textbox", { name: label("message"), exact: true })).toHaveValue(""); await expect(page.getByText(label("sent"), { exact: true })).toBeVisible();
+      await expect(page.getByRole("textbox", { name: label("message"), exact: true })).toHaveValue(""); await expect(page.getByText(translate("ru", "message.saved"), { exact: true })).toBeVisible();
       expect((await storedThread(page, item.id)).messages.filter((message: { body: string; is_internal: boolean }) => message.body === body && message.is_internal)).toHaveLength(1);
     }
     expect(writes).toBe(1);

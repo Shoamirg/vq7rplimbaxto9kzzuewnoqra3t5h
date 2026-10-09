@@ -6,6 +6,7 @@ import { Button } from '@garageos/design-system';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
 import { clientFetch, ClientApiError } from '@/lib/api/client';
 import { useI18n } from '@/lib/i18n/context';
+import { logoutMessageSession } from '@/lib/message-intents';
 
 const kinds = ['centers', 'staff', 'customers', 'vehicles', 'appointments', 'invoices', 'payments'] as const;
 type Kind = typeof kinds[number];
@@ -50,10 +51,10 @@ export function PlatformWorkspace({ name, allowed }: { name: string; allowed: bo
 
   async function logout() {
     setLogoutError(false);
+    setData(null); setDenied(true);
     try {
-      const response = await fetch('/api/auth/logout', { method: 'POST' });
-      if (!response.ok) throw new Error();
-      setData(null); setDenied(true); router.replace('/login'); router.refresh();
+      await logoutMessageSession();
+      router.replace('/login'); router.refresh();
     } catch { setLogoutError(true); }
   }
   function apply(event: FormEvent) {

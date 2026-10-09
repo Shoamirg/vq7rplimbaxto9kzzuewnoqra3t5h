@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { queueCustomer, queueLogin } from "./support/queue";
 
 const CREDS = { email: "admin@demo.garageos.app", password: "demo1234" };
 
@@ -39,22 +40,14 @@ test("new booking selects a mechanic account and persists its UUID", async ({ pa
   }
 });
 
-test("staff completes service work and shows one Uzbek UZS invoice", async ({ page }, info) => {
-  const login = await page.request.post("/api/auth/login", { data: CREDS });
-  expect(login.ok()).toBeTruthy();
-  await page.context().addCookies([{
-    name: "garageos_locale", value: "uz", url: new URL(page.url() === "about:blank" ? "http://localhost:3001" : page.url()).origin,
-  }]);
-
-  const customers = await page.request.get("/api/proxy/customers?limit=200");
-  expect(customers.ok()).toBeTruthy();
-  const customer = (await customers.json()).items.find((item: { vehicle_count: number }) => item.vehicle_count > 0);
-  expect(customer).toBeTruthy();
+test("staff completes service work and shows one Uzbek UZS invoice", async ({ page, baseURL }, info) => {
+  const { owner, profile } = await queueLogin(page, baseURL!, "uz", 1280);
+  const customer = await queueCustomer(page, profile);
   await page.goto("/appointments");
   await page.getByRole("button", { name: "Yangi qabul" }).last().click();
   await expect(page.getByRole("dialog", { name: "Yangi navbat" })).toBeVisible();
-  await page.getByRole("dialog", { name: "Yangi navbat" }).getByRole("textbox", { name: "Ism, telefon yoki pochta bo‘yicha qidirish…" }).fill(customer.full_name);
-  await page.getByRole("dialog", { name: "Yangi navbat" }).getByRole("button", { name: customer.full_name }).first().click();
+  await page.getByRole("dialog", { name: "Yangi navbat" }).getByRole("textbox", { name: "Ism, telefon yoki pochta bo‘yicha qidirish…" }).fill(customer.tag);
+  await page.getByRole("dialog", { name: "Yangi navbat" }).getByRole("button", { name: customer.name }).first().click();
   await expect(page.locator("#appt-vehicle option")).not.toHaveCount(1);
   await page.locator("#appt-vehicle").selectOption({ index: 1 });
   await page.locator("#appt-date").fill("2030-05-10");
@@ -65,6 +58,7 @@ test("staff completes service work and shows one Uzbek UZS invoice", async ({ pa
   expect(created.ok(), await created.text()).toBeTruthy();
   const appointmentId = (await created.json()).id;
 
+  await page.locator("#queue-search").fill(customer.tag);
   const row = page.getByTestId(`appointment-row-${appointmentId}`);
   await expect(row).toBeVisible();
   const actions = () => row.getByRole("button", { name: "Amallar" });
@@ -127,9 +121,10 @@ test("staff completes service work and shows one Uzbek UZS invoice", async ({ pa
   await page.pdf({ path: info.outputPath("invoice-print.pdf"), format: "A4", printBackground: true });
   await page.emulateMedia({ media: "screen" });
 
-  expect((await page.request.post("/api/auth/login", { data: CREDS })).ok()).toBeTruthy();
-  await page.context().addCookies([{ name: "garageos_locale", value: "uz", url: "http://localhost:3001" }]);
+  expect((await page.request.post("/api/auth/login", { data: { email: owner.email, password: owner.password } })).ok()).toBeTruthy();
+  await page.context().addCookies([{ name: "garageos_locale", value: "uz", url: baseURL! }]);
   await page.goto("/appointments");
+  await page.locator("#queue-search").fill(customer.tag);
   await expect(row).toBeVisible();
   await actions().click();
   await page.getByText("Hisob yaratish / ochish", { exact: true }).click();

@@ -187,14 +187,23 @@ test("committed message with lost response retains draft and reconciles the shar
   await expect(page.getByRole("link", { name: "Open in Inbox", exact: true })).toBeVisible();
   const before = await (await page.request.get(`/api/proxy/cases/${target.id}/conversation`)).json();
   const body = `Committed uncertain ${randomUUID()}`; let writes = 0;
-  await page.route(`**/api/proxy/conversations/${before.id}/messages`, async route => { writes++; const response = await route.fetch(); expect(response.ok()).toBeTruthy(); await route.abort("failed"); });
+  const path = `/api/proxy/conversations/${before.id}/messages`; let capturedKey: string | undefined;
+  page.on("request", r => { if (r.method() === "POST" && r.url().endsWith(path)) writes++; });
+  await page.route(`**${path}`, async route => { capturedKey = route.request().headers()["idempotency-key"]; const response = await route.fetch(); expect(response.ok()).toBeTruthy(); await route.abort("failed"); }, { times: 1 });
   await composer.fill(body); await page.getByRole("button", { name: "Send message", exact: true }).click();
   await expect(page.getByRole("alert").filter({ hasText: "Delivery is uncertain" })).toBeVisible();
   await expect(composer).toHaveValue(body); await expect(page.getByRole("button", { name: "Send message", exact: true })).toBeDisabled();
   const stored = await (await page.request.get(`/api/proxy/cases/${target.id}/conversation`)).json(); expect(stored.id).toBe(before.id); expect(stored.messages.filter((m: { body: string }) => m.body === body)).toHaveLength(1);
   await page.getByRole("button", { name: "Refresh conversation", exact: true }).click();
-  await expect(page.getByRole("article").getByText(body, { exact: true })).toBeVisible(); await expect(page.getByRole("button", { name: "Send message", exact: true })).toBeEnabled();
-  await expect(page.locator(`a[href="/inbox?c=${stored.id}"]`)).toBeVisible(); expect(writes).toBe(1);
+  await expect(page.getByRole("article").getByText(body, { exact: true })).toBeVisible(); await expect(page.getByRole("button", { name: "Send message", exact: true })).toBeDisabled();
+  expect(writes).toBe(1);
+  const replay = page.waitForRequest(r => r.method() === "POST" && r.url().endsWith(path));
+  await page.getByRole("button", { name: "Retry original message", exact: true }).click();
+  expect((await replay).headers()["idempotency-key"]).toBe(capturedKey);
+  await expect(composer).toHaveValue("");
+  const after = await (await page.request.get(`/api/proxy/cases/${target.id}/conversation`)).json();
+  expect(after.messages.filter((m: { body: string }) => m.body === body)).toEqual(stored.messages.filter((m: { body: string }) => m.body === body));
+  await expect(page.locator(`a[href="/inbox?c=${stored.id}"]`)).toBeVisible(); expect(writes).toBe(2);
 });
 
 for (const status of [401, 403]) test(`revoked read ${status} clears all protected data`, async ({ page, baseURL }) => {

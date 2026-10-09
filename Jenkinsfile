@@ -1,6 +1,6 @@
 // Loaded by the local trusted-branch bootstrap on the garageos-windows agent.
 def runChecks() {
-    timeout(time: 45, unit: 'MINUTES') {
+    timeout(time: 90, unit: 'MINUTES') {
         try {
             stage('Windows CI · isolated database · full workflows') {
                 def result = powershell(returnStatus: true, script: '''

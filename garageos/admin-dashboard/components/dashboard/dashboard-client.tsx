@@ -45,6 +45,7 @@ import Link from "next/link";
 import type { Appointment, AppointmentStats, FleetHealth, HealthBand } from "@/lib/api/types";
 import { HealthGauge } from "@/components/vehicles/health-gauge";
 import { useI18n } from "@/lib/i18n/context";
+import { logoutMessageSession } from "@/lib/message-intents";
 
 type Props = {
   userName: string;
@@ -142,18 +143,22 @@ function StatCard({
 
 export function DashboardClient({ userName, stats, today, fleet }: Props) {
   const router = useRouter();
+  const [logoutError, setLogoutError] = React.useState(false);
   const { t, fmt } = useI18n();
   const activeCount = stats.pending_count + stats.confirmed_count;
   const chartData = weeklyRevenue.map((d) => ({ ...d, label: t(`day.${d.day.toLowerCase()}`) }));
 
   async function handleLogout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.replace("/login");
-    router.refresh();
+    setLogoutError(false);
+    try {
+      await logoutMessageSession();
+      router.replace("/login"); router.refresh();
+    } catch { setLogoutError(true); }
   }
 
   return (
     <div className="p-4 lg:p-6 space-y-6 animate-fade-in">
+      {logoutError && <p role="alert" className="text-sm">{t("platform.logout_failed")}</p>}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>

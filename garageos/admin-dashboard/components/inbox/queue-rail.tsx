@@ -19,7 +19,7 @@ export function QueueRail({
   counts: InboxCounts | null;
 }) {
   return (
-    <nav className="w-56 shrink-0 bg-slate-900 text-slate-300 flex flex-col overflow-y-auto">
+    <nav className="w-56 min-h-0 flex-1 bg-slate-900 text-slate-300 flex flex-col overflow-y-auto">
       <Section label="Work queues" />
       {VIEWS.map((v) => {
         const n = v.count && counts ? counts[v.count] : undefined;
@@ -27,7 +27,7 @@ export function QueueRail({
         const alert = v.key === "needs_reply" || v.key === "sla_breached";
         return (
           <button key={v.key} onClick={() => onView(v.key)}
-            className={cn("flex items-center gap-2.5 mx-2 my-0.5 px-2.5 py-2 rounded-lg text-[13px] transition-colors",
+            className={cn("min-h-11 min-w-11 focus-visible:outline-2 focus-visible:outline-primary flex items-center gap-2.5 mx-2 my-0.5 px-2.5 py-2 rounded-lg text-[13px] transition-colors",
               active ? "bg-blue-600/20 text-white" : "text-slate-300 hover:bg-slate-800")}>
             <span className="w-4 text-center text-[13px]">{v.icon}</span>
             <span className="flex-1 text-left truncate">{v.label}</span>
@@ -45,7 +45,7 @@ export function QueueRail({
       <div className="flex flex-wrap gap-1 px-3 pb-1">
         {TYPE_FILTERS.map((t) => (
           <button key={t.key} onClick={() => onType(t.key)}
-            className={cn("px-2 py-0.5 rounded-full text-[11px] transition-colors",
+            className={cn("min-h-11 min-w-11 focus-visible:outline-2 focus-visible:outline-primary px-2 py-0.5 rounded-full text-[11px] transition-colors",
               type === t.key ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-400 hover:text-white")}>
             {t.label}
           </button>
@@ -55,7 +55,7 @@ export function QueueRail({
       <Section label="Channels · filters" />
       {CHANNEL_FILTERS.map((c) => (
         <button key={c.key} onClick={() => onChannel(channel === c.key ? null : c.key)}
-          className={cn("flex items-center gap-2.5 mx-2 my-0.5 px-2.5 py-1.5 rounded-lg text-[13px] transition-colors",
+          className={cn("min-h-11 min-w-11 focus-visible:outline-2 focus-visible:outline-primary flex items-center gap-2.5 mx-2 my-0.5 px-2.5 py-1.5 rounded-lg text-[13px] transition-colors",
             channel === c.key ? "bg-blue-600/20 text-white" : "text-slate-300 hover:bg-slate-800")}>
           <span className="w-4 text-center">{c.icon}</span>
           <span className="flex-1 text-left">{c.label}</span>

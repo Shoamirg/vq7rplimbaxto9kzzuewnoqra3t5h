@@ -29,6 +29,9 @@ from app.models.conversation import (
     ParticipantRole,
 )
 from app.models.customer import Customer
+from app.models.appointment import Appointment
+from app.models.invoice import Invoice
+from app.models.message_intent import MessageIntent
 from app.models.notification import Notification
 from app.models.operational_case import OperationalCase
 from app.models.user import User
@@ -37,6 +40,7 @@ from app.repositories.tenant_references import local_reference, local_reference_
 from app.repositories.unit_of_work import UnitOfWork
 from app.services.case_service import CaseService
 from app.services.maintenance_service import MaintenanceService
+from app.services.message_intent import FINGERPRINT_VERSION, MessageIntentConflict, MessageSubmission, fingerprint
 from app.services.vehicle_health_service import _band, _vehicle_label
 
 # The one question a row answers: *why is this still open?*
@@ -136,12 +140,64 @@ class ConversationService:
         author_name: str | None = None, author_user_id: uuid.UUID | None = None,
         kind: str = MessageKind.TEXT, is_internal: bool = False,
         mentions: list | None = None, attachments: list[dict] | None = None,
+        submission: MessageSubmission | None = None,
+        customer_actor_id: uuid.UUID | None = None,
     ) -> dict:
-        conv = await self._get(conversation_id)
+        # Hold the aggregate lock until the normal UoW commits or rolls back.
+        # Refresh previously loaded customer-owned rows after lock acquisition:
+        # parallel distinct intents must not increment a stale unread counter.
+        conv = await self.session.scalar(select(Conversation).where(
+            Conversation.id == conversation_id, Conversation.service_center_id == self.sc,
+            Conversation.is_active.is_(True),
+        ).with_for_update(of=Conversation).execution_options(populate_existing=True))
+        if conv is None:
+            raise ConversationNotFound()
+        # Customer ownership is an authorization boundary even when a legacy
+        # caller omits a key. Recheck the freshly locked row, not a pre-lock
+        # CustomerPortalService read that could precede an ownership transfer.
+        if customer_actor_id is not None:
+            customer = await local_reference(self.session, Customer, customer_actor_id, self.sc, active=True)
+            if customer is None or conv.customer_id != customer_actor_id:
+                raise ConversationNotFound()
+        await self._validate_message_target(conv)
         internal = is_internal or kind == MessageKind.NOTE
+        effective_channel = Channel.INTERNAL if internal else channel
+        content_hash = None
+        if submission is not None:
+            if submission.actor_kind == "customer":
+                if conv.customer_id != submission.actor_id:
+                    raise ConversationNotFound()
+                actor = await local_reference(self.session, Customer, submission.actor_id, self.sc, active=True)
+            elif submission.actor_kind == "staff":
+                actor = await local_reference(self.session, User, submission.actor_id, self.sc, active=True)
+            else:
+                raise ValueError("Message submission requires an authenticated actor namespace")
+            if actor is None:
+                raise ConversationNotFound()
+            content_hash = fingerprint(
+                submission=submission, body=body, kind=kind, channel=effective_channel,
+                internal=internal, author_role=author_role, mentions=mentions, attachments=attachments,
+            )
+            saved = await self.session.scalar(select(MessageIntent).where(
+                MessageIntent.service_center_id == self.sc, MessageIntent.conversation_id == conv.id,
+                MessageIntent.actor_kind == submission.actor_kind, MessageIntent.actor_id == submission.actor_id,
+                MessageIntent.key == submission.key,
+            ))
+            if saved is not None:
+                # Validate before comparing/returning a receipt. A bad legacy
+                # ledger edge must never turn into a new intent or cached leak.
+                linked_message = await self.session.scalar(select(Message.id).where(
+                    Message.id == saved.message_id, Message.service_center_id == self.sc,
+                    Message.conversation_id == conv.id,
+                ))
+                if linked_message is None:
+                    raise ConversationNotFound()
+                if saved.fingerprint_version != FINGERPRINT_VERSION or saved.fingerprint != content_hash:
+                    raise MessageIntentConflict()
+                return dict(saved.response)
         msg = Message(
             service_center_id=self.sc, conversation_id=conv.id, kind=kind,
-            channel=Channel.INTERNAL if internal else channel, is_internal=internal,
+            channel=effective_channel, is_internal=internal,
             author_role=author_role, author_name=author_name, author_user_id=author_user_id,
             body=body, mentions=mentions or None,
         )
@@ -172,13 +228,49 @@ class ConversationService:
                 conv.status = ConvStatus.OPEN  # ball's back in our court
         await self.session.flush()
 
+        response = self._msg_dict(msg, created_atts)
+        if submission is not None:
+            self.session.add(MessageIntent(
+                service_center_id=self.sc, conversation_id=conv.id,
+                actor_kind=submission.actor_kind, actor_id=submission.actor_id, key=submission.key,
+                fingerprint_version=FINGERPRINT_VERSION, fingerprint=content_hash,
+                message_id=msg.id, response=response,
+            ))
+            await self.session.flush()
+
         self.uow.add_event(MessagePosted(
             service_center_id=self.sc, conversation_id=conv.id, message_id=msg.id,
             channel=msg.channel, author_role=author_role, author_name=author_name,
             is_internal=internal, preview=preview, mentions=mentions or None,
             customer_id=conv.customer_id, vehicle_id=conv.vehicle_id, case_id=conv.case_id,
         ))
-        return self._msg_dict(msg, created_atts)
+        return response
+
+    async def _validate_message_target(self, conv: Conversation) -> None:
+        """Validate write/replay entry without certifying unrelated Inbox CRUD.
+
+        Local inactive historical customer/vehicle/user links remain valid.
+        Optional links may be absent. Vehicle ownership can change after an
+        appointment/case: keep its captured customer instead of rewriting it.
+        """
+        await self._validate_case_thread(conv)
+        if conv.case_id is not None:
+            case = await CaseService(self.uow).get_record(conv.case_id)
+            if ((conv.customer_id is not None and case.customer_id != conv.customer_id)
+                    or (conv.vehicle_id is not None and case.vehicle_id != conv.vehicle_id)):
+                raise ConversationNotFound()
+        for model, reference in [(Appointment, conv.appointment_id), (Invoice, conv.invoice_id)]:
+            if reference is None:
+                continue
+            linked = await local_reference(self.session, model, reference, self.sc)
+            if (linked is None or (conv.customer_id is not None and linked.customer_id != conv.customer_id)
+                    or (conv.vehicle_id is not None and linked.vehicle_id != conv.vehicle_id)):
+                raise ConversationNotFound()
+            # Owning snapshots can keep an inactive/transferred local vehicle,
+            # but cannot point outside the authenticated center.
+            for child_model, child_id in [(Customer, linked.customer_id), (Vehicle, linked.vehicle_id)]:
+                if child_id is not None and await local_reference(self.session, child_model, child_id, self.sc) is None:
+                    raise ConversationNotFound()
 
     # ── transitions ───────────────────────────────────────────
     async def set_status(self, conversation_id: uuid.UUID, status: str) -> dict:

@@ -1,8 +1,9 @@
 """Write synthetic signed Mini App launch data for the complete browser gate.
 
 The bot key stays in the caller's environment. This command also creates owned
-synthetic issuer documents/staff in the isolated test database. It never creates
-or promotes a Telegram/customer login identity.
+synthetic issuer documents/staff in the isolated test database and provisions a
+normal synthetic password account for the existing Telegram customer. It never
+creates or promotes a Telegram identity or creates a new customer entity.
 """
 import argparse
 import asyncio
@@ -10,10 +11,58 @@ import hashlib
 import hmac
 import json
 import os
+import secrets
 from pathlib import Path
 import sys
 import time
 from urllib.parse import urlencode, urlsplit
+
+
+async def prepare_password_customer(customer_id: str, center_id: str) -> dict:
+    """Normal read-only password credentials for the existing synthetic TG user.
+
+    Private QA fixture only: it neither creates a Telegram identity nor changes
+    the password-customer messaging policy. Browser tests can observe a genuine
+    same-customer403 instead of fabricating a denial response.
+    """
+    import uuid
+    from sqlalchemy.engine import make_url
+    from app.core.config import settings
+    from app.core.staff_access import staff_permissions
+    from app.repositories.unit_of_work import UnitOfWork
+    from app.schemas.customer_account import CustomerAccountCreate
+    from app.services.auth_service import AuthService
+    from app.services.customer_account_service import CustomerAccountService
+    from app.services.customer_auth_service import CustomerAuthService
+    from app.seeds.mechanics import DEFAULT_PASSWORD
+
+    url = make_url(settings.DATABASE_URL)
+    if (settings.ENVIRONMENT != 'test' or settings.DEBUG
+            or url.host not in {'localhost', '127.0.0.1'} or url.database != 'garage_test'):
+        raise ValueError('Refused non-isolated password browser fixture')
+    customer_uuid, center_uuid = uuid.UUID(customer_id), uuid.UUID(center_id)
+    async with UnitOfWork() as auth_uow:
+        auth = AuthService(auth_uow)
+        tokens = await auth.login('admin@demo.garageos.app', DEFAULT_PASSWORD)
+        owner = await auth.get_current_user(tokens['access_token'])
+        if (owner.service_center_id != center_uuid or owner.role.name != 'admin'
+                or 'staff.write' not in staff_permissions(owner)):
+            raise ValueError('Synthetic owner does not own this customer')
+        async with UnitOfWork(service_center_id=center_uuid) as uow:
+            service = CustomerAccountService(uow, owner)
+            customer = await service.customer(customer_uuid)
+            if customer.telegram_id is None or await service.account(customer_uuid) is not None:
+                raise ValueError('Refused unexpected synthetic password account')
+            profile = {'email': f'qa38-policy-{uuid.uuid4()}@example.com',
+                       'password': secrets.token_urlsafe(32),
+                       'customer_id': customer_id, 'center_id': center_id}
+            await service.create(customer_uuid, CustomerAccountCreate(
+                email=profile['email'], password=profile['password']))
+            verified = await CustomerAuthService(uow).authenticate_password(
+                profile['email'], profile['password'])
+            if str(verified['customer']['id']) != customer_id:
+                raise ValueError('Synthetic password identity mismatch')
+        return profile
 
 
 async def prepare(output: Path) -> None:
@@ -55,6 +104,8 @@ async def prepare(output: Path) -> None:
         fields['hash'] = hmac.new(key, '\n'.join(f'{key}={fields[key]}' for key in sorted(fields)).encode(), hashlib.sha256).hexdigest()
         receipt = {'qa_only':True, 'base_origin':origin, 'init_data':urlencode(fields),
                    'customer_id':str(customer['id']), 'service_center_id':str(customer['service_center_id'])}
+        receipt['password_customer'] = await prepare_password_customer(
+            receipt['customer_id'], receipt['service_center_id'])
         # Exclusive creation refuses an existing private file; Linux mode0600.
         fd = os.open(output, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
         with os.fdopen(fd, 'w', encoding='utf-8') as file:

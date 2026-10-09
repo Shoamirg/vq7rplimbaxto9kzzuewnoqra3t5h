@@ -43,6 +43,7 @@ DEPS_KEY = hashlib.sha256((BACKEND / "requirements.txt").read_bytes()
 PYTHON = TOOLS / ("backend-py312-" + DEPS_KEY) / "Scripts/python.exe"
 AUDITOR = TOOLS / "pip-audit-2.10.1/Scripts/python.exe"
 ENV = dict(os.environ, PYTHONUTF8="1", ENVIRONMENT="test", RATE_LIMIT_ENABLED="false",
+           GARAGEOS_BROWSER_PYTHON=str(PYTHON),
            DATABASE_URL="postgresql+asyncpg://postgres@127.0.0.1:55444/garage_test",
            SECRET_KEY="jenkins-isolated-test-only-not-production",
            NEXT_PUBLIC_API_URL="http://127.0.0.1:8010/api/v1", BASE_URL="http://localhost:3001",

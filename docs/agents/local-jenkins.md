@@ -66,6 +66,13 @@ the account billing issue resolved. Preserved definitions are not an immediately
 available fallback or Jenkins evidence. See
 [GitHub manual workflow requirements](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow).
 
+The complete checks have a90-minute timeout in `Jenkinsfile`. The installed
+trusted-branch bootstrap has a100-minute outer timeout, allowing checkout and
+final report/fixture cleanup to finish. The current full backend and browser
+checks alone took about43 minutes locally; the former50-minute bootstrap could
+interrupt Android, Docker and recovery checks before completion. When changing
+this budget, update both layers; the shorter enclosing timeout takes precedence.
+
 The versioned runner creates a new loopback `garage_test` PostgreSQL cluster for
 each build and refuses occupied ports 55444,8010,3001. It runs migrations/schema,
 pre-seed public API checks, full backend tests, frontend typecheck/locales/lint/
@@ -88,6 +95,16 @@ reads a linked seeded customer with vehicles and writes signed launch data using
 exclusive creation outside the checkout. It refuses a non-test/non-loopback
 `garage_test`, DEBUG auth, a non-QA key, external browser origin or repository
 output path. `GARAGEOS_BROWSER_FIXTURE` points Playwright at that private file.
+`GARAGEOS_BROWSER_PYTHON` identifies the same backend Python interpreter for
+clock-expiry checks. The test-only `tests.support.expiring_session` CLI accepts
+a currently valid normal access token over a private pipe, resolves its active
+staff or Telegram-customer principal, and uses the existing signer with a short
+lifetime. Browser tests prove normal `/me`200 followed by real clock-expired401
+with the same cookie still present, then deliberate verified same-actor
+recovery using the original message key. No API test endpoint, auth bypass,
+changed clock or disabled expiry check is used. Never log/archive the pipe or
+tokens; only the sanitized time/status proof is public evidence. Manual full
+browser runs must configure this interpreter and the existing isolated QA env.
 The command also creates two owned synthetic garages/staff and invoice/estimate
 documents for [issuer checks](../../garageos/docs/document-issuer.md); synthetic
 staff credentials stay in the same private file. No real customer/Telegram

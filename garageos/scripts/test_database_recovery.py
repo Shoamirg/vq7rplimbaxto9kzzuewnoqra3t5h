@@ -66,7 +66,7 @@ class DatabaseRecoveryTest(unittest.TestCase):
         cls.private = Path(tempfile.mkdtemp(prefix=cls.tag + '-', dir='/tmp')).resolve()
         cls.containers, cls.script_containers, cls.script_volumes = [], {}, {}
         cls.volumes, cls.networks = [], []
-        cls.secrets = [secrets.token_hex(24) for _ in range(3)]
+        cls.secrets = [secrets.token_hex(24) for _ in range(4)]
         cls.image = 'garageos-recovery:' + cls.tag
         cls.image_created = False
         cls.addClassCleanup(cls.cleanup)
@@ -92,7 +92,7 @@ class DatabaseRecoveryTest(unittest.TestCase):
             'REDIS_URL': 'redis://redis:6379/0', 'ENVIRONMENT': 'production', 'DEBUG': 'false',
             'SECRET_KEY': cls.secrets[1], 'CORS_ORIGINS': 'https://recovery.example.com',
             'WEB_CONCURRENCY': '1', 'GARAGEOS_RECOVERY_RUN': cls.tag,
-            'GARAGEOS_RECOVERY_PASSWORD': cls.secrets[2]})
+            'GARAGEOS_RECOVERY_PASSWORD': cls.secrets[2], 'TELEGRAM_BOT_TOKEN': cls.secrets[3]})
         cls.target_env = cls.private/'backend restored.env'
         cls.target_env.write_text(cls.backend_env.read_text().replace('@postgres:', '@restored:'))
         cls.target_env.chmod(0o600)
@@ -136,8 +136,21 @@ class DatabaseRecoveryTest(unittest.TestCase):
         cls.backend('seed', cls.backend_env, ['python', '/recovery_fixture.py', 'seed'])
         cls.source_backend = cls.start_backend('source', cls.backend_env)
         cls.before_api = cls.api_probe(cls.source_backend, 'source-api')
+        # A genuinely new API process must replay the original database receipts
+        # before the subsequent database-restart and backup/restore checks.
         cls.docker('rm', '-f', cls.source_backend)
         cls.before = cls.snapshot(cls.source)
+        restart_backend = cls.start_backend('restarted-api', cls.backend_env)
+        cls.api_after_restart = cls.api_probe(restart_backend, 'restarted-api')
+        assert cls.api_after_restart == cls.before_api, 'API restart changed acknowledged message receipts'
+        cls.docker('rm', '-f', restart_backend)
+        after_restart = cls.snapshot(cls.source)
+        (OUTPUT/'api-restart-digests.json').write_text(json.dumps({
+            'before': cls.before, 'after': after_restart,
+            'changed_tables': [name for name in cls.before['tables'] if cls.before['tables'][name] != after_restart['tables'][name]],
+        }, indent=2))
+        cls.assert_probe_effects(cls.before, after_restart)
+        cls.before = after_restart  # includes the new, independently verified login audit
         cls.docker('restart', cls.source, log='source-restart')
         cls.ready(cls.source)
         assert cls.snapshot(cls.source) == cls.before, 'Database restart changed stored records/schema'
@@ -147,7 +160,7 @@ class DatabaseRecoveryTest(unittest.TestCase):
                           'fixture_sha256': hashlib.sha256(cls.fixture.read_bytes()).hexdigest(),
                           'postgres_image_id': cls.inspect('image', cls.pg_image)['Id'],
                           'postgres_version': version, 'role': 'recovery_role',
-                          'source_restart_preserved': True}
+                          'source_restart_preserved': True, 'api_restart_message_receipts_preserved': True}
 
     @classmethod
     def write_private(cls, path, values):
@@ -208,19 +221,52 @@ class DatabaseRecoveryTest(unittest.TestCase):
 
         tables = cls.query(container, "SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename;").splitlines()
         rows = {}
+        audits = {}
         for table in tables:
             data = json.loads(cls.query(container, f"SELECT coalesce(json_agg(t ORDER BY row_to_json(t)::text),'[]'::json) FROM public.{quoted(table)} t;"))
             rows[table] = {'rows': len(data), 'sha256': hashlib.sha256(json.dumps(data, sort_keys=True, separators=(',', ':')).encode()).hexdigest()}
+            if table == 'audit_logs':
+                for row in data:
+                    audits[row['id']] = {
+                        'sha256': hashlib.sha256(json.dumps(row, sort_keys=True, separators=(',', ':')).encode()).hexdigest(),
+                        'expected_login': (row['action'] == 'auth.login.success' and row['status'] == 'success'
+                                           and row['actor_email'] == 'recovery-staff-a@example.com'
+                                           and row['service_center_id'] is None and row['actor_user_id'] is None
+                                           and row['resource_type'] is None and row['resource_id'] is None
+                                           and row['context'] is None),
+                    }
         schema = cls.docker('exec', container, 'pg_dump', '--schema-only',
                             '-U', 'recovery_role', 'garageos_recovery').stdout
         # Patched pg_dump adds a fresh \restrict nonce; comments carry tool metadata.
         normalized = '\n'.join(line for line in schema.splitlines()
                                if line and not line.startswith(('--', '\\restrict ', '\\unrestrict ')))
+        schema_hash = hashlib.sha256(normalized.encode()).hexdigest()
+        # Schema-only evidence diagnoses genuine restore differences without
+        # retaining database rows, credentials or the private SQL backup.
+        (OUTPUT / ('schema-' + schema_hash + '.sql')).write_text(normalized)
         sequences = {}
         for name in cls.query(container, "SELECT sequencename FROM pg_sequences WHERE schemaname='public' ORDER BY sequencename;").splitlines():
             sequences[name] = cls.query(container, f'SELECT last_value,is_called FROM public.{quoted(name)};')
-        return {'tables': rows, 'schema_sha256': hashlib.sha256(normalized.encode()).hexdigest(),
+        return {'tables': rows, 'audit_rows': audits, 'schema_sha256': schema_hash,
                 'sequences': sequences, 'alembic_revision': cls.query(container, 'SELECT version_num FROM alembic_version;')}
+
+    @classmethod
+    def assert_probe_effects(cls, before, after):
+        # A fresh genuine sign-in deliberately appends one security audit.
+        # Prove that precise effect without excluding audit integrity or hiding
+        # changes in any business table, including notification/event effects.
+        for field in ('schema_sha256', 'sequences', 'alembic_revision'):
+            assert after[field] == before[field], field
+        assert set(before['tables']) == set(after['tables'])
+        for name in before['tables']:
+            if name != 'audit_logs':
+                assert before['tables'][name] == after['tables'][name], name
+        assert before['audit_rows'].keys() <= after['audit_rows'].keys()
+        for key, row in before['audit_rows'].items():
+            assert row == after['audit_rows'][key], 'Existing audit row changed'
+        added = after['audit_rows'].keys() - before['audit_rows'].keys()
+        assert len(added) == 1 and all(after['audit_rows'][key]['expected_login'] for key in added)
+        assert after['tables']['audit_logs']['rows'] == before['tables']['audit_logs']['rows'] + 1
 
     def restore_script(self, archive, name, expected_success):
         container_name = self.tag + '-script-' + name
@@ -288,14 +334,20 @@ class DatabaseRecoveryTest(unittest.TestCase):
                                    input=gzip.decompress(archive.read_bytes()), capture_output=True, timeout=60)
         self.assertEqual(restored.returncode, 0, 'Independent real SQL restore failed')
         after = self.snapshot(target)
+        (OUTPUT/'source-restore-digests.json').write_text(json.dumps({'source': self.before, 'restored': after}, indent=2))
         self.assertEqual(after, self.before, 'Restored table/schema/sequence digests differ')
         required = ('service_centers', 'users', 'customer_accounts', 'customers', 'vehicles',
-                    'appointments', 'service_records', 'invoices', 'invoice_line_items', 'invoice_payments', 'ledger_entries')
+                    'appointments', 'service_records', 'invoices', 'invoice_line_items', 'invoice_payments', 'ledger_entries',
+                    'conversations', 'conversation_messages', 'message_intents')
         self.assertTrue(all(after['tables'][table]['rows'] >= 2 for table in required))
+        self.assertEqual(after['tables']['conversation_attachments']['rows'], 1)
         backend = self.start_backend('restored', self.target_env)
         after_api = self.api_probe(backend, 'restored-api')
         self.assertEqual(after_api, self.before_api, 'Restored authentication/financial/history behavior differs')
+        post_probe = self.snapshot(target)
+        self.assert_probe_effects(self.before, post_probe)
         self.report = {**self.identities, 'snapshot': after, 'api': after_api,
+                       'post_restore_probe_snapshot': post_probe, 'fresh_probe_login_audit_verified': True,
                        'archive_sha256': hashlib.sha256(archive.read_bytes()).hexdigest(),
                        'archive_bytes': archive.stat().st_size, 'archive_mode': '0600',
                        'qa_only': True, 'client_environment_verified': False}

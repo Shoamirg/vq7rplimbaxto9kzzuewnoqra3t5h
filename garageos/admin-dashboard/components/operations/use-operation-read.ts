@@ -18,7 +18,12 @@ export function useOperationRead<T>(key: string | null, path: string | null, ena
   const current = useRef({ key, path, enabled, onDenied });
   current.current = { key, path, enabled, onDenied };
   const seq = useRef(0), request = useRef<AbortController | null>(null);
-  const invalidate = useCallback(() => { seq.current++; request.current?.abort(); request.current = null; }, []);
+  const invalidate = useCallback(() => {
+    seq.current++; request.current?.abort(); request.current = null;
+    // Cancelled completions have no authority to settle state. Settle their
+    // loading here, retaining the last validated data and any read error.
+    setResult(old => old.loading ? { ...old, loading: false } : old);
+  }, []);
   const load = useCallback(async (force = true): Promise<T | null> => {
     const target = current.current;
     if (!target.key || !target.path || !target.enabled || (!force && request.current)) return null;

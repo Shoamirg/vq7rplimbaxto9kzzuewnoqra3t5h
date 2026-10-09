@@ -20,7 +20,7 @@ async function forward(req: Request, segments: string[], method: string): Promis
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
+      ...(idempotencyKey !== null ? { "Idempotency-Key": idempotencyKey } : {}),
     },
     body: hasBody ? await req.text() : undefined,
     cache: "no-store",

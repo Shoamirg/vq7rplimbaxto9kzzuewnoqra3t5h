@@ -372,7 +372,9 @@ class CustomerPortalService:
             messages=[self._thread_msg(m, atts.get(m.id, [])) for m in msgs],
         )
 
-    async def post_message(self, conversation_id: uuid.UUID, body: str) -> ThreadMessage:
+    async def post_message(self, conversation_id: uuid.UUID, body: str, *, idempotency_key: uuid.UUID | None = None) -> ThreadMessage:
+        from app.services.message_intent import MessageSubmission
+
         conv = await self._own_conversation(conversation_id)
         msg = await ConversationService(self.uow).post_message(
             conv.id,
@@ -381,6 +383,8 @@ class CustomerPortalService:
             author_role=ParticipantRole.CUSTOMER,
             author_name=self.customer.full_name,
             kind=MessageKind.TEXT,
+            customer_actor_id=self.customer.id,
+            submission=MessageSubmission(idempotency_key, "customer", self.customer.id) if idempotency_key is not None else None,
         )
         return ThreadMessage(
             id=msg["id"], from_me=True, author_name=msg["author_name"],

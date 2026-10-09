@@ -13,7 +13,7 @@ export const CHANNEL_META: Record<Channel, { label: string; icon: string; cls: s
 
 // Status → the "why is this open?" pill styling.
 export const STATUS_STYLE: Record<ConvStatus, string> = {
-  open: "text-red-600 bg-red-50",
+  open: "text-red-700 bg-red-50",
   waiting_customer: "text-blue-600 bg-blue-50",
   waiting_technician: "text-amber-600 bg-amber-50",
   waiting_approval: "text-purple-600 bg-purple-50",
@@ -22,8 +22,8 @@ export const STATUS_STYLE: Record<ConvStatus, string> = {
 };
 
 export const PRIORITY_STYLE: Record<ConvPriority, string> = {
-  high: "text-red-600 bg-red-50",
-  medium: "text-amber-600 bg-amber-50",
+  high: "text-red-700 bg-red-50",
+  medium: "text-amber-700 bg-amber-50",
   low: "text-slate-500 bg-slate-100",
 };
 
@@ -108,10 +108,10 @@ export function fmtTimer(seconds: number): string {
 // A short label for who a message is from.
 export function roleColor(role: string): string {
   switch (role) {
-    case "customer": return "text-slate-600";
-    case "dispatcher": return "text-blue-600";
-    case "mechanic": return "text-emerald-600";
-    case "manager": return "text-purple-600";
+    case "customer": return "text-slate-600 dark:text-slate-300";
+    case "dispatcher": return "text-blue-600 dark:text-blue-300";
+    case "mechanic": return "text-emerald-600 dark:text-emerald-300";
+    case "manager": return "text-purple-600 dark:text-purple-300";
     default: return "text-muted-foreground";
   }
 }

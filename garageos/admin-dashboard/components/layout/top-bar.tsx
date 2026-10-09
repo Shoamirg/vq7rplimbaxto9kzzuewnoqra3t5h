@@ -20,6 +20,7 @@ import { OPEN_EVENT } from "./command-menu";
 import { NotificationBell } from "./notification-bell";
 import { LanguageSwitcher } from "./language-switcher";
 import { useI18n } from "@/lib/i18n/context";
+import { logoutMessageSession } from "@/lib/message-intents";
 
 type ShellUser = { name: string; email: string; role: string | null };
 
@@ -76,14 +77,18 @@ export function TopBar({ user }: { user?: ShellUser }) {
   const { resolvedTheme, toggleTheme } = useTheme();
   const { t } = useI18n();
   const router = useRouter();
+  const [logoutError, setLogoutError] = useState(false);
 
   const handleSignOut = useCallback(async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.replace("/login");
-    router.refresh();
+    setLogoutError(false);
+    try {
+      await logoutMessageSession();
+      router.replace("/login"); router.refresh();
+    } catch { setLogoutError(true); }
   }, [router]);
 
   return (
+    <>
     <header className="h-16 border-b border-border bg-background/95 backdrop-blur-xs flex items-center justify-between gap-4 pl-16 pr-4 lg:px-6 shrink-0 sticky top-0 z-30">
       {/* Left: Breadcrumbs + Search */}
       <div className="flex items-center gap-4 flex-1 min-w-0">
@@ -165,5 +170,7 @@ export function TopBar({ user }: { user?: ShellUser }) {
         </DropdownMenu>
       </div>
     </header>
+    {logoutError && <p role="alert" className="shrink-0 border-b border-border bg-background p-3 text-sm">{t("platform.logout_failed")}</p>}
+    </>
   );
 }

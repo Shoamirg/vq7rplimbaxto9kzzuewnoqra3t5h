@@ -3,13 +3,14 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Header, Query, status
 from pydantic import BaseModel
 
 from app.api.deps import get_current_user, get_tenant_uow
 from app.models.user import User
 from app.repositories.unit_of_work import UnitOfWork
 from app.services.conversation_service import ConversationService
+from app.services.message_intent import MessageSubmission
 
 router = APIRouter()
 
@@ -92,6 +93,7 @@ async def create_conversation(body: ConversationCreate, uow: UnitOfWork = Depend
 async def post_message(
     conversation_id: uuid.UUID, body: MessageCreate,
     uow: UnitOfWork = Depends(get_tenant_uow, scope="function"), me: User = Depends(get_current_user),
+    idempotency_key: uuid.UUID | None = Header(default=None),
 ) -> dict:
     payload = body.model_dump()
     atts = payload.pop("attachments", None)
@@ -99,7 +101,9 @@ async def post_message(
     if payload.get("author_role") in ("dispatcher", "manager") and not payload.get("author_name"):
         payload["author_name"] = me.full_name
     return await ConversationService(uow).post_message(
-        conversation_id, attachments=atts, author_user_id=me.id, **payload)
+        conversation_id, attachments=atts, author_user_id=me.id,
+        submission=MessageSubmission(idempotency_key, "staff", me.id, body.author_name) if idempotency_key is not None else None,
+        **payload)
 
 
 @router.patch("/{conversation_id}", summary="Update a conversation (status / assign / read)")

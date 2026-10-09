@@ -60,7 +60,14 @@ export async function assertTargets(page: Page) {
 export async function assertKeyboardFocus(page: Page, locator: Locator) {
   // Traverse the real keyboard order; a DOM focus() call cannot expose hidden
   // phone-navigation controls that incorrectly remain tabbable offscreen.
-  for (let i = 0; i < 90; i++) {
+  // A populated queue can have more than90 real tab stops. Permit a complete
+  // current-page cycle, including its browser boundary, without bypassing any
+  // intervening controls or their visible-focus checks.
+  const steps = await page.evaluate(() => Math.max(90,
+    Array.from(document.querySelectorAll<HTMLElement>("*")).filter(el =>
+      el.tabIndex >= 0 && !el.matches(":disabled") && !el.closest("[inert]")
+    ).length + 2));
+  for (let i = 0; i < steps; i++) {
     await page.keyboard.press("Tab");
     if (await locator.evaluate((el) => el === document.activeElement)) break;
     expect(

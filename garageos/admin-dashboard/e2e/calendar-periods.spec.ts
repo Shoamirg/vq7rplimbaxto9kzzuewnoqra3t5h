@@ -83,6 +83,9 @@ test("coincident cancelled and unassigned visits remain reachable and long resiz
       await page.keyboard.press("Escape"); await expect(dialog).toHaveCount(0);
       await expect(card).toBeFocused();
     }
+    // Historical cancelled visits can overlap this lane. After checking their
+    // reachable cards, return to the active schedule before resizing its visit.
+    await page.getByRole("checkbox", { name: "Show cancelled appointments" }).uncheck();
     const handle = page.locator(`[data-calendar-resize="${long}"]`);
     await handle.focus();
     const resize = page.waitForResponse(r => r.url().endsWith(`/api/proxy/appointments/${long}`) && r.request().method() === "PATCH");

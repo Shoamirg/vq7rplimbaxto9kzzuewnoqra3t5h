@@ -11,13 +11,17 @@ import { CaseDetailPanel } from "./case-detail";
 import { ConversationPane } from "./conversation-pane";
 import { enumLabel, fmtTimer, operationControl, SEV_BAR, TYPE_ICON } from "./shared";
 import { accessFailure, uncertainWrite, useOperationRead } from "./use-operation-read";
+import { useStaffMessageSession } from "@/lib/use-staff-message-session";
+import { MessageStorageError } from "@/lib/message-intents";
 
 const PAGE_SIZE = 20;
 type Selection = { id: string; independent: boolean; version: number };
 type Outcome = "saved" | "failed" | "uncertain";
 
-export function OperationsConsole({ canWrite }: { canWrite: boolean }) {
+export function OperationsConsole({ canWrite: initialCanWrite }: { canWrite: boolean }) {
   const { t, fmt } = useI18n(), params = useSearchParams(), urlCase = params.get("case");
+  const currentUrlCase = useRef(urlCase); currentUrlCase.current = urlCase;
+  const session = useStaffMessageSession(), canWrite = initialCanWrite && session.canWrite;
   const [group, setGroup] = useState("active"), [type, setType] = useState("all");
   const [q, setQ] = useState(""), [search, setSearch] = useState(""), [offset, setOffset] = useState(0);
   const [selection, setSelection] = useState<Selection | null>(null), selected = useRef<Selection | null>(null), selectionVersion = useRef(0);
@@ -29,16 +33,29 @@ export function OperationsConsole({ canWrite }: { canWrite: boolean }) {
   const freshIds = useRef(new Set<string>()), [freshRequired, setFreshRequired] = useState<Record<string, boolean>>({});
   const [now, setNow] = useState(() => Date.now());
   const focusCase = useRef<string | null>(null), detailHeading = useRef<HTMLHeadingElement>(null), searchInput = useRef<HTMLInputElement>(null);
+  const suspendedSelection = useRef<string | null>(null);
   const onDenied = useCallback((error: unknown) => {
+    session.suspend(); suspendedSelection.current = selected.current?.id ?? suspendedSelection.current;
     deniedRef.current = true; selected.current = null; setSelection(null);
     setDenied(error instanceof ClientApiError && error.status === 401 ? 401 : 403);
-  }, []);
+  }, [session.suspend]);
   const select = useCallback((id: string | null, independent = false, focus = false) => {
-    const value = id ? { id, independent, version: ++selectionVersion.current } : null;
+    const version = ++selectionVersion.current;
+    const value = id ? { id, independent, version } : null;
     selected.current = value; setSelection(value);
     focusCase.current = focus ? id : null;
     if (id) setView("detail");
   }, []);
+  useEffect(() => { if (accessFailure(session.error)) onDenied(session.error); }, [session.error, onDenied]);
+  const verifySession = async () => {
+    const target = suspendedSelection.current ?? selected.current?.id ?? urlCase;
+    const version = selectionVersion.current, route = currentUrlCase.current;
+    const fresh = await session.verify();
+    if (!fresh) return;
+    deniedRef.current = false; setDenied(null);
+    if (currentUrlCase.current !== route) select(currentUrlCase.current, true);
+    else if (selectionVersion.current === version) select(target, true);
+  };
   useEffect(() => { if (!deniedRef.current) select(urlCase, true); }, [urlCase, select]);
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
   useEffect(() => { const timer = setTimeout(() => setSearch(q.trim()), 300); return () => clearTimeout(timer); }, [q]);
@@ -46,11 +63,12 @@ export function OperationsConsole({ canWrite }: { canWrite: boolean }) {
   const query = new URLSearchParams({ status: group, limit: String(PAGE_SIZE), offset: String(offset) });
   if (type !== "all") query.set("type", type);
   if (search) query.set("q", search);
-  const listKey = `${group}|${type}|${q}|${offset}`;
-  const list = useOperationRead<CaseList>(listKey, `/cases?${query}`, !denied && q.trim() === search, onDenied);
-  const detailKey = selection ? `${selection.id}:${selection.version}` : null;
-  const detail = useOperationRead<CaseDetail>(detailKey, selection ? `/cases/${encodeURIComponent(selection.id)}` : null, !denied && (!pending || selection?.id !== writeTarget), onDenied);
-  const roster = useOperationRead<CaseMechanic[]>("mechanics", "/cases/mechanics", !denied, onDenied, false);
+  const principal = session.actor ? `${session.actor.center}:${session.actor.id}` : null;
+  const listKey = principal ? `${principal}|${group}|${type}|${q}|${offset}` : null;
+  const list = useOperationRead<CaseList>(listKey, `/cases?${query}`, !!principal && !denied && q.trim() === search, onDenied);
+  const detailKey = selection && principal ? `${principal}:${selection.id}:${selection.version}` : null;
+  const detail = useOperationRead<CaseDetail>(detailKey, selection ? `/cases/${encodeURIComponent(selection.id)}` : null, !!principal && !denied && (!pending || selection?.id !== writeTarget), onDenied);
+  const roster = useOperationRead<CaseMechanic[]>(principal ? `${principal}:mechanics` : null, "/cases/mechanics", !!principal && !denied, onDenied, false);
   const clamp = useRef<string | null>(null), filterKey = `${group}|${type}|${search}`;
   useEffect(() => {
     if (!list.data || list.error) return;
@@ -104,7 +122,8 @@ export function OperationsConsole({ canWrite }: { canWrite: boolean }) {
   };
   const data = denied ? null : list.data, caseDetail = denied ? null : detail.data;
   const outcome = selection ? outcomes[selection.id] : undefined;
-  if (denied) return <div role="alert" className="p-5 space-y-3"><p>{t(denied === 401 ? "ops.auth" : "ops.denied")}</p>{denied === 401 && <Link className={cn(operationControl, "inline-flex items-center")} href="/login?reauth=1">{t("ops.login")}</Link>}</div>;
+  if (denied) return <div role="alert" className="p-5 space-y-3"><p>{t(session.error instanceof MessageStorageError ? "message.storage" : denied === 401 ? "ops.auth" : "ops.denied")}</p>{denied === 401 && <Link className={cn(operationControl, "inline-flex items-center")} href="/login?reauth=1">{t("ops.login")}</Link>}<button className={operationControl} onClick={() => void verifySession()}>{t("message.verify")}</button></div>;
+  if (session.error) return <div role="alert" className="p-5 space-y-3"><p>{t(session.error instanceof MessageStorageError ? "message.storage" : "message.verify_error")}</p><button className={operationControl} onClick={() => void verifySession()}>{t("message.verify")}</button></div>;
 
   return <div data-operations className="grid h-full min-h-0 min-w-0 xl:grid-cols-[288px_minmax(0,1fr)_320px]">
     <aside aria-label={t("ops.title")} className={cn("min-h-0 min-w-0 flex-col border-r border-border bg-card", view === "list" ? "flex" : "hidden xl:flex")}>
@@ -141,7 +160,7 @@ export function OperationsConsole({ canWrite }: { canWrite: boolean }) {
     </section>
     <div className={cn("min-h-0 min-w-0 flex-col border-l border-border bg-card", view === "conversation" ? "flex" : "hidden xl:flex")}>
       <div className="flex flex-wrap gap-2 border-b border-border p-3 xl:hidden"><button className={operationControl} onClick={back}>{t("ops.back")}</button><button className={operationControl} onClick={() => navigate("detail")}>{t("ops.detail")}</button></div>
-      <ConversationPane detail={caseDetail} identity={detailKey} canWrite={canWrite && !detail.error} onDenied={onDenied} now={now} />
+      <ConversationPane detail={caseDetail} identity={detailKey} actor={session.actor} isAuthorized={session.isAuthorized} canWrite={canWrite && !detail.error} onDenied={onDenied} now={now} />
     </div>
   </div>;
 }

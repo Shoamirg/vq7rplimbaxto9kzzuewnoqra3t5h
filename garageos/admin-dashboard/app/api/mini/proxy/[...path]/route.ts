@@ -17,11 +17,13 @@ async function forward(req: Request, segments: string[], method: string): Promis
   const search = new URL(req.url).search;
   const url = `${apiBaseUrl()}/customer/${segments.join("/")}${search}`;
   const hasBody = method !== "GET" && method !== "HEAD";
+  const idempotencyKey = req.headers.get("Idempotency-Key");
   const res = await fetch(url, {
     method,
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
+      ...(idempotencyKey !== null ? { "Idempotency-Key": idempotencyKey } : {}),
     },
     body: hasBody ? await req.text() : undefined,
     cache: "no-store",
