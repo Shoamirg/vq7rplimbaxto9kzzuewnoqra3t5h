@@ -23,7 +23,7 @@ function loadUncertainEstimate(): EstimateTarget | null {
   if (typeof window === "undefined") return null;
   try {
     const target = JSON.parse(window.sessionStorage.getItem(UNCERTAIN_ESTIMATE_KEY) ?? "null") as Partial<EstimateTarget> | null;
-    if (target && typeof target.customerId === "string" && typeof target.attemptedAt === "string"
+    if (target && typeof target.customerId === "string" && typeof target.attemptedAt === "string" && Number.isFinite(Date.parse(target.attemptedAt))
       && (target.vehicleId === null || typeof target.vehicleId === "string")
       && Array.isArray(target.lines) && target.lines.every((line) => line && typeof line.kind === "string"
         && typeof line.description === "string" && typeof line.quantity === "number" && typeof line.unit_price === "number")) {
@@ -127,8 +127,9 @@ export function NewInvoiceModal({
       params.set("page", String(page));
       const list = await clientFetch<InvoiceListResponse>(`/invoices?${params}`);
       for (const item of list.items) {
+        const createdAt = item.created_at ? Date.parse(item.created_at) : Number.NaN;
         if (item.kind !== "estimate" || item.customer_id !== target.customerId || item.vehicle_id !== target.vehicleId
-          || !item.created_at || Date.parse(item.created_at) < attemptedAt) continue;
+          || !Number.isFinite(createdAt) || createdAt < attemptedAt) continue;
         const doc = await clientFetch<InvoiceDoc>(`/invoices/${item.id}`);
         const linesMatch = doc.line_items.length === target.lines.length && doc.line_items.every((line, index) => {
           const expected = target.lines[index];
@@ -188,7 +189,7 @@ export function NewInvoiceModal({
             method: "POST",
             body: JSON.stringify({ kind: docKind, customer_id: customer.id, vehicle_id: vehicleId || null, appointment_id: appointment?.id ?? null, tax_rate: appointment ? 0 : undefined, notes: notes.trim() || null, line_items: items }),
           });
-      toast({ title: isEdit ? t("invoice.updated") : t("invoice.created"), description: customer.full_name, variant: "success" });
+      toast({ title: isEdit ? t("invoice.updated") : t(isEstimate ? "invoice.estimate_created" : "invoice.created"), description: customer.full_name, variant: "success" });
       if (!isEdit && isEstimate) clearUncertainEstimate();
       (isEdit ? onSaved : onCreated)?.(doc);
       onClose();
@@ -199,11 +200,14 @@ export function NewInvoiceModal({
       } else if (!(err instanceof ClientApiError && err.status === 403)) {
         if (!isEdit && isEstimate) clearUncertainEstimate();
         toast({
-          title: paid ? t("invoice.conflict") : t("invoice.failed"),
+          title: err instanceof ClientApiError && err.status === 401 ? t("invoice.auth") : paid ? t("invoice.conflict") : t("invoice.failed"),
           description: paid ? t("invoice.conflict_hint") : undefined,
           variant: "danger",
         });
-      } else if (!isEdit && isEstimate) clearUncertainEstimate();
+      } else {
+        if (!isEdit && isEstimate) clearUncertainEstimate();
+        toast({ title: t("invoice.denied"), variant: "danger" });
+      }
     } finally {
       savingRef.current = false; setSaving(false);
     }
