@@ -1,10 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import { withFailureDiagnostics } from "./support/failure-diagnostics";
-import { queueCustomer, queueDate, queueLogin, queueOverflow, queueTargets, switchQueueLocale } from "./support/queue";
+import { queueCustomer, queueDate, queueLogin, queueOverflow, queueProfiles, queueTargets, switchQueueLocale } from "./support/queue";
 import { assertAccessible, assertKeyboardFocus } from "./support/accessibility";
 import { translate, type Locale } from "../lib/i18n/dictionaries";
 import { safeCallHref } from "../components/inbox/shared";
+import { freshOperationsDemoToken } from "./support/demo-session";
 
 test.use({ trace: "off" });
 
@@ -394,6 +395,45 @@ test("Inbox export reports a failed fresh read without creating a file", async (
   await actions.getByRole("button", { name: translate("en", "message.action.export_thread"), exact: true }).click();
   await expect(page.getByRole("alert").filter({ hasText: translate("en", "message.action.export_failed") })).toBeVisible();
   expect(downloads).toBe(0);
+});
+
+test("read-only staff can export an authorized thread without enabling mutations", async ({ page, baseURL }) => {
+  queueProfiles(baseURL!);
+  expect((await page.request.post("/api/auth/login", { data: {
+    email: "admin@demo.garageos.app", password: "demo1234",
+  } })).ok()).toBeTruthy();
+  const target = await createThread(page), marker = `QA39 readonly export ${randomUUID()}`;
+  const posted = await page.request.post(`/api/proxy/conversations/${target.id}/messages`, { data: {
+    body: marker, channel: "web", author_role: "dispatcher", is_internal: true,
+  } });
+  expect(posted.status()).toBe(201);
+  const demoToken = await freshOperationsDemoToken(page, baseURL!);
+  await page.context().addCookies([
+    { name: "garageos_token", value: demoToken, url: baseURL!, httpOnly: true },
+    { name: "garageos_demo", value: "1", url: baseURL!, httpOnly: true },
+    { name: "garageos_locale", value: "en", url: baseURL! },
+  ]);
+  const me = await (await page.request.get("/api/proxy/auth/me")).json();
+  expect(me.permissions).toEqual(["staff.read"]);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/inbox?c=${target.id}`);
+  await expect(page.getByRole("heading", { name: target.subject, exact: true })).toBeVisible();
+  const actions = page.getByRole("region", { name: translate("en", "message.quick_actions"), exact: true });
+  const exportButton = actions.getByRole("button", { name: translate("en", "message.action.export_thread"), exact: true });
+  await expect(exportButton).toBeEnabled();
+  await expect(page.getByRole("textbox", { name: translate("en", "ops.message"), exact: true })).toBeDisabled();
+  await expect(status(page, "en")).toBeDisabled();
+
+  const downloadPromise = page.waitForEvent("download");
+  await exportButton.click();
+  const download = await downloadPromise;
+  const stream = await download.createReadStream(); expect(stream).not.toBeNull();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream!) chunks.push(Buffer.from(chunk));
+  const exported = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  expect(exported.conversation.id).toBe(target.id);
+  expect(exported.messages.some((message: { body: string }) => message.body === marker)).toBe(true);
 });
 
 for (const [locale, width] of [["uz", 360], ["en", 390], ["ru", 1280]] as const) {

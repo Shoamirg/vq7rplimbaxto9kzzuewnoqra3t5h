@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useRef, useState, type ReactNode } from "react";
+import { forwardRef, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
   ArrowUpRight, CalendarPlus, Camera, Check, Download, MapPin, Megaphone, Moon, PanelRightOpen, Phone, Pin, Receipt, Send, Share2, Siren,
@@ -54,6 +54,8 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
   const [exporting, setExporting] = useState(false);
   const [exportResult, setExportResult] = useState<"downloaded" | "failed" | null>(null);
   const exportingRef = useRef(false);
+  const mounted = useRef(false);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const currentThreadId = useRef(thread.id); currentThreadId.current = thread.id;
   const currentActorId = useRef(actorId); currentActorId.current = actorId;
   const [appointmentContext, setAppointmentContext] = useState<{ id: string; name: string; vehicleId?: string } | null>(null);
@@ -84,13 +86,14 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
 
   async function exportThread() {
     const targetId = thread.id;
+    const targetActor = actorId;
     if (exportingRef.current) return;
     exportingRef.current = true; setExporting(true); setExportResult(null);
     try {
       // Re-read through the normal current-auth, tenant-scoped and safe-child
       // boundary; never export the possibly stale page copy or its read token.
       const fresh = await clientFetch<ThreadDetail>(`/conversations/${targetId}`);
-      if (currentThreadId.current !== targetId) return;
+      if (!mounted.current || currentThreadId.current !== targetId || currentActorId.current !== targetActor) return;
       const file = {
         format: "garageos.inbox-thread.v1",
         exported_at: new Date().toISOString(),
@@ -130,7 +133,7 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       setExportResult("downloaded");
     } catch {
-      if (currentThreadId.current === targetId) setExportResult("failed");
+      if (mounted.current && currentThreadId.current === targetId && currentActorId.current === targetActor) setExportResult("failed");
     } finally {
       exportingRef.current = false; setExporting(false);
     }
@@ -301,7 +304,7 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
           && <span role="alert" className="sr-only">{t("message.action.passport_copy_failed")}</span>}
         <Button variant="outline" size="sm" className="min-h-11 min-w-11"
           leftIcon={<Download className="size-3.5" aria-hidden="true" />}
-          disabled={blocked || actionBlocked || exporting} onClick={() => void exportThread()}>
+          disabled={loading || readError || exporting} onClick={() => void exportThread()}>
           {t(exporting ? "message.action.exporting" : "message.action.export_thread")}
         </Button>
         {exportResult === "downloaded" && <span role="status">{t("message.action.export_downloaded")}</span>}
