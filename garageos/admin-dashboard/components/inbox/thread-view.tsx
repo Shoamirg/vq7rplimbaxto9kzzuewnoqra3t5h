@@ -13,6 +13,7 @@ import { useMessageComposer } from "@/lib/use-message-composer";
 import { MessageSubmissionStatus } from "@/components/message-submission-status";
 import { NewAppointmentModal } from "@/components/appointments/new-appointment-modal";
 import { NewInvoiceModal } from "@/components/billing/new-invoice-modal";
+import { NewInboxCaseModal } from "@/components/inbox/new-inbox-case-modal";
 import { CHANNEL_META, CONV_TYPE_ICON, activityIcon, relTime, roleColor, safeCallHref } from "./shared";
 
 type ComposerTab = "reply" | "note" | "announcement";
@@ -49,6 +50,7 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
   const [passportShareResult, setPassportShareResult] = useState<"copied" | "failed" | null>(null);
   const [appointmentContext, setAppointmentContext] = useState<{ id: string; name: string; vehicleId?: string } | null>(null);
   const [estimateContext, setEstimateContext] = useState<{ customerId: string; customerName: string; vehicleId?: string } | null>(null);
+  const [caseContext, setCaseContext] = useState<{ customerId: string; customerName: string; vehicleId?: string; vehicleLabel?: string } | null>(null);
   const blocked = !canWrite || loading || readError;
   const callHref = safeCallHref(thread.customer_phone);
   const passport = thread.linked.find((card) => card.kind === "passport" && card.link);
@@ -238,6 +240,21 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
         )}
         {appointmentPreset ? (
           <Button variant="outline" size="sm" className="min-h-11 min-w-11"
+            leftIcon={<Siren className="size-3.5" aria-hidden="true" />}
+            disabled={blocked || actionBlocked} onClick={() => setCaseContext({
+              customerId: appointmentPreset.id, customerName: appointmentPreset.name,
+              vehicleId: appointmentPreset.vehicleId, vehicleLabel: thread.vehicle_label ?? undefined,
+            })}>
+            {t("message.action.open_case")}
+          </Button>
+        ) : (
+          <span role="note" aria-label={t("message.action.case_unavailable")}
+            className="min-h-11 inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11.5px] whitespace-nowrap text-muted-foreground">
+            🚨 {t("message.action.case_unavailable")}
+          </span>
+        )}
+        {appointmentPreset ? (
+          <Button variant="outline" size="sm" className="min-h-11 min-w-11"
             leftIcon={<Receipt className="size-3.5" aria-hidden="true" />}
             disabled={blocked || actionBlocked} onClick={() => setEstimateContext({
               customerId: appointmentPreset.id, customerName: appointmentPreset.name, vehicleId: appointmentPreset.vehicleId,
@@ -260,6 +277,7 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
         preset={appointmentContext} onClose={() => setAppointmentContext(null)} />}
       {estimateContext && <NewInvoiceModal
         kind="estimate" preset={estimateContext} onClose={() => setEstimateContext(null)} />}
+      {caseContext && <NewInboxCaseModal preset={caseContext} onClose={() => setCaseContext(null)} />}
 
       {composer.saved && <p role="status" className="shrink-0 border-t border-border bg-card px-3 py-2 text-sm">{t("message.saved")}</p>}
       <div data-message-composer className="min-w-0 max-h-[65%] space-y-2 overflow-y-auto bg-card border-t border-border p-3">

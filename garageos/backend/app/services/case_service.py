@@ -163,12 +163,14 @@ class CaseService:
     # ── read ──────────────────────────────────────────────────
     async def list_cases(
         self, *, status_group: str | None = None, case_type: str | None = None,
-        q: str | None = None, limit: int = 60, offset: int = 0,
+        customer_id: uuid.UUID | None = None, q: str | None = None, limit: int = 60, offset: int = 0,
     ) -> dict:
         # Scalar joins avoid Customer/Vehicle selectin collections on list reads.
         stmt = select(OperationalCase).join(Customer, and_(
             Customer.id == OperationalCase.customer_id, Customer.service_center_id == self.sc,
         )).where(*self._safe_where())
+        if customer_id is not None:
+            stmt = stmt.where(OperationalCase.customer_id == customer_id)
         if case_type and case_type != "all":
             stmt = stmt.where(OperationalCase.case_type == case_type)
         if status_group == "active":

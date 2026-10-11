@@ -98,6 +98,20 @@ async def test_default_and_complete_tied_page_traversal_with_independent_counts(
     assert beyond['items'] == [] and beyond['total'] == 76 and beyond['active_count'] == 75
 
 
+async def test_customer_filter_is_tenant_scoped_and_applies_before_case_paging(client, case_rows):
+    refs = case_rows
+    complete = await listing(client, refs, status='active', limit=100)
+    expected_ids = [item['id'] for item in complete['items'] if item['customer_id'] == refs['customer']]
+    actual_ids = []
+    for offset in range(0, len(expected_ids), 17):
+        page = await listing(client, refs, status='active', customer_id=refs['customer'], limit=17, offset=offset)
+        assert page['total'] == len(expected_ids)
+        actual_ids.extend(item['id'] for item in page['items'])
+    assert actual_ids == expected_ids
+    foreign = await listing(client, refs, status='all', customer_id=refs['foreign_customer'], limit=100)
+    assert foreign['items'] == [] and foreign['total'] == 0
+
+
 @pytest.mark.parametrize('status', ['active', 'resolved', 'all', 'unknown'])
 @pytest.mark.parametrize('case_type', [None, 'all', *TYPES, 'legacy_type'])
 async def test_filters_count_full_results_and_preserve_legacy_semantics(client, case_rows, status, case_type):

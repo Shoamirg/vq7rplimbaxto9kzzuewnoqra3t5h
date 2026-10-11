@@ -38,12 +38,13 @@ async def list_cases(
     uow: UnitOfWork = Depends(get_tenant_uow),
     status_group: str = Query(default="active", alias="status"),
     case_type: str | None = Query(default=None, alias="type"),
+    customer_id: uuid.UUID | None = Query(default=None),
     q: str | None = Query(default=None, max_length=200),
     limit: int = Query(default=60, ge=1, le=100),
     offset: int = Query(default=0, ge=0, le=2147483647),
 ) -> dict:
     return await CaseService(uow).list_cases(
-        status_group=status_group, case_type=case_type, q=q, limit=limit, offset=offset,
+        status_group=status_group, case_type=case_type, customer_id=customer_id, q=q, limit=limit, offset=offset,
     )
 
 
