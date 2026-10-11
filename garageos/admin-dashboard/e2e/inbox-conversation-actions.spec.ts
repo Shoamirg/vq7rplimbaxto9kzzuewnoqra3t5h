@@ -80,6 +80,7 @@ for (const [locale, width] of [["uz", 360], ["en", 390], ["ru", 1280]] as const)
     const valid = await createCustomerThread(page, phone);
     await page.goto(`/inbox?c=${valid.id}`); await ready(page, locale);
     const actions = page.getByRole("region", { name: translate(locale, "message.quick_actions"), exact: true });
+    await expect(actions.getByRole("note", { name: translate(locale, "message.action.eta_unavailable"), exact: true })).toBeVisible();
     const call = actions.getByRole("link", { name: translate(locale, "message.action.call"), exact: true });
     await expect(call).toHaveAttribute("href", `tel:${phone}`);
     expect(valid.phone).toBe(phone);

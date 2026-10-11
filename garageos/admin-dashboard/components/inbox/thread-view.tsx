@@ -15,11 +15,6 @@ import { CHANNEL_META, CONV_TYPE_ICON, activityIcon, relTime, roleColor, safeCal
 
 type ComposerTab = "reply" | "note" | "announcement";
 
-const QUICK_ACTIONS = [
-  "🚗 Share ETA", "🏅 Share Passport", "📅 Book Appt",
-  "🆘 Create Emergency", "🧾 Generate Estimate",
-];
-
 // Column 3 — the conversation. Activity interleaves the event stream with
 // messages; Messages is human replies only. One composer, three modes.
 export const ThreadView = forwardRef<HTMLTextAreaElement, {
@@ -187,12 +182,10 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
           className="min-h-11 min-w-11 inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11.5px] font-semibold whitespace-nowrap text-slate-600 dark:text-slate-300 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50">
           <MapPin className="size-3.5" aria-hidden="true" />{t("message.action.request_location")}
         </button>
-        {QUICK_ACTIONS.map((a) => (
-          <span key={a} className={cn("text-[11.5px] font-semibold px-2.5 py-1.5 rounded-lg border whitespace-nowrap",
-            a.includes("Emergency") ? "border-red-200 bg-red-50 text-red-700" : "border-border text-slate-600 dark:text-slate-300")}>
-            {a}
-          </span>
-        ))}
+        <span role="note" aria-label={t("message.action.eta_unavailable")}
+          className="min-h-11 inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11.5px] whitespace-nowrap text-muted-foreground">
+          🚗 {t("message.action.eta_unavailable")}
+        </span>
       </div>
 
       {composer.saved && <p role="status" className="shrink-0 border-t border-border bg-card px-3 py-2 text-sm">{t("message.saved")}</p>}
