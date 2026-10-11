@@ -116,7 +116,7 @@ export function ContextPanel({
                   {p.display_name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
                 </span>
                 <span className="flex-1 truncate text-foreground">{p.display_name}</span>
-                <span className={cn("text-[10px] capitalize", roleColor(p.role))}>{p.role}</span>
+                <span className={cn("text-[10px]", roleColor(p.role))}>{t(`inbox.role.${p.role}`)}</span>
               </div>
             ))}
           </div>

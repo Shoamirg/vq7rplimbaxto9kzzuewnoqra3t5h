@@ -195,7 +195,7 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
         {/* Linked pills */}
         <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
           <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border border-border">
-            {CONV_TYPE_ICON[thread.conv_type]} <span className="capitalize">{thread.conv_type}</span>
+            {CONV_TYPE_ICON[thread.conv_type]} <span>{t(`inbox.type.${thread.conv_type}`)}</span>
           </span>
           {thread.linked.map((c) => {
             const label = c.available === false ? t("inbox.linked.vehicle_unavailable")
