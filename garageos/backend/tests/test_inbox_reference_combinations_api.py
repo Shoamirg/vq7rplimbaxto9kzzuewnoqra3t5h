@@ -84,6 +84,7 @@ async def test_linked_appointment_and_invoice_cards_open_owned_records(client, r
         conversation = Conversation(service_center_id=refs['center'], customer_id=uuid.UUID(refs['customer']),
             vehicle_id=uuid.UUID(refs['vehicle']), appointment_id=uuid.UUID(refs['appointment']), invoice_id=invoice.id)
         session.add(conversation)
+        await session.flush()
         conversation_id = str(conversation.id)
         await session.commit()
         appointment_id, invoice_id, invoice_code = refs['appointment'], str(invoice.id), invoice.code
