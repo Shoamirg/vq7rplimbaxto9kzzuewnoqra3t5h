@@ -37,13 +37,14 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
   actionBlocked: boolean;
   actorId: string;
   onAssign: (id: string | null) => void;
+  onChooseAssignee: (opener: HTMLElement) => void;
   onSend: () => void;
   onStatus: (s: ConvStatus) => void;
   onToggleFollow: () => void;
   contextOpen: boolean;
   onOpenContext: () => void;
 }>(function ThreadView(
-  { thread, mode, onMode, composerTab, onComposerTab, composer, canWrite, loading, readError, readAcknowledgement, actionNotice, actionBlocked, actorId, onAssign, onSend, onStatus, onToggleFollow, contextOpen, onOpenContext },
+  { thread, mode, onMode, composerTab, onComposerTab, composer, canWrite, loading, readError, readAcknowledgement, actionNotice, actionBlocked, actorId, onAssign, onChooseAssignee, onSend, onStatus, onToggleFollow, contextOpen, onOpenContext },
   composerRef,
 ) {
   const { t } = useI18n();
@@ -60,12 +61,12 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
           <span className="grid size-9 place-items-center rounded-xl bg-slate-800 text-white text-sm font-bold">
             {(thread.customer_name ?? "?").split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
           </span>
-          <div className="min-w-0">
-            <p className="text-[15px] font-bold text-foreground truncate">
-              {thread.customer_name ?? thread.subject ?? "Conversation"}
-            </p>
-            <p className="text-xs text-muted-foreground truncate">
-              {[thread.vehicle_label, thread.case_code, thread.subject].filter(Boolean).join(" · ")}
+          <div className="min-w-0 flex-1">
+            <h2 className="break-words text-[15px] font-bold text-foreground">
+              {thread.subject || thread.customer_name || t("inbox.conversation")}
+            </h2>
+            <p className="break-words text-xs text-muted-foreground">
+              {[thread.customer_name, thread.vehicle_label, thread.case_code].filter(Boolean).join(" · ")}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
@@ -105,6 +106,8 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
             </select>
           </label>
           <p className="min-w-0 break-words text-sm">{t("inbox.action.assigned")}: {thread.assigned_name ?? t("inbox.action.unassigned")}</p>
+          <button className="min-h-11 min-w-11 rounded-lg border border-border px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50"
+            disabled={actionBlocked} onClick={event => onChooseAssignee(event.currentTarget)}>{t("inbox.choice.assignee")}</button>
           <button className="min-h-11 min-w-11 rounded-lg border border-border px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50"
             disabled={actionBlocked || thread.assigned_user_id === actorId} onClick={() => onAssign(actorId)}>{t("inbox.action.assign_me")}</button>
           <button className="min-h-11 min-w-11 rounded-lg border border-border px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50"

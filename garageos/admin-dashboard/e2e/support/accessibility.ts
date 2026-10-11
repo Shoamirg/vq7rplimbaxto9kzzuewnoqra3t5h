@@ -306,6 +306,66 @@ async function contrastEvidence(locator: Locator) {
   });
 }
 
+// These are the frozen creation/choice acceptance states, not a general
+// allowance for aria-hidden-focus. Every new state still needs review.
+const inboxDialogState = /^(?:create-form-(?:uz|en|ru)-(?:360|390|1280)-(?:light|dark)|assignment-picker-[AB]-(?:uz|en|ru)-(?:360|390|1280)-(?:light|dark)|choices-second-page-(?:uz|en|ru)-(?:360|390|1280)|all-kind-paging-(?:customer|vehicle|appointment|case|invoice|assignee)|create-keyboard-phone)$/;
+
+async function assertInboxDialogTrap(page: Page) {
+  await settleMotion(page);
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toHaveCount(1);
+  await expect(dialog).toBeVisible();
+  await expect.poll(() => dialog.evaluate(element => element.contains(document.activeElement))).toBe(true);
+  const controls = dialog.locator('a[href],button,input,select,textarea,[tabindex],[contenteditable="true"]');
+  const snapshot = await controls.evaluateAll(elements => {
+    const eligible = elements.flatMap((element, index) => {
+      if (!(element instanceof HTMLElement)) return [];
+      const style = getComputedStyle(element), rect = element.getBoundingClientRect();
+      if (element.tabIndex < 0 || element.matches(":disabled") || element.closest('[inert],[aria-hidden="true"]')
+          || style.display === "none" || style.visibility === "hidden" || !rect.width || !rect.height) return [];
+      return [{ index, tabIndex: element.tabIndex }];
+    });
+    // Native positive tabindex order precedes the ordinary DOM order.
+    eligible.sort((a, b) => (a.tabIndex > 0 ? a.tabIndex : Infinity) - (b.tabIndex > 0 ? b.tabIndex : Infinity) || a.index - b.index);
+    return { indices: eligible.map(row => row.index), initial: elements.findIndex(element => element === document.activeElement) };
+  });
+  expect(snapshot.indices.length, "Expected at least one tabbable dialog control").toBeGreaterThan(0);
+  expect(snapshot.indices.length, "Choice pages are bounded to50 rows plus dialog controls").toBeLessThanOrEqual(80);
+  let start = snapshot.initial;
+  const startedFromContainer = !snapshot.indices.includes(start);
+  if (startedFromContainer) {
+    // A page transition may remove the previously focused Next button. Radix
+    // can retain focus on the dialog container, which is not itself tabbable.
+    // Enter the native order with Tab; never inject focus or accept an outside
+    // or arbitrary non-tabbable element as the starting point.
+    expect(await dialog.evaluate(element => element === document.activeElement), "Only the exposed dialog container may be a non-tabbable start").toBe(true);
+    await page.keyboard.press("Tab");
+    start = snapshot.indices[0];
+    await expect(controls.nth(start)).toBeFocused();
+  }
+  const initial = snapshot.indices.indexOf(start);
+  expect(initial, "The actual cycle start must belong to a tabbable dialog control").toBeGreaterThanOrEqual(0);
+  let forwardWrap = false, backwardWrap = false;
+  for (const direction of ["Tab", "Shift+Tab"] as const) {
+    let current = initial;
+    for (let step = 0; step < snapshot.indices.length; step++) {
+      const next = (current + (direction === "Tab" ? 1 : -1) + snapshot.indices.length) % snapshot.indices.length;
+      await page.keyboard.press(direction);
+      await expect(controls.nth(snapshot.indices[next])).toBeFocused();
+      expect(await dialog.evaluate(element => element.contains(document.activeElement)), "Native keyboard focus must remain inside the exposed dialog").toBe(true);
+      if (direction === "Tab" && current === snapshot.indices.length - 1 && next === 0) forwardWrap = true;
+      if (direction === "Shift+Tab" && current === 0 && next === snapshot.indices.length - 1) backwardWrap = true;
+      current = next;
+    }
+    await expect(controls.nth(start)).toBeFocused();
+  }
+  expect(forwardWrap && backwardWrap, "Both native dialog focus boundaries must wrap").toBe(true);
+  return { method: "real complete Tab/ShiftTab cycles and both boundary wraps", controls: snapshot.indices.length,
+    forwardSteps: snapshot.indices.length, backwardSteps: snapshot.indices.length,
+    entryNativeTabs: startedFromContainer ? 1 : 0, cycleStartFocusRestored: true,
+    originalFocusRestored: !startedFromContainer };
+}
+
 export async function assertAccessible(
   page: Page,
   info: TestInfo,
@@ -322,6 +382,7 @@ export async function assertAccessible(
     state,
   ).toEqual([]);
   const evidence: unknown[] = [];
+  let inboxTrap: Awaited<ReturnType<typeof assertInboxDialogTrap>> | undefined;
   for (const rule of scan.incomplete) {
     expect(
       ["color-contrast", "aria-hidden-focus"],
@@ -329,13 +390,18 @@ export async function assertAccessible(
     ).toContain(rule.id);
     for (const node of rule.nodes) {
       if (rule.id === "aria-hidden-focus") {
-        expect(["staff-dialog", "queue-invoice"]).toContain(state);
-        await expect(page.getByRole("dialog")).toBeVisible();
-        evidence.push({
-          rule: rule.id,
-          target: node.target,
-          method: "real dialog Tab/ShiftTab trap checked separately",
-        });
+        if (inboxDialogState.test(state)) {
+          inboxTrap ??= await assertInboxDialogTrap(page);
+          evidence.push({ rule: rule.id, target: node.target, ...inboxTrap });
+        } else {
+          expect(["staff-dialog", "queue-invoice"]).toContain(state);
+          await expect(page.getByRole("dialog")).toBeVisible();
+          evidence.push({
+            rule: rule.id,
+            target: node.target,
+            method: "real dialog Tab/ShiftTab trap checked separately",
+          });
+        }
         continue;
       }
       expect(node.target).toHaveLength(1);

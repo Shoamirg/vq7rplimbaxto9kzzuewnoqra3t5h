@@ -15,6 +15,9 @@ import { ConversationList } from "./conversation-list";
 import { ContextPanel } from "./context-panel";
 import { QueueRail } from "./queue-rail";
 import { ThreadView } from "./thread-view";
+import { ConversationCreate } from "./conversation-create";
+import { ChoicePicker } from "./choice-picker";
+import { messageSessionEpoch } from "@/lib/message-reset";
 import { VIEWS } from "./shared";
 
 const control = "min-h-11 min-w-11 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50";
@@ -33,12 +36,19 @@ export function InboxWorkspace() {
   const verification = useRef(0);
   const [contextOpen, setContextOpen] = useState(false), [listOpen, setListOpen] = useState(false);
   const [queuesOpen, setQueuesOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const createOpener = useRef<HTMLButtonElement | null>(null), assignmentOpener = useRef<HTMLElement | null>(null);
+  const [assignment, setAssignment] = useState<{ actor: MessageActor; target: string; key: string | null } | null>(null);
   const [mode, setMode] = useState<"activity" | "messages">("messages");
   const [modes, setModes] = useState<Record<string, MessageMode>>({});
   const [now, setNow] = useState(() => Date.now()), [loadedAt, setLoadedAt] = useState(() => Date.now());
   const params = useSearchParams(), linkedId = params.get("c");
   const actor = denied ? null : session.actor;
   const principal = actor ? `${actor.center}:${actor.id}` : null;
+  const resetEpoch = messageSessionEpoch();
+  const creationOwner = useRef<{ actor: MessageActor; epoch: string } | null>(null);
+  if (creationOwner.current?.epoch !== resetEpoch) creationOwner.current = null;
+  if (actor) creationOwner.current = { actor, epoch: resetEpoch };
   // Object identity also distinguishes a newly verified session for the same
   // principal. A denial from its previous cookie cannot revoke the new session.
   const currentActor = useRef(actor); currentActor.current = actor;
@@ -46,9 +56,10 @@ export function InboxWorkspace() {
   const onDenied = (_error: unknown) => {
     session.suspend(); deniedRef.current = true; setDenied(true);
     setContextOpen(false);
+    setCreateOpen(false); setAssignment(null);
   };
   const selectThread = useCallback((id: string | null) => {
-    setSelection(old => old + 1); setActiveId(id); setListOpen(false); setContextOpen(false);
+    setSelection(old => old + 1); setActiveId(id); setListOpen(false); setContextOpen(false); setAssignment(null);
   }, []);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
@@ -238,6 +249,7 @@ export function InboxWorkspace() {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const el = document.activeElement;
+      if (createOpen || assignment || el?.closest('[role="dialog"]')) return;
       if (el?.matches("input,textarea,select,[contenteditable=true]")) return;
       const index = filtered.findIndex(row => row.id === activeId);
       if (event.key === "j" || event.key === "k") {
@@ -256,13 +268,21 @@ export function InboxWorkspace() {
     const fresh = await session.verify();
     if (fresh && mounted.current) { deniedRef.current = false; setDenied(false); }
   };
-  if (!actor) return <div className="space-y-3 p-4 text-sm">
+  // A temporary denial hides the protected form without losing its captured
+  // outcome. Confirmed actor changes and logout reset epochs remount it empty.
+  const retained = creationOwner.current;
+  const creation = retained && <ConversationCreate key={`${retained.actor.kind}:${retained.actor.center}:${retained.actor.id}:${retained.epoch}`}
+    open={createOpen && !!actor && authorized()} onClose={() => setCreateOpen(false)} opener={createOpener}
+    actor={actor} canWrite={!!actor && session.canWrite} isAuthorized={authorized} onDenied={onDenied}
+    onCreated={() => { void list.refresh(); }} onOpen={selectThread} />;
+  if (!actor) return <><div className="space-y-3 p-4 text-sm">
     <p role={denied || session.error ? "alert" : "status"}>{t(session.error instanceof MessageStorageError ? "message.storage" : denied || session.error instanceof ClientApiError && [401, 403].includes(session.error.status) ? "message.auth" : session.error ? "message.verify_error" : "ops.loading")}</p>
     {(denied || !!session.error) && <button className={control} onClick={() => void verify()}>{t("message.verify")}</button>}
-  </div>;
-  return <div className="relative flex h-full min-w-0 flex-col overflow-hidden">
+  </div>{creation}</>;
+  return <><div className="relative flex h-full min-w-0 flex-col overflow-hidden">
     <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border p-2">
-      <h1 className="min-w-0 flex-1 break-words px-2 text-base font-semibold">{t("nav.inbox")}</h1>
+      <h1 className="min-w-0 basis-full shrink-0 break-words px-2 text-base font-semibold sm:basis-auto sm:flex-1">{t("nav.inbox")}</h1>
+      <button ref={createOpener} className={control} disabled={!session.canWrite} onClick={() => setCreateOpen(true)}>{t("inbox.create.title")}</button>
       <button className={cn(control, "2xl:hidden")} aria-expanded={queuesOpen} onClick={() => setQueuesOpen(old => !old)}>{t("message.queues")}</button>
     </div>
     {!!list.error && <div role="alert" className="space-y-2 p-3 text-sm"><p>{t(list.error instanceof ClientApiError && list.error.code === "INBOX_SEARCH_UNAVAILABLE" ? "ops.search_unavailable" : composer.saved ? "message.refresh_error" : list.data ? "ops.stale" : "ops.read_error")}</p><button className={control} onClick={() => void list.refresh()}>{t("ops.retry")}</button></div>}
@@ -284,6 +304,11 @@ export function InboxWorkspace() {
       {visibleThread ? <ThreadView ref={composerRef} thread={visibleThread} mode={mode} onMode={setMode} composerTab={composerTab} onComposerTab={onComposerTab}
         composer={composer} canWrite={session.canWrite} loading={read.loading} readError={!!read.error} onSend={send}
         actionBlocked={actionBlocked} actorId={actor.id} onAssign={id => void mutate({ patch: { assigned_user_id: id } })}
+        onChooseAssignee={opener => {
+          if (actionBlocked || !authorized() || !thread) return;
+          assignmentOpener.current = opener;
+          setAssignment({ actor, target: thread.id, key: readKey });
+        }}
         readAcknowledgement={readAck && <div role={readAck.state === "error" || readAck.state === "uncertain" ? "alert" : "status"} className="space-y-2 pb-3 text-sm">
         <p>{t(`inbox.read.${readAck.state}`)}</p>
         {(readAck.state === "error" || readAck.state === "uncertain") && <>
@@ -302,5 +327,12 @@ export function InboxWorkspace() {
     </section>
     {visibleThread && contextOpen && <div className="absolute inset-y-0 right-0 z-20 flex max-w-full bg-card shadow-xl 2xl:static 2xl:shadow-none"><ContextPanel thread={visibleThread} actionBlocked={actionBlocked} onToggleFollow={toggleFollow} onCollapse={() => setContextOpen(false)} /></div>}
     </div>
-  </div>;
+    {assignment && thread && assignment.actor === actor && assignment.target === thread.id && assignment.key === readKey
+      && <ChoicePicker kind="assignee" selected={{}} actor={actor} enabled={!actionBlocked} isAuthorized={authorized}
+        onDenied={onDenied} opener={assignmentOpener} onClose={() => setAssignment(null)} onChoose={value => {
+          if (currentActor.current !== assignment.actor || currentConversation.current !== assignment.target
+              || currentReadKey.current !== assignment.key || actionBlocked || !authorized()) return;
+          void mutate({ patch: { assigned_user_id: value?.id ?? null } });
+        }} />}
+  </div>{creation}</>;
 }

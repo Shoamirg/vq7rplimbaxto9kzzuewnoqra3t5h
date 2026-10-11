@@ -39,6 +39,7 @@ from app.models.operational_case import OperationalCase
 from app.models.user import User
 from app.models.vehicle import Vehicle
 from app.repositories.inbox_query import inbox_page, safe_conversation, sla_tracking_active
+from app.repositories.conversation_choices import choice_page, selected_coordinates
 from app.repositories.tenant_references import local_reference, local_reference_exists
 from app.repositories.unit_of_work import UnitOfWork
 from app.services.case_service import CaseService
@@ -81,6 +82,17 @@ class ConversationService:
         self.maintenance = MaintenanceService(uow.session, self.sc)
 
     # ── fetch ─────────────────────────────────────────────────
+    async def list_choices(self, *, kind, q, limit, offset, **context) -> dict:
+        coordinates = await selected_coordinates(self.session, self.sc, context)
+        if coordinates is None:
+            raise ConversationNotFound()
+        customers, vehicles = coordinates
+        if len(customers) > 1 or len(vehicles) > 1:
+            raise ConversationReferenceMismatch()
+        return await choice_page(self.session, self.sc, kind=kind, q=q, limit=limit,
+                                 offset=offset, customer=next(iter(customers), None),
+                                 vehicle=next(iter(vehicles), None))
+
     async def _get(self, conversation_id: uuid.UUID, *, for_update: bool = False) -> Conversation:
         statement = select(Conversation).where(
                 Conversation.id == conversation_id,
@@ -628,7 +640,9 @@ class ConversationService:
             "assigned_user_id": str(conv.assigned_user_id) if conv.assigned_user_id else None,
             "customer_id": str(conv.customer_id) if conv.customer_id else None,
             "vehicle_id": str(conv.vehicle_id) if conv.vehicle_id else None,
+            "appointment_id": str(conv.appointment_id) if conv.appointment_id else None,
             "case_id": str(conv.case_id) if conv.case_id else None,
+            "invoice_id": str(conv.invoice_id) if conv.invoice_id else None,
             "created_at": conv.created_at.isoformat() if conv.created_at else None,
         }
         # Lightweight labels every row needs.

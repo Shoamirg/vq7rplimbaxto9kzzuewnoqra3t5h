@@ -491,7 +491,9 @@ export interface InboxItem {
   assigned_user_id: string | null;
   customer_id: string | null;
   vehicle_id: string | null;
+  appointment_id: string | null;
   case_id: string | null;
+  invoice_id: string | null;
   created_at: string | null;
   customer_name?: string | null;
   customer_phone?: string | null;

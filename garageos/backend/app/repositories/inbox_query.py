@@ -152,7 +152,7 @@ async def inbox_page(session, center, *, view, channel, conv_type, user_id, q, l
         else_=func.concat(vehicle_name, ' (', Vehicle.license_plate, ')'))
     columns = ('id', 'subject', 'conv_type', 'status', 'priority', 'last_channel', 'last_message_at',
         'last_activity_at', 'last_message_preview', 'last_sender_role', 'unread_messages', 'unread_activity',
-        'ai_summary', 'assigned_user_id', 'customer_id', 'vehicle_id', 'case_id', 'created_at')
+        'ai_summary', 'assigned_user_id', 'customer_id', 'vehicle_id', 'appointment_id', 'case_id', 'invoice_id', 'created_at')
     statement = select(*(getattr(Conversation, name) for name in columns),
         Customer.full_name.label('customer_name'), Customer.phone.label('customer_phone'),
         User.full_name.label('assigned_name'), Brand.name.label('brand'), VehicleModel.name.label('model'),

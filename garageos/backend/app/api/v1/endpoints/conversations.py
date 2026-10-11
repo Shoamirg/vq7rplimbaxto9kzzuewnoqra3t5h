@@ -116,6 +116,26 @@ async def list_inbox(
         q=q, limit=limit, offset=offset)
 
 
+@router.get("/choices", summary="Eligible paged references for Inbox creation and assignment")
+async def conversation_choices(
+    kind: Literal['customer', 'vehicle', 'appointment', 'case', 'invoice', 'assignee'] = Query(),
+    q: str | None = Query(default=None, max_length=200),
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0, le=2147483647),
+    customer_id: uuid.UUID | None = Query(default=None),
+    vehicle_id: uuid.UUID | None = Query(default=None),
+    appointment_id: uuid.UUID | None = Query(default=None),
+    case_id: uuid.UUID | None = Query(default=None),
+    invoice_id: uuid.UUID | None = Query(default=None),
+    assigned_user_id: uuid.UUID | None = Query(default=None),
+    uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
+) -> dict:
+    return await ConversationService(uow).list_choices(kind=kind, q=q, limit=limit,
+        offset=offset, customer_id=customer_id, vehicle_id=vehicle_id,
+        appointment_id=appointment_id, case_id=case_id, invoice_id=invoice_id,
+        assigned_user_id=assigned_user_id)
+
+
 @router.get("/{conversation_id}", summary="Full thread (messages, activity, linked cards)")
 async def get_thread(
     conversation_id: uuid.UUID, uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
