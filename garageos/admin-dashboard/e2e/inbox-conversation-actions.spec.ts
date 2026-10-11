@@ -101,6 +101,35 @@ for (const [locale, width] of [["uz", 360], ["en", 390], ["ru", 1280]] as const)
   });
 }
 
+for (const [locale, width] of [["uz", 360], ["en", 390], ["ru", 1280]] as const) {
+  test(`Inbox request actions prepare localized editable drafts without sending ${locale}/${width}`, async ({ page, baseURL }, info) => {
+    await queueLogin(page, baseURL!, locale, width);
+    const target = await createThread(page), path = `/api/proxy/conversations/${target.id}/messages`;
+    await page.goto(`/inbox?c=${target.id}`); await ready(page, locale);
+    const message = page.getByRole("textbox", { name: translate(locale, "ops.message"), exact: true });
+    const reply = page.getByRole("button", { name: translate(locale, "message.reply"), exact: true });
+    const note = page.getByRole("button", { name: translate(locale, "message.note"), exact: true });
+    const actions = page.getByRole("region", { name: translate(locale, "message.quick_actions"), exact: true });
+    let sends = 0;
+    page.on("request", request => { if (request.method() === "POST" && request.url().endsWith(path)) sends++; });
+
+    await note.click(); await message.fill("Internal note must remain separate.");
+    const existingReply = "Existing customer reply  \n";
+    await reply.click(); await message.fill(existingReply);
+    await actions.getByRole("button", { name: translate(locale, "message.action.request_photos"), exact: true }).click();
+    const photoDraft = `${existingReply}\n\n${translate(locale, "message.action.request_photos_draft")}`;
+    await expect(reply).toHaveAttribute("aria-pressed", "true"); await expect(message).toHaveValue(photoDraft);
+    await note.click(); await expect(message).toHaveValue("Internal note must remain separate.");
+    await reply.click(); await expect(message).toHaveValue(photoDraft);
+    await actions.getByRole("button", { name: translate(locale, "message.action.request_location"), exact: true }).click();
+    await expect(message).toHaveValue(`${photoDraft}\n\n${translate(locale, "message.action.request_location_draft")}`);
+    expect(sends).toBe(0); // both actions only prepare editable text; #38 owns deliberate sending
+    await queueTargets(page, actions); await queueOverflow(page);
+    await assertAccessible(page, info, `request-drafts-${locale}-${width}`);
+    await page.screenshot({ path: info.outputPath(`request-drafts-${locale}-${width}.png`), fullPage: true });
+  });
+}
+
 test("Inbox repeated keyboard follow dispatches once while the real captured request is pending", async ({ page, baseURL }) => {
   await queueLogin(page, baseURL!, "en", 1280);
   const target = await createThread(page), path = `/api/proxy/conversations/${target.id}/follow`;

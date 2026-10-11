@@ -3,7 +3,7 @@
 import { forwardRef, type ReactNode } from "react";
 import Link from "next/link";
 import {
-  ArrowUpRight, Check, Megaphone, Moon, PanelRightOpen, Phone, Pin, Send, Siren,
+  ArrowUpRight, Camera, Check, MapPin, Megaphone, Moon, PanelRightOpen, Phone, Pin, Send, Siren,
 } from "lucide-react";
 import { cn } from "@garageos/design-system";
 
@@ -17,7 +17,7 @@ type ComposerTab = "reply" | "note" | "announcement";
 
 const QUICK_ACTIONS = [
   "🚗 Share ETA", "🏅 Share Passport", "📅 Book Appt",
-  "🆘 Create Emergency", "🧾 Generate Estimate", "📷 Request Photos", "📍 Request Location",
+  "🆘 Create Emergency", "🧾 Generate Estimate",
 ];
 
 // Column 3 — the conversation. Activity interleaves the event stream with
@@ -41,10 +41,11 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
   onSend: () => void;
   onStatus: (s: ConvStatus) => void;
   onToggleFollow: () => void;
+  onPrepareRequest: (kind: "photos" | "location") => void;
   contextOpen: boolean;
   onOpenContext: () => void;
 }>(function ThreadView(
-  { thread, mode, onMode, composerTab, onComposerTab, composer, canWrite, loading, readError, readAcknowledgement, actionNotice, actionBlocked, actorId, onAssign, onChooseAssignee, onSend, onStatus, onToggleFollow, contextOpen, onOpenContext },
+  { thread, mode, onMode, composerTab, onComposerTab, composer, canWrite, loading, readError, readAcknowledgement, actionNotice, actionBlocked, actorId, onAssign, onChooseAssignee, onSend, onStatus, onToggleFollow, onPrepareRequest, contextOpen, onOpenContext },
   composerRef,
 ) {
   const { t } = useI18n();
@@ -178,6 +179,14 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
             <Phone className="size-3.5" aria-hidden="true" />{t("message.action.phone_unavailable")}
           </span>
         )}
+        <button type="button" disabled={blocked || actionBlocked} onClick={() => onPrepareRequest("photos")}
+          className="min-h-11 min-w-11 inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11.5px] font-semibold whitespace-nowrap text-slate-600 dark:text-slate-300 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50">
+          <Camera className="size-3.5" aria-hidden="true" />{t("message.action.request_photos")}
+        </button>
+        <button type="button" disabled={blocked || actionBlocked} onClick={() => onPrepareRequest("location")}
+          className="min-h-11 min-w-11 inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11.5px] font-semibold whitespace-nowrap text-slate-600 dark:text-slate-300 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50">
+          <MapPin className="size-3.5" aria-hidden="true" />{t("message.action.request_location")}
+        </button>
         {QUICK_ACTIONS.map((a) => (
           <span key={a} className={cn("text-[11.5px] font-semibold px-2.5 py-1.5 rounded-lg border whitespace-nowrap",
             a.includes("Emergency") ? "border-red-200 bg-red-50 text-red-700" : "border-border text-slate-600 dark:text-slate-300")}>

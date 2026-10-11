@@ -168,6 +168,17 @@ export function InboxWorkspace() {
     composer.send({ body: composer.text, channel, author_role: "dispatcher",
       kind: composerTab === "note" ? "note" : composerTab === "announcement" ? "announcement" : "text", is_internal: composerTab === "note" });
   };
+  const prepareRequestDraft = (kind: "photos" | "location") => {
+    const captured = thread, capturedActor = actor, capturedKey = readKey;
+    if (!captured || !capturedActor || !session.canWrite || actionBlocked || !authorized()
+        || currentConversation.current !== captured.id || currentReadKey.current !== capturedKey) return;
+    const template = t(`message.action.request_${kind}_draft`);
+    const currentDraft = composer.draftFor("reply");
+    if (currentDraft.includes(template)) { onComposerTab("reply"); composerRef.current?.focus(); return; }
+    composer.edit(currentDraft ? `${currentDraft}\n\n${template}` : template, "reply");
+    onComposerTab("reply");
+    composerRef.current?.focus();
+  };
   const visibleThread = thread ? { ...thread, messages: [...thread.messages,
     ...(acknowledged[`${principal}:${thread.id}`] ?? []).filter(row => !thread.messages.some(saved => saved.id === row.id))] } : null;
   const filtered = list.data?.items ?? [];
@@ -321,7 +332,7 @@ export function InboxWorkspace() {
           {action.state !== "pending" && !action.ready && <button className={control} disabled={!session.canWrite || action.reconciling || read.loading}
             onClick={() => void reconcileAction()}>{t(action.reconciling ? "inbox.action.checking" : "inbox.action.reconcile")}</button>}
         </div>}
-        onStatus={status => void mutate({ patch: { status } })} onToggleFollow={toggleFollow}
+        onStatus={status => void mutate({ patch: { status } })} onToggleFollow={toggleFollow} onPrepareRequest={prepareRequestDraft}
         contextOpen={contextOpen} onOpenContext={() => setContextOpen(true)} />
         : <p role="status" className="p-4 text-sm">{t(read.loading ? "ops.loading" : "inbox.select")}</p>}
     </section>

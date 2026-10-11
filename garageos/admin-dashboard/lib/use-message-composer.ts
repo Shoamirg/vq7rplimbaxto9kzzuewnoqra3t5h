@@ -93,13 +93,26 @@ export function useMessageComposer<T extends { id: string }>(options: Options<T>
     } catch { text = ""; intent = undefined; /* Purged/changed identities cannot expose a draft. */ }
   }
   const pending = !!identity && !!options.conversation && inFlight.has(`${epoch}:${identity}:${options.conversation}`);
-  const edit = (value: string) => {
-    if (!current.current.actor || !current.current.ready || !current.current.conversation || !currentSession()) return;
-    fallbackDrafts.current[draftKey] = value;
+  const draftFor = (mode: MessageMode = current.current.mode) => {
+    const target = current.current;
+    if (!target.actor || !target.ready || !target.conversation || !currentSession()) return "";
+    const key = `${actorKey(target.actor)}:${target.conversation}:${mode}`;
+    let text = fallbackDrafts.current[key] ?? "";
     try {
-      if (!store.current || actorKey(store.current.actor) !== actorKey(current.current.actor)) throw new MessageStorageError("identity");
-      store.current.edit(current.current.conversation, current.current.mode, value);
-      delete fallbackDrafts.current[draftKey]; setStorageError(null); announce();
+      if (!store.current || actorKey(store.current.actor) !== actorKey(target.actor)) throw new MessageStorageError("identity");
+      text = fallbackDrafts.current[key] ?? store.current.draft(target.conversation, mode).text;
+    } catch { /* A storage warning remains visible; the active fallback draft is retained. */ }
+    return text;
+  };
+  const edit = (value: string, mode: MessageMode = current.current.mode) => {
+    const target = current.current;
+    if (!target.actor || !target.ready || !target.conversation || !currentSession()) return;
+    const key = `${actorKey(target.actor)}:${target.conversation}:${mode}`;
+    fallbackDrafts.current[key] = value;
+    try {
+      if (!store.current || actorKey(store.current.actor) !== actorKey(target.actor)) throw new MessageStorageError("identity");
+      store.current.edit(target.conversation, mode, value);
+      delete fallbackDrafts.current[key]; setStorageError(null); announce();
     } catch (error) { storageFailure(error); bump(); }
   };
   const dispatch = async (captured: MessageIntent, targetStore: MessageIntentStore) => {
@@ -199,7 +212,7 @@ export function useMessageComposer<T extends { id: string }>(options: Options<T>
     } catch (error) { storageFailure(error); }
   };
   const acknowledged = !!intent && knownAcknowledgements.has(acknowledgementKey(intent, epoch));
-  return { text, intent, pending, storageError, acknowledged, edit, send, retry, resolve, retryStorage,
+  return { text, intent, pending, storageError, acknowledged, edit, draftFor, send, retry, resolve, retryStorage,
     canRecover: options.canSubmit !== false && options.ready && currentSession() && options.isAuthorized?.() !== false,
     newerDraft: !!intent && (options.mode !== intent.mode || revision !== intent.revision || text !== intent.payload.body),
     saved: !!options.actor && options.ready && currentSession() && !!options.conversation && (acknowledged || outcomes[`${identity}:${options.conversation}`] === "saved") };
