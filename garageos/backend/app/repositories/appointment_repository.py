@@ -48,6 +48,13 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
             select(Appointment).where(
                 Appointment.id == appointment_id,
                 Appointment.is_active == True,
+                # A tenant-owned appointment can contain a legacy/corrupt child
+                # FK to another tenant. Do not load and serialize that record's
+                # customer or vehicle labels through this detail endpoint. Keep
+                # local inactive and transferred history readable: ownership,
+                # not current active/customer assignment, is the read boundary.
+                Appointment.customer.has(Customer.service_center_id == self.service_center_id),
+                Appointment.vehicle.has(Vehicle.service_center_id == self.service_center_id),
             )
         ).options(*self._DETAIL_OPTIONS, selectinload(Appointment.slot))
         if for_update:
