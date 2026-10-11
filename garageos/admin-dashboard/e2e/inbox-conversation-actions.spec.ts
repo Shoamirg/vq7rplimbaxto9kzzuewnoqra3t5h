@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import { withFailureDiagnostics } from "./support/failure-diagnostics";
-import { queueLogin, queueOverflow, queueTargets, switchQueueLocale } from "./support/queue";
+import { queueCustomer, queueLogin, queueOverflow, queueTargets, switchQueueLocale } from "./support/queue";
 import { assertAccessible, assertKeyboardFocus } from "./support/accessibility";
 import { translate, type Locale } from "../lib/i18n/dictionaries";
 import { safeCallHref } from "../components/inbox/shared";
@@ -81,6 +81,7 @@ for (const [locale, width] of [["uz", 360], ["en", 390], ["ru", 1280]] as const)
     await page.goto(`/inbox?c=${valid.id}`); await ready(page, locale);
     const actions = page.getByRole("region", { name: translate(locale, "message.quick_actions"), exact: true });
     await expect(actions.getByRole("note", { name: translate(locale, "message.action.eta_unavailable"), exact: true })).toBeVisible();
+    await expect(actions.getByRole("note", { name: translate(locale, "message.action.passport_unavailable"), exact: true })).toBeVisible();
     const call = actions.getByRole("link", { name: translate(locale, "message.action.call"), exact: true });
     await expect(call).toHaveAttribute("href", `tel:${phone}`);
     expect(valid.phone).toBe(phone);
@@ -99,6 +100,27 @@ for (const [locale, width] of [["uz", 360], ["en", 390], ["ru", 1280]] as const)
     await expect(page.locator('a[href^="tel:"]')).toHaveCount(0);
     await assertAccessible(page, info, `call-unavailable-${locale}-${width}`);
     await page.screenshot({ path: info.outputPath(`call-unavailable-${locale}-${width}.png`), fullPage: true });
+  });
+}
+
+for (const [locale, width] of [["uz", 360], ["en", 390], ["ru", 1280]] as const) {
+  test(`Inbox shares only an available passport and reports the real clipboard result ${locale}/${width}`, async ({ page, baseURL }, info) => {
+    const { profile } = await queueLogin(page, baseURL!, locale, width);
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+    const person = await queueCustomer(page, profile);
+    const created = await page.request.post("/api/proxy/conversations", { data: {
+      customer_id: person.customer_id, vehicle_id: person.vehicle_id,
+    } });
+    expect(created.status()).toBe(201); const id = (await created.json()).id as string;
+    await page.goto(`/inbox?c=${id}`); await ready(page, locale);
+    const actions = page.getByRole("region", { name: translate(locale, "message.quick_actions"), exact: true });
+    const passport = actions.getByRole("button", { name: translate(locale, "message.action.share_passport"), exact: true });
+    await expect(passport).toBeVisible();
+    await passport.click();
+    await expect(page.getByRole("status").filter({ hasText: translate(locale, "message.action.passport_copied") })).toBeVisible();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(`${new URL(baseURL!).origin}/passport/${person.vehicle_id}`);
+    await queueTargets(page, actions); await queueOverflow(page);
+    await assertAccessible(page, info, `passport-share-${locale}-${width}`);
   });
 }
 

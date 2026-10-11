@@ -1,11 +1,11 @@
 "use client";
 
-import { forwardRef, type ReactNode } from "react";
+import { forwardRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
-  ArrowUpRight, Camera, Check, MapPin, Megaphone, Moon, PanelRightOpen, Phone, Pin, Send, Siren,
+  ArrowUpRight, Camera, Check, MapPin, Megaphone, Moon, PanelRightOpen, Phone, Pin, Send, Share2, Siren,
 } from "lucide-react";
-import { cn } from "@garageos/design-system";
+import { Button, cn } from "@garageos/design-system";
 
 import type { ConvMessage, ConvStatus, ThreadDetail } from "@/lib/api/types";
 import { useI18n } from "@/lib/i18n/context";
@@ -44,8 +44,21 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
   composerRef,
 ) {
   const { t } = useI18n();
+  const [passportShareResult, setPassportShareResult] = useState<"copied" | "failed" | null>(null);
   const blocked = !canWrite || loading || readError;
   const callHref = safeCallHref(thread.customer_phone);
+  const passport = thread.linked.find((card) => card.kind === "passport" && card.link);
+
+  async function copyPassportLink() {
+    setPassportShareResult(null);
+    if (!passport?.link) return;
+    try {
+      await navigator.clipboard.writeText(new URL(passport.link, window.location.origin).href);
+      setPassportShareResult("copied");
+    } catch {
+      setPassportShareResult("failed");
+    }
+  }
 
   return (
     <div className="flex-1 min-h-0 min-w-0 flex flex-col bg-muted/20 [overflow-wrap:anywhere]">
@@ -190,6 +203,20 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
           className="min-h-11 min-w-11 inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11.5px] font-semibold whitespace-nowrap text-slate-600 dark:text-slate-300 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50">
           <MapPin className="size-3.5" aria-hidden="true" />{t("message.action.request_location")}
         </button>
+        {passport ? (
+          <Button variant="outline" size="sm" className="min-h-11 min-w-11"
+            leftIcon={<Share2 className="size-3.5" aria-hidden="true" />}
+            onClick={() => void copyPassportLink()}>
+            {t("message.action.share_passport")}
+          </Button>
+        ) : (
+          <span role="note" aria-label={t("message.action.passport_unavailable")}
+            className="min-h-11 inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11.5px] whitespace-nowrap text-muted-foreground">
+            🏅 {t("message.action.passport_unavailable")}
+          </span>
+        )}
+        {passportShareResult === "copied" && <span role="status" className="sr-only">{t("message.action.passport_copied")}</span>}
+        {passportShareResult === "failed" && <span role="alert" className="sr-only">{t("message.action.passport_copy_failed")}</span>}
         <span role="note" aria-label={t("message.action.eta_unavailable")}
           className="min-h-11 inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11.5px] whitespace-nowrap text-muted-foreground">
           🚗 {t("message.action.eta_unavailable")}
