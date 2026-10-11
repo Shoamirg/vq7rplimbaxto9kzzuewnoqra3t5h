@@ -4,6 +4,7 @@ import { withFailureDiagnostics } from "./support/failure-diagnostics";
 import { queueLogin, queueOverflow, queueTargets, switchQueueLocale } from "./support/queue";
 import { assertAccessible, assertKeyboardFocus } from "./support/accessibility";
 import { translate, type Locale } from "../lib/i18n/dictionaries";
+import { safeCallHref } from "../components/inbox/shared";
 
 test.use({ trace: "off" });
 
@@ -12,6 +13,18 @@ async function createThread(page: Page) {
   const response = await page.request.post("/api/proxy/conversations", { data: { subject } });
   expect(response.status()).toBe(201);
   return { id: (await response.json()).id as string, subject };
+}
+async function createCustomerThread(page: Page, phone: string) {
+  const customer = await page.request.post("/api/proxy/customers", { data: {
+    full_name: `QA39 Call ${randomUUID()}`, phone,
+  } });
+  expect(customer.status()).toBe(201);
+  const person = await customer.json() as { id: string; phone: string | null };
+  const conversation = await page.request.post("/api/proxy/conversations", { data: {
+    subject: `QA39 Call ${randomUUID()}`, customer_id: person.id,
+  } });
+  expect(conversation.status()).toBe(201);
+  return { id: (await conversation.json()).id as string, phone: person.phone };
 }
 async function stored(page: Page, id: string) {
   const response = await page.request.get(`/api/proxy/conversations/${id}`);
@@ -24,6 +37,14 @@ async function ready(page: Page, locale: Locale) {
   await expect(page.getByRole("status").filter({ hasText: translate(locale, "inbox.read.acknowledged") })).toBeVisible();
   await expect(status(page, locale)).toBeEnabled();
 }
+
+test("recorded phone call destinations reject non-phone schemes and malformed values", () => {
+  expect(safeCallHref("+998 90 (123) 45-67")).toBe("tel:+998901234567");
+  expect(safeCallHref("901234567")).toBe("tel:901234567");
+  for (const value of [null, "", "javascript:alert(1)", "tel:+998901234567", "+998+901234567", "+998;5551234", "123456", "1".repeat(16)]) {
+    expect(safeCallHref(value)).toBeNull();
+  }
+});
 
 async function selectRecordedQueueThread(page: Page, target: { id: string; subject: string }, previousSubject: string) {
   // Queue priority/history may put this record beyond the first fifty rows.
@@ -50,6 +71,34 @@ async function selectRecordedQueueThread(page: Page, target: { id: string; subje
   expect({ id: snapshot.id, subject: snapshot.subject }).toEqual(target);
   await expect(page.getByRole("heading", { name: target.subject, exact: true })).toBeVisible();
   return snapshot;
+}
+
+for (const [locale, width] of [["uz", 360], ["en", 390], ["ru", 1280]] as const) {
+  test(`Inbox call action uses a recorded phone or explains its absence ${locale}/${width}`, async ({ page, baseURL }, info) => {
+    const { profile } = await queueLogin(page, baseURL!, locale, width);
+    const phone = `+99890${String(parseInt(randomUUID().replaceAll("-", "").slice(0, 8), 16) % 10_000_000).padStart(7, "0")}`;
+    const valid = await createCustomerThread(page, phone);
+    await page.goto(`/inbox?c=${valid.id}`); await ready(page, locale);
+    const actions = page.getByRole("region", { name: translate(locale, "message.quick_actions"), exact: true });
+    const call = actions.getByRole("link", { name: translate(locale, "message.action.call"), exact: true });
+    await expect(call).toHaveAttribute("href", `tel:${phone}`);
+    expect(valid.phone).toBe(phone);
+    await queueTargets(page, actions); await queueOverflow(page);
+    await assertAccessible(page, info, `call-recorded-${locale}-${width}`);
+    await page.screenshot({ path: info.outputPath(`call-recorded-${locale}-${width}.png`), fullPage: true });
+
+    const missingResponse = await page.request.post("/api/proxy/conversations", { data: { customer_id: profile.legacy_customer_id } });
+    expect(missingResponse.status()).toBe(201);
+    const missingId = (await missingResponse.json()).id as string;
+    expect((await stored(page, missingId)).customer_phone).toBeNull();
+    await page.goto(`/inbox?c=${missingId}`); await ready(page, locale);
+    const unavailable = page.getByRole("region", { name: translate(locale, "message.quick_actions"), exact: true })
+      .getByRole("note", { name: translate(locale, "message.action.phone_unavailable"), exact: true });
+    await expect(unavailable).toBeVisible();
+    await expect(page.locator('a[href^="tel:"]')).toHaveCount(0);
+    await assertAccessible(page, info, `call-unavailable-${locale}-${width}`);
+    await page.screenshot({ path: info.outputPath(`call-unavailable-${locale}-${width}.png`), fullPage: true });
+  });
 }
 
 test("Inbox repeated keyboard follow dispatches once while the real captured request is pending", async ({ page, baseURL }) => {

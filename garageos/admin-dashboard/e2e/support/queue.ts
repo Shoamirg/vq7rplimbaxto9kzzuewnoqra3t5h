@@ -5,7 +5,7 @@ import { translate, type Locale } from "../../lib/i18n/dictionaries";
 import { settleMotion } from "./accessibility";
 
 type Owner = { email: string; password: string; center_id: string };
-type Profile = { model_id: string; vehicle_label: string; legacy_id: string; legacy_name: string; center_id: string };
+type Profile = { model_id: string; vehicle_label: string; legacy_id: string; legacy_name: string; legacy_customer_id: string; center_id: string };
 export function queueProfiles(baseURL: string) {
   try {
     const fixture = JSON.parse(readFileSync(process.env.GARAGEOS_BROWSER_FIXTURE!, "utf8"));

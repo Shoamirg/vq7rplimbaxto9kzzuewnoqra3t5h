@@ -3,7 +3,7 @@
 import { forwardRef, type ReactNode } from "react";
 import Link from "next/link";
 import {
-  ArrowUpRight, Check, Megaphone, Moon, PanelRightOpen, Pin, Send, Siren,
+  ArrowUpRight, Check, Megaphone, Moon, PanelRightOpen, Phone, Pin, Send, Siren,
 } from "lucide-react";
 import { cn } from "@garageos/design-system";
 
@@ -11,12 +11,12 @@ import type { ConvMessage, ConvStatus, ThreadDetail } from "@/lib/api/types";
 import { useI18n } from "@/lib/i18n/context";
 import { useMessageComposer } from "@/lib/use-message-composer";
 import { MessageSubmissionStatus } from "@/components/message-submission-status";
-import { CHANNEL_META, CONV_TYPE_ICON, activityIcon, relTime, roleColor } from "./shared";
+import { CHANNEL_META, CONV_TYPE_ICON, activityIcon, relTime, roleColor, safeCallHref } from "./shared";
 
 type ComposerTab = "reply" | "note" | "announcement";
 
 const QUICK_ACTIONS = [
-  "📞 Call", "🚗 Share ETA", "🏅 Share Passport", "📅 Book Appt",
+  "🚗 Share ETA", "🏅 Share Passport", "📅 Book Appt",
   "🆘 Create Emergency", "🧾 Generate Estimate", "📷 Request Photos", "📍 Request Location",
 ];
 
@@ -49,6 +49,7 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
 ) {
   const { t } = useI18n();
   const blocked = !canWrite || loading || readError;
+  const callHref = safeCallHref(thread.customer_phone);
 
   return (
     <div className="flex-1 min-h-0 min-w-0 flex flex-col bg-muted/20 [overflow-wrap:anywhere]">
@@ -168,6 +169,15 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
 
       {/* Quick actions */}
       <div role="region" aria-label={t("message.quick_actions")} tabIndex={0} className="flex gap-1.5 px-4 py-2 bg-card border-t border-border overflow-x-auto shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
+        {callHref ? (
+          <a href={callHref} className="min-h-11 min-w-11 inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11.5px] font-semibold whitespace-nowrap text-slate-600 dark:text-slate-300 focus-visible:outline-2 focus-visible:outline-primary">
+            <Phone className="size-3.5" aria-hidden="true" />{t("message.action.call")}
+          </a>
+        ) : (
+          <span role="note" aria-label={t("message.action.phone_unavailable")} className="min-h-11 inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11.5px] whitespace-nowrap text-muted-foreground">
+            <Phone className="size-3.5" aria-hidden="true" />{t("message.action.phone_unavailable")}
+          </span>
+        )}
         {QUICK_ACTIONS.map((a) => (
           <span key={a} className={cn("text-[11.5px] font-semibold px-2.5 py-1.5 rounded-lg border whitespace-nowrap",
             a.includes("Emergency") ? "border-red-200 bg-red-50 text-red-700" : "border-border text-slate-600 dark:text-slate-300")}>

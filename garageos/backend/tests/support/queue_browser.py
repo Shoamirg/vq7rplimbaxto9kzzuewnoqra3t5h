@@ -30,6 +30,6 @@ async def create_queue_profiles(session, issuers):
         await session.flush()
         profiles.append(dict(center_id=str(center), model_id=str(model.id),
                              vehicle_label=f"{brand.name} {model.name}", legacy_id=str(appointment.id),
-                             legacy_name=customer.full_name))
+                             legacy_name=customer.full_name, legacy_customer_id=str(customer.id)))
     await session.commit()
     return profiles

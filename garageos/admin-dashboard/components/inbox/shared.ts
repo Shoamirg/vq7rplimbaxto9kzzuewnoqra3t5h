@@ -6,6 +6,14 @@ export function inboxEnumLabel(t: Translate, kind: string, value: string | null 
   return label === key ? t("ops.unknown") : label;
 }
 
+export function safeCallHref(phone: string | null | undefined): string | null {
+  if (!phone || phone.length > 20 || !/^\+?[\d\s()\-]+$/.test(phone)) return null;
+  const normalized = phone.replace(/[\s()\-]/g, "");
+  const digits = normalized.startsWith("+") ? normalized.slice(1) : normalized;
+  if (digits.length < 7 || digits.length > 15) return null;
+  return `tel:${normalized}`;
+}
+
 // Channel metadata — chip label + colour. Channel is *metadata*, so the same
 // thread can interleave several.
 export const CHANNEL_META: Record<Channel, { label: string; icon: string; cls: string }> = {
