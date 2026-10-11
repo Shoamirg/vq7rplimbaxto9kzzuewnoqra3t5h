@@ -93,6 +93,95 @@ def process_birth(pid):
         kernel.CloseHandle(handle)
 
 
+def process_is_alive(pid):
+    """Return True/False when Windows can prove process liveness, else None."""
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel.OpenProcess.restype = wintypes.HANDLE
+    kernel.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+    handle = kernel.OpenProcess(0x1000, False, pid)
+    if not handle:
+        # ERROR_INVALID_PARAMETER means the PID does not exist. Access denied
+        # and other failures are ambiguous, so cleanup must preserve its state.
+        return False if ctypes.get_last_error() == 87 else None
+    try:
+        exit_code = wintypes.DWORD()
+        if not kernel.GetExitCodeProcess(handle, ctypes.byref(exit_code)):
+            return None
+        return exit_code.value == 259  # STILL_ACTIVE
+    finally:
+        kernel.CloseHandle(handle)
+
+
+def postmaster_pid(data):
+    pid_file = data / "postmaster.pid"
+    try:
+        pid = int(pid_file.read_text(encoding="utf-8").splitlines()[0])
+    except (OSError, ValueError, IndexError) as exc:
+        raise RuntimeError("Could not read the owned PostgreSQL PID; preserving fixtures") from exc
+    if pid <= 0:
+        raise RuntimeError("Owned PostgreSQL PID is invalid; preserving fixtures")
+    return pid
+
+
+def postgres_status(data):
+    result = subprocess.run(
+        [str(PG / "pg_ctl.exe"), "-D", str(data), "status"], cwd=ROOT, env=ENV,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+        encoding="utf-8", errors="replace", timeout=15,
+        creationflags=subprocess.CREATE_NO_WINDOW,
+    )
+    output = (result.stdout or "").casefold()
+    if result.returncode == 0 and "server is running" in output:
+        return "running"
+    if result.returncode == 3 and "no server running" in output:
+        return "stopped"
+    raise RuntimeError(
+        f"Could not determine owned PostgreSQL status (exit {result.returncode}); preserving fixtures")
+
+
+def remove_stale_postmaster_pid(pid_file, pid):
+    if process_is_alive(pid) is not False:
+        raise RuntimeError("PostgreSQL is stopped but its PID is live or unverifiable; preserving fixtures")
+    pid_file.unlink(missing_ok=True)
+
+
+def stop_postgres(data, state):
+    pid_file = data / "postmaster.pid"
+    if not pid_file.exists():
+        return
+    pid = postmaster_pid(data)
+    if postgres_status(data) == "stopped":
+        remove_stale_postmaster_pid(pid_file, pid)
+        print("Removed verified stale PostgreSQL PID file.", flush=True)
+        return
+
+    expected_pid = state.get("postgres_pid")
+    expected_born = state.get("postgres_born")
+    actual_born = process_birth(pid)
+    if actual_born is None and postgres_status(data) == "stopped":
+        remove_stale_postmaster_pid(pid_file, pid)
+        print("PostgreSQL exited during cleanup; removed its verified stale PID file.", flush=True)
+        return
+    if expected_pid != pid or expected_born is None or actual_born != expected_born:
+        raise RuntimeError("PostgreSQL PID does not match the owned process identity; preserving fixtures")
+    try:
+        run([PG / "pg_ctl.exe", "-D", data, "-m", "fast", "-w", "stop"], ROOT, "postgres-stop")
+    except RuntimeError:
+        # A normal stop can race with PostgreSQL exiting on its own. Accept the
+        # race only after pg_ctl and Windows both confirm that it is gone.
+        if postgres_status(data) != "stopped":
+            raise
+        remove_stale_postmaster_pid(pid_file, pid)
+        print("PostgreSQL stopped during cleanup; removed its verified stale PID file.", flush=True)
+        return
+    if pid_file.exists():
+        if postgres_status(data) != "stopped":
+            raise RuntimeError("Owned PostgreSQL is still running after stop; preserving fixtures")
+        remove_stale_postmaster_pid(pid_file, pid)
+
+
 def cleanup():
     if not STATE.exists():
         return
@@ -120,8 +209,7 @@ def cleanup():
         process.wait(timeout=30)
     for handle in HANDLES:
         handle.close()
-    if (data / "postmaster.pid").exists():
-        run([PG / "pg_ctl.exe", "-D", data, "-m", "fast", "-w", "stop"], ROOT, "postgres-stop")
+    stop_postgres(data, state)
     fixture.unlink(missing_ok=True)
     if browser_fixture is not None:
         browser_fixture.unlink(missing_ok=True)
@@ -212,6 +300,8 @@ def main(allow_missing_docker):
     if STATE.exists():
         raise RuntimeError("Prior owned fixture state needs --cleanup-only before a new build")
     EVIDENCE.mkdir(parents=True, exist_ok=True)
+    run([sys.executable, ROOT / "garageos/scripts/test_jenkins_windows_ci_cleanup.py"],
+        ROOT, "runner-cleanup-contracts")
     docker_prefix, available = docker_environment()
     missing = not available
     if missing and not allow_missing_docker:
@@ -250,6 +340,13 @@ def main(allow_missing_docker):
     try:
         run([PG / "initdb.exe", "-D", data, "-U", "postgres", "--auth=trust", "--encoding=UTF8", "--locale=C"], ROOT, "postgres-init")
         run([PG / "pg_ctl.exe", "-D", data, "-l", EVIDENCE / "postgres.log", "-o", "-p 55444 -h 127.0.0.1", "-w", "start"], ROOT, "postgres-start")
+        postgres_pid = postmaster_pid(data)
+        postgres_born = process_birth(postgres_pid)
+        if postgres_born is None:
+            raise RuntimeError("Could not capture the owned PostgreSQL process identity")
+        state = json.loads(STATE.read_text(encoding="utf-8"))
+        state.update(postgres_pid=postgres_pid, postgres_born=postgres_born)
+        save(state)
         run([PG / "createdb.exe", "-h", "127.0.0.1", "-p", "55444", "-U", "postgres", "garage_test"], ROOT, "postgres-database")
         run([PYTHON, "-m", "alembic", "upgrade", "head"], BACKEND, "migrations")
         run([PYTHON, "-m", "alembic", "check"], BACKEND, "schema")
