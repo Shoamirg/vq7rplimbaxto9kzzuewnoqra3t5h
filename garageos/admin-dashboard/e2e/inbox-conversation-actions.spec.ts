@@ -198,6 +198,82 @@ test("Inbox booking stays blocked after an empty reconciliation until a separate
 });
 
 for (const [locale, width] of [["uz", 360], ["en", 390], ["ru", 1280]] as const) {
+  test(`Inbox estimate captures its customer and reconciles a lost response without reposting ${locale}/${width}`, async ({ page, baseURL }, info) => {
+    const { profile } = await queueLogin(page, baseURL!, locale, width);
+    const person = await queueCustomer(page, profile);
+    const created = await page.request.post("/api/proxy/conversations", { data: {
+      customer_id: person.customer_id, vehicle_id: person.vehicle_id,
+    } });
+    expect(created.status()).toBe(201); const id = (await created.json()).id as string;
+    await page.goto(`/inbox?c=${id}`); await ready(page, locale);
+    const actions = page.getByRole("region", { name: translate(locale, "message.quick_actions"), exact: true });
+    await actions.getByRole("button", { name: translate(locale, "message.action.create_estimate"), exact: true }).click();
+    const modal = page.getByRole("dialog", { name: translate(locale, "invoice.new_estimate"), exact: true });
+    await expect(modal.locator("#inv-vehicle")).toHaveValue(person.vehicle_id);
+    await modal.getByLabel(translate(locale, "invoice.description"), { exact: true }).fill("Inbox diagnostic estimate");
+    await modal.getByLabel(translate(locale, "invoice.price"), { exact: true }).fill("72500");
+
+    let posts = 0;
+    await page.route("**/api/proxy/invoices", async route => {
+      if (route.request().method() !== "POST") return route.continue();
+      posts++;
+      const response = await route.fetch();
+      expect(response.status()).toBe(201);
+      const body = route.request().postDataJSON() as { kind: string; customer_id: string; vehicle_id: string | null };
+      expect(body).toMatchObject({ kind: "estimate", customer_id: person.customer_id, vehicle_id: person.vehicle_id });
+      await route.abort("failed");
+    });
+    await modal.getByRole("button", { name: translate(locale, "invoice.create_estimate"), exact: true }).click();
+    await expect(modal.getByRole("alert").filter({ hasText: translate(locale, "invoice.outcome_uncertain") })).toBeVisible();
+    await page.reload();
+    await ready(page, locale);
+    const reopenedActions = page.getByRole("region", { name: translate(locale, "message.quick_actions"), exact: true });
+    await reopenedActions.getByRole("button", { name: translate(locale, "message.action.create_estimate"), exact: true }).click();
+    await expect(modal.getByRole("alert").filter({ hasText: translate(locale, "invoice.outcome_uncertain") })).toBeVisible();
+    await modal.getByRole("button", { name: translate(locale, "invoice.check_estimates"), exact: true }).click();
+    await expect(modal.getByRole("alert").filter({ hasText: translate(locale, "invoice.outcome_found") })).toBeVisible();
+    expect(posts).toBe(1);
+    await expect(modal.getByRole("button", { name: translate(locale, "invoice.create_estimate"), exact: true })).toBeDisabled();
+    await modal.getByRole("button", { name: translate(locale, "common.close"), exact: true }).click();
+    await queueTargets(page, reopenedActions); await queueOverflow(page);
+    await assertAccessible(page, info, `estimate-lost-response-${locale}-${width}`);
+  });
+}
+
+test("Inbox estimate stays blocked after an empty reconciliation until a separate action is chosen", async ({ page, baseURL }) => {
+  const { profile } = await queueLogin(page, baseURL!, "en", 390);
+  const person = await queueCustomer(page, profile);
+  const created = await page.request.post("/api/proxy/conversations", { data: {
+    customer_id: person.customer_id, vehicle_id: person.vehicle_id,
+  } });
+  expect(created.status()).toBe(201); const id = (await created.json()).id as string;
+  await page.goto(`/inbox?c=${id}`); await ready(page, "en");
+  const actions = page.getByRole("region", { name: translate("en", "message.quick_actions"), exact: true });
+  await actions.getByRole("button", { name: translate("en", "message.action.create_estimate"), exact: true }).click();
+  const modal = page.getByRole("dialog", { name: translate("en", "invoice.new_estimate"), exact: true });
+  await modal.locator("#inv-vehicle").selectOption(person.vehicle_id);
+  await modal.getByLabel(translate("en", "invoice.description"), { exact: true }).fill("Separate diagnostic estimate");
+  await modal.getByLabel(translate("en", "invoice.price"), { exact: true }).fill("81000");
+
+  let posts = 0;
+  await page.route("**/api/proxy/invoices", async route => {
+    if (route.request().method() !== "POST") return route.continue();
+    posts++; await route.abort("failed");
+  });
+  const submit = modal.getByRole("button", { name: translate("en", "invoice.create_estimate"), exact: true });
+  await submit.click();
+  await expect(modal.getByRole("alert").filter({ hasText: translate("en", "invoice.outcome_uncertain") })).toBeVisible();
+  await modal.getByRole("button", { name: translate("en", "invoice.check_estimates"), exact: true }).click();
+  await expect(modal.getByRole("alert").filter({ hasText: translate("en", "invoice.outcome_not_found") })).toBeVisible();
+  await expect(submit).toBeDisabled(); expect(posts).toBe(1);
+  await modal.getByRole("button", { name: translate("en", "invoice.allow_separate_estimate"), exact: true }).click();
+  await expect(submit).toBeEnabled(); expect(posts).toBe(1);
+  await submit.click();
+  await expect.poll(() => posts).toBe(2);
+  await expect(modal.getByRole("alert").filter({ hasText: translate("en", "invoice.outcome_uncertain") })).toBeVisible();
+});
+
+for (const [locale, width] of [["uz", 360], ["en", 390], ["ru", 1280]] as const) {
   test(`Inbox request actions prepare localized editable drafts without sending ${locale}/${width}`, async ({ page, baseURL }, info) => {
     await queueLogin(page, baseURL!, locale, width);
     const target = await createThread(page), path = `/api/proxy/conversations/${target.id}/messages`;
@@ -207,6 +283,7 @@ for (const [locale, width] of [["uz", 360], ["en", 390], ["ru", 1280]] as const)
     const note = page.getByRole("button", { name: translate(locale, "message.note"), exact: true });
     const actions = page.getByRole("region", { name: translate(locale, "message.quick_actions"), exact: true });
     await expect(actions.getByRole("note", { name: translate(locale, "message.action.appointment_unavailable"), exact: true })).toBeVisible();
+    await expect(actions.getByRole("note", { name: translate(locale, "message.action.estimate_unavailable"), exact: true })).toBeVisible();
     let sends = 0;
     page.on("request", request => { if (request.method() === "POST" && request.url().endsWith(path)) sends++; });
 

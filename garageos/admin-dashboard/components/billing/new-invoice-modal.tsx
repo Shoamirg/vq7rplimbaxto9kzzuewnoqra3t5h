@@ -1,21 +1,43 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Plus, Receipt, Trash2, X } from "lucide-react";
 import { Button, Dialog, DialogContent, DialogTitle, useToast } from "@garageos/design-system";
 
 import { clientFetch, ClientApiError } from "@/lib/api/client";
 import { useI18n } from "@/lib/i18n/context";
-import type { Appointment, Customer360, CustomerListItem, InvoiceDoc } from "@/lib/api/types";
+import type { Appointment, Customer360, CustomerListItem, InvoiceDoc, InvoiceListResponse } from "@/lib/api/types";
 import { CustomerPicker } from "@/components/intake/customer-picker";
 import { NewCustomerModal, NewVehicleModal } from "@/components/intake/intake-modals";
 
 const FIELD = "min-h-11 min-w-0 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40";
 const LABEL = "block text-xs font-semibold text-muted-foreground mb-1.5";
 const LINE_KINDS = [["part", "Part"], ["labor", "Labor"], ["fee", "Fee"], ["discount", "Discount"]] as const;
+const UNCERTAIN_ESTIMATE_KEY = "garageos:estimate:uncertain:v1";
 
 type Vehicle = { id: string; label: string };
 type Line = { kind: string; description: string; quantity: number; unit_price: number };
+type EstimateTarget = { customerId: string; vehicleId: string | null; attemptedAt: string; notes: string | null; lines: Line[] };
+
+function loadUncertainEstimate(): EstimateTarget | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const target = JSON.parse(window.sessionStorage.getItem(UNCERTAIN_ESTIMATE_KEY) ?? "null") as Partial<EstimateTarget> | null;
+    if (target && typeof target.customerId === "string" && typeof target.attemptedAt === "string"
+      && (target.vehicleId === null || typeof target.vehicleId === "string")
+      && Array.isArray(target.lines) && target.lines.every((line) => line && typeof line.kind === "string"
+        && typeof line.description === "string" && typeof line.quantity === "number" && typeof line.unit_price === "number")) {
+      return { customerId: target.customerId, vehicleId: target.vehicleId ?? null, attemptedAt: target.attemptedAt,
+        notes: typeof target.notes === "string" ? target.notes : null, lines: target.lines };
+    }
+  } catch { /* Invalid tab storage cannot authorize a replay. */ }
+  return null;
+}
+
+function clearUncertainEstimate() {
+  try { window.sessionStorage.removeItem(UNCERTAIN_ESTIMATE_KEY); return true; }
+  catch { return false; }
+}
 
 const emptyLine = (): Line => ({ kind: "part", description: "", quantity: 1, unit_price: 0 });
 
@@ -23,6 +45,7 @@ export function NewInvoiceModal({
   kind,
   edit,
   appointment,
+  preset,
   onClose,
   onCreated,
   onSaved,
@@ -30,6 +53,7 @@ export function NewInvoiceModal({
   kind?: "estimate" | "invoice";
   edit?: InvoiceDoc;
   appointment?: Appointment;
+  preset?: { customerId: string; customerName: string; vehicleId?: string };
   onClose: () => void;
   onCreated?: (doc: InvoiceDoc) => void;
   onSaved?: (doc: InvoiceDoc) => void;
@@ -41,13 +65,13 @@ export function NewInvoiceModal({
   const isEdit = Boolean(edit);
 
   // In edit mode the customer is fixed (shown, not searchable).
-  const fixedCustomer: CustomerListItem | null = edit || appointment
-    ? { id: edit?.customer_id ?? appointment!.customer_id, full_name: edit?.customer_name ?? appointment?.customer_name ?? t("work.customer"), phone: null, email: null, vehicle_count: 0, lifetime_value: 0, tier: "", last_visit: null }
+  const fixedCustomer: CustomerListItem | null = edit || appointment || preset
+    ? { id: edit?.customer_id ?? appointment?.customer_id ?? preset!.customerId, full_name: edit?.customer_name ?? appointment?.customer_name ?? preset?.customerName ?? t("work.customer"), phone: null, email: null, vehicle_count: 0, lifetime_value: 0, tier: "", last_visit: null }
     : null;
 
   const [customer, setCustomer] = useState<CustomerListItem | null>(fixedCustomer);
   const [vehicles, setVehicles] = useState<Vehicle[]>(appointment ? [{ id: appointment.vehicle_id, label: appointment.vehicle_summary }] : []);
-  const [vehicleId, setVehicleId] = useState(edit?.vehicle_id ?? appointment?.vehicle_id ?? "");
+  const [vehicleId, setVehicleId] = useState(edit?.vehicle_id ?? appointment?.vehicle_id ?? preset?.vehicleId ?? "");
   const [lines, setLines] = useState<Line[]>(
     edit && edit.line_items.length
       ? edit.line_items.map((li) => ({ kind: li.kind, description: li.description, quantity: li.quantity, unit_price: li.unit_price }))
@@ -55,6 +79,12 @@ export function NewInvoiceModal({
   );
   const [notes, setNotes] = useState(edit?.notes ?? "");
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const [uncertain, setUncertain] = useState<EstimateTarget | null>(loadUncertainEstimate);
+  const [uncertainResult, setUncertainResult] = useState<"found" | "not_found" | null>(null);
+  const [checkingOutcome, setCheckingOutcome] = useState(false);
+  const checkingOutcomeRef = useRef(false);
+  const [outcomeCheckFailed, setOutcomeCheckFailed] = useState(false);
   const [loadingVehicles, setLoadingVehicles] = useState(false);
   const [vehicleError, setVehicleError] = useState(false);
   const [retryVehicles, setRetryVehicles] = useState(0);
@@ -70,7 +100,9 @@ export function NewInvoiceModal({
         if (!active) return;
         setVehicles(c.vehicles.map((v) => ({ id: v.id, label: v.label })));
         // Preserve the edited doc's vehicle selection once vehicles load.
-        if (edit?.vehicle_id) setVehicleId(edit.vehicle_id);
+        const selectedVehicleId = edit?.vehicle_id ?? preset?.vehicleId;
+        if (selectedVehicleId && c.vehicles.some((v) => v.id === selectedVehicleId)) setVehicleId(selectedVehicleId);
+        else if (selectedVehicleId) setVehicleId("");
       })
       .catch(() => { if (active) setVehicleError(true); })
       .finally(() => { if (active) setLoadingVehicles(false); });
@@ -85,15 +117,67 @@ export function NewInvoiceModal({
 
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
   const validLines = lines;
-  const canSave = Boolean(customer) && validLines.length > 0 && validLines.every((l) => l.description.trim() && Number.isFinite(l.quantity) && l.quantity > 0 && Number.isFinite(l.unit_price) && l.unit_price >= 0) && total >= 0 && !saving;
+  const canSave = Boolean(customer) && validLines.length > 0 && validLines.every((l) => l.description.trim() && Number.isFinite(l.quantity) && l.quantity > 0 && Number.isFinite(l.unit_price) && l.unit_price >= 0) && total >= 0 && !saving && !uncertain;
+
+  async function findMatchingEstimate(target: EstimateTarget) {
+    const params = new URLSearchParams({ view: "estimates", customer_id: target.customerId, page_size: "100" });
+    let page = 1;
+    const attemptedAt = Date.parse(target.attemptedAt) - 5 * 60_000;
+    while (true) {
+      params.set("page", String(page));
+      const list = await clientFetch<InvoiceListResponse>(`/invoices?${params}`);
+      for (const item of list.items) {
+        if (item.kind !== "estimate" || item.customer_id !== target.customerId || item.vehicle_id !== target.vehicleId
+          || !item.created_at || Date.parse(item.created_at) < attemptedAt) continue;
+        const doc = await clientFetch<InvoiceDoc>(`/invoices/${item.id}`);
+        const linesMatch = doc.line_items.length === target.lines.length && doc.line_items.every((line, index) => {
+          const expected = target.lines[index];
+          return line.kind === expected.kind && line.description === expected.description
+            && line.quantity === expected.quantity && line.unit_price === expected.unit_price;
+        });
+        if (linesMatch && doc.notes === target.notes) return doc;
+      }
+      if (page >= list.total_pages) return null;
+      page += 1;
+    }
+  }
+
+  async function reconcileOutcome() {
+    if (!uncertain || checkingOutcomeRef.current) return;
+    checkingOutcomeRef.current = true; setCheckingOutcome(true); setOutcomeCheckFailed(false); setUncertainResult(null);
+    try {
+      const match = await findMatchingEstimate(uncertain);
+      if (match) {
+        setUncertainResult("found");
+        clearUncertainEstimate();
+        onCreated?.(match);
+      } else setUncertainResult("not_found");
+    } catch { setOutcomeCheckFailed(true); }
+    finally { checkingOutcomeRef.current = false; setCheckingOutcome(false); }
+  }
+
+  function allowSeparateEstimate() {
+    if (uncertainResult !== "not_found" || !clearUncertainEstimate()) { setOutcomeCheckFailed(true); return; }
+    setUncertain(null); setUncertainResult(null); setOutcomeCheckFailed(false);
+  }
 
   async function save() {
-    if (!customer) return;
-    setSaving(true);
+    if (!customer || uncertain || savingRef.current) return;
+    savingRef.current = true; setSaving(true);
     const items = validLines.map((l) => ({
       kind: l.kind, description: l.description.trim(),
       quantity: Number(l.quantity) || 1, unit_price: Number(l.unit_price) || 0,
     }));
+    const target: EstimateTarget = { customerId: customer.id, vehicleId: vehicleId || null,
+      attemptedAt: new Date().toISOString(), notes: notes.trim() || null,
+      lines: items.map((line) => ({ ...line, quantity: Number(line.quantity) || 1, unit_price: Number(line.unit_price) || 0 })) };
+    if (!isEdit && isEstimate) {
+      try { window.sessionStorage.setItem(UNCERTAIN_ESTIMATE_KEY, JSON.stringify(target)); }
+      catch {
+        toast({ title: t("invoice.outcome_store_failed"), variant: "danger" });
+        savingRef.current = false; setSaving(false); return;
+      }
+    }
     try {
       const doc = isEdit && edit
         ? await clientFetch<InvoiceDoc>(`/invoices/${edit.id}`, {
@@ -105,19 +189,23 @@ export function NewInvoiceModal({
             body: JSON.stringify({ kind: docKind, customer_id: customer.id, vehicle_id: vehicleId || null, appointment_id: appointment?.id ?? null, tax_rate: appointment ? 0 : undefined, notes: notes.trim() || null, line_items: items }),
           });
       toast({ title: isEdit ? t("invoice.updated") : t("invoice.created"), description: customer.full_name, variant: "success" });
+      if (!isEdit && isEstimate) clearUncertainEstimate();
       (isEdit ? onSaved : onCreated)?.(doc);
       onClose();
     } catch (err) {
       const paid = err instanceof ClientApiError && err.status === 409;
-      if (!(err instanceof ClientApiError && err.status === 403)) {
+      if (!isEdit && isEstimate && ((err instanceof ClientApiError && (err.status === 408 || err.status >= 500)) || !(err instanceof ClientApiError))) {
+        setUncertain(target); setUncertainResult(null);
+      } else if (!(err instanceof ClientApiError && err.status === 403)) {
+        if (!isEdit && isEstimate) clearUncertainEstimate();
         toast({
           title: paid ? t("invoice.conflict") : t("invoice.failed"),
           description: paid ? t("invoice.conflict_hint") : undefined,
           variant: "danger",
         });
-      }
+      } else if (!isEdit && isEstimate) clearUncertainEstimate();
     } finally {
-      setSaving(false);
+      savingRef.current = false; setSaving(false);
     }
   }
 
@@ -126,26 +214,37 @@ export function NewInvoiceModal({
       <DialogContent size="lg" hideClose noPadding aria-describedby={undefined} className="max-h-[92vh] overflow-y-auto [&_button]:min-h-11 [&_button]:min-w-11 [&_input]:min-h-11 [&_select]:min-h-11">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <DialogTitle className="flex items-center gap-2 text-base font-bold">
-            <Receipt className={`size-4 ${isEstimate ? "text-blue-600" : "text-emerald-600"}`} /> {t(isEdit ? "invoice.edit" : "invoice.new")}{isEdit && edit ? ` · ${edit.code}` : ""}
+            <Receipt className={`size-4 ${isEstimate ? "text-blue-600" : "text-emerald-600"}`} /> {t(isEdit ? "invoice.edit" : isEstimate ? "invoice.new_estimate" : "invoice.new")}{isEdit && edit ? ` · ${edit.code}` : ""}
           </DialogTitle>
           <button onClick={onClose} disabled={saving} className="p-1.5 rounded-lg hover:bg-muted transition-colors" aria-label={t("common.close")}><X className="size-4" /></button>
         </div>
 
         <div className="p-5 space-y-4">
+          {uncertain && <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950" role="alert">
+            <p>{uncertainResult === "found" ? t("invoice.outcome_found") : uncertainResult === "not_found" ? t("invoice.outcome_not_found") : t("invoice.outcome_uncertain")}</p>
+            {outcomeCheckFailed && <p className="mt-1">{t("invoice.outcome_check_failed")}</p>}
+            {uncertainResult !== "found" && <Button variant="outline" size="sm" className="mt-2 min-h-11 min-w-11" disabled={checkingOutcome} onClick={() => void reconcileOutcome()}>
+              {checkingOutcome ? t("invoice.outcome_checking") : t("invoice.check_estimates")}
+            </Button>}
+            {uncertainResult === "not_found" && <Button variant="ghost" size="sm" className="mt-2 min-h-11 min-w-11" onClick={allowSeparateEstimate}>
+              {t("invoice.allow_separate_estimate")}
+            </Button>}
+          </div>}
+          {!uncertain && <fieldset disabled={saving} className="m-0 min-w-0 space-y-4 border-0 p-0">
           {/* Customer */}
           <div>
             <label className={LABEL} htmlFor="inv-customer">{t("work.customer")}</label>
             {customer ? (
               <div className="flex items-center justify-between rounded-lg border border-primary/40 bg-primary/5 px-3 py-2">
                 <span className="text-sm font-medium">{customer.full_name}</span>
-                {!isEdit && !appointment && <button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setCustomer(null)}>{t("invoice.change")}</button>}
+                {!isEdit && !appointment && !preset && <button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setCustomer(null)}>{t("invoice.change")}</button>}
               </div>
             ) : (
               <>
                 <CustomerPicker id="inv-customer" onSelect={setCustomer} />
               </>
             )}
-            {!isEdit && !appointment ? <button onClick={() => setIntake("customer")} className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline"><Plus className="size-3" />{t("intake.new_customer")}</button> : null}
+            {!isEdit && !appointment && !preset ? <button onClick={() => setIntake("customer")} className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline"><Plus className="size-3" />{t("intake.new_customer")}</button> : null}
           </div>
 
           {/* Vehicle */}
@@ -185,6 +284,7 @@ export function NewInvoiceModal({
             <label className={LABEL} htmlFor="inv-notes">{t("invoice.notes")} <span className="font-normal text-muted-foreground">({t("invoice.vehicle_optional")})</span></label>
             <textarea id="inv-notes" className={`${FIELD} resize-none`} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
+          </fieldset>}
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-t border-border">
@@ -192,7 +292,7 @@ export function NewInvoiceModal({
           <div className="flex gap-2">
             <Button variant="ghost" size="sm" onClick={onClose} disabled={saving}>{t("common.cancel")}</Button>
             <Button size="sm" disabled={!canSave} onClick={save} leftIcon={saving ? <Loader2 className="size-4 animate-spin" /> : <Receipt className="size-4" />}>
-              {saving ? t("invoice.saving") : isEdit ? t("invoice.save") : t("invoice.create")}
+              {saving ? t("invoice.saving") : isEdit ? t("invoice.save") : isEstimate ? t("invoice.create_estimate") : t("invoice.create")}
             </Button>
           </div>
         </div>

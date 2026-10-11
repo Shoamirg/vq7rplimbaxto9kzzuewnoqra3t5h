@@ -589,9 +589,11 @@ class InvoiceService:
             return stmt.where(Invoice.id == None)  # noqa: E711 — placeholder (none yet)
         return stmt
 
-    async def list_documents(self, *, view: str = "invoices", q: str = "", page: int = 1, page_size: int = 80) -> dict:
+    async def list_documents(self, *, view: str = "invoices", q: str = "", customer_id: uuid.UUID | None = None, page: int = 1, page_size: int = 80) -> dict:
         base = select(Invoice).where(
             Invoice.service_center_id == self.sc, Invoice.is_active.is_(True))
+        if customer_id is not None:
+            base = base.where(Invoice.customer_id == customer_id)
         filtered = self._view_where(base, view)
         if query := q.strip():
             # Search is literal: SQL LIKE wildcards in a plate/name must not match everything.

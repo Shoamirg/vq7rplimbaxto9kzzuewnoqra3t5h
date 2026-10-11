@@ -56,6 +56,30 @@ async def test_staff_can_page_beyond_eighty_invoices_with_stable_equal_timestamp
     assert detail.status_code == 200 and detail.json()["code"] == "INV-HISTORY-001"
 
 
+async def test_invoice_list_can_filter_estimates_by_one_tenant_customer(client, history, identity):
+    async with async_session_factory() as session:
+        customer = Customer(service_center_id=identity["center"], full_name="Estimate filter customer")
+        session.add(customer)
+        await session.flush()
+        estimate = Invoice(service_center_id=identity["center"], customer_id=customer.id,
+                           code="EST-FILTER-001", kind="estimate", status="draft",
+                           currency="UZS", total=125000, balance=125000)
+        session.add(estimate)
+        await session.commit()
+        customer_id, estimate_id = customer.id, estimate.id
+
+    response = await client.get("/api/v1/invoices", headers=history,
+                                params={"view": "estimates", "customer_id": str(customer_id)})
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["total"] == 1 and [item["id"] for item in data["items"]] == [str(estimate_id)]
+    assert data["items"][0]["customer_id"] == str(customer_id)
+
+    empty = await client.get("/api/v1/invoices", headers=history,
+                             params={"view": "estimates", "customer_id": str(uuid.uuid4())})
+    assert empty.status_code == 200 and empty.json()["total"] == 0 and empty.json()["items"] == []
+
+
 @pytest_asyncio.fixture
 async def searchable_history(history, identity):
     async with async_session_factory() as session:

@@ -681,6 +681,17 @@ export interface InvoiceDoc extends InvoiceListItem {
   timeline: { title: string; detail: string | null; date: string; severity: string }[];
 }
 
+export interface InvoiceListResponse {
+  items: InvoiceListItem[];
+  counts: Record<string, number>;
+  kpis: Record<string, unknown>;
+  view: string;
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
 export interface BillingCounts {
   invoices: number; estimates: number; overdue: number;
   awaiting: number; drafts: number; payments: number; recurring: number;
