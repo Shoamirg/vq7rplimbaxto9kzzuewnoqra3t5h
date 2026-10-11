@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const FILES = ["lib/i18n/dictionaries.ts", "lib/i18n/mini-dictionary.ts", "lib/i18n/staff-dictionary.ts", "lib/i18n/daily-dictionary.ts", "lib/i18n/accounts-dictionary.ts", "lib/i18n/platform-dictionary.ts", "lib/i18n/calendar-dictionary.ts", "lib/i18n/queue-dictionary.ts", "lib/i18n/operations-dictionary.ts", "lib/i18n/messages-dictionary.ts", "lib/i18n/inbox-dictionary.ts"];
+const FILES = ["lib/i18n/dictionaries.ts", "lib/i18n/mini-dictionary.ts", "lib/i18n/staff-dictionary.ts", "lib/i18n/daily-dictionary.ts", "lib/i18n/accounts-dictionary.ts", "lib/i18n/platform-dictionary.ts", "lib/i18n/calendar-dictionary.ts", "lib/i18n/queue-dictionary.ts", "lib/i18n/operations-dictionary.ts", "lib/i18n/messages-dictionary.ts", "lib/i18n/inbox-dictionary.ts", "lib/i18n/passport-dictionary.ts", "lib/i18n/vehicle-health-dictionary.ts"];
 const LOCALES = ["en", "ru", "uz"];
 // Plural keys legitimately differ per locale (ru has few/many, en/uz don't),
 // so compare their base name, not the exact form.

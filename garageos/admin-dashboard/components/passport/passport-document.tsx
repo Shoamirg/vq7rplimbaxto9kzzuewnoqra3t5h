@@ -1,5 +1,6 @@
 import { Fragment, type CSSProperties } from "react";
 import type { HealthBand, Passport } from "@/lib/api/types";
+import { translate, type Locale } from "@/lib/i18n/dictionaries";
 import "./passport.css";
 
 // ─── Derivations ──────────────────────────────────────────────
@@ -10,47 +11,23 @@ const ACCENT: Record<HealthBand, { accent: string; soft: string }> = {
   poor: { accent: "#B4442E", soft: "#F7E5E1" },
 };
 
-const TIER: Record<HealthBand, { label: string; stars: number }> = {
-  excellent: { label: "Platinum Certified", stars: 5 },
-  good: { label: "Gold Certified", stars: 4 },
-  fair: { label: "Silver Certified", stars: 3 },
-  poor: { label: "Provisional", stars: 0 },
-};
-
 const GRADE: Record<HealthBand, string> = {
-  excellent: "Excellent", good: "Good", fair: "Fair", poor: "Needs Attention",
+  excellent: "passport.grade.excellent", good: "passport.grade.good", fair: "passport.grade.fair", poor: "passport.grade.poor",
 };
 
-function assessment(p: Passport): { lead: string; rest: string } {
+function assessment(p: Passport, locale: Locale): { lead: string; rest: string } {
   const { band, compliance, urgent_count } = p.health;
-  const model = `${p.vehicle.brand} ${p.vehicle.model}`;
-  if (band === "excellent")
-    return {
-      lead: "This vehicle has been exceptionally well maintained.",
-      rest: ` Every scheduled service has been completed on time, with a complete and unbroken record, and no critical systems currently require attention. Based on its service history, consistent mileage, and current condition, the ${model} is expected to remain in excellent operating condition with routine maintenance.`,
-    };
-  if (band === "good")
-    return {
-      lead: "This vehicle is in good, dependable condition.",
-      rest: ` It carries a solid service record with ${compliance}% of scheduled maintenance kept up to date. A small number of items are approaching their service window; staying on the current cadence will keep the ${model} performing reliably.`,
-    };
-  if (band === "fair")
-    return {
-      lead: "This vehicle is roadworthy but would benefit from attention.",
-      rest: ` Several services are approaching or just past their recommended interval${urgent_count ? ` (${urgent_count} needing action)` : ""}. Addressing them will restore the ${model}'s health rating and protect its long-term reliability.`,
-    };
   return {
-    lead: "This vehicle needs care to return to good health.",
-    rest: ` ${urgent_count} service${urgent_count === 1 ? " is" : "s are"} overdue and should be scheduled soon to prevent avoidable wear. Once brought current, the ${model} can quickly recover a strong health rating.`,
+    lead: translate(locale, `passport.assessment.${band}.lead`),
+    rest: translate(locale, `passport.assessment.${band}.rest`, { compliance, count: urgent_count }),
   };
 }
 
-const nf = (n: number) => n.toLocaleString("en-US");
-const money = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
-const shortDate = (iso: string) =>
-  new Date(iso).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
-const monthYear = (iso: string) =>
-  new Date(iso).toLocaleDateString("en-US", { month: "short", year: "numeric" });
+const nf = (n: number, locale: Locale) => n.toLocaleString(locale);
+const shortDate = (iso: string, locale: Locale) =>
+  new Date(iso).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" });
+const monthYear = (iso: string, locale: Locale) =>
+  new Date(iso).toLocaleDateString(locale, { month: "short", year: "numeric" });
 
 function monogram(name: string): string {
   return name.split(" ").filter(Boolean).slice(0, 1).map((w) => w[0]?.toUpperCase()).join("") || "G";
@@ -58,33 +35,33 @@ function monogram(name: string): string {
 function initials(name: string): string {
   return name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "•";
 }
-function remaining(u: Passport["upcoming"][number]): string {
-  if (u.remaining_km != null && u.remaining_km > 0) return `in ${nf(u.remaining_km)} km`;
-  if (u.remaining_km != null && u.remaining_km <= 0) return "overdue";
-  if (u.remaining_days != null) return `in ${u.remaining_days} days`;
-  return "scheduled";
+function remaining(u: Passport["upcoming"][number], locale: Locale): string {
+  if (u.remaining_km != null && u.remaining_km > 0) return translate(locale, "passport.remaining_km", { count: nf(u.remaining_km, locale) });
+  if (u.remaining_km != null && u.remaining_km <= 0) return translate(locale, "passport.overdue");
+  if (u.remaining_days != null) return translate(locale, "passport.remaining_days", { count: u.remaining_days });
+  return translate(locale, "passport.scheduled");
 }
 const PILL: Record<string, string> = { on_track: "pp-on", due_soon: "pp-soon", overdue: "pp-over" };
-const PILL_TEXT: Record<string, string> = { on_track: "On track", due_soon: "Due soon", overdue: "Overdue" };
 
 // ─── Component ────────────────────────────────────────────────
 export function PassportDocument({
   passport,
   qrSvg,
   verifyUrl,
+  locale,
 }: {
   passport: Passport;
   qrSvg: string;
   verifyUrl: string;
+  locale: Locale;
 }) {
   const p = passport;
   const band = p.health.band;
   const { accent, soft } = ACCENT[band];
-  const tier = TIER[band];
-  const a = assessment(p);
+  const a = assessment(p, locale);
   const v = p.vehicle;
   const sub = [v.year, v.transmission, v.engine_type, v.color].filter(Boolean).join(" · ");
-  const owner = p.owner_name ?? "Vehicle Owner";
+  const owner = p.owner_name ?? translate(locale, "passport.record");
   const rootStyle = { "--accent": accent, "--accent-soft": soft } as CSSProperties;
   const verifyHost = verifyUrl.replace(/^https?:\/\//, "");
 
@@ -102,18 +79,18 @@ export function PassportDocument({
             <div className="pp-mono">{p.garage.monogram ?? monogram(p.garage.name)}</div>
             <div>
               <h1>{p.garage.name.toUpperCase()}</h1>
-              <p>{p.garage.tagline ?? p.garage.address ?? "Certified Service Centre"}</p>
+            <p>{p.garage.tagline ?? p.garage.address ?? translate(locale, "passport.service_advisor")}</p>
             </div>
           </div>
           <div className="pp-mastR">
-            <div className="pp-over">Digitally Certified</div>
-            <div className="pp-no">No. {p.code}</div>
+            <div className="pp-over">{translate(locale, "passport.record")}</div>
+            <div className="pp-no">{translate(locale, "passport.record_no")} {p.code}</div>
           </div>
         </div>
         <div className="pp-rule" />
         <div className="pp-passtitle">
-          <div className="pp-k">CERTIFIED</div>
-          <div className="pp-t pp-disp">Vehicle&nbsp;Passport</div>
+          <div className="pp-k">{translate(locale, "passport.record").toLocaleUpperCase(locale)}</div>
+          <div className="pp-t pp-disp">{translate(locale, "passport.title")}</div>
         </div>
 
         {/* Vehicle + silhouette */}
@@ -138,28 +115,22 @@ export function PassportDocument({
 
         {/* Health hero */}
         <div className="pp-hero">
-          <div className="pp-lbl">VEHICLE&nbsp;HEALTH</div>
+          <div className="pp-lbl">{translate(locale, "passport.health")}</div>
           <div className="pp-score pp-disp">{Math.round(p.health.score)}<sup>/100</sup></div>
-          <div className="pp-grade pp-disp">{GRADE[band]}</div>
-          {tier.stars > 0 && (
-            <div className="pp-badge">
-              <span>◆</span> {tier.label}
-              <span className="pp-stars">{"★".repeat(tier.stars)}</span>
-            </div>
-          )}
+          <div className="pp-grade pp-disp">{translate(locale, GRADE[band])}</div>
         </div>
 
         {/* Maintenance compliance */}
         <div className="pp-comp">
-          <div className="pp-cl">Maintenance Compliance</div>
+          <div className="pp-cl">{translate(locale, "passport.compliance")}</div>
           <div className="pp-track"><div className="pp-fill" style={{ width: `${p.health.compliance}%` }} /></div>
           <div className="pp-cv">{p.health.compliance}%</div>
-          <div className="pp-cap">Manufacturer-recommended schedule adherence</div>
+          <div className="pp-cap">{translate(locale, "passport.compliance_caption")}</div>
         </div>
 
         {/* Trust */}
         <div className="pp-trust">
-          <div className="pp-by">Verified by {p.garage.name}</div>
+          <div className="pp-by">{translate(locale, "passport.recorded_by", { garage: p.garage.name })}</div>
           {p.highlights.slice(0, 3).map((h) => (
             <div key={h.label} className="pp-v">
               <span className={`pp-tick${h.ok ? "" : " pp-off"}`}>{h.ok ? "✓" : "–"}</span> {h.label}
@@ -170,14 +141,14 @@ export function PassportDocument({
         {/* Service history */}
         {p.history.length > 0 && (
           <>
-            <div className="pp-sechead"><span className="pp-over">Service History</span><span className="pp-ln" /></div>
+            <div className="pp-sechead"><span className="pp-over">{translate(locale, "passport.history")}</span><span className="pp-ln" /></div>
             <div className="pp-cards">
               {p.history.map((h, i) => (
                 <div key={i} className="pp-scard">
                   <div className="pp-ok">✓</div>
-                  <div className="pp-st">Completed</div>
+                  <div className="pp-st">{translate(locale, "passport.completed")}</div>
                   <div className="pp-ti">{h.service_type}</div>
-                  <div className="pp-dt">{shortDate(h.date)}{h.km != null ? ` · ${nf(h.km)} km` : ""}</div>
+                  <div className="pp-dt">{shortDate(h.date, locale)}{h.km != null ? ` · ${translate(locale, "passport.in_km", { count: nf(h.km, locale) })}` : ""}</div>
                 </div>
               ))}
             </div>
@@ -187,16 +158,16 @@ export function PassportDocument({
         {/* Upcoming + Highlights */}
         <div className="pp-two">
           <div className="pp-col">
-            <h4>Upcoming Maintenance</h4>
+            <h4>{translate(locale, "passport.upcoming")}</h4>
             {p.upcoming.map((u, i) => (
               <div key={i} className="pp-due">
-                <span className={`pp-pill ${PILL[u.status]}`}>{PILL_TEXT[u.status]}</span>
-                {u.service_type} · {remaining(u)}
+                <span className={`pp-pill ${PILL[u.status]}`}>{translate(locale, `passport.due.${u.status === "on_track" ? "on_track" : u.status === "due_soon" ? "soon" : "overdue"}`)}</span>
+                {u.service_type} · {remaining(u, locale)}
               </div>
             ))}
           </div>
           <div className="pp-col">
-            <h4>Vehicle Highlights</h4>
+            <h4>{translate(locale, "passport.highlights")}</h4>
             {p.highlights.map((h) => (
               <div key={h.label} className="pp-hi">
                 <span className={`pp-tick${h.ok ? "" : " pp-off"}`}>{h.ok ? "✓" : "–"}</span> {h.label}
@@ -207,57 +178,57 @@ export function PassportDocument({
 
         {/* Technician's assessment */}
         <div className="pp-ai">
-          <div className="pp-h pp-over">✦ Technician&apos;s Assessment</div>
+          <div className="pp-h pp-over">✦ {translate(locale, "passport.assessment")}</div>
           <p className="pp-notes"><b>{a.lead}</b>{a.rest}</p>
         </div>
 
         {/* Ownership timeline */}
-        <div className="pp-sechead"><span className="pp-over">Ownership Timeline</span><span className="pp-ln" /></div>
-        <Timeline passport={p} />
+        <div className="pp-sechead"><span className="pp-over">{translate(locale, "passport.timeline")}</span><span className="pp-ln" /></div>
+        <Timeline passport={p} locale={locale} />
 
         {/* Footer */}
         <div className="pp-foot">
           <div className="pp-qrbox">
             <div className="pp-qr" dangerouslySetInnerHTML={{ __html: qrSvg }} />
             <div className="pp-qrt">
-              <div className="pp-over">Scan to Verify Authenticity</div>
+              <div className="pp-over">{translate(locale, "passport.scan_open")}</div>
               <div className="pp-u">{verifyHost}</div>
-              <div className="pp-m"><span className="pp-avatar">{initials(owner)}</span>{owner} · live report, always current</div>
+              <div className="pp-m"><span className="pp-avatar">{initials(owner)}</span>{translate(locale, "passport.live_record", { owner })}</div>
             </div>
           </div>
           <div className="pp-sign">
             <div className="pp-sig">{p.garage.name}</div>
             <div className="pp-sln" />
-            <div className="pp-role">Chief Service Advisor</div>
-            <div className="pp-cap">Digitally verified</div>
+            <div className="pp-role">{translate(locale, "passport.service_advisor")}</div>
+            <div className="pp-cap">{translate(locale, "passport.recorded_by", { garage: p.garage.name })}</div>
           </div>
           <div className="pp-seal">
-            <div className="pp-s1">CERTIFIED</div>
-            <div className="pp-s2 pp-disp">{band === "poor" ? "ON FILE" : "HEALTHY"}</div>
-            <div className="pp-s3">{monthYear(p.issued_at).toUpperCase()}</div>
+            <div className="pp-s1">{translate(locale, "passport.record").toLocaleUpperCase(locale)}</div>
+            <div className="pp-s2 pp-disp">{translate(locale, GRADE[band]).toLocaleUpperCase(locale)}</div>
+            <div className="pp-s3">{monthYear(p.issued_at, locale).toLocaleUpperCase(locale)}</div>
           </div>
         </div>
 
         <div className="pp-holo" />
         <div className="pp-micro">
-          {`${p.garage.name} · Certified Vehicle Passport · Authentic · ${p.code} · `.repeat(6)}
+          {`${p.garage.name} · ${translate(locale, "passport.record_copy")} · ${p.code} · `.repeat(6)}
         </div>
         <div className="pp-legal">
-          <span>Issued {shortDate(p.issued_at)} · {p.garage.name} · Digitally signed</span>
-          <span>Passport No. {p.code} · Powered by GarageOS</span>
+          <span>{translate(locale, "passport.issued")} {shortDate(p.issued_at, locale)} · {p.garage.name}</span>
+          <span>{translate(locale, "passport.record_no")} {p.code} · {translate(locale, "passport.provided_by")}</span>
         </div>
       </div>
     </div>
   );
 }
 
-function Timeline({ passport }: { passport: Passport }) {
+function Timeline({ passport, locale }: { passport: Passport; locale: Locale }) {
   // Build a compact flow: registered → recent services → today.
   const hist = [...passport.history].reverse(); // oldest first
   const steps: { title: string; date: string; kind: "mut" | "" | "now" }[] = [];
-  steps.push({ title: "Registered", date: `${passport.vehicle.year}`, kind: "mut" });
-  hist.slice(-3).forEach((h) => steps.push({ title: h.service_type, date: monthYear(h.date), kind: "" }));
-  steps.push({ title: "Today", date: monthYear(passport.issued_at), kind: "now" });
+  steps.push({ title: translate(locale, "passport.registered"), date: `${passport.vehicle.year}`, kind: "mut" });
+  hist.slice(-3).forEach((h) => steps.push({ title: h.service_type, date: monthYear(h.date, locale), kind: "" }));
+  steps.push({ title: translate(locale, "passport.today"), date: monthYear(passport.issued_at, locale), kind: "now" });
 
   return (
     <div className="pp-flowtrack">

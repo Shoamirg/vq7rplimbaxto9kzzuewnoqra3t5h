@@ -15,6 +15,8 @@ import { QUEUE_DICTIONARY } from "./queue-dictionary";
 import { OPERATIONS_DICTIONARY } from "./operations-dictionary";
 import { MESSAGES_DICTIONARY } from "./messages-dictionary";
 import { INBOX_DICTIONARY } from "./inbox-dictionary";
+import { PASSPORT_DICTIONARY } from "./passport-dictionary";
+import { VEHICLE_HEALTH_DICTIONARY } from "./vehicle-health-dictionary";
 
 export const LOCALES = ["en", "ru", "uz"] as const;
 export type Locale = (typeof LOCALES)[number];
@@ -216,5 +218,5 @@ export function textDirection(locale: Locale): "ltr" | "rtl" {
 // Fold the Mini App strings into the main dictionaries so `t()` resolves them
 // the same way (kept in a separate file only to keep this module readable).
 for (const locale of LOCALES) {
-  Object.assign(DICTIONARIES[locale], MINI_DICTIONARY[locale], STAFF_DICTIONARY[locale], DAILY_DICTIONARY[locale], ACCOUNTS_DICTIONARY[locale], PLATFORM_DICTIONARY[locale], CALENDAR_DICTIONARY[locale], QUEUE_DICTIONARY[locale], OPERATIONS_DICTIONARY[locale], MESSAGES_DICTIONARY[locale], INBOX_DICTIONARY[locale]);
+  Object.assign(DICTIONARIES[locale], MINI_DICTIONARY[locale], STAFF_DICTIONARY[locale], DAILY_DICTIONARY[locale], ACCOUNTS_DICTIONARY[locale], PLATFORM_DICTIONARY[locale], CALENDAR_DICTIONARY[locale], QUEUE_DICTIONARY[locale], OPERATIONS_DICTIONARY[locale], MESSAGES_DICTIONARY[locale], INBOX_DICTIONARY[locale], PASSPORT_DICTIONARY[locale], VEHICLE_HEALTH_DICTIONARY[locale]);
 }

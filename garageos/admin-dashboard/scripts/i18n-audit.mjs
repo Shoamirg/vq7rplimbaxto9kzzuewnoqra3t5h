@@ -24,20 +24,9 @@ const SKIP = [
   "components/mini", "components/marketing", "components/brand",
   "app/(marketing)", "showcase", "/dev/", "components/ui/showcase",
 ];
-// Files known to still need translation (the backlog). The ratchet fails only
-// for staff files NOT listed here. Remove entries as they're localized.
-const BASELINE = new Set([
-  "components/vehicles/vehicle-health-screen.tsx",
-  "components/inbox/inbox-workspace.tsx",
-  "components/inbox/thread-view.tsx",
-  "components/inbox/conversation-list.tsx",
-  "components/inbox/queue-rail.tsx",
-  "components/inbox/context-panel.tsx",
-  // Leaf/layout files with residual strings (small; translate in the sweep).
-  "components/passport/passport-actions.tsx",
-  "components/passport/passport-document.tsx",
-  "components/passport/passport-verified.tsx",
-]);
+// No untranslated staff UI strings remain in the current audit. New strings
+// must use localization helpers instead of entering a baseline.
+const BASELINE = new Set();
 
 function walk(dir, out = []) {
   let entries;
