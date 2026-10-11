@@ -116,12 +116,20 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
           <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border border-border">
             {CONV_TYPE_ICON[thread.conv_type]} <span className="capitalize">{thread.conv_type}</span>
           </span>
-          {thread.linked.map((c) => (
-            <Link key={c.kind} href={c.link} target={c.kind === "passport" ? "_blank" : undefined}
-              className="min-h-11 min-w-11 inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border border-border hover:border-primary/40 hover:text-primary transition-colors">
-              {c.title}
-            </Link>
-          ))}
+          {thread.linked.map((c) => {
+            const label = c.available === false ? t("inbox.linked.vehicle_unavailable") : c.title;
+            return c.link ? (
+              <Link key={c.kind} href={c.link} target={c.kind === "passport" ? "_blank" : undefined}
+                className="min-h-11 min-w-11 inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border border-border hover:border-primary/40 hover:text-primary transition-colors">
+                {label}
+              </Link>
+            ) : (
+              <span key={c.kind} role="note" aria-label={label ?? undefined}
+                className="min-h-11 inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full border border-border text-muted-foreground">
+                {label}
+              </span>
+            );
+          })}
         </div>
 
         {/* Activity | Messages */}

@@ -70,6 +70,26 @@ async def test_linked_case_uses_real_operations_deep_link(client, references):
     assert linked_case['link'] == f'/operations?case={case_id}'
 
 
+async def test_inactive_historical_vehicle_does_not_claim_health_or_offer_passport(client, references):
+    refs = references
+    async with async_session_factory() as session:
+        vehicle = await session.get(Vehicle, uuid.UUID(refs['vehicle']))
+        vehicle.is_active = False
+        conversation = Conversation(service_center_id=refs['center'], vehicle_id=vehicle.id)
+        session.add(conversation)
+        await session.commit()
+        conversation_id = str(conversation.id)
+
+    response = await client.get(f'/api/v1/conversations/{conversation_id}', headers=refs['admin'])
+
+    assert response.status_code == 200, response.text
+    linked = response.json()['linked']
+    assert not any(card['kind'] == 'passport' for card in linked)
+    unavailable = next(card for card in linked if card['kind'] == 'vehicle')
+    assert unavailable == {'kind': 'vehicle', 'title': None, 'subtitle': None,
+        'link': None, 'available': False}
+
+
 @pytest.mark.parametrize('coordinate', ['customer', 'vehicle'])
 @pytest.mark.parametrize('entry', ['list', 'thread'])
 async def test_historical_inconsistent_owning_records_are_denied(client, references, monkeypatch, coordinate, entry):

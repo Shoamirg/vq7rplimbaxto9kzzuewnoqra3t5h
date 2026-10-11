@@ -564,9 +564,10 @@ export interface ConvParticipant {
 
 export interface LinkedCard {
   kind: "case" | "vehicle" | "customer" | "passport";
-  title: string;
-  subtitle: string;
-  link: string;
+  title: string | null;
+  subtitle: string | null;
+  link: string | null;
+  available?: boolean;
   score?: number;
   band?: HealthBand;
   phone?: string;

@@ -2,6 +2,7 @@ import type { Locale } from "./dictionaries";
 
 export const INBOX_DICTIONARY: Record<Locale, Record<string, string>> = {
   en: {
+    "inbox.linked.vehicle_unavailable": "Vehicle record is inactive or unavailable; health and passport links are hidden.",
     "inbox.choice.dependencies": "Current dependent selections: {fields}. Close this picker and clear or change those selections before choosing another customer or vehicle.",
     "inbox.choice.invalid_context": "Some selected references are no longer eligible or do not belong together. Close this picker and clear or correct them before trying again.",
     "inbox.create.match_pages": "Search results: {total}; page starts at {offset}. Possible matches are shown on this page.",
@@ -71,6 +72,7 @@ export const INBOX_DICTIONARY: Record<Locale, Record<string, string>> = {
     "inbox.channel.email": "Email", "inbox.channel.sms": "SMS", "inbox.channel.internal": "Internal",
   },
   ru: {
+    "inbox.linked.vehicle_unavailable": "Запись автомобиля неактивна или недоступна; данные о состоянии и паспорт скрыты.",
     "inbox.choice.dependencies": "Текущие связанные записи: {fields}. Закройте выбор и очистите или измените эти записи перед выбором другого клиента или автомобиля.",
     "inbox.choice.invalid_context": "Некоторые выбранные записи больше недоступны или не связаны друг с другом. Закройте выбор и очистите или исправьте их перед новой попыткой.",
     "inbox.create.match_pages": "Результатов поиска: {total}; страница начинается с {offset}. Возможные совпадения показаны на этой странице.",
@@ -140,6 +142,7 @@ export const INBOX_DICTIONARY: Record<Locale, Record<string, string>> = {
     "inbox.channel.email": "Электронная почта", "inbox.channel.sms": "SMS", "inbox.channel.internal": "Внутренний",
   },
   uz: {
+    "inbox.linked.vehicle_unavailable": "Avtomobil yozuvi faol emas yoki mavjud emas; holat va pasport havolalari yashirildi.",
     "inbox.choice.dependencies": "Joriy bog‘liq tanlovlar: {fields}. Boshqa mijoz yoki mashinani tanlashdan oldin bu oynani yoping va shu tanlovlarni tozalang yoki o‘zgartiring.",
     "inbox.choice.invalid_context": "Ba’zi tanlangan yozuvlar endi mos emas yoki bir-biriga bog‘lanmagan. Bu oynani yoping va qayta urinishdan oldin ularni tozalang yoki to‘g‘rilang.",
     "inbox.create.match_pages": "Qidiruv natijalari: {total}; sahifa {offset} dan boshlanadi. Ehtimoliy mos suhbatlar shu sahifada ko‘rsatiladi.",

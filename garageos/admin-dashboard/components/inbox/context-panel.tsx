@@ -75,9 +75,10 @@ export function ContextPanel({
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-2">Linked records</p>
             <div className="space-y-2">
-              {thread.linked.map((c) => (
-                <Link key={c.kind} href={c.link} target={c.kind === "passport" ? "_blank" : undefined}
-                  className="flex items-center gap-2.5 rounded-xl border border-border p-2.5 hover:border-primary/40 hover:bg-muted/30 transition-colors">
+              {thread.linked.map((c) => {
+                const title = c.available === false ? t("inbox.linked.vehicle_unavailable") : c.title;
+                const card = (
+                  <>
                   {c.kind === "vehicle" && c.score != null && c.band ? (
                     <HealthGauge score={c.score} band={c.band} size={34} stroke={4} />
                   ) : (
@@ -87,12 +88,24 @@ export function ContextPanel({
                     </span>
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="text-[13px] font-semibold text-foreground truncate">{c.title}</p>
-                    <p className="text-[11px] text-muted-foreground truncate">{c.subtitle}</p>
+                    <p className="text-[13px] font-semibold text-foreground truncate">{title}</p>
+                    {c.subtitle && <p className="text-[11px] text-muted-foreground truncate">{c.subtitle}</p>}
                   </div>
-                  <span className="text-muted-foreground text-sm">→</span>
-                </Link>
-              ))}
+                  {c.link && <span className="text-muted-foreground text-sm">→</span>}
+                  </>
+                );
+                return c.link ? (
+                  <Link key={c.kind} href={c.link} target={c.kind === "passport" ? "_blank" : undefined}
+                    className="flex items-center gap-2.5 rounded-xl border border-border p-2.5 hover:border-primary/40 hover:bg-muted/30 transition-colors">
+                    {card}
+                  </Link>
+                ) : (
+                  <div key={c.kind} role="note" aria-label={title ?? undefined}
+                    className="flex items-center gap-2.5 rounded-xl border border-border p-2.5 text-muted-foreground">
+                    {card}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

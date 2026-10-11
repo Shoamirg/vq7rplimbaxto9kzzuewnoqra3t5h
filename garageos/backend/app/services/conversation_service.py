@@ -682,21 +682,26 @@ class ConversationService:
                               "subtitle": STATUS_LABEL.get(case.status, case.status),
                               "link": f"/operations?case={case.id}"})
         if conv.vehicle_id:
-            report = await self.maintenance.calculate_due_services(conv.vehicle_id)
             vehicle = await self.maintenance.vehicle_repo.get_with_model(conv.vehicle_id)
-            cards.append({"kind": "vehicle", "title": _vehicle_label(vehicle) if vehicle else "Vehicle",
-                          "subtitle": f"Health {report.overall_score} · {_band(report.overall_score).title()}",
-                          "score": report.overall_score, "band": _band(report.overall_score),
-                          "link": f"/vehicles/{conv.vehicle_id}"})
+            if vehicle:
+                report = await self.maintenance.calculate_due_services(conv.vehicle_id)
+                cards.append({"kind": "vehicle", "title": _vehicle_label(vehicle),
+                              "subtitle": f"Health {report.overall_score} · {_band(report.overall_score).title()}",
+                              "score": report.overall_score, "band": _band(report.overall_score),
+                              "link": f"/vehicles/{conv.vehicle_id}"})
+                cards.append({"kind": "passport", "title": "Certified Passport",
+                              "subtitle": "View", "link": f"/passport/{conv.vehicle_id}"})
+            else:
+                # Keep the historical edge visible without inventing health or
+                # advertising a public passport URL that now returns 404.
+                cards.append({"kind": "vehicle", "title": None, "subtitle": None,
+                              "link": None, "available": False})
         if conv.customer_id:
             cust = await local_reference(self.session, Customer, conv.customer_id, self.sc)
             if cust:
                 cards.append({"kind": "customer", "title": cust.full_name,
                               "subtitle": "Customer 360", "phone": cust.phone,
                               "link": f"/customers/{cust.id}"})
-        if conv.vehicle_id:
-            cards.append({"kind": "passport", "title": "Certified Passport",
-                          "subtitle": "View", "link": f"/passport/{conv.vehicle_id}"})
         return cards
 
 
