@@ -567,6 +567,7 @@ export interface LinkedCard {
   title: string | null;
   subtitle: string | null;
   link: string | null;
+  case_type?: string;
   available?: boolean;
   phone?: string;
 }

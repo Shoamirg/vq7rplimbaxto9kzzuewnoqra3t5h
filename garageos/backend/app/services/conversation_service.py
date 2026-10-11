@@ -678,8 +678,8 @@ class ConversationService:
         if conv.case_id:
             case = await local_reference(self.session, OperationalCase, conv.case_id, self.sc)
             if case:
-                cards.append({"kind": "case", "title": f"{case.code} · {case.case_type.title()}",
-                              "subtitle": STATUS_LABEL.get(case.status, case.status),
+                cards.append({"kind": "case", "title": case.code, "case_type": case.case_type,
+                              "subtitle": case.status,
                               "link": f"/operations?case={case.id}"})
         if conv.vehicle_id:
             vehicle = await self.maintenance.vehicle_repo.get_with_model(conv.vehicle_id)

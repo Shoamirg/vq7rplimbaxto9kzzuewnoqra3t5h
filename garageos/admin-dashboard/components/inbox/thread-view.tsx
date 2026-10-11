@@ -15,7 +15,7 @@ import { MessageSubmissionStatus } from "@/components/message-submission-status"
 import { NewAppointmentModal } from "@/components/appointments/new-appointment-modal";
 import { NewInvoiceModal } from "@/components/billing/new-invoice-modal";
 import { NewInboxCaseModal } from "@/components/inbox/new-inbox-case-modal";
-import { CHANNEL_META, CONV_TYPE_ICON, activityIcon, relTime, roleColor, safeCallHref } from "./shared";
+import { CHANNEL_META, CONV_TYPE_ICON, activityIcon, inboxEnumLabel, relTime, roleColor, safeCallHref } from "./shared";
 
 type ComposerTab = "reply" | "note" | "announcement";
 
@@ -98,7 +98,7 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
           assigned_user_id: fresh.assigned_user_id, assigned_name: fresh.assigned_name,
           case_code: fresh.case_code, case_status: fresh.case_status,
           stored_summary: fresh.ai_summary, pinned_notes: fresh.pinned_notes,
-          linked: fresh.linked.map(({ kind, title, subtitle, link, available }) => ({ kind, title, subtitle, link, available })),
+          linked: fresh.linked.map(({ kind, title, subtitle, link, available, case_type }) => ({ kind, title, subtitle, link, available, case_type })),
         },
         participants: fresh.participants.map(({ id, role, display_name, is_following, active_channel }) => ({
           id, role, display_name, is_following, active_channel,
@@ -199,7 +199,8 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
           </span>
           {thread.linked.map((c) => {
             const label = c.available === false ? t("inbox.linked.vehicle_unavailable")
-              : c.kind === "passport" ? t("inbox.context.passport") : c.title;
+              : c.kind === "passport" ? t("inbox.context.passport")
+              : c.kind === "case" ? `${inboxEnumLabel(t, "case_type", c.case_type)} · ${c.title ?? ""}` : c.title;
             return c.link ? (
               <Link key={c.kind} href={c.link} target={c.kind === "passport" ? "_blank" : undefined}
                 className="min-h-11 min-w-11 inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border border-border hover:border-primary/40 hover:text-primary transition-colors">

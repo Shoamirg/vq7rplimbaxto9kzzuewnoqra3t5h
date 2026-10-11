@@ -6,7 +6,7 @@ import { cn } from "@garageos/design-system";
 
 import type { LinkedCard, ThreadDetail } from "@/lib/api/types";
 import { useI18n } from "@/lib/i18n/context";
-import { roleColor } from "./shared";
+import { inboxEnumLabel, roleColor } from "./shared";
 
 const CARD_ICON: Record<LinkedCard["kind"], string> = {
   case: "🛰️", vehicle: "🚗", customer: "👤", passport: "🏅",
@@ -72,9 +72,10 @@ export function ContextPanel({
             <div className="space-y-2">
               {thread.linked.map((c) => {
                 const title = c.available === false ? t("inbox.linked.vehicle_unavailable")
-                  : c.kind === "passport" ? t("inbox.context.passport") : c.title;
-                const subtitle = c.kind === "customer" && c.subtitle === "Customer 360"
-                  ? t("inbox.context.customer_detail") : c.subtitle;
+                  : c.kind === "passport" ? t("inbox.context.passport")
+                  : c.kind === "case" ? `${inboxEnumLabel(t, "case_type", c.case_type)} · ${c.title ?? ""}` : c.title;
+                const subtitle = c.kind === "customer" && c.subtitle === "Customer 360" ? t("inbox.context.customer_detail")
+                  : c.kind === "case" && c.subtitle ? inboxEnumLabel(t, "case_status", c.subtitle) : c.subtitle;
                 const card = (
                   <>
                   <span className={cn("grid size-8 place-items-center rounded-lg text-sm shrink-0",

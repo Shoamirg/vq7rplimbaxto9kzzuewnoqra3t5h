@@ -61,13 +61,16 @@ async def test_linked_case_uses_real_operations_deep_link(client, references):
         conversation = Conversation(service_center_id=refs['center'], case_id=case.id)
         session.add(conversation)
         await session.commit()
-        case_id, conversation_id = str(case.id), str(conversation.id)
+        case_id, conversation_id, case_code = str(case.id), str(conversation.id), case.code
 
     response = await client.get(f'/api/v1/conversations/{conversation_id}', headers=refs['admin'])
 
     assert response.status_code == 200, response.text
     linked_case = next(card for card in response.json()['linked'] if card['kind'] == 'case')
     assert linked_case['link'] == f'/operations?case={case_id}'
+    assert linked_case['title'] == case_code
+    assert linked_case['case_type'] == 'emergency'
+    assert linked_case['subtitle'] == 'new'
 
 
 async def test_inactive_historical_vehicle_does_not_claim_health_or_offer_passport(client, references):
