@@ -372,6 +372,9 @@ for (const [locale, width] of [["uz", 360], ["en", 390], ["ru", 1280]] as const)
     expect(exported.format).toBe("garageos.inbox-thread.v1");
     expect(exported.conversation.id).toBe(target.id);
     expect(exported.messages.some((message: { body: string }) => message.body === marker)).toBe(true);
+    expect(exported.activity.find((entry: { detail: string }) => entry.detail === marker)).toMatchObject({
+      id: expect.any(String), type: "message", date: expect.any(String),
+    });
     expect(exported.messages[0].attachments).toEqual([{ id: expect.any(String), kind: "photo", label: "Recorded photo" }]);
     expect(raw).not.toContain("do-not-export"); expect(raw).not.toContain("read_observation");
     expect(refreshes).toBeGreaterThan(0);

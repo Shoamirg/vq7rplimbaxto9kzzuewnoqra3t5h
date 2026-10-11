@@ -576,6 +576,7 @@ export interface LinkedCard {
 }
 
 export interface ActivityItem {
+  id: string;
   type: "event" | "message";
   title: string;
   detail: string | null;

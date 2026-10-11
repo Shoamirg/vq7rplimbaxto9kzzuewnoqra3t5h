@@ -110,8 +110,8 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
             id: attachmentId, kind: attachmentKind, label,
           })),
         })),
-        activity: fresh.activity.map(({ type, title, detail, date, severity, category, author_role, channel }) => ({
-          type, title, detail, date, severity, category, author_role, channel,
+        activity: fresh.activity.map(({ id, type, title, detail, date, severity, category, author_role, channel }) => ({
+          id, type, title, detail, date, severity, category, author_role, channel,
         })),
         omitted: ["authentication/session data", "read-observation token", "attachment URLs and metadata", "live presence flags"],
       };
