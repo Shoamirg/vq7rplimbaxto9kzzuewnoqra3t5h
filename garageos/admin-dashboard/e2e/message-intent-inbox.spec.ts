@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import { beginLifecycleDiagnostic, lifecyclePhase, saveLifecycleDiagnostic } from "./support/message-lifecycle-diagnostics";
 import { operationCases, storedThread } from "./support/operations";
@@ -9,6 +9,35 @@ import { translate, type Locale } from "../lib/i18n/dictionaries";
 test.use({ trace: "off" });
 test.beforeEach(({ page }, info) => beginLifecycleDiagnostic(page, info));
 test.afterEach(({ page }, info) => saveLifecycleDiagnostic(page, info));
+
+async function selectRecordedQueueThread(page: Page, locale: Locale, target: { id: string; subject: string }, previousSubject: string) {
+  // Search real server records instead of assuming their queue priority places
+  // them on page one. Filtering must preserve the current selected identity.
+  const searched = page.waitForResponse(response => {
+    const url = new URL(response.url());
+    return response.request().method() === "GET" && url.pathname === "/api/proxy/conversations"
+      && url.searchParams.get("q") === target.subject && url.searchParams.get("offset") === "0";
+  });
+  await page.getByRole("textbox", { name: translate(locale, "inbox.search"), exact: true }).fill(target.subject);
+  const response = await searched; expect(response.status()).toBe(200);
+  const result = await response.json();
+  expect(result.total).toBe(1); expect(result.offset).toBe(0);
+  expect(result.items.map((item: { id: string; subject: string }) => ({ id: item.id, subject: item.subject }))).toEqual([target]);
+  // On phones the open list hides, but does not replace, the selected thread.
+  await expect(page.getByRole("heading", { name: previousSubject, exact: true, includeHidden: true })).toHaveCount(1);
+  const row = page.getByRole("region", { name: translate(locale, "message.conversations"), exact: true }).getByRole("button")
+    .filter({ has: page.getByText(target.subject, { exact: true }) });
+  await expect(row).toHaveCount(1);
+  if (target.subject === previousSubject) await expect(row).toHaveAttribute("aria-current", "true");
+  const opened = page.waitForResponse(response => response.request().method() === "GET"
+    && new URL(response.url()).pathname === `/api/proxy/conversations/${target.id}`);
+  await row.click();
+  const detail = await opened; expect(detail.status()).toBe(200);
+  const snapshot = await detail.json();
+  expect({ id: snapshot.id, subject: snapshot.subject }).toEqual(target);
+  await expect(page.getByRole("heading", { name: target.subject, exact: true })).toBeVisible();
+  return snapshot;
+}
 
 for (const [locale, width] of [["uz", 360], ["en", 390], ["ru", 1280]] as const)
 test(`Inbox dark recovery ${locale} ${width} keeps queue text readable and retries the original receipt`, async ({ page, baseURL }, info) => {
@@ -42,7 +71,7 @@ test(`Inbox dark recovery ${locale} ${width} keeps queue text readable and retri
   await queueTargets(page, page.locator("main"));
   await page.screenshot({ path: info.outputPath(`inbox-dark-queue-${locale}-${width}.png`), fullPage: true });
   await assertAccessible(page, info, `inbox-dark-queue-${locale}-${width}`);
-  await queue.getByRole("button").filter({ has: page.getByText(item.title, { exact: true }) }).click();
+  await selectRecordedQueueThread(page, locale, { id: thread.id, subject: thread.subject }, thread.subject);
   await expect(composer).toHaveValue(body); await expect(retry).toBeVisible(); expect(posts).toBe(1);
   const incomingAuthor = page.getByText(incomingName, { exact: true });
   await incomingAuthor.scrollIntoViewIfNeeded(); await expect(incomingAuthor).toBeVisible();
@@ -297,10 +326,9 @@ test("Inbox cancelled read settles before polling and its late JSON cannot overw
     await composer.fill(body); await composer.press("Enter");
     await page.waitForFunction(() => (window as unknown as { ackHeld: boolean }).ackHeld);
     await composer.fill(newer);
-    const list = page.getByRole("region", { name: "Conversations", exact: true });
-    await list.getByRole("button").filter({ has: page.getByText(b.title, { exact: true }) }).click();
+    await selectRecordedQueueThread(page, "en", { id: threadB.id, subject: threadB.subject }, threadA.subject);
     await expect(composer).toHaveValue(""); await composer.fill("B independent draft");
-    await list.getByRole("button").filter({ has: page.getByText(a.title, { exact: true }) }).click();
+    await selectRecordedQueueThread(page, "en", { id: threadA.id, subject: threadA.subject }, threadB.subject);
     await expect(composer).toHaveValue(newer);
     const refresh = page.getByRole("button", { name: "Refresh conversation", exact: true });
     await expect(refresh).toBeEnabled();
@@ -333,7 +361,7 @@ test("Inbox cancelled read settles before polling and its late JSON cannot overw
     expect(persisted.messages.filter((message: { body: string }) => message.body === body)).toHaveLength(1);
     expect(persisted.messages.find((message: { body: string }) => message.body === body).id).toBe(acknowledgedId);
     expect(persisted.messages.filter((message: { body: string }) => message.body === marker)).toHaveLength(1);
-    await list.getByRole("button").filter({ has: page.getByText(b.title, { exact: true }) }).click();
+    await selectRecordedQueueThread(page, "en", { id: threadB.id, subject: threadB.subject }, threadA.subject);
     await expect(composer).toHaveValue("B independent draft");
     expect((await storedThread(page, b.id)).messages.some((message: { body: string }) => message.body === body || message.body === marker)).toBe(false);
     await queueOverflow(page); await assertAccessible(page, info, "inbox-cancelled-read-recovered");

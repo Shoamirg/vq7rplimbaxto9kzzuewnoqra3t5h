@@ -22,6 +22,33 @@ async function stored(page: Page, id: string) {
   const response = await page.request.get(`/api/proxy/conversations/${id}`);
   expect(response.status()).toBe(200); return response.json();
 }
+async function selectRecordedQueueThread(page: Page, target: { id: string; subject: string }, previousSubject: string) {
+  // Queue priority/history may put this record beyond the first fifty rows.
+  // Use the actual literal server search without changing the selected thread.
+  const searched = page.waitForResponse(response => {
+    const url = new URL(response.url());
+    return response.request().method() === "GET" && url.pathname === "/api/proxy/conversations"
+      && url.searchParams.get("q") === target.subject && url.searchParams.get("offset") === "0";
+  });
+  await page.getByRole("textbox", { name: translate("en", "inbox.search"), exact: true }).fill(target.subject);
+  const response = await searched; expect(response.status()).toBe(200);
+  const result = await response.json();
+  expect(result.total).toBe(1); expect(result.offset).toBe(0);
+  expect(result.items.map((item: { id: string; subject: string }) => ({ id: item.id, subject: item.subject }))).toEqual([target]);
+  await expect(page.getByRole("heading", { name: previousSubject, exact: true })).toBeVisible();
+  const row = page.getByRole("region", { name: translate("en", "message.conversations"), exact: true }).getByRole("button")
+    .filter({ has: page.getByText(target.subject, { exact: true }) });
+  await expect(row).toHaveCount(1);
+  const opened = page.waitForResponse(response => response.request().method() === "GET"
+    && new URL(response.url()).pathname === `/api/proxy/conversations/${target.id}`);
+  await row.click();
+  const detail = await opened; expect(detail.status()).toBe(200);
+  const snapshot = await detail.json();
+  expect({ id: snapshot.id, subject: snapshot.subject }).toEqual(target);
+  await expect(page.getByRole("heading", { name: target.subject, exact: true })).toBeVisible();
+  return snapshot;
+}
+
 const acknowledgement = (page: Page, locale: Locale) => page.getByRole("status").filter({ hasText: translate(locale, "inbox.read.acknowledged") });
 
 for (const [locale, width] of [["uz", 360], ["en", 390], ["ru", 1280]] as const) {
@@ -109,16 +136,13 @@ test("Inbox late A ACK is captured while B and a newer A observation remain inde
   try {
     await page.goto(`/inbox?c=${a.id}`);
     await expect.poll(() => held).toBe(true);
-    const queue = page.getByRole("region", { name: "Conversations", exact: true });
-    await queue.getByRole("button").filter({ has: page.getByText(b.subject, { exact: true }) }).click();
+    await selectRecordedQueueThread(page, b, a.subject);
     await expect(acknowledgement(page, "en")).toBeVisible();
     const composer = page.getByRole("textbox", { name: "Message", exact: true });
     const draft = `B captured draft ${randomUUID()}`; await composer.fill(draft);
     await incoming(page, a.id);
     await expect(composer).toHaveValue(draft);
-    const freshA = page.waitForResponse(response => response.request().method() === "GET" && response.url().endsWith(path));
-    await queue.getByRole("button").filter({ has: page.getByText(a.subject, { exact: true }) }).click();
-    const snapshot = await (await freshA).json(); expect(snapshot.unread_messages).toBe(2);
+    const snapshot = await selectRecordedQueueThread(page, a, b.subject); expect(snapshot.unread_messages).toBe(2);
     await expect(page.getByRole("status").filter({ hasText: "Acknowledging viewed history…" })).toBeVisible();
     expect(receipts).toHaveLength(1); // returning A cannot dispatch around its synchronous pending lock
     const firstACK = page.waitForResponse(response => response.request().method() === "PATCH" && response.url().endsWith(path)
@@ -133,7 +157,7 @@ test("Inbox late A ACK is captured while B and a newer A observation remain inde
     expect(receipts).toHaveLength(2);
     expect(receipts[1]).not.toBe(receipts[0]);
     expect((await stored(page, a.id)).unread_messages).toBe(0);
-    await queue.getByRole("button").filter({ has: page.getByText(b.subject, { exact: true }) }).click();
+    await selectRecordedQueueThread(page, b, a.subject);
     await expect(composer).toHaveValue(draft);
   } finally { release(); await page.unrouteAll({ behavior: "wait" }); }
 });

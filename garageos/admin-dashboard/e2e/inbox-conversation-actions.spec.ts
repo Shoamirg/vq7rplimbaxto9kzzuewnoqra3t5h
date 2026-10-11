@@ -25,6 +25,33 @@ async function ready(page: Page, locale: Locale) {
   await expect(status(page, locale)).toBeEnabled();
 }
 
+async function selectRecordedQueueThread(page: Page, target: { id: string; subject: string }, previousSubject: string) {
+  // Queue priority/history may put this record beyond the first fifty rows.
+  // Use the actual literal server search without changing the selected thread.
+  const searched = page.waitForResponse(response => {
+    const url = new URL(response.url());
+    return response.request().method() === "GET" && url.pathname === "/api/proxy/conversations"
+      && url.searchParams.get("q") === target.subject && url.searchParams.get("offset") === "0";
+  });
+  await page.getByRole("textbox", { name: translate("en", "inbox.search"), exact: true }).fill(target.subject);
+  const response = await searched; expect(response.status()).toBe(200);
+  const result = await response.json();
+  expect(result.total).toBe(1); expect(result.offset).toBe(0);
+  expect(result.items.map((item: { id: string; subject: string }) => ({ id: item.id, subject: item.subject }))).toEqual([target]);
+  await expect(page.getByRole("heading", { name: previousSubject, exact: true })).toBeVisible();
+  const row = page.getByRole("region", { name: translate("en", "message.conversations"), exact: true }).getByRole("button")
+    .filter({ has: page.getByText(target.subject, { exact: true }) });
+  await expect(row).toHaveCount(1);
+  const opened = page.waitForResponse(response => response.request().method() === "GET"
+    && new URL(response.url()).pathname === `/api/proxy/conversations/${target.id}`);
+  await row.click();
+  const detail = await opened; expect(detail.status()).toBe(200);
+  const snapshot = await detail.json();
+  expect({ id: snapshot.id, subject: snapshot.subject }).toEqual(target);
+  await expect(page.getByRole("heading", { name: target.subject, exact: true })).toBeVisible();
+  return snapshot;
+}
+
 test("Inbox repeated keyboard follow dispatches once while the real captured request is pending", async ({ page, baseURL }) => {
   await queueLogin(page, baseURL!, "en", 1280);
   const target = await createThread(page), path = `/api/proxy/conversations/${target.id}/follow`;
@@ -142,26 +169,24 @@ test("Inbox held A follow owns A while B remains ready and A-to-B-to-A preserves
     requests++; held = true; await gate;
     const response = await route.fetch(); expect(response.status()).toBe(200); await route.fulfill({ response });
   });
-  const queue = page.getByRole("region", { name: "Conversations", exact: true });
-  const select = (subject: string) => queue.getByRole("button").filter({ has: page.getByText(subject, { exact: true }) }).click();
   try {
     await page.getByRole("button", { name: "Follow", exact: true }).click(); await expect.poll(() => held).toBe(true);
     await page.keyboard.press("f"); expect(requests).toBe(1);
-    await select(b.subject); await ready(page, "en"); await message().fill("B independent draft");
+    await selectRecordedQueueThread(page, b, a.subject); await ready(page, "en"); await message().fill("B independent draft");
     await expect(page.getByRole("button", { name: "Follow", exact: true })).toBeEnabled();
-    await select(a.subject); await expect(notice(page, "en", "pending")).toBeVisible();
+    await selectRecordedQueueThread(page, a, b.subject); await expect(notice(page, "en", "pending")).toBeVisible();
     await expect(message()).toHaveValue("A retained draft"); await expect(status(page, "en")).toBeDisabled();
     await page.getByRole("button", { name: translate("en", "message.context"), exact: true }).click();
     await expect(page.locator("aside").getByRole("button", { name: "Follow", exact: true })).toBeDisabled();
     await page.getByRole("button", { name: translate("en", "inbox.action.close_context"), exact: true }).click();
     await page.keyboard.press("f"); expect(requests).toBe(1);
     await switchQueueLocale(page, "en", "ru"); await expect(notice(page, "ru", "pending")).toBeVisible();
-    await switchQueueLocale(page, "ru", "en"); await select(b.subject); await ready(page, "en");
+    await switchQueueLocale(page, "ru", "en"); await selectRecordedQueueThread(page, b, a.subject); await ready(page, "en");
     release();
     await expect.poll(async () => (await stored(page, a.id)).is_following).toBe(true);
     await expect(message()).toHaveValue("B independent draft"); await expect(status(page, "en")).toBeEnabled();
     expect((await stored(page, b.id)).is_following).toBe(false);
-    await select(a.subject); await expect(notice(page, "en", "acknowledged")).toBeVisible();
+    await selectRecordedQueueThread(page, a, b.subject); await expect(notice(page, "en", "acknowledged")).toBeVisible();
     await expect(status(page, "en")).toBeDisabled();
     await page.getByRole("button", { name: "Check current conversation", exact: true }).click(); await expect(status(page, "en")).toBeEnabled();
     await expect(message()).toHaveValue("A retained draft"); expect(requests).toBe(1);
@@ -216,16 +241,20 @@ test("Inbox status rechecks real authentication before dispatch and does not rep
   await queueLogin(page, baseURL!, "en", 1280);
   const target = await createThread(page), path = `/api/proxy/conversations/${target.id}`;
   await page.goto(`/inbox?c=${target.id}`); await ready(page, "en");
-  let writes = 0, release!: () => void;
+  let writes = 0, deniedPreflights = 0, release!: () => void;
   const denials = new Promise<void>(resolve => { release = resolve; });
   page.on("request", request => { if (request.method() === "PATCH" && request.url().endsWith(path) && request.postDataJSON().status) writes++; });
-  await page.route("**/api/proxy/**", async route => {
-    const response = await route.fetch(); if (response.status() === 401) await denials;
-    await route.fulfill({ response });
-  });
+  // Only the first genuine action preflight is held. Recovery reads use the
+  // normal server; unrelated live reads must not race this handler's cleanup.
+  await page.route(url => url.pathname === "/api/proxy/auth/me", async route => {
+    expect(route.request().method()).toBe("GET");
+    const response = await route.fetch(); expect(response.status()).toBe(401);
+    deniedPreflights++; await denials; await route.fulfill({ response });
+  }, { times: 1 });
   try {
     await page.context().addCookies([{ name: "garageos_token", value: "QA-invalidated-metadata-token", url: baseURL!, httpOnly: true }]);
     await status(page, "en").selectOption("resolved"); release();
+    await expect.poll(() => deniedPreflights).toBe(1);
     await expect(page.getByRole("button", { name: "Verify session and access", exact: true })).toBeVisible();
     await expect(status(page, "en")).toHaveCount(0); expect(writes).toBe(0);
     await queueLogin(page, baseURL!, "en", 1280);
