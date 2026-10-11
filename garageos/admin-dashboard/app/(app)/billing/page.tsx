@@ -1,4 +1,5 @@
 import { BillingWorkspace } from "@/components/billing/billing-workspace";
+import { Suspense } from "react";
 
 export const dynamic = "force-dynamic";
 
@@ -6,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default function BillingPage() {
   return (
     <div className="h-full">
-      <BillingWorkspace />
+      <Suspense><BillingWorkspace /></Suspense>
     </div>
   );
 }

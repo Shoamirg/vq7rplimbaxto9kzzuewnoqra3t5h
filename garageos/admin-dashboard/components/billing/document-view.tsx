@@ -145,11 +145,11 @@ export function DocumentView({
           <Meta label={t("public.billed_to")}>
             <p className="text-sm font-bold">{doc.customer?.name ?? doc.customer_name}</p>
             <p className="text-xs text-muted-foreground mt-0.5">{doc.customer?.phone ?? ""} {doc.customer?.email ? "· " + doc.customer.email : ""}</p>
-            {doc.customer && <Link href={`/customers/${doc.customer_id}`} className="text-[11px] text-primary hover:underline">{t("billing.customer_360")} →</Link>}
+            {doc.customer && <Link href={`/customers/${doc.customer_id}`} className="text-[11px] text-primary dark:text-blue-300 hover:underline">{t("billing.customer_360")} →</Link>}
           </Meta>
           <Meta label={t("work.vehicle")}>
             <p className="text-sm font-bold">{doc.vehicle_label ?? "—"}</p>
-            {doc.vehicle_id && <Link href={`/vehicles/${doc.vehicle_id}`} className="text-[11px] text-primary hover:underline">{t("work.vehicle")} →</Link>}
+            {doc.vehicle_id && <Link href={`/vehicles/${doc.vehicle_id}`} className="text-[11px] text-primary dark:text-blue-300 hover:underline">{t("work.vehicle")} →</Link>}
           </Meta>
           <div className="min-w-[180px]">
             <Row k={isEstimate ? t("public.created") : t("billing.issued")} v={fmtDate(doc.issued_at ?? doc.created_at)} />
@@ -177,7 +177,7 @@ export function DocumentView({
                 if (!rows.length) return null;
                 return (
                   <Fragment key={g.kind}>
-                    <tr><td colSpan={4} className="pt-3 pb-1 text-[10px] font-extrabold uppercase tracking-wide text-slate-600">{LINE_ICON[g.kind]} {t(g.labelKey)}</td></tr>
+                    <tr><td colSpan={4} className="pt-3 pb-1 text-[10px] font-extrabold uppercase tracking-wide text-slate-600 dark:text-slate-300">{LINE_ICON[g.kind]} {t(g.labelKey)}</td></tr>
                     {rows.map((l) => (
                       <tr key={l.id} className="text-[13px] border-b border-slate-100">
                         <td className="py-2 font-semibold">{l.description}</td>

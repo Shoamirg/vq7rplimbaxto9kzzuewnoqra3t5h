@@ -1,6 +1,7 @@
 import { expect, test, type Locator } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { settleMotion } from "./support/accessibility";
+import { translate } from "../lib/i18n/dictionaries";
 
 test.use({ trace: "off" }); // Private QA credentials and session cookies stay out of traces.
 type Profile = {
@@ -94,6 +95,7 @@ for (const locale of ["en", "ru", "uz"] as const)
             expect((await response.json()).issuer).toEqual(profile.issuer);
             await page.locator('nav button[aria-pressed]').filter({ hasText: labels[locale].estimates }).click();
           }
+          await page.getByRole("textbox", { name: translate(locale, "billing.search_documents"), exact: true }).fill(doc.code);
           await page.getByRole("button", { name: new RegExp(doc.code) }).click();
           const staff = page.locator("#print-invoice");
           await expect(staff).toContainText(doc.code);
