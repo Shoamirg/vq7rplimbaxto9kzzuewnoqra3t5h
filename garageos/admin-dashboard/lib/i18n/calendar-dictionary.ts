@@ -20,7 +20,7 @@ export const CALENDAR_DICTIONARY: Record<Locale, Record<string, string>> = {
     "calendar.no_phone": "No usable phone recorded", "calendar.no_telegram": "No Telegram username recorded",
     "calendar.contact_failed": "Customer contacts could not load", "calendar.health": "Vehicle health",
     "calendar.health_failed": "Vehicle health could not load", "calendar.health_summary": "{overdue} overdue · {soon} due soon",
-    "calendar.passport": "View certified passport", "calendar.due_services": "Due services",
+    "calendar.passport": "View vehicle service record", "calendar.due_services": "Due services",
     "calendar.overdue": "Overdue", "calendar.due_soon": "Due soon",
     "calendar.resize": "Resize duration", "calendar.refresh": "Refresh calendar",
   },

@@ -38,7 +38,7 @@ function useVehicleText() {
   const i18n = useI18n();
   const vt = (phrase: string, params?: Record<string, string | number>) => {
     if (phrase === "General Service") return i18n.t("common.general_service");
-    if (phrase.startsWith("Certified by ")) return i18n.t("vehicle.certified_by", { garage: phrase.slice("Certified by ".length) });
+    if (phrase.startsWith("Service records from ")) return i18n.t("vehicle.certified_by", { garage: phrase.slice("Service records from ".length) });
     const key = `vehicle.text.${phrase}`;
     const translated = i18n.t(key, params);
     // Custom service names, descriptions and customer data stay as entered.
@@ -245,7 +245,7 @@ export function VehicleIntelligenceCenter({ data }: { data: VehicleIntelligence 
                 <div>
                   {tier && (
                     <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-400/10 px-2.5 py-1 font-brand text-[11px] font-bold uppercase tracking-[0.14em] text-amber-200">
-                      <Star className="size-3" /> {t("vehicle.certified", { tier: vt(tier) })}
+                      <Star className="size-3" /> {t("vehicle.maintenance_rating", { tier: vt(tier) })}
                     </span>
                   )}
                   <h1 className="font-brand mt-2 text-3xl font-extrabold tracking-tight">{v.brand} {v.model}</h1>
@@ -338,7 +338,7 @@ function IdentityCard({ v, tier }: { v: VehicleIntelligence["identity"]; tier: s
   const rows: [string, string | number | null][] = [
     ["Owner", v.owner_name], ["VIN", v.vin], ["Plate", v.plate],
     ["Mileage", v.mileage != null ? `${fmt.number(v.mileage)} km` : null],
-    ["Passport", tier ? t("vehicle.certified", { tier: vt(tier) }) : "—"],
+    ["Passport", tier ? t("vehicle.maintenance_rating", { tier: vt(tier) }) : "—"],
   ];
   return (
     <Card>
@@ -467,16 +467,16 @@ function OwnerLink({ href, icon, label }: { href: string; icon: React.ReactNode;
 }
 
 function PassportCard({ passport, vehicleId, large }: { passport: VehicleIntelligence["passport"]; vehicleId: string; large?: boolean }) {
-  const { vt } = useVehicleText();
+  const { t, vt } = useVehicleText();
   return (
     <div className="relative overflow-hidden rounded-3xl p-5 text-white shadow-xl" style={{ background: "linear-gradient(150deg,#12203b,#0B1220)" }}>
       <div className="pointer-events-none absolute -right-8 -top-8 size-32 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(217,163,34,.25), transparent)" }} />
       <div className="mb-3 flex items-center justify-between">
         <h3 className="font-brand text-[15px] font-extrabold">{vt("Certified Passport")}</h3>
-        {passport.tier && <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-200"><Star className="size-3" /> {vt(passport.tier)}</span>}
+        {passport.tier && <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-200"><Star className="size-3" /> {t("vehicle.maintenance_rating", { tier: vt(passport.tier) })}</span>}
       </div>
       <div className="flex items-center gap-4">
-        <div className="grid size-16 place-items-center rounded-xl bg-white text-slate-900"><ShieldCheck className="size-8" /></div>
+        <div className="grid size-16 place-items-center rounded-xl bg-white text-slate-900"><FileText className="size-8" /></div>
         <div className="min-w-0">
           <div className="font-mono text-[11px] tracking-[0.2em] text-slate-400">{passport.code}</div>
           <div className="mt-1.5 flex flex-wrap gap-1">

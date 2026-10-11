@@ -412,7 +412,7 @@ export interface CustomerFinancial {
   payments: PaymentRow[];
 }
 
-// ─── Certified Vehicle Passport ──────────────────────────────
+// ─── Vehicle service record ──────────────────────────────────
 export type PassportStatus = "on_track" | "due_soon" | "overdue";
 
 export interface PassportUpcoming {

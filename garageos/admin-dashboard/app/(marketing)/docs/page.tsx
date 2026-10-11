@@ -27,7 +27,7 @@ const SECTIONS: Array<{ id: string; title: string; body: React.ReactNode }> = [
     <p>Each vehicle has a full record: identity, service history, and a computed <strong>health score</strong> from the maintenance engine. Health is derived from real mileage and service intervals — there is nothing to keep up to date by hand.</p>
   )},
   { id: "passport", title: "Digital Passport", body: (
-    <p>The <strong>Certified Vehicle Passport</strong> is a shareable, print-ready document with a scannable QR code — a premium proof of a vehicle&rsquo;s condition and service history that owners can pass to a buyer. Open any vehicle and choose &ldquo;View Certified Passport&rdquo;.</p>
+    <p>The <strong>Vehicle Service Record</strong> is a shareable, print-ready document with a scannable QR code. It summarizes service information recorded in GarageOS and identifies the garage that supplied those records; it is not an independent inspection or guarantee of vehicle condition. Open any vehicle and choose &ldquo;View Service Record&rdquo;.</p>
   )},
   { id: "intelligence", title: "Vehicle Intelligence", body: (
     <p>The <strong>Vehicle Intelligence Center</strong> brings health, history, predictions, and commercial context into one view, with clickable subsystem hotspots. Predictions (next service, weakest system, breakdown risk) are deterministic — grounded in the data, not guesses.</p>

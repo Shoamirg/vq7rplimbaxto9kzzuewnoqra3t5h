@@ -19,9 +19,23 @@ from app.models import (
     VehicleModel,
 )
 from app.repositories.unit_of_work import UnitOfWork
-from app.services.vehicle_health_service import VehicleHealthService
+from app.services.vehicle_health_service import VehicleHealthService, _passport_highlights
 
 Ctx = namedtuple("Ctx", "center brand model customer vehicle")
+
+
+def test_passport_highlights_do_not_claim_certification_or_unobserved_mileage():
+    empty = _passport_highlights("North Garage", 0, False, 2)
+    assert empty == [
+        {"label": "Service records available", "ok": False},
+        {"label": "No tracked high-priority services overdue", "ok": False},
+        {"label": "Mileage recorded in service history", "ok": False},
+        {"label": "Service records from North Garage", "ok": True},
+    ]
+
+    recorded = _passport_highlights("North Garage", 3, True, 0)
+    assert [item["ok"] for item in recorded] == [True, True, True, True]
+    assert all("certif" not in item["label"].lower() and "verif" not in item["label"].lower() for item in recorded)
 
 
 async def _ctx(session, *, current_km: int = 60000) -> Ctx:

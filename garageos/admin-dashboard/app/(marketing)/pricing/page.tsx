@@ -23,7 +23,7 @@ const COMPARISON: Array<{ group: string; rows: Array<[string, boolean | string, 
   { group: "Core", rows: [
     ["Scheduling & calendar board", true, true, true],
     ["Customers & vehicles", true, true, true],
-    ["Vehicle health & Certified Passport", true, true, true],
+    ["Vehicle maintenance health & service record", true, true, true],
     ["Estimates, invoices & payments", true, true, true],
     ["Staff seats", "3", "Unlimited", "Unlimited"],
   ]},

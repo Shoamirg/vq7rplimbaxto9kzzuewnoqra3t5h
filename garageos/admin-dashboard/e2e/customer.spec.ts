@@ -27,7 +27,7 @@ test("vehicles list shows cars and opens a passport", async ({ page }) => {
 
   await cards.first().click();
   await expect(page).toHaveURL(/\/mini\/vehicles\/[0-9a-f-]{36}/);
-  // Passport hero — the "Certified Passport" wording (mini vehicle detail).
+  // Passport hero — the service-record wording (mini vehicle detail).
   await expect(page.getByText(/passport/i).first()).toBeVisible();
 });
 

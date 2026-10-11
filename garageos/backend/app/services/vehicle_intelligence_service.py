@@ -1,7 +1,7 @@
 """Vehicle Intelligence Center — one composed payload for the signature screen.
 
 Answers "what should I know about this vehicle right now?" by projecting over
-everything already built: health (subsystems), the Certified Passport,
+everything already built: health (subsystems), the vehicle service record,
 maintenance due-list, the service timeline, and the OWNER's Commercial Health.
 Predictions are deterministic (derived from the maintenance engine + health
 trends), consistent with the honest, non-LLM approach used in Reports.
@@ -21,7 +21,7 @@ from app.repositories.unit_of_work import UnitOfWork
 from app.services.financial_service import FinancialService, commercial_health
 from app.services.vehicle_health_service import VehicleHealthService, _band
 
-_BREAKDOWN_RISK = {"excellent": "Low", "good": "Low", "fair": "Medium", "poor": "High"}
+_MAINTENANCE_ATTENTION = {"excellent": "Low", "good": "Low", "fair": "Medium", "poor": "High"}
 _SPEND_TIER = [(8000, "Platinum"), (4000, "Gold"), (1500, "Silver")]
 
 
@@ -166,16 +166,16 @@ class VehicleIntelligenceService:
                 "code": "overdue", "params": {"count": health["urgent_count"]},
                 "tone": "danger", "icon": "alert",
                 "title": f"{health['urgent_count']} item(s) overdue",
-                "detail": "Address to keep the passport certified.",
+                "detail": "Review the tracked maintenance items that are due.",
             })
-        # breakdown risk from band
-        risk = _BREAKDOWN_RISK.get(health.get("band", ""), "Low")
+        # Maintenance attention level derived from the tracked health band.
+        risk = _MAINTENANCE_ATTENTION.get(health.get("band", ""), "Low")
         out.append({
             "code": "risk", "params": {"risk": risk.lower()},
             "tone": "success" if risk == "Low" else "warning" if risk == "Medium" else "danger",
-            "icon": "shield",
-            "title": f"Breakdown probability: {risk}",
-            "detail": "Composite of system health and maintenance compliance.",
+            "icon": "activity",
+            "title": f"Maintenance attention level: {risk}",
+            "detail": "Estimated from tracked maintenance status; not a failure prediction.",
         })
         return out[:4]
 

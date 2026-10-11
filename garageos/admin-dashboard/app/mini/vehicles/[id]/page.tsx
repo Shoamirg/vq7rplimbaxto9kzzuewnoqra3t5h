@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, BadgeCheck, ExternalLink, Wrench } from "lucide-react";
+import { ArrowLeft, BadgeCheck, ExternalLink, FileText, Wrench } from "lucide-react";
 
 import { useMiniData } from "@/lib/mini/hooks";
 import { haptic } from "@/lib/mini/telegram";
@@ -52,7 +52,7 @@ export default function VehicleDetailPage() {
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <BadgeCheck className="size-4 text-amber-300" aria-hidden />
+              <FileText className="size-4 text-amber-300" aria-hidden />
               <span className="text-xs font-semibold uppercase tracking-[0.14em] text-white/70">{passportTitle}</span>
             </div>
             <h1 className="mt-2 text-2xl font-bold leading-tight">

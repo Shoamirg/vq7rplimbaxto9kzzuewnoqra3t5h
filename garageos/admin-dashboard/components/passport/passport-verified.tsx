@@ -9,8 +9,8 @@ const ACCENT: Record<HealthBand, { accent: string; soft: string }> = {
   poor: { accent: "#B4442E", soft: "#F7E5E1" },
 };
 
-// Trust-first landing header — like checking a luxury-watch certificate. Shown
-// above the document so the first impression is authenticity, not just data.
+// Public service-record header. It identifies the garage that supplied the
+// records without implying an independent inspection or certification.
 export function PassportVerified({ passport, locale }: { passport: Passport; locale: Locale }) {
   const { accent, soft } = ACCENT[passport.health.band];
   const style = { "--accent": accent, "--accent-soft": soft } as CSSProperties;
@@ -22,7 +22,7 @@ export function PassportVerified({ passport, locale }: { passport: Passport; loc
   return (
     <div className="pp-verified" style={style}>
       <div className="pp-vbadge">
-        <span className="pp-vcheck">✓</span> {translate(locale, "passport.recorded_by", { garage: passport.garage.name })}
+        {translate(locale, "passport.recorded_by", { garage: passport.garage.name })}
       </div>
       <div className="pp-vtitle">{translate(locale, "passport.record")}</div>
       <div className="pp-vmeta">

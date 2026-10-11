@@ -1,4 +1,4 @@
-"""Vehicle Health API service (Sprint 3 / signature feature).
+"""Vehicle maintenance and service-history API, tenant-scoped via the UnitOfWork.
 
 Composes the maintenance engine into the payloads the Vehicle Health screen and
 Fleet Health widget need — health score, category breakdown, per-service status,
@@ -46,6 +46,17 @@ def _band(score: float) -> str:
     if score >= 40:
         return "fair"
     return "poor"
+
+
+def _passport_highlights(garage_name: str, services_completed: int,
+                         has_recorded_mileage: bool, urgent_count: int) -> list[dict]:
+    """Describe only maintenance facts that the stored service data supports."""
+    return [
+        {"label": "Service records available", "ok": services_completed > 0},
+        {"label": "No tracked high-priority services overdue", "ok": urgent_count == 0},
+        {"label": "Mileage recorded in service history", "ok": has_recorded_mileage},
+        {"label": f"Service records from {garage_name}", "ok": True},
+    ]
 
 
 def _category_for(service_type: str) -> str:
@@ -223,7 +234,7 @@ class VehicleHealthService:
                 "id": str(a.id),
             })
         # Project the event stream onto this vehicle's timeline (one stream,
-        # another view) — e.g. passport certified, maintenance-due events.
+        # another view) — e.g. service-record availability, maintenance-due events.
         from app.services.notification_service import NotificationService
         events += await NotificationService(self.uow).timeline_for(vehicle_id=vehicle_id)
         events.sort(key=lambda e: e["date"], reverse=True)
@@ -299,8 +310,8 @@ class VehicleHealthService:
             ))).all()}
 
     async def get_passport(self, vehicle_id: uuid.UUID) -> dict:
-        """Compose the full Certified Vehicle Passport payload (the signature
-        shareable document). Reuses the health report + timeline and adds
+        """Compose a shareable vehicle service record. Reuses the health report
+        and adds
         vitals, maintenance compliance, highlights, and garage branding.
         """
         vehicle = await self._vehicle_or_404(vehicle_id)
@@ -364,13 +375,10 @@ class VehicleHealthService:
         ownership_years = max(0, _CURRENT_YEAR - (vehicle.year or _CURRENT_YEAR))
         garage_name = center.name if center else "GarageOS"
 
-        # Honest, data-derived highlights.
-        highlights = [
-            {"label": "Full service history", "ok": compliance >= 80 or services_completed >= 4},
-            {"label": "No critical maintenance overdue", "ok": report.urgent_count == 0},
-            {"label": "Consistent, verified mileage", "ok": True},
-            {"label": f"Certified by {garage_name}", "ok": True},
-        ]
+        highlights = _passport_highlights(
+            garage_name, services_completed,
+            any(r.performed_km is not None for r in records), report.urgent_count,
+        )
 
         return {
             "code": _passport_code(garage_name, vehicle.id),
