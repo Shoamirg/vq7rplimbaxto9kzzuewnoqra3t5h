@@ -568,8 +568,6 @@ export interface LinkedCard {
   subtitle: string | null;
   link: string | null;
   available?: boolean;
-  score?: number;
-  band?: HealthBand;
   phone?: string;
 }
 

@@ -46,7 +46,7 @@ from app.services.case_service import CaseService
 from app.services.conversation_read_service import ConversationReadService
 from app.services.maintenance_service import MaintenanceService
 from app.services.message_intent import FINGERPRINT_VERSION, MessageIntentConflict, MessageSubmission, fingerprint
-from app.services.vehicle_health_service import _band, _vehicle_label
+from app.services.vehicle_health_service import _vehicle_label
 
 # The one question a row answers: *why is this still open?*
 STATUS_LABEL = {
@@ -684,13 +684,11 @@ class ConversationService:
         if conv.vehicle_id:
             vehicle = await self.maintenance.vehicle_repo.get_with_model(conv.vehicle_id)
             if vehicle:
-                report = await self.maintenance.calculate_due_services(conv.vehicle_id)
                 cards.append({"kind": "vehicle", "title": _vehicle_label(vehicle),
-                              "subtitle": f"Health {report.overall_score} · {_band(report.overall_score).title()}",
-                              "score": report.overall_score, "band": _band(report.overall_score),
+                              "subtitle": None,
                               "link": f"/vehicles/{conv.vehicle_id}"})
-                cards.append({"kind": "passport", "title": "Certified Passport",
-                              "subtitle": "View", "link": f"/passport/{conv.vehicle_id}"})
+                cards.append({"kind": "passport", "title": None,
+                              "subtitle": None, "link": f"/passport/{conv.vehicle_id}"})
             else:
                 # Keep the historical edge visible without inventing health or
                 # advertising a public passport URL that now returns 404.

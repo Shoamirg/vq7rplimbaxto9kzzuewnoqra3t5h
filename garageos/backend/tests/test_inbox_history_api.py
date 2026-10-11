@@ -41,6 +41,17 @@ async def test_all_old_events_and_tied_messages_remain_accessible(client, inbox_
     assert repeated.json()['activity'] == thread['activity']
 
 
+async def test_vehicle_context_links_do_not_claim_a_health_score(client, inbox_rows):
+    target = inbox_rows['vehicle_thread']
+    response = await client.get(f'/api/v1/conversations/{target}', headers=inbox_rows['admin'])
+    assert response.status_code == 200
+    cards = response.json()['linked']
+    vehicle = next(card for card in cards if card['kind'] == 'vehicle')
+    assert vehicle['link'] == f"/vehicles/{inbox_rows['vehicle']}"
+    assert vehicle['subtitle'] is None
+    assert 'score' not in vehicle and 'band' not in vehicle
+
+
 @pytest.mark.parametrize('edge', ['participant', 'message', 'attachment'])
 async def test_compromised_children_deny_detail_read_and_mutations(client, inbox_rows, edge):
     refs = inbox_rows

@@ -198,7 +198,8 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
             {CONV_TYPE_ICON[thread.conv_type]} <span className="capitalize">{thread.conv_type}</span>
           </span>
           {thread.linked.map((c) => {
-            const label = c.available === false ? t("inbox.linked.vehicle_unavailable") : c.title;
+            const label = c.available === false ? t("inbox.linked.vehicle_unavailable")
+              : c.kind === "passport" ? t("inbox.context.passport") : c.title;
             return c.link ? (
               <Link key={c.kind} href={c.link} target={c.kind === "passport" ? "_blank" : undefined}
                 className="min-h-11 min-w-11 inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border border-border hover:border-primary/40 hover:text-primary transition-colors">
