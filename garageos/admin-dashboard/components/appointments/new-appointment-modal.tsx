@@ -1,18 +1,38 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CalendarPlus, Loader2, Plus, X } from "lucide-react";
 import { Button, Dialog, DialogContent, DialogTitle, useToast } from "@garageos/design-system";
 
 import { clientFetch, ClientApiError } from "@/lib/api/client";
 import { useI18n } from "@/lib/i18n/context";
-import type { MechanicAccount, Customer360, CustomerListItem } from "@/lib/api/types";
+import type { MechanicAccount, AppointmentListResponse, Customer360, CustomerListItem } from "@/lib/api/types";
 import { CustomerPicker } from "@/components/intake/customer-picker";
 import { NewCustomerModal, NewVehicleModal } from "@/components/intake/intake-modals";
 
 const FIELD = "min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40";
 const LABEL = "block text-xs font-semibold text-muted-foreground mb-1.5";
 const DURATIONS = [30, 60, 90, 120, 180];
+const UNCERTAIN_APPOINTMENT_KEY = "garageos:appointment:uncertain:v1";
+
+type AppointmentTarget = { customerId: string; vehicleId: string; date: string; time: string };
+
+function loadUncertainAppointment(): AppointmentTarget | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const parsed = JSON.parse(window.sessionStorage.getItem(UNCERTAIN_APPOINTMENT_KEY) ?? "null") as Partial<AppointmentTarget> | null;
+    if (parsed && typeof parsed.customerId === "string" && typeof parsed.vehicleId === "string"
+      && typeof parsed.date === "string" && typeof parsed.time === "string") {
+      return { customerId: parsed.customerId, vehicleId: parsed.vehicleId, date: parsed.date, time: parsed.time };
+    }
+  } catch { /* Malformed or unavailable tab storage cannot authorize a replay. */ }
+  return null;
+}
+
+function clearUncertainAppointment() {
+  try { window.sessionStorage.removeItem(UNCERTAIN_APPOINTMENT_KEY); return true; }
+  catch { return false; }
+}
 
 type Vehicle = { id: string; label: string };
 
@@ -80,12 +100,18 @@ export function NewAppointmentModal({
   const [notes, setNotes] = useState("");
   const [loadingVehicles, setLoadingVehicles] = useState(false);
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [vehicleError, setVehicleError] = useState(false);
   const [mechanicError, setMechanicError] = useState(false);
   const [loadingMechanics, setLoadingMechanics] = useState(true);
   const [retryVehicles, setRetryVehicles] = useState(0);
   const [retryMechanics, setRetryMechanics] = useState(0);
   const [intake, setIntake] = useState<"customer" | "vehicle" | null>(null);
+  const [uncertain, setUncertain] = useState<AppointmentTarget | null>(loadUncertainAppointment);
+  const [uncertainResult, setUncertainResult] = useState<"found" | "not_found" | null>(null);
+  const [checkingOutcome, setCheckingOutcome] = useState(false);
+  const checkingOutcomeRef = useRef(false);
+  const [outcomeCheckFailed, setOutcomeCheckFailed] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -117,11 +143,79 @@ export function NewAppointmentModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customer, retryVehicles]);
 
-  const canSave = Boolean(customer && vehicleId && date && time) && !saving;
+  const canSave = Boolean(customer && vehicleId && date && time) && !saving && !uncertain;
+
+  async function findMatchingAppointment(target: AppointmentTarget) {
+    const params = new URLSearchParams({ date_from: target.date, date_to: target.date, page_size: "100" });
+    let page = 1;
+    while (true) {
+      params.set("page", String(page));
+      const result = await clientFetch<AppointmentListResponse>(`/appointments?${params.toString()}`);
+      const match = result.items.find((item) => item.status !== "cancelled"
+        && item.customer_id === target.customerId && item.vehicle_id === target.vehicleId
+        && item.appointment_date.slice(0, 10) === target.date
+        && item.appointment_time.slice(0, 5) === target.time);
+      if (match) return match;
+      if (page >= result.total_pages) return null;
+      page += 1;
+    }
+  }
+
+  async function reconcileOutcome() {
+    if (!uncertain || checkingOutcomeRef.current) return;
+    checkingOutcomeRef.current = true;
+    setCheckingOutcome(true); setOutcomeCheckFailed(false); setUncertainResult(null);
+    try {
+      const match = await findMatchingAppointment(uncertain);
+      setUncertainResult(match ? "found" : "not_found");
+      if (match) {
+        clearUncertainAppointment();
+        onCreated?.();
+      }
+    } catch {
+      setOutcomeCheckFailed(true);
+    } finally {
+      checkingOutcomeRef.current = false;
+      setCheckingOutcome(false);
+    }
+  }
+
+  function allowSeparateBooking() {
+    if (uncertainResult !== "not_found" || !clearUncertainAppointment()) {
+      setOutcomeCheckFailed(true);
+      return;
+    }
+    setUncertain(null); setUncertainResult(null); setOutcomeCheckFailed(false);
+  }
 
   async function save() {
-    if (!customer || !vehicleId) return;
+    if (!customer || !vehicleId || uncertain || savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
+    const target = { customerId: customer.id, vehicleId, date, time };
+    let existing: Awaited<ReturnType<typeof findMatchingAppointment>>;
+    try {
+      existing = await findMatchingAppointment(target);
+    } catch {
+      toast({ title: t("appointment.schedule_check_failed"), variant: "danger" });
+      savingRef.current = false;
+      setSaving(false);
+      return;
+    }
+    if (existing) {
+      toast({ title: t("appointment.match_exists"), description: `${customer.full_name} · ${fmt.date(date)} ${time}`, variant: "danger" });
+      savingRef.current = false;
+      setSaving(false);
+      return;
+    }
+    try {
+      window.sessionStorage.setItem(UNCERTAIN_APPOINTMENT_KEY, JSON.stringify(target));
+    } catch {
+      toast({ title: t("appointment.outcome_store_failed"), variant: "danger" });
+      savingRef.current = false;
+      setSaving(false);
+      return;
+    }
     try {
       await clientFetch("/appointments/direct", {
         method: "POST",
@@ -136,14 +230,22 @@ export function NewAppointmentModal({
         }),
       });
       toast({ title: t("appointment.booked"), description: `${customer.full_name} · ${fmt.date(date)} ${time}`, variant: "success" });
+      clearUncertainAppointment();
       onCreated?.();
       onClose();
     } catch (err) {
       // A read-only demo session already shows its own toast; avoid a duplicate.
-      if (!(err instanceof ClientApiError && err.status === 403)) {
+      if ((err instanceof ClientApiError && err.status >= 500) || !(err instanceof ClientApiError)) {
+        setUncertain(target);
+        setUncertainResult(null);
+      } else if (!(err instanceof ClientApiError && err.status === 403)) {
+        clearUncertainAppointment();
         toast({ title: t("appointment.book_failed"), description: err instanceof ClientApiError && err.code === "APPOINTMENT_CONFLICT" ? t("appointment.conflict") : undefined, variant: "danger" });
+      } else {
+        clearUncertainAppointment();
       }
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
@@ -158,6 +260,18 @@ export function NewAppointmentModal({
         </div>
 
         <div className="p-5 space-y-4">
+          {uncertain && <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950" role="alert">
+            <p>{uncertainResult === "found" ? t("appointment.outcome_found") : uncertainResult === "not_found" ? t("appointment.outcome_not_found") : t("appointment.outcome_uncertain")}</p>
+            <p>{t("appointment.outcome_target", { date: fmt.date(uncertain.date), time: uncertain.time })}</p>
+            {outcomeCheckFailed && <p className="mt-1">{t("appointment.outcome_check_failed")}</p>}
+            {uncertainResult !== "found" && <Button variant="outline" size="sm" className="mt-2 min-h-11 min-w-11" disabled={checkingOutcome}
+              onClick={() => void reconcileOutcome()}>
+              {checkingOutcome ? t("appointment.outcome_checking") : t("appointment.check_schedule")}
+            </Button>}
+            {uncertainResult === "not_found" && <Button variant="ghost" size="sm" className="mt-2 min-h-11 min-w-11"
+              onClick={allowSeparateBooking}>{t("appointment.allow_separate_booking")}</Button>}
+          </div>}
+          {!uncertain && <fieldset disabled={saving} className="m-0 min-w-0 space-y-4 border-0 p-0">
           {/* Customer */}
           <div>
             <label className={LABEL} htmlFor="appt-customer">{t("work.customer")}</label>
@@ -221,6 +335,7 @@ export function NewAppointmentModal({
             <label className={LABEL} htmlFor="appt-notes">{t("appointment.notes")} <span className="font-normal text-muted-foreground">({t("invoice.vehicle_optional")})</span></label>
             <textarea id="appt-notes" className={`${FIELD} resize-none`} rows={2} placeholder={t("appointment.notes_hint")} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
+          </fieldset>}
         </div>
 
         <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">

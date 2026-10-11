@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import { withFailureDiagnostics } from "./support/failure-diagnostics";
-import { queueCustomer, queueLogin, queueOverflow, queueTargets, switchQueueLocale } from "./support/queue";
+import { queueCustomer, queueDate, queueLogin, queueOverflow, queueTargets, switchQueueLocale } from "./support/queue";
 import { assertAccessible, assertKeyboardFocus } from "./support/accessibility";
 import { translate, type Locale } from "../lib/i18n/dictionaries";
 import { safeCallHref } from "../components/inbox/shared";
@@ -125,6 +125,79 @@ for (const [locale, width] of [["uz", 360], ["en", 390], ["ru", 1280]] as const)
 }
 
 for (const [locale, width] of [["uz", 360], ["en", 390], ["ru", 1280]] as const) {
+  test(`Inbox booking captures its customer and reconciles a lost response without reposting ${locale}/${width}`, async ({ page, baseURL }, info) => {
+    const { profile } = await queueLogin(page, baseURL!, locale, width);
+    const person = await queueCustomer(page, profile);
+    const created = await page.request.post("/api/proxy/conversations", { data: {
+      customer_id: person.customer_id, vehicle_id: person.vehicle_id,
+    } });
+    expect(created.status()).toBe(201); const id = (await created.json()).id as string;
+    await page.goto(`/inbox?c=${id}`); await ready(page, locale);
+    const actions = page.getByRole("region", { name: translate(locale, "message.quick_actions"), exact: true });
+    await actions.getByRole("button", { name: translate(locale, "message.action.book_appointment"), exact: true }).click();
+    const modal = page.getByRole("dialog", { name: translate(locale, "appointment.new"), exact: true });
+    const date = queueDate(90), time = "14:15";
+    await expect(modal.locator("#appt-vehicle")).toHaveValue(person.vehicle_id);
+    await modal.getByLabel(translate(locale, "appointment.date"), { exact: true }).fill(date);
+    await modal.getByLabel(translate(locale, "appointment.time"), { exact: true }).fill(time);
+
+    let posts = 0;
+    await page.route("**/api/proxy/appointments/direct", async route => {
+      posts++;
+      const response = await route.fetch();
+      expect(response.status()).toBe(201);
+      await route.abort("failed"); // the write commits but its response is lost
+    });
+    await modal.getByRole("button", { name: translate(locale, "appointment.book"), exact: true }).click();
+    await expect(modal.getByRole("alert").filter({ hasText: translate(locale, "appointment.outcome_uncertain") })).toBeVisible();
+    await page.reload(); // the recovery marker survives navigation and blocks a blind repost
+    await ready(page, locale);
+    const reopenedActions = page.getByRole("region", { name: translate(locale, "message.quick_actions"), exact: true });
+    await reopenedActions.getByRole("button", { name: translate(locale, "message.action.book_appointment"), exact: true }).click();
+    await expect(modal.getByRole("alert").filter({ hasText: translate(locale, "appointment.outcome_uncertain") })).toBeVisible();
+    const check = modal.getByRole("button", { name: translate(locale, "appointment.check_schedule"), exact: true });
+    await check.click();
+    await expect(modal.getByRole("alert").filter({ hasText: translate(locale, "appointment.outcome_found") })).toBeVisible();
+    expect(posts).toBe(1);
+    await expect(modal.getByRole("button", { name: translate(locale, "appointment.book"), exact: true })).toBeDisabled();
+    await modal.getByRole("button", { name: translate(locale, "common.close"), exact: true }).click();
+    await expect(modal).toHaveCount(0);
+    await queueTargets(page, actions); await queueOverflow(page);
+    await assertAccessible(page, info, `booking-lost-response-${locale}-${width}`);
+  });
+}
+
+test("Inbox booking stays blocked after an empty reconciliation until a separate action is chosen", async ({ page, baseURL }) => {
+  const { profile } = await queueLogin(page, baseURL!, "en", 390);
+  const person = await queueCustomer(page, profile);
+  const created = await page.request.post("/api/proxy/conversations", { data: {
+    customer_id: person.customer_id, vehicle_id: person.vehicle_id,
+  } });
+  expect(created.status()).toBe(201); const id = (await created.json()).id as string;
+  await page.goto(`/inbox?c=${id}`); await ready(page, "en");
+  const actions = page.getByRole("region", { name: translate("en", "message.quick_actions"), exact: true });
+  await actions.getByRole("button", { name: translate("en", "message.action.book_appointment"), exact: true }).click();
+  const modal = page.getByRole("dialog", { name: translate("en", "appointment.new"), exact: true });
+  await expect(modal.locator("#appt-vehicle")).toHaveValue(person.vehicle_id);
+  await modal.getByLabel(translate("en", "appointment.date"), { exact: true }).fill(queueDate(91));
+  await modal.getByLabel(translate("en", "appointment.time"), { exact: true }).fill("15:10");
+
+  let posts = 0;
+  await page.route("**/api/proxy/appointments/direct", async route => { posts++; await route.abort("failed"); });
+  const submit = modal.getByRole("button", { name: translate("en", "appointment.book"), exact: true });
+  await submit.click();
+  await expect(modal.getByRole("alert").filter({ hasText: translate("en", "appointment.outcome_uncertain") })).toBeVisible();
+  await modal.getByRole("button", { name: translate("en", "appointment.check_schedule"), exact: true }).click();
+  await expect(modal.getByRole("alert").filter({ hasText: translate("en", "appointment.outcome_not_found") })).toBeVisible();
+  await expect(submit).toBeDisabled(); expect(posts).toBe(1);
+  await modal.getByRole("button", { name: translate("en", "appointment.allow_separate_booking"), exact: true }).click();
+  await expect(submit).toBeEnabled(); expect(posts).toBe(1);
+  await submit.click(); // only this new deliberate action may send another request
+  await expect.poll(() => posts).toBe(2);
+  await expect(modal.getByRole("alert").filter({ hasText: translate("en", "appointment.outcome_uncertain") })).toBeVisible();
+});
+
+for (const [locale, width] of [["uz", 360], ["en", 390], ["ru", 1280]] as const) {
   test(`Inbox request actions prepare localized editable drafts without sending ${locale}/${width}`, async ({ page, baseURL }, info) => {
     await queueLogin(page, baseURL!, locale, width);
     const target = await createThread(page), path = `/api/proxy/conversations/${target.id}/messages`;
@@ -133,6 +206,7 @@ for (const [locale, width] of [["uz", 360], ["en", 390], ["ru", 1280]] as const)
     const reply = page.getByRole("button", { name: translate(locale, "message.reply"), exact: true });
     const note = page.getByRole("button", { name: translate(locale, "message.note"), exact: true });
     const actions = page.getByRole("region", { name: translate(locale, "message.quick_actions"), exact: true });
+    await expect(actions.getByRole("note", { name: translate(locale, "message.action.appointment_unavailable"), exact: true })).toBeVisible();
     let sends = 0;
     page.on("request", request => { if (request.method() === "POST" && request.url().endsWith(path)) sends++; });
 
