@@ -3,14 +3,59 @@ import uuid
 from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import event, select
 
-from app.core.database import async_session_factory
+from app.core.database import async_session_factory, engine
 from app.models.conversation import Attachment, Conversation, Message, Participant
 from app.models.notification import Notification
 from tests.test_inbox_queue_api import (  # noqa: F401
     client, identity, inbox_rows, mechanic_workshop, references, workshop,
 )
+
+
+async def test_long_thread_history_is_complete_without_per_message_query_growth(client, inbox_rows):
+    refs = inbox_rows
+    recorded_at = datetime(2019, 1, 1, tzinfo=timezone.utc)
+    async with async_session_factory() as session:
+        short = Conversation(service_center_id=refs['center'], subject='Short query baseline')
+        long = Conversation(service_center_id=refs['center'], subject='Long complete history')
+        session.add_all([short, long])
+        await session.flush()
+        messages = [Message(service_center_id=refs['center'], conversation_id=long.id,
+            body=f'Long history message {i}', author_role='customer', created_at=recorded_at)
+            for i in range(512)]
+        session.add_all(messages)
+        await session.flush()
+        attachments = [Attachment(service_center_id=refs['center'], conversation_id=long.id,
+            message_id=messages[i].id, label=f'Recorded attachment {i}', kind='photo')
+            for i in range(0, 512, 8)]
+        notifications = [Notification(service_center_id=refs['center'], entity_type='conversation',
+            entity_id=long.id, title=f'Long history event {i}', body=f'Event detail {i}',
+            severity='info', category='system', created_at=recorded_at) for i in range(128)]
+        session.add_all(attachments + notifications)
+        await session.commit()
+        message_ids = sorted(str(row.id) for row in messages)
+
+    statements = []
+    def record(_conn, _cursor, statement, _parameters, _context, _many):
+        statements.append(statement)
+    event.listen(engine.sync_engine, 'before_cursor_execute', record)
+    try:
+        short_response = await client.get(f'/api/v1/conversations/{short.id}', headers=refs['admin'])
+        short_query_count = len(statements)
+        statements.clear()
+        long_response = await client.get(f'/api/v1/conversations/{long.id}', headers=refs['admin'])
+        long_query_count = len(statements)
+    finally:
+        event.remove(engine.sync_engine, 'before_cursor_execute', record)
+
+    assert short_response.status_code == long_response.status_code == 200
+    assert long_query_count == short_query_count
+    thread = long_response.json()
+    assert [message['id'] for message in thread['messages']] == message_ids
+    assert sum(len(message['attachments']) for message in thread['messages']) == 64
+    assert len([row for row in thread['activity'] if row['type'] == 'event']) == 128
+    assert len([row for row in thread['activity'] if row['type'] == 'message']) == 512
 
 
 async def test_all_old_events_and_tied_messages_remain_accessible(client, inbox_rows):
