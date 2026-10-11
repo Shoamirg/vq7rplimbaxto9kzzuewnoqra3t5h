@@ -680,7 +680,7 @@ class ConversationService:
             if case:
                 cards.append({"kind": "case", "title": f"{case.code} · {case.case_type.title()}",
                               "subtitle": STATUS_LABEL.get(case.status, case.status),
-                              "link": f"/operations/{case.id}"})
+                              "link": f"/operations?case={case.id}"})
         if conv.vehicle_id:
             report = await self.maintenance.calculate_due_services(conv.vehicle_id)
             vehicle = await self.maintenance.vehicle_repo.get_with_model(conv.vehicle_id)

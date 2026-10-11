@@ -51,6 +51,25 @@ async def test_omitted_context_cannot_join_inconsistent_owning_records(client, r
     assert await snapshot(refs) == before and not events
 
 
+async def test_linked_case_uses_real_operations_deep_link(client, references):
+    refs = references
+    async with async_session_factory() as session:
+        case = OperationalCase(service_center_id=refs['center'], code=uuid.uuid4().hex[:20],
+            title='Recorded service work', customer_id=uuid.UUID(refs['customer']))
+        session.add(case)
+        await session.flush()
+        conversation = Conversation(service_center_id=refs['center'], case_id=case.id)
+        session.add(conversation)
+        await session.commit()
+        case_id, conversation_id = str(case.id), str(conversation.id)
+
+    response = await client.get(f'/api/v1/conversations/{conversation_id}', headers=refs['admin'])
+
+    assert response.status_code == 200, response.text
+    linked_case = next(card for card in response.json()['linked'] if card['kind'] == 'case')
+    assert linked_case['link'] == f'/operations?case={case_id}'
+
+
 @pytest.mark.parametrize('coordinate', ['customer', 'vehicle'])
 @pytest.mark.parametrize('entry', ['list', 'thread'])
 async def test_historical_inconsistent_owning_records_are_denied(client, references, monkeypatch, coordinate, entry):
