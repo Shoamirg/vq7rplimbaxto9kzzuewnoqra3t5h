@@ -347,6 +347,53 @@ test("Inbox case remains blocked after an empty reconciliation until a separate 
 });
 
 for (const [locale, width] of [["uz", 360], ["en", 390], ["ru", 1280]] as const) {
+  test(`Inbox export re-reads and downloads only the authorized conversation in UTF-8 JSON ${locale}/${width}`, async ({ page, baseURL }, info) => {
+    await queueLogin(page, baseURL!, locale, width);
+    const target = await createThread(page), marker = `QA39 export ${randomUUID()}`;
+    const posted = await page.request.post(`/api/proxy/conversations/${target.id}/messages`, { data: {
+      body: marker, channel: "web", author_role: "dispatcher", is_internal: true,
+      attachments: [{ kind: "photo", label: "Recorded photo", url: "https://example.invalid/?access_token=do-not-export", meta: { key: "do-not-export" } }],
+    } });
+    expect(posted.status()).toBe(201);
+    await page.goto(`/inbox?c=${target.id}`); await ready(page, locale);
+    const actions = page.getByRole("region", { name: translate(locale, "message.quick_actions"), exact: true });
+    let refreshes = 0;
+    page.on("response", response => {
+      if (response.request().method() === "GET" && new URL(response.url()).pathname === `/api/proxy/conversations/${target.id}`) refreshes++;
+    });
+    const downloadPromise = page.waitForEvent("download");
+    await actions.getByRole("button", { name: translate(locale, "message.action.export_thread"), exact: true }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toBe(`garageos-inbox-${target.id}.json`);
+    const stream = await download.createReadStream(); expect(stream).not.toBeNull();
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream!) chunks.push(Buffer.from(chunk));
+    const raw = Buffer.concat(chunks).toString("utf8"), exported = JSON.parse(raw);
+    expect(exported.format).toBe("garageos.inbox-thread.v1");
+    expect(exported.conversation.id).toBe(target.id);
+    expect(exported.messages.some((message: { body: string }) => message.body === marker)).toBe(true);
+    expect(exported.messages[0].attachments).toEqual([{ id: expect.any(String), kind: "photo", label: "Recorded photo" }]);
+    expect(raw).not.toContain("do-not-export"); expect(raw).not.toContain("read_observation");
+    expect(refreshes).toBeGreaterThan(0);
+    await expect(page.getByRole("status").filter({ hasText: translate(locale, "message.action.export_downloaded") })).toBeVisible();
+    await queueTargets(page, actions); await queueOverflow(page);
+    await assertAccessible(page, info, `thread-export-${locale}-${width}`);
+  });
+}
+
+test("Inbox export reports a failed fresh read without creating a file", async ({ page, baseURL }) => {
+  await queueLogin(page, baseURL!, "en", 390);
+  const target = await createThread(page);
+  await page.goto(`/inbox?c=${target.id}`); await ready(page, "en");
+  await page.route(`**/api/proxy/conversations/${target.id}`, route => route.fulfill({ status: 503, contentType: "application/json", body: "{}" }));
+  let downloads = 0; page.on("download", () => { downloads++; });
+  const actions = page.getByRole("region", { name: translate("en", "message.quick_actions"), exact: true });
+  await actions.getByRole("button", { name: translate("en", "message.action.export_thread"), exact: true }).click();
+  await expect(page.getByRole("alert").filter({ hasText: translate("en", "message.action.export_failed") })).toBeVisible();
+  expect(downloads).toBe(0);
+});
+
+for (const [locale, width] of [["uz", 360], ["en", 390], ["ru", 1280]] as const) {
   test(`Inbox request actions prepare localized editable drafts without sending ${locale}/${width}`, async ({ page, baseURL }, info) => {
     await queueLogin(page, baseURL!, locale, width);
     const target = await createThread(page), path = `/api/proxy/conversations/${target.id}/messages`;

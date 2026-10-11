@@ -1,12 +1,13 @@
 "use client";
 
-import { forwardRef, useState, type ReactNode } from "react";
+import { forwardRef, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
-  ArrowUpRight, CalendarPlus, Camera, Check, MapPin, Megaphone, Moon, PanelRightOpen, Phone, Pin, Receipt, Send, Share2, Siren,
+  ArrowUpRight, CalendarPlus, Camera, Check, Download, MapPin, Megaphone, Moon, PanelRightOpen, Phone, Pin, Receipt, Send, Share2, Siren,
 } from "lucide-react";
 import { Button, cn } from "@garageos/design-system";
 
+import { clientFetch } from "@/lib/api/client";
 import type { ConvMessage, ConvStatus, ThreadDetail } from "@/lib/api/types";
 import { useI18n } from "@/lib/i18n/context";
 import { useMessageComposer } from "@/lib/use-message-composer";
@@ -48,6 +49,10 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
 ) {
   const { t } = useI18n();
   const [passportShareResult, setPassportShareResult] = useState<"copied" | "failed" | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportResult, setExportResult] = useState<"downloaded" | "failed" | null>(null);
+  const exportingRef = useRef(false);
+  const currentThreadId = useRef(thread.id); currentThreadId.current = thread.id;
   const [appointmentContext, setAppointmentContext] = useState<{ id: string; name: string; vehicleId?: string } | null>(null);
   const [estimateContext, setEstimateContext] = useState<{ customerId: string; customerName: string; vehicleId?: string } | null>(null);
   const [caseContext, setCaseContext] = useState<{ customerId: string; customerName: string; vehicleId?: string; vehicleLabel?: string } | null>(null);
@@ -66,6 +71,60 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
       setPassportShareResult("copied");
     } catch {
       setPassportShareResult("failed");
+    }
+  }
+
+  async function exportThread() {
+    const targetId = thread.id;
+    if (exportingRef.current) return;
+    exportingRef.current = true; setExporting(true); setExportResult(null);
+    try {
+      // Re-read through the normal current-auth, tenant-scoped and safe-child
+      // boundary; never export the possibly stale page copy or its read token.
+      const fresh = await clientFetch<ThreadDetail>(`/conversations/${targetId}`);
+      if (currentThreadId.current !== targetId) return;
+      const file = {
+        format: "garageos.inbox-thread.v1",
+        exported_at: new Date().toISOString(),
+        scope: "one authorized conversation and its complete recorded message history",
+        conversation: {
+          id: fresh.id, subject: fresh.subject, conv_type: fresh.conv_type, status: fresh.status,
+          priority: fresh.priority, last_channel: fresh.last_channel, created_at: fresh.created_at,
+          last_message_at: fresh.last_message_at, last_activity_at: fresh.last_activity_at,
+          last_message_preview: fresh.last_message_preview, last_sender_role: fresh.last_sender_role,
+          customer_id: fresh.customer_id, customer_name: fresh.customer_name, customer_phone: fresh.customer_phone,
+          vehicle_id: fresh.vehicle_id, vehicle_label: fresh.vehicle_label,
+          appointment_id: fresh.appointment_id, case_id: fresh.case_id, invoice_id: fresh.invoice_id,
+          assigned_user_id: fresh.assigned_user_id, assigned_name: fresh.assigned_name,
+          case_code: fresh.case_code, case_status: fresh.case_status,
+          stored_summary: fresh.ai_summary, pinned_notes: fresh.pinned_notes,
+          linked: fresh.linked.map(({ kind, title, subtitle, link, available }) => ({ kind, title, subtitle, link, available })),
+        },
+        participants: fresh.participants.map(({ id, role, display_name, is_following, active_channel }) => ({
+          id, role, display_name, is_following, active_channel,
+        })),
+        messages: fresh.messages.map(({ id, kind, channel, is_internal, author_role, author_name, body,
+          delivery_status, mentions, created_at, attachments }) => ({
+          id, kind, channel, is_internal, author_role, author_name, body, delivery_status, mentions, created_at,
+          attachments: attachments.map(({ id: attachmentId, kind: attachmentKind, label }) => ({
+            id: attachmentId, kind: attachmentKind, label,
+          })),
+        })),
+        activity: fresh.activity.map(({ type, title, detail, date, severity, category, author_role, channel }) => ({
+          type, title, detail, date, severity, category, author_role, channel,
+        })),
+        omitted: ["authentication/session data", "read-observation token", "attachment URLs and metadata", "live presence flags"],
+      };
+      const blob = new Blob([JSON.stringify(file, null, 2)], { type: "application/json;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url; anchor.download = `garageos-inbox-${targetId}.json`; anchor.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setExportResult("downloaded");
+    } catch {
+      if (currentThreadId.current === targetId) setExportResult("failed");
+    } finally {
+      exportingRef.current = false; setExporting(false);
     }
   }
 
@@ -226,6 +285,13 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
         )}
         {passportShareResult === "copied" && <span role="status" className="sr-only">{t("message.action.passport_copied")}</span>}
         {passportShareResult === "failed" && <span role="alert" className="sr-only">{t("message.action.passport_copy_failed")}</span>}
+        <Button variant="outline" size="sm" className="min-h-11 min-w-11"
+          leftIcon={<Download className="size-3.5" aria-hidden="true" />}
+          disabled={blocked || actionBlocked || exporting} onClick={() => void exportThread()}>
+          {t(exporting ? "message.action.exporting" : "message.action.export_thread")}
+        </Button>
+        {exportResult === "downloaded" && <span role="status">{t("message.action.export_downloaded")}</span>}
+        {exportResult === "failed" && <span role="alert">{t("message.action.export_failed")}</span>}
         {appointmentPreset ? (
           <Button variant="outline" size="sm" className="min-h-11 min-w-11"
             leftIcon={<CalendarPlus className="size-3.5" aria-hidden="true" />}
