@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 import pytest
 from sqlalchemy import event, select
 
+from app.core.config import settings
 from app.core.database import async_session_factory, engine
 from app.models.conversation import Attachment, Conversation, Message, Participant
 from app.models.notification import Notification
@@ -56,6 +57,28 @@ async def test_long_thread_history_is_complete_without_per_message_query_growth(
     assert sum(len(message['attachments']) for message in thread['messages']) == 64
     assert len([row for row in thread['activity'] if row['type'] == 'event']) == 128
     assert len([row for row in thread['activity'] if row['type'] == 'message']) == 512
+
+
+async def test_readonly_demo_can_read_existing_thread_but_cannot_change_it(client, inbox_rows, identity, monkeypatch):
+    refs = inbox_rows
+    target = uuid.UUID(refs['oldest'])
+    before = await client.get(f'/api/v1/conversations/{target}', headers=refs['admin'])
+    assert before.status_code == 200
+    monkeypatch.setattr(settings, 'DEMO_MODE_ENABLED', True)
+    monkeypatch.setattr(settings, 'DEMO_EMAIL', identity['email'])
+    login = await client.post('/api/v1/auth/demo')
+    assert login.status_code == 200
+    headers = {'Authorization': f"Bearer {login.json()['access_token']}"}
+    profile = await client.get('/api/v1/auth/me', headers=headers)
+    assert profile.status_code == 200 and profile.json()['permissions'] == ['staff.read']
+
+    read = await client.get(f'/api/v1/conversations/{target}', headers=headers)
+    assert read.status_code == 200 and read.json()['id'] == str(target)
+    denied = await client.patch(f'/api/v1/conversations/{target}', headers=headers,
+        json={'status': 'resolved'})
+    assert denied.status_code == 403
+    unchanged = await client.get(f'/api/v1/conversations/{target}', headers=refs['admin'])
+    assert unchanged.status_code == 200 and unchanged.json()['status'] == before.json()['status']
 
 
 async def test_all_old_events_and_tied_messages_remain_accessible(client, inbox_rows):
