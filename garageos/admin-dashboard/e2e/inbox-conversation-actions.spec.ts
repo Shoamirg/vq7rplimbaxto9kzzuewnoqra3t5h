@@ -436,6 +436,32 @@ test("read-only staff can export an authorized thread without enabling mutations
   expect(exported.messages.some((message: { body: string }) => message.body === marker)).toBe(true);
 });
 
+test("an export response arriving after leaving its thread cannot trigger a download", async ({ page, baseURL }) => {
+  await queueLogin(page, baseURL!, "en", 1280);
+  const target = await createThread(page), next = await createThread(page);
+  await page.goto(`/inbox?c=${target.id}`); await ready(page, "en");
+  let release!: () => void, seen!: () => void, finished!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  const requested = new Promise<void>(resolve => { seen = resolve; });
+  const completed = new Promise<void>(resolve => { finished = resolve; });
+  await page.route(`**/api/proxy/conversations/${target.id}`, async route => {
+    if (route.request().method() !== "GET") { await route.continue(); return; }
+    const response = await route.fetch(); seen();
+    try { await held; await route.fulfill({ response }); }
+    finally { finished(); }
+  });
+  try {
+    const actions = page.getByRole("region", { name: translate("en", "message.quick_actions"), exact: true });
+    await actions.getByRole("button", { name: translate("en", "message.action.export_thread"), exact: true }).click();
+    await requested;
+    await page.goto(`/inbox?c=${next.id}`);
+    await expect(page.getByRole("heading", { name: next.subject, exact: true })).toBeVisible();
+    const downloaded = page.waitForEvent("download", { timeout: 1000 }).then(() => true, () => false);
+    release(); await completed;
+    expect(await downloaded).toBe(false);
+  } finally { release(); await page.unrouteAll({ behavior: "wait" }); }
+});
+
 for (const [locale, width] of [["uz", 360], ["en", 390], ["ru", 1280]] as const) {
   test(`Inbox request actions prepare localized editable drafts without sending ${locale}/${width}`, async ({ page, baseURL }, info) => {
     await queueLogin(page, baseURL!, locale, width);
