@@ -438,7 +438,7 @@ test("read-only staff can export an authorized thread without enabling mutations
 
 test("an export response arriving after leaving its thread cannot trigger a download", async ({ page, baseURL }) => {
   await queueLogin(page, baseURL!, "en", 1280);
-  const target = await createThread(page), next = await createThread(page);
+  const target = await createThread(page);
   await page.goto(`/inbox?c=${target.id}`); await ready(page, "en");
   let release!: () => void, seen!: () => void, finished!: () => void;
   const held = new Promise<void>(resolve => { release = resolve; });
@@ -454,8 +454,8 @@ test("an export response arriving after leaving its thread cannot trigger a down
     const actions = page.getByRole("region", { name: translate("en", "message.quick_actions"), exact: true });
     await actions.getByRole("button", { name: translate("en", "message.action.export_thread"), exact: true }).click();
     await requested;
-    await page.goto(`/inbox?c=${next.id}`);
-    await expect(page.getByRole("heading", { name: next.subject, exact: true })).toBeVisible();
+    await page.getByRole("link", { name: translate("en", "nav.dashboard"), exact: true }).click();
+    await expect(page).toHaveURL(/\/dashboard$/);
     const downloaded = page.waitForEvent("download", { timeout: 1000 }).then(() => true, () => false);
     release(); await completed;
     expect(await downloaded).toBe(false);
