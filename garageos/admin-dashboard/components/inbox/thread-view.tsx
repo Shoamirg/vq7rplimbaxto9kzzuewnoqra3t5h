@@ -48,11 +48,14 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
   composerRef,
 ) {
   const { t } = useI18n();
-  const [passportShareResult, setPassportShareResult] = useState<"copied" | "failed" | null>(null);
+  const [passportShareResult, setPassportShareResult] = useState<{
+    threadId: string; actorId: string; result: "copied" | "failed";
+  } | null>(null);
   const [exporting, setExporting] = useState(false);
   const [exportResult, setExportResult] = useState<"downloaded" | "failed" | null>(null);
   const exportingRef = useRef(false);
   const currentThreadId = useRef(thread.id); currentThreadId.current = thread.id;
+  const currentActorId = useRef(actorId); currentActorId.current = actorId;
   const [appointmentContext, setAppointmentContext] = useState<{ id: string; name: string; vehicleId?: string } | null>(null);
   const [estimateContext, setEstimateContext] = useState<{ customerId: string; customerName: string; vehicleId?: string } | null>(null);
   const [caseContext, setCaseContext] = useState<{ customerId: string; customerName: string; vehicleId?: string; vehicleLabel?: string } | null>(null);
@@ -64,13 +67,18 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
   } : null;
 
   async function copyPassportLink() {
+    const targetId = thread.id;
+    const targetActor = actorId;
+    const targetLink = passport?.link;
     setPassportShareResult(null);
-    if (!passport?.link) return;
+    if (!targetLink) return;
     try {
-      await navigator.clipboard.writeText(new URL(passport.link, window.location.origin).href);
-      setPassportShareResult("copied");
+      await navigator.clipboard.writeText(new URL(targetLink, window.location.origin).href);
+      if (currentThreadId.current !== targetId || currentActorId.current !== targetActor) return;
+      setPassportShareResult({ threadId: targetId, actorId: targetActor, result: "copied" });
     } catch {
-      setPassportShareResult("failed");
+      if (currentThreadId.current !== targetId || currentActorId.current !== targetActor) return;
+      setPassportShareResult({ threadId: targetId, actorId: targetActor, result: "failed" });
     }
   }
 
@@ -287,8 +295,10 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
             🏅 {t("message.action.passport_unavailable")}
           </span>
         )}
-        {passportShareResult === "copied" && <span role="status" className="sr-only">{t("message.action.passport_copied")}</span>}
-        {passportShareResult === "failed" && <span role="alert" className="sr-only">{t("message.action.passport_copy_failed")}</span>}
+        {passportShareResult?.threadId === thread.id && passportShareResult.actorId === actorId && passportShareResult.result === "copied"
+          && <span role="status" className="sr-only">{t("message.action.passport_copied")}</span>}
+        {passportShareResult?.threadId === thread.id && passportShareResult.actorId === actorId && passportShareResult.result === "failed"
+          && <span role="alert" className="sr-only">{t("message.action.passport_copy_failed")}</span>}
         <Button variant="outline" size="sm" className="min-h-11 min-w-11"
           leftIcon={<Download className="size-3.5" aria-hidden="true" />}
           disabled={blocked || actionBlocked || exporting} onClick={() => void exportThread()}>
