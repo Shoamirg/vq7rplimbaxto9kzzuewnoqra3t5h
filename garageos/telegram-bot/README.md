@@ -26,7 +26,7 @@ cloudflared tunnel --url http://localhost:3000     # or: ngrok http 3000
 # then set TELEGRAM_MINI_APP_URL=https://<tunnel-host>/mini in garageos/.env
 ```
 
-In production it's simply `https://your-domain/mini`.
+In production it's `https://garageos.uz/mini`.
 
 ## Run
 

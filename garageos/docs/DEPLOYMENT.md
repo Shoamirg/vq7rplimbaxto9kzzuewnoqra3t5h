@@ -29,8 +29,8 @@ Prepare the private client receipt, backup/update/rollback and support procedure
 in [HANDOFF.md](HANDOFF.md). Give users the [Uzbek daily-use guide](USER-GUIDE.md).
 
 - A Linux host (2 vCPU / 4 GB RAM is enough to start) with Docker + Docker Compose.
-- A domain with an **A record** pointing at the host's public IP (e.g.
-  `app.garageos.example`).
+- The registered `garageos.uz` domain with an **A record** pointing at the
+  host's public IP.
 - Ports **80** and **443** open (Caddy needs both for the ACME challenge + TLS).
 - The Telegram bot token (from BotFather).
 
@@ -39,14 +39,14 @@ in [HANDOFF.md](HANDOFF.md). Give users the [Uzbek daily-use guide](USER-GUIDE.m
 ```bash
 git clone <your-repo> /opt/garageos && cd /opt/garageos
 cp .env.prod.example .env.prod
-# Edit .env.prod — set DOMAIN, ACME_EMAIL, DB password, a strong SECRET_KEY
+# Edit .env.prod — keep DOMAIN=garageos.uz; set a real ACME_EMAIL, DB password, a strong SECRET_KEY
 # (openssl rand -hex 32), the Telegram token, and
-# TELEGRAM_MINI_APP_URL=https://<DOMAIN>/mini
+# TELEGRAM_MINI_APP_URL=https://garageos.uz/mini
 ```
 
 The backend refuses to start in staging/production with `DEBUG=true`, a short or
 common placeholder `SECRET_KEY`, or CORS origins that are not explicit HTTPS
-origins. Use `https://your-domain` without a trailing slash, path, wildcard or
+origins. Use `https://garageos.uz` without a trailing slash, path, wildcard or
 credentials. Validation messages hide supplied values. Keep the actual secrets
 out of Git. `DEMO_MODE_ENABLED=false` is the client deployment default; enable the
 read-only public demo only intentionally on a deployment with demo accounts.
@@ -120,12 +120,12 @@ automatically. Caddy provisions the TLS certificate on first request (give it
 
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env.prod ps
-curl -fsS https://<DOMAIN>/            # dashboard
-curl -i https://<DOMAIN>/api/v1/auth/me # must be backend JSON 401 without a token
+curl -fsS https://garageos.uz/            # dashboard
+curl -i https://garageos.uz/api/v1/auth/me # must be backend JSON 401 without a token
 ```
 
 The unauthenticated `401` confirms public routing and rejection, not successful
-login. In the Flutter API URL setting use **`https://<DOMAIN>/api/v1`**. Keep the
+login. In the Flutter API URL setting use **`https://garageos.uz/api/v1`**. Keep the
 version prefix; do not use the Docker hostname `backend`, `localhost` or the
 Android emulator alias `10.0.2.2` on a remote physical phone. Test staff/customer
 login with provisioned accounts and authorized history on the real phone before

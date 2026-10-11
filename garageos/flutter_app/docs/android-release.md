@@ -49,7 +49,7 @@ Flutter3.47.6, Android SDK36/build-tools36.0.0 va mos JDK bilan, `flutter_app/`d
 
 ```powershell
 # Signing private child-process muhitida oldindan sozlangan bo'lsin.
-flutter build apk --release --split-per-abi --dart-define=API_URL=https://YOUR-HOST/api/v1 --build-name=0.1.3 --build-number=4
+flutter build apk --release --split-per-abi --dart-define=API_URL=https://garageos.uz/api/v1 --build-name=0.1.3 --build-number=4
 ```
 
 Endpoint va raqamlar operator tanlaydigan qiymatlar. APKlar
