@@ -98,7 +98,7 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
           assigned_user_id: fresh.assigned_user_id, assigned_name: fresh.assigned_name,
           case_code: fresh.case_code, case_status: fresh.case_status,
           stored_summary: fresh.ai_summary, pinned_notes: fresh.pinned_notes,
-          linked: fresh.linked.map(({ kind, title, subtitle, link, available, case_type }) => ({ kind, title, subtitle, link, available, case_type })),
+          linked: fresh.linked.map(({ kind, title, subtitle, link, available, case_type, appointment_date, appointment_time, invoice_kind }) => ({ kind, title, subtitle, link, available, case_type, appointment_date, appointment_time, invoice_kind })),
         },
         participants: fresh.participants.map(({ id, role, display_name, is_following, active_channel }) => ({
           id, role, display_name, is_following, active_channel,
@@ -198,8 +198,10 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
             {CONV_TYPE_ICON[thread.conv_type]} <span>{t(`inbox.type.${thread.conv_type}`)}</span>
           </span>
           {thread.linked.map((c) => {
-            const label = c.available === false ? t("inbox.linked.vehicle_unavailable")
+            const label = c.available === false ? t(c.kind === "vehicle" ? "inbox.linked.vehicle_unavailable" : "inbox.linked.record_unavailable")
               : c.kind === "passport" ? t("inbox.context.passport")
+              : c.kind === "appointment" ? t("inbox.context.appointment")
+              : c.kind === "invoice" ? c.title
               : c.kind === "case" ? `${inboxEnumLabel(t, "case_type", c.case_type)} · ${c.title ?? ""}` : c.title;
             return c.link ? (
               <Link key={c.kind} href={c.link} target={c.kind === "passport" ? "_blank" : undefined}

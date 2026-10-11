@@ -38,7 +38,7 @@ async def references(client, workshop, identity):
                           vehicle_model_id=uuid.UUID(workshop["model"]), year=2024)
         session.add(vehicle)
         await session.commit()
-        return PrivateWorkshop(workshop, customer=detail["customer_id"], vehicle=detail["vehicle_id"],
+        return PrivateWorkshop(workshop, customer=detail["customer_id"], vehicle=detail["vehicle_id"], appointment=job,
                                foreign_customer=str(foreign.id), foreign_vehicle=str(vehicle.id),
                                other_customer=str(other.id), foreign_center=foreign.service_center_id,
                                center=identity["center"])

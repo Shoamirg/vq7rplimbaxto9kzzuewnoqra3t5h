@@ -58,6 +58,17 @@ test("staff completes service work and shows one Uzbek UZS invoice", async ({ pa
   expect(created.ok(), await created.text()).toBeTruthy();
   const appointmentId = (await created.json()).id;
 
+  const appointmentResponse = await page.request.get(`/api/proxy/appointments/${appointmentId}`);
+  expect(appointmentResponse.ok(), await appointmentResponse.text()).toBeTruthy();
+  const appointment = await appointmentResponse.json();
+  await page.goto(`/appointments/${appointmentId}`);
+  await expect(page.getByRole("heading", { name: "Navbat tafsilotlari", exact: true })).toBeVisible();
+  await expect(page.getByText(appointment.customer_name, { exact: true })).toBeVisible();
+  await expect(page.getByText(appointment.vehicle_summary, { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Mijozni ochish", exact: true })).toHaveAttribute("href", `/customers/${appointment.customer_id}`);
+  await expect(page.getByRole("link", { name: "Mashinani ochish", exact: true })).toHaveAttribute("href", `/vehicles/${appointment.vehicle_id}`);
+  await page.goto("/appointments");
+
   await page.locator("#queue-search").fill(customer.tag);
   const row = page.getByTestId(`appointment-row-${appointmentId}`);
   await expect(row).toBeVisible();

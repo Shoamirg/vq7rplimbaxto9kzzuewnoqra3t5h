@@ -681,6 +681,22 @@ class ConversationService:
                 cards.append({"kind": "case", "title": case.code, "case_type": case.case_type,
                               "subtitle": case.status,
                               "link": f"/operations?case={case.id}"})
+        if conv.appointment_id:
+            appointment = await local_reference(self.session, Appointment, conv.appointment_id, self.sc, active=True)
+            if appointment:
+                cards.append({"kind": "appointment", "title": None, "subtitle": appointment.status,
+                    "appointment_date": appointment.appointment_date.isoformat(),
+                    "appointment_time": appointment.appointment_time,
+                    "link": f"/appointments/{appointment.id}"})
+            else:
+                cards.append({"kind": "appointment", "title": None, "subtitle": None, "link": None, "available": False})
+        if conv.invoice_id:
+            invoice = await local_reference(self.session, Invoice, conv.invoice_id, self.sc, active=True)
+            if invoice:
+                cards.append({"kind": "invoice", "title": invoice.code, "subtitle": invoice.status,
+                    "invoice_kind": invoice.kind, "link": f"/invoice/{invoice.id}"})
+            else:
+                cards.append({"kind": "invoice", "title": None, "subtitle": None, "link": None, "available": False})
         if conv.vehicle_id:
             vehicle = await self.maintenance.vehicle_repo.get_with_model(conv.vehicle_id)
             if vehicle:

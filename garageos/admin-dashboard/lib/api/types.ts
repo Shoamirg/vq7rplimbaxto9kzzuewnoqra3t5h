@@ -563,11 +563,14 @@ export interface ConvParticipant {
 }
 
 export interface LinkedCard {
-  kind: "case" | "vehicle" | "customer" | "passport";
+  kind: "case" | "vehicle" | "customer" | "passport" | "appointment" | "invoice";
   title: string | null;
   subtitle: string | null;
   link: string | null;
   case_type?: string;
+  appointment_date?: string;
+  appointment_time?: string;
+  invoice_kind?: "estimate" | "invoice";
   available?: boolean;
   phone?: string;
 }

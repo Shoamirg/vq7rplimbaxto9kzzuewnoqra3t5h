@@ -73,6 +73,35 @@ async def test_linked_case_uses_real_operations_deep_link(client, references):
     assert linked_case['subtitle'] == 'new'
 
 
+async def test_linked_appointment_and_invoice_cards_open_owned_records(client, references):
+    refs = references
+    async with async_session_factory() as session:
+        invoice = Invoice(service_center_id=refs['center'], code='INB-' + uuid.uuid4().hex[:16].upper(),
+            customer_id=uuid.UUID(refs['customer']), vehicle_id=uuid.UUID(refs['vehicle']),
+            appointment_id=uuid.UUID(refs['appointment']), kind='invoice', status='issued')
+        session.add(invoice)
+        await session.flush()
+        conversation = Conversation(service_center_id=refs['center'], customer_id=uuid.UUID(refs['customer']),
+            vehicle_id=uuid.UUID(refs['vehicle']), appointment_id=uuid.UUID(refs['appointment']), invoice_id=invoice.id)
+        session.add(conversation)
+        conversation_id = str(conversation.id)
+        await session.commit()
+        appointment_id, invoice_id, invoice_code = refs['appointment'], str(invoice.id), invoice.code
+
+    response = await client.get(f'/api/v1/conversations/{conversation_id}', headers=refs['admin'])
+
+    assert response.status_code == 200, response.text
+    cards = response.json()['linked']
+    appointment = next(card for card in cards if card['kind'] == 'appointment')
+    invoice = next(card for card in cards if card['kind'] == 'invoice')
+    assert appointment['link'] == f'/appointments/{appointment_id}'
+    assert appointment['subtitle'] in {'pending', 'confirmed', 'in_progress', 'completed', 'cancelled', 'rescheduled'}
+    assert invoice['link'] == f'/invoice/{invoice_id}'
+    assert invoice['title'] == invoice_code and invoice['invoice_kind'] == 'invoice'
+    assert invoice['subtitle'] == 'issued'
+    assert (await client.get(f'/api/v1/appointments/{appointment_id}', headers=refs['admin'])).status_code == 200
+
+
 async def test_inactive_historical_vehicle_does_not_claim_health_or_offer_passport(client, references):
     refs = references
     async with async_session_factory() as session:

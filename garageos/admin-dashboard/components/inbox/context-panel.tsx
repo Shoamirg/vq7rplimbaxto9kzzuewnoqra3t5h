@@ -9,7 +9,7 @@ import { useI18n } from "@/lib/i18n/context";
 import { inboxEnumLabel, roleColor } from "./shared";
 
 const CARD_ICON: Record<LinkedCard["kind"], string> = {
-  case: "🛰️", vehicle: "🚗", customer: "👤", passport: "🏅",
+  case: "🛰️", vehicle: "🚗", customer: "👤", passport: "🏅", appointment: "📅", invoice: "💳",
 };
 
 // Column 4 — collapsible context. Assigned / Following / Participants are kept
@@ -22,7 +22,7 @@ export function ContextPanel({
   onToggleFollow: () => void;
   onCollapse: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
   return (
     <aside className="w-[300px] shrink-0 bg-card border-l border-border overflow-y-auto">
       <div className="flex items-center px-4 h-12 border-b border-border">
@@ -71,11 +71,15 @@ export function ContextPanel({
             <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-2">{t("inbox.linked_records")}</p>
             <div className="space-y-2">
               {thread.linked.map((c) => {
-                const title = c.available === false ? t("inbox.linked.vehicle_unavailable")
+                const title = c.available === false ? t(c.kind === "vehicle" ? "inbox.linked.vehicle_unavailable" : "inbox.linked.record_unavailable")
                   : c.kind === "passport" ? t("inbox.context.passport")
+                  : c.kind === "appointment" ? t("inbox.context.appointment")
                   : c.kind === "case" ? `${inboxEnumLabel(t, "case_type", c.case_type)} · ${c.title ?? ""}` : c.title;
                 const subtitle = c.kind === "customer" && c.subtitle === "Customer 360" ? t("inbox.context.customer_detail")
-                  : c.kind === "case" && c.subtitle ? inboxEnumLabel(t, "case_status", c.subtitle) : c.subtitle;
+                  : c.kind === "case" && c.subtitle ? inboxEnumLabel(t, "case_status", c.subtitle)
+                  : c.kind === "appointment" && c.subtitle ? `${fmt.date(c.appointment_date)} · ${c.appointment_time ?? ""} · ${inboxEnumLabel(t, "appointment_status", c.subtitle)}`
+                  : c.kind === "invoice" && c.subtitle ? `${t(c.invoice_kind === "estimate" ? "inbox.context.estimate" : "inbox.context.invoice")} · ${inboxEnumLabel(t, "invoice_status", c.subtitle)}`
+                  : c.subtitle;
                 const card = (
                   <>
                   <span className={cn("grid size-8 place-items-center rounded-lg text-sm shrink-0",
