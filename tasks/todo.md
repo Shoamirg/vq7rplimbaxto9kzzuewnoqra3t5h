@@ -33,9 +33,9 @@
 **Tavsif:** Paginated/status-filter GET API va role bo‘yicha ko‘rinish qoidalarini qo‘shish.
 
 **Qabul mezonlari:**
-- [ ] Boshqa tenant resource’lari 404; mechanic faqat assigned buyurtmalarini ko‘radi.
-- [ ] Mechanic response’da customer phone/address bo‘lmaydi; reception/admin to‘liq o‘z tenant ma’lumotini ko‘radi.
-- [ ] Unknown/inactive role rad etiladi.
+- [x] Boshqa tenant resource’lari 404; mechanic faqat assigned buyurtmalarini ko‘radi.
+- [x] Mechanic response’da customer phone/address bo‘lmaydi; reception/admin to‘liq o‘z tenant ma’lumotini ko‘radi.
+- [x] Unknown/inactive role rad etiladi.
 
 **Tekshiruv:** role, pagination, 404 tenant isolation va response privacy testlari; pytest.
 **Bog‘liqlik:** Task 2.

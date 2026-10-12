@@ -81,6 +81,50 @@ class WorkOrderService:
         self.customer_repo = CustomerRepository(uow.session, self.service_center_id)
         self.vehicle_repo = VehicleRepository(uow.session, self.service_center_id)
 
+    def _role(self):
+        return getattr(self.actor, "role", None)
+
+    def _authorize(self, action: str, order=None) -> None:
+        role = self._role()
+        require_work_order_action(
+            getattr(role, "name", None),
+            role_active=bool(role and getattr(role, "is_active", False)),
+            action=action,
+            actor_user_id=self.actor.id,
+            assigned_mechanic_user_id=(order.assigned_mechanic_user_id if order else None),
+        )
+
+    async def list_work_orders(
+        self,
+        *,
+        page: int,
+        page_size: int,
+        status: str | None = None,
+    ) -> dict:
+        self._authorize("list")
+        role = self._role()
+        assigned_to = self.actor.id if role.name == "mechanic" else None
+        rows, total = await self.work_order_repo.list_work_orders(
+            skip=(page - 1) * page_size,
+            limit=page_size,
+            status=status,
+            assigned_mechanic_user_id=assigned_to,
+        )
+        return {
+            "items": [serialize_work_order(row) for row in rows],
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": (total + page_size - 1) // page_size if total else 0,
+        }
+
+    async def get_work_order(self, work_order_id: uuid.UUID) -> dict:
+        order = await self.work_order_repo.get_detailed(work_order_id)
+        if not order:
+            raise WorkOrderNotFound()
+        self._authorize("read", order)
+        return serialize_work_order(order)
+
     async def _lock_idempotency_key(self, key: str) -> None:
         """Serialize same-tenant retries in PostgreSQL; unique constraint is the backstop."""
         bind = getattr(self.uow.session, "bind", None)

@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import uuid
 
 import pytest
-from app.exceptions import WorkOrderConflict, WorkOrderValidationError
+from app.exceptions import WorkOrderConflict, WorkOrderNotFound, WorkOrderValidationError
 from app.schemas.work_order import WorkOrderCreateRequest
 from app.services import work_order_service
 
@@ -51,6 +51,15 @@ class MemoryWorkOrderRepository:
 
     async def get_detailed(self, order_id):
         return self.items.get(order_id)
+
+    async def list_work_orders(self, *, skip, limit, status=None, assigned_mechanic_user_id=None):
+        rows = list(self.items.values())
+        if status:
+            rows = [row for row in rows if row.status == status]
+        if assigned_mechanic_user_id is not None:
+            rows = [row for row in rows if row.assigned_mechanic_user_id == assigned_mechanic_user_id]
+        rows.sort(key=lambda row: str(row.id))
+        return rows[skip:skip + limit], len(rows)
 
 
 customer = SimpleNamespace(id=CUSTOMER_ID, service_center_id=TENANT_ID, is_active=True, full_name="Test Customer")
@@ -220,3 +229,44 @@ async def test_create_requires_assignment_to_an_active_mechanic(memory_service):
             await service.create_work_order(body, "bad-mechanic-key")
     finally:
         mechanic.role = original_role
+
+
+@pytest.mark.asyncio
+async def test_list_filters_paginates_and_returns_total(memory_service):
+    service, repository = memory_service
+    body = WorkOrderCreateRequest(customer_id=CUSTOMER_ID, vehicle_id=VEHICLE_ID, service_type="Oil change")
+    first = await service.create_work_order(body, "list-first-key")
+    second = await service.create_work_order(body, "list-second-key")
+    repository.items[uuid.UUID(second["id"])].status = "ready"
+
+    page = await service.list_work_orders(page=1, page_size=10, status="received")
+
+    assert page["total"] == 1
+    assert page["total_pages"] == 1
+    assert page["items"][0]["id"] == first["id"]
+
+
+@pytest.mark.asyncio
+async def test_mechanic_list_and_detail_are_limited_to_assigned_orders(memory_service):
+    service, repository = memory_service
+    assigned = WorkOrderCreateRequest(
+        customer_id=CUSTOMER_ID, vehicle_id=VEHICLE_ID, service_type="Oil change",
+        assigned_mechanic_user_id=mechanic.id,
+    )
+    unassigned = WorkOrderCreateRequest(
+        customer_id=CUSTOMER_ID, vehicle_id=VEHICLE_ID, service_type="Tire rotation",
+    )
+    assigned_result = await service.create_work_order(assigned, "mechanic-order-key")
+    unassigned_result = await service.create_work_order(unassigned, "unassigned-order-key")
+    original_role, original_actor_id = actor.role, actor.id
+    try:
+        actor.role = SimpleNamespace(name="mechanic", is_active=True)
+        actor.id = mechanic.id
+        visible = await service.list_work_orders(page=1, page_size=20)
+        assert [row["id"] for row in visible["items"]] == [assigned_result["id"]]
+        assert (await service.get_work_order(uuid.UUID(assigned_result["id"])))['id'] == assigned_result["id"]
+        with pytest.raises(WorkOrderNotFound):
+            await service.get_work_order(uuid.UUID(unassigned_result["id"]))
+    finally:
+        actor.role = original_role
+        actor.id = original_actor_id
