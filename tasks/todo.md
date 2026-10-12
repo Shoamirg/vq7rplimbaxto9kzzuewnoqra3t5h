@@ -85,14 +85,14 @@
 - [x] Takroriy appointment bog‘lash UI va API’da xavfsiz rad qilinadi.
 - [x] Mexanik ishni tayyor holatga olib keladi, qabulxona topshirilgach yopadi; phone/address UI’da ko‘rinmaydi.
 
-**Tekshiruv:** Playwright mock API bilan mobil walk-in va appointment handoff o‘tdi; ma’lumotlar bazasiga ulanmaydigan 52 backend testi o‘tdi. Appointment API va concurrency/rollback integratsiya testlari uchun lokal PostgreSQL kerak, shu sabab to‘liq backend to‘plami hali tasdiqlanmadi. Frontend production build o‘tdi.
+**Tekshiruv:** Mock API bilan mobil walk-in va desktop appointment handoff Playwright testlari o‘tdi; vaqtinchalik alohida PostgreSQL bazasida to‘liq backend test to‘plami — 124 test — o‘tdi. Frontend lint, i18n, TypeScript tekshiruvi va production build o‘tdi.
 **Bog‘liqlik:** Task 5.
 **Taxminiy fayllar:** appointment list/detail controls, work order components, i18n, E2E.
 **Hajm:** O‘rta.
 
 ## Checkpoint B — Pilot uchun to‘liq oqim
 
-- [ ] Tasdiqlangan spec qabul mezonlari qoplandi; backend, brauzer va build tekshiruvlari o‘tdi.
-- [ ] Xavfsizlik va diff review bajarildi; deploy qilinmadi.
+- [x] Tasdiqlangan spec qabul mezonlari qoplandi; backend, brauzer va build tekshiruvlari o‘tdi.
+- [ ] npm audit’dagi yuqori/o‘rta xavfli qaramlik ogohlantirishlari hal qilindi yoki xavfsiz chiqarish rejasi bilan qabul qilindi; diff review bajarildi, deploy qilinmadi.
 
-**Qolgan tekshiruvlar:** DB integratsiya testlarini PostgreSQL bilan ishga tushirish; npm audit’da qolgan high/moderate ogohlantirishlarni framework/tooling major yangilashini rejalab hal qilish. Shu sabab Checkpoint B hali yopilmagan va deploy qilinmagan.
+**Qolgan xavfsizlik darvozasi:** npm audit 11 ogohlantirish ko‘rsatmoqda (8 high, 3 moderate, 0 critical). To‘liq bartaraf etish Next.js 16 va Tailwind CSS 4 major yangilashini talab qiladi; bu branchda scope va moslikni alohida ko‘rib chiqish kerak. Shu sabab Checkpoint B yopilmagan va deploy qilinmagan.

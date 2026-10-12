@@ -52,13 +52,14 @@ Ruxsatli holat o‘tishlari, completion odometri, bajarilgan ish va narxni yangi
 
 Uchrashuv ekranidan buyurtma yaratish va buyurtma holatini ko‘rish. Reception va mechanic rollariga mos boshqaruvlarni ko‘rsatish. Playwright’da walk-in hamda appointment oqimini tekshirish.
 
-**Holat:** UI/API bog‘lanishi va ikkala Playwright oqimi mock API bilan bajarildi. Real PostgreSQL integratsiya tekshiruvi va dependency audit qoldiqlari sabab Checkpoint C ochiq.
+**Holat:** UI/API bog‘lanishi va ikkala Playwright oqimi mock API bilan bajarildi. Vaqtinchalik alohida PostgreSQL bazasida backend’ning 124 testi o‘tdi. Qolgan dependency audit ogohlantirishlari sabab xavfsizlik darvozasi ochiq.
 
 ### Checkpoint C
 
-- [ ] Backend testlar va frontend lint/build o‘tadi.
-- [ ] Desktop/mobile brauzer oqimlari muvaffaqiyatli.
-- [ ] Diff xavfsizlik, accessibility, tenant chegarasi va scope bo‘yicha yakuniy ko‘rib chiqilgan.
+- [x] Backend testlar va frontend lint/build o‘tadi.
+- [x] Desktop/mobile brauzer oqimlari muvaffaqiyatli.
+- [x] Diff xavfsizlik, accessibility, tenant chegarasi va scope bo‘yicha yakuniy ko‘rib chiqilgan.
+- [ ] Dependency audit’dagi high/moderate ogohlantirishlar bartaraf qilingan yoki chiqarishdan oldingi xavfsiz reja bilan qabul qilingan.
 
 ## Xatarlar va kamaytirish
 
@@ -73,3 +74,5 @@ Uchrashuv ekranidan buyurtma yaratish va buyurtma holatini ko‘rish. Reception 
 ## Ochiq masala
 
 - Pilotda `in_progress` holatidan keyin bekor qilish/qisman bajarilgan xizmatni qayd etish kerakmi — MVP’da hozircha yo‘q.
+
+Security gate: npm audit 11 ogohlantirish ko‘rsatmoqda (8 high, 3 moderate, 0 critical). Tavsiya etilgan tuzatish Next.js 16 va Tailwind CSS 4 major yangilanishini talab qiladi; moslik tekshiruvi tugamaguncha chiqarilmaydi.
