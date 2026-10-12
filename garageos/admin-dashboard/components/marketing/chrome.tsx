@@ -24,7 +24,7 @@ export function MarketingNav() {
   return (
     <header className="mkt-nav">
       <div className="mkt-shell mkt-nav__row">
-        <Link href="/" aria-label="GarageOS home"><Logo theme="dark" size={24} /></Link>
+        <Link href="/" aria-label="GarageOS home"><Logo theme="dark" size={20} /></Link>
         <nav className="mkt-nav__links" aria-label="Primary">
           {NAV_LINKS.map((l) => (<a key={l.href} href={l.href}>{l.label}</a>))}
         </nav>

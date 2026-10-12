@@ -74,6 +74,12 @@
 .mkt-nav__signin { color: var(--mkt-muted); font-size: 15px; font-weight: 500; }
 .mkt-nav__signin:hover { color: var(--mkt-ink); }
 @media (min-width: 900px) { .mkt-nav__links { display: flex; } }
+@media (max-width: 480px) {
+  .mkt-shell.mkt-nav__row { padding-inline: 12px; gap: 6px; }
+  .mkt-nav__cta { flex-shrink: 0; gap: 6px; }
+  .mkt-nav__signin { font-size: 13px; white-space: nowrap; }
+  .mkt-nav__cta .mkt-btn { padding: 10px 8px; font-size: 13px; white-space: nowrap; }
+}
 
 /* ---- Section scaffolding --------------------------------------------- */
 .mkt-section { position: relative; padding: clamp(64px, 8vw, 128px) 0; }
