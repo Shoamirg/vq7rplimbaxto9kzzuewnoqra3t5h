@@ -37,16 +37,27 @@ test("reception can create a walk-in work order on mobile and take it to ready",
     response.url().includes("/api/proxy/work-orders") && response.request().method() === "POST",
   );
   await page.getByRole("button", { name: "Create work order" }).click();
-  const created = await (await createResponse).json();
+  const createdResponse = await createResponse;
+  expect(createdResponse.status()).toBe(201);
+  const created = await createdResponse.json();
   expect(created.appointment_id).toBeNull();
-  await expect(page.getByLabel("Work order details")).toBeVisible();
-  await expect(page.getByText("E2E brake inspection", { exact: true })).toBeVisible();
+  const details = page.getByLabel("Work order details");
+  await expect(details).toBeVisible();
+  await expect(details.getByText("E2E brake inspection", { exact: true })).toBeVisible();
   await expect(page.locator("html")).toHaveJSProperty("scrollWidth", 375);
   await page.screenshot({ path: "test-results/work-orders-mobile.png", fullPage: true });
 
+  const startResponse = page.waitForResponse((response) =>
+    response.url().includes("/api/proxy/work-orders/") && response.request().method() === "PATCH",
+  );
   await page.getByRole("button", { name: "Start work" }).click();
+  expect((await startResponse).status()).toBe(200);
   await page.getByLabel("Work performed").fill("Inspected pads and discs");
+  const readyResponse = page.waitForResponse((response) =>
+    response.url().includes("/api/proxy/work-orders/") && response.request().method() === "PATCH",
+  );
   await page.getByRole("button", { name: "Mark ready" }).click();
+  expect((await readyResponse).status()).toBe(200);
   await expect(page.getByText("Ready", { exact: true }).first()).toBeVisible();
 });
 

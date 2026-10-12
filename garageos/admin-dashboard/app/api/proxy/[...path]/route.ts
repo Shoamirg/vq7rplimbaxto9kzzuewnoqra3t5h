@@ -11,6 +11,7 @@ function backendBase(): string {
 
 async function forward(req: Request, segments: string[], method: string): Promise<Response> {
   const token = (await cookies()).get(AUTH_COOKIE)?.value;
+  const idempotencyKey = req.headers.get("Idempotency-Key");
   const search = new URL(req.url).search;
   const url = `${backendBase()}/${segments.join("/")}${search}`;
   const hasBody = method !== "GET" && method !== "HEAD";
@@ -19,6 +20,7 @@ async function forward(req: Request, segments: string[], method: string): Promis
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
     },
     body: hasBody ? await req.text() : undefined,
     cache: "no-store",

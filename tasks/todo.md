@@ -85,7 +85,7 @@
 - [x] Takroriy appointment bog‘lash UI va API’da xavfsiz rad qilinadi.
 - [x] Mexanik ishni tayyor holatga olib keladi, qabulxona topshirilgach yopadi; phone/address UI’da ko‘rinmaydi.
 
-**Tekshiruv:** Mock API bilan mobil walk-in va desktop appointment handoff Playwright testlari o‘tdi; vaqtinchalik alohida PostgreSQL bazasida to‘liq backend test to‘plami — 124 test — o‘tdi. Frontend lint, i18n, TypeScript tekshiruvi va production build o‘tdi.
+**Tekshiruv:** Seeded, izolyatsiyalangan lokal PostgreSQL’da to‘liq backend suite — 125 test — o‘tdi; real API bilan Playwright E2E suite — 12 test — o‘tdi, jumladan mobil walk-in status oqimi va appointment handoff. Frontend lint, i18n, TypeScript tekshiruvi va production build o‘tdi.
 **Bog‘liqlik:** Task 5.
 **Taxminiy fayllar:** appointment list/detail controls, work order components, i18n, E2E.
 **Hajm:** O‘rta.

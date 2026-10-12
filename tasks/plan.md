@@ -52,7 +52,7 @@ Ruxsatli holat o‘tishlari, completion odometri, bajarilgan ish va narxni yangi
 
 Uchrashuv ekranidan buyurtma yaratish va buyurtma holatini ko‘rish. Reception va mechanic rollariga mos boshqaruvlarni ko‘rsatish. Playwright’da walk-in hamda appointment oqimini tekshirish.
 
-**Holat:** UI/API bog‘lanishi va ikkala Playwright oqimi mock API bilan bajarildi. Vaqtinchalik alohida PostgreSQL bazasida backend’ning 124 testi o‘tdi. Qolgan dependency audit ogohlantirishlari sabab xavfsizlik darvozasi ochiq.
+**Holat:** Backend API va UI birga, sintetik demo ma’lumotlari bilan lokal PostgreSQL’da tekshirildi: backend’ning 125 testi va 12 Playwright brauzer testi o‘tdi. Walk-in intake, status o‘tishlari va appointment handoff real lokal API orqali tekshirildi. Dependency audit ogohlantirishlari sabab xavfsizlik darvozasi ochiq.
 
 ### Checkpoint C
 
@@ -65,7 +65,7 @@ Uchrashuv ekranidan buyurtma yaratish va buyurtma holatini ko‘rish. Reception 
 
 | Xatar | Ta’sir | Kamaytirish |
 |---|---|---|
-| Mavjud demo DB migration’dan orqada yoki testlar DB’ga bog‘liq | Testlar lokalda ishga tushmasligi mumkin | Avval DB/migration holatini aniqlash; backend testlarini mavjud fixture naqshida yozish, migration offline tekshiruvi bilan ajratish |
+| Testlar seeded demo tenantga va migration’da yo‘q yordamchi jadvallarga bog‘liq | Toza test bazasida login yoki jadval xatolari chiqadi | Izolyatsiyalangan PostgreSQL’da avval migration, keyin `python -m app.seeds.demo` bajarib testlarni ishga tushirish |
 | Appointment complete eski flow xizmat tarixini bir marta yozadi, lekin retry/concurrency guard yo‘q | Dublikat yoki takroriy yakunlash | Faqat work order bog‘langan holatni yangi tranzaksiyaga yo‘naltirish; legacy holatni regressiya testi bilan saqlash |
 | API endpointlarda mavjud role dependency yo‘q | Ruxsatsiz amal | Work order endpointlarda aniq role policy va assigned-mechanic tekshiruvi; UI yashirishni yagona himoya qilmaslik |
 | DB parallel create/finalize poygasi | Ikki ish buyurtmasi yoki history | Partial/ordinary unique constraint va tranzaksiya ichidagi state check; IntegrityError’ni domain 409 ga aylantirish |

@@ -154,7 +154,13 @@ class WorkOrderService:
             changed_fields.append("status")
         self._audit_update(order, previous_status, target_status, changed_fields, history_created)
         await self.uow.session.flush()
-        return serialize_work_order(order)
+        # onupdate=func.now() expires updated_at during flush; reload the full
+        # aggregate before synchronous response serialization to avoid async
+        # lazy I/O from attribute access.
+        updated = await self.work_order_repo.get_detailed(order.id)
+        if updated is None:
+            raise WorkOrderNotFound()
+        return serialize_work_order(updated)
 
     def _authorize_update(self, order, body: WorkOrderUpdateRequest) -> tuple[str, set[str]]:
         fields = body.model_fields_set
@@ -405,7 +411,8 @@ class WorkOrderService:
         order.vehicle = vehicle
         order.appointment = appointment
         order.assigned_mechanic = assigned_mechanic
-        order.created_by = self.actor
+        # created_by_user_id was persisted above. The auth user belongs to the
+        # authentication dependency's session, so do not attach it to this UoW.
         self.uow.session.add(AuditLog(
             service_center_id=self.service_center_id,
             actor_user_id=self.actor.id,
@@ -415,4 +422,9 @@ class WorkOrderService:
             context={"appointment_linked": bool(appointment), "status": WorkOrderStatus.RECEIVED},
         ))
         await self.uow.session.flush()
-        return serialize_work_order(order)
+        # Reload the created aggregate with its response relationships eagerly
+        # loaded; async ORM serialization must not trigger lazy database I/O.
+        detailed = await self.work_order_repo.get_detailed(order.id)
+        if detailed is None:
+            raise WorkOrderNotFound()
+        return serialize_work_order(detailed)
