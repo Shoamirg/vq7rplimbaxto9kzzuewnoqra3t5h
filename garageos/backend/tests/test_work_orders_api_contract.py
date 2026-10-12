@@ -75,6 +75,12 @@ def authorized_work_order_api(monkeypatch):
             calls.append(("get", work_order_id))
             return response_item(work_order_id)
 
+        async def update_work_order(self, work_order_id, body):
+            calls.append(("patch", work_order_id, body.model_dump(exclude_unset=True)))
+            item = response_item(work_order_id)
+            item["status"] = body.status or "received"
+            return item
+
     async def current_user():
         return actor
 
@@ -144,3 +150,19 @@ async def test_work_order_detail_route_uses_uuid_and_response_contract(authorize
     assert "phone" not in response.json()
     assert "address" not in response.json()
     assert authorized_work_order_api == [("get", ORDER_ID)]
+
+
+@pytest.mark.asyncio
+async def test_work_order_patch_forwards_validated_fields(authorized_work_order_api):
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.patch(
+            f"/api/v1/work-orders/{ORDER_ID}",
+            json={"status": "in_progress", "work_performed": "Started inspection"},
+        )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == "in_progress"
+    assert authorized_work_order_api == [(
+        "patch", ORDER_ID, {"status": "in_progress", "work_performed": "Started inspection"},
+    )]

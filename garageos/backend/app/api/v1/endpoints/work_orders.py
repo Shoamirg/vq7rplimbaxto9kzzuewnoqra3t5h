@@ -13,6 +13,7 @@ from app.schemas.work_order import (
     WorkOrderCreateRequest,
     WorkOrderListResponse,
     WorkOrderResponse,
+    WorkOrderUpdateRequest,
     WorkOrderStatusValue,
 )
 from app.services.work_order_service import WorkOrderService
@@ -41,6 +42,16 @@ async def get_work_order(
     actor: User = Depends(get_current_user),
 ) -> dict:
     return await WorkOrderService(uow, actor).get_work_order(work_order_id)
+
+
+@router.patch("/{work_order_id}", response_model=WorkOrderResponse, summary="Update a work order")
+async def update_work_order(
+    work_order_id: uuid.UUID,
+    body: WorkOrderUpdateRequest,
+    uow: UnitOfWork = Depends(get_tenant_uow),
+    actor: User = Depends(get_current_user),
+) -> dict:
+    return await WorkOrderService(uow, actor).update_work_order(work_order_id, body)
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, summary="Create a work order")

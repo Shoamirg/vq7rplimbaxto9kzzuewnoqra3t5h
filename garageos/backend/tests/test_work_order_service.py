@@ -1,10 +1,12 @@
 """Service-level create tests using in-memory repository fakes."""
 from types import SimpleNamespace
+from decimal import Decimal
 import uuid
 
 import pytest
-from app.exceptions import WorkOrderConflict, WorkOrderNotFound, WorkOrderValidationError
-from app.schemas.work_order import WorkOrderCreateRequest
+from app.exceptions import UnauthorizedAction, WorkOrderConflict, WorkOrderNotFound, WorkOrderValidationError
+from app.models.service_record import ServiceRecord
+from app.schemas.work_order import WorkOrderCreateRequest, WorkOrderUpdateRequest
 from app.services import work_order_service
 
 
@@ -52,6 +54,9 @@ class MemoryWorkOrderRepository:
     async def get_detailed(self, order_id):
         return self.items.get(order_id)
 
+    async def get_for_update(self, order_id):
+        return self.items.get(order_id)
+
     async def list_work_orders(self, *, skip, limit, status=None, assigned_mechanic_user_id=None):
         rows = list(self.items.values())
         if status:
@@ -75,6 +80,7 @@ appointment = SimpleNamespace(
     id=uuid.uuid4(), service_center_id=TENANT_ID, customer_id=CUSTOMER_ID,
     vehicle_id=VEHICLE_ID, is_active=True, status="confirmed",
 )
+appointment.slot = SimpleNamespace(status="booked", appointment_id=appointment.id)
 actor = SimpleNamespace(
     id=ACTOR_ID, service_center_id=TENANT_ID, is_active=True, full_name="Reception",
     role=SimpleNamespace(name="admin", is_active=True),
@@ -109,8 +115,22 @@ def memory_service(monkeypatch):
 
     async def flush():
         return None
-    session = SimpleNamespace(bind=None, add=audit_logs.append, flush=flush, audit_logs=audit_logs)
-    uow = SimpleNamespace(session=session, service_center_id=TENANT_ID)
+    service_records = []
+
+    def add(value):
+        audit_logs.append(value)
+        if isinstance(value, ServiceRecord):
+            service_records.append(value)
+
+    session = SimpleNamespace(
+        bind=None, add=add, flush=flush, audit_logs=audit_logs,
+        service_records=service_records,
+    )
+    events = []
+    uow = SimpleNamespace(
+        session=session, service_center_id=TENANT_ID,
+        add_event=events.append, events=events,
+    )
     service = work_order_service.WorkOrderService(uow, actor)
     return service, work_orders
 
@@ -267,6 +287,135 @@ async def test_mechanic_list_and_detail_are_limited_to_assigned_orders(memory_se
         assert (await service.get_work_order(uuid.UUID(assigned_result["id"])))['id'] == assigned_result["id"]
         with pytest.raises(WorkOrderNotFound):
             await service.get_work_order(uuid.UUID(unassigned_result["id"]))
+    finally:
+        actor.role = original_role
+        actor.id = original_actor_id
+
+
+@pytest.mark.asyncio
+async def test_ready_transition_creates_one_history_updates_mileage_and_completes_appointment(memory_service):
+    service, repository = memory_service
+    original_status = appointment.status
+    original_km = vehicle.current_km
+    try:
+        body = WorkOrderCreateRequest(
+            customer_id=CUSTOMER_ID, vehicle_id=VEHICLE_ID,
+            appointment_id=appointment.id, service_type="Brake repair",
+            intake_odometer_km=12500,
+        )
+        created = await service.create_work_order(body, "ready-flow-key")
+        order_id = uuid.UUID(created["id"])
+        await service.update_work_order(order_id, WorkOrderUpdateRequest(status="in_progress"))
+        ready = await service.update_work_order(order_id, WorkOrderUpdateRequest(
+            status="ready", work_performed="Replaced front brake pads",
+            completion_odometer_km=12600, actual_cost=Decimal("250.00"),
+        ))
+
+        assert ready["status"] == "ready"
+        assert ready["service_record_id"]
+        assert len(service.uow.session.service_records) == 1
+        record = service.uow.session.service_records[0]
+        assert record.work_order_id == order_id
+        assert record.appointment_id == appointment.id
+        assert record.performed_km == 12600
+        assert record.description == "Replaced front brake pads"
+        assert record.technician_notes is None
+        assert vehicle.current_km == 12600
+        assert appointment.status == "completed"
+        ready_audit = next(
+            entry for entry in service.uow.session.audit_logs
+            if getattr(entry, "resource_id", None) == order_id
+            and getattr(entry, "context", {}).get("to_status") == "ready"
+        )
+        assert ready_audit.action == "work_order.updated"
+        assert ready_audit.actor_user_id == actor.id
+        assert ready_audit.context["from_status"] == "in_progress"
+        assert ready_audit.context["service_record_created"] is True
+        completed_event = next(event for event in service.uow.events if event.__class__.__name__ == "AppointmentCompleted")
+        assert completed_event.service_record_id == record.id
+
+        replay = await service.update_work_order(order_id, WorkOrderUpdateRequest(status="ready"))
+        assert replay["service_record_id"] == ready["service_record_id"]
+        assert len(service.uow.session.service_records) == 1
+    finally:
+        appointment.status = original_status
+        vehicle.current_km = original_km
+
+
+@pytest.mark.asyncio
+async def test_final_odometer_cannot_be_lower_than_intake_or_current_mileage(memory_service):
+    service, _ = memory_service
+    created = await service.create_work_order(WorkOrderCreateRequest(
+        customer_id=CUSTOMER_ID, vehicle_id=VEHICLE_ID,
+        service_type="Oil change", intake_odometer_km=12000,
+    ), "decreasing-final-odo-key")
+    order_id = uuid.UUID(created["id"])
+    await service.update_work_order(order_id, WorkOrderUpdateRequest(status="in_progress"))
+    with pytest.raises(WorkOrderValidationError):
+        await service.update_work_order(order_id, WorkOrderUpdateRequest(
+            status="ready", work_performed="Changed oil", completion_odometer_km=11999,
+        ))
+    assert service.uow.session.service_records == []
+
+
+@pytest.mark.asyncio
+async def test_cancelling_received_order_cancels_appointment_without_releasing_slot(memory_service):
+    service, _ = memory_service
+    original_status = appointment.status
+    original_slot_status = appointment.slot.status
+    try:
+        created = await service.create_work_order(WorkOrderCreateRequest(
+            customer_id=CUSTOMER_ID, vehicle_id=VEHICLE_ID,
+            appointment_id=appointment.id, service_type="Oil change",
+        ), "cancel-appointment-key")
+        await service.update_work_order(
+            uuid.UUID(created["id"]), WorkOrderUpdateRequest(status="cancelled")
+        )
+        assert appointment.status == "cancelled"
+        assert appointment.slot.status == "booked"
+        assert appointment.slot.appointment_id == appointment.id
+    finally:
+        appointment.status = original_status
+        appointment.slot.status = original_slot_status
+
+
+@pytest.mark.asyncio
+async def test_ready_requires_work_performed_and_invalid_skips_are_rejected(memory_service):
+    service, _ = memory_service
+    created = await service.create_work_order(WorkOrderCreateRequest(
+        customer_id=CUSTOMER_ID, vehicle_id=VEHICLE_ID, service_type="Oil change",
+    ), "transition-key")
+    order_id = uuid.UUID(created["id"])
+    with pytest.raises(WorkOrderConflict):
+        await service.update_work_order(order_id, WorkOrderUpdateRequest(status="completed"))
+    await service.update_work_order(order_id, WorkOrderUpdateRequest(status="in_progress"))
+    with pytest.raises(WorkOrderValidationError):
+        await service.update_work_order(order_id, WorkOrderUpdateRequest(status="ready"))
+
+
+@pytest.mark.asyncio
+async def test_mechanic_can_start_and_ready_assigned_work_but_cannot_close_or_set_cost(memory_service):
+    service, _ = memory_service
+    created = await service.create_work_order(WorkOrderCreateRequest(
+        customer_id=CUSTOMER_ID, vehicle_id=VEHICLE_ID, service_type="Oil change",
+        assigned_mechanic_user_id=mechanic.id,
+    ), "mechanic-flow-key")
+    order_id = uuid.UUID(created["id"])
+    original_role, original_actor_id = actor.role, actor.id
+    try:
+        actor.role = SimpleNamespace(name="mechanic", is_active=True)
+        actor.id = mechanic.id
+        await service.update_work_order(order_id, WorkOrderUpdateRequest(status="in_progress"))
+        with pytest.raises(UnauthorizedAction):
+            await service.update_work_order(order_id, WorkOrderUpdateRequest(
+                work_performed="Changed oil", actual_cost=Decimal("100.00"),
+            ))
+        ready = await service.update_work_order(order_id, WorkOrderUpdateRequest(
+            status="ready", work_performed="Changed oil",
+        ))
+        assert ready["status"] == "ready"
+        with pytest.raises(UnauthorizedAction):
+            await service.update_work_order(order_id, WorkOrderUpdateRequest(status="completed"))
     finally:
         actor.role = original_role
         actor.id = original_actor_id

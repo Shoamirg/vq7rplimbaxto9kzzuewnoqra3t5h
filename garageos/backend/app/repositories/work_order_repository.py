@@ -21,6 +21,7 @@ class WorkOrderRepository(TenantScopedRepository[WorkOrder]):
     def _detailed(self, statement):
         return statement.options(
             selectinload(WorkOrder.customer),
+            selectinload(WorkOrder.appointment),
             selectinload(WorkOrder.vehicle)
             .selectinload(Vehicle.vehicle_model)
             .selectinload(VehicleModel.brand),
@@ -48,6 +49,14 @@ class WorkOrderRepository(TenantScopedRepository[WorkOrder]):
             WorkOrder.id == work_order_id,
             WorkOrder.is_active == True,
         ))
+        return (await self.session.execute(self._detailed(stmt))).scalar_one_or_none()
+
+    async def get_for_update(self, work_order_id: uuid.UUID) -> WorkOrder | None:
+        """Fetch the tenant-owned aggregate while locking its row for transitions."""
+        stmt = self._scope(select(WorkOrder).where(
+            WorkOrder.id == work_order_id,
+            WorkOrder.is_active == True,
+        )).with_for_update().execution_options(populate_existing=True)
         return (await self.session.execute(self._detailed(stmt))).scalar_one_or_none()
 
     async def list_work_orders(

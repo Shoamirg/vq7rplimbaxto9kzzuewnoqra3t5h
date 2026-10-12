@@ -20,7 +20,9 @@ from app.exceptions import (
 )
 from app.models.appointment import AppointmentStatus
 from app.models.audit_log import AuditLog
+from app.models.service_record import ServiceRecord
 from app.models.work_order import WorkOrderStatus
+from app.core.events import AppointmentCancelled, AppointmentCompleted, MileageUpdated
 from app.repositories.customer_repository import CustomerRepository
 from app.repositories.unit_of_work import UnitOfWork
 from app.repositories.vehicle_repository import VehicleRepository
@@ -29,7 +31,7 @@ from app.repositories.work_order_repository import (
     get_appointment_for_update,
     get_user_for_tenant,
 )
-from app.schemas.work_order import WorkOrderCreateRequest
+from app.schemas.work_order import WorkOrderCreateRequest, WorkOrderUpdateRequest
 from app.services.work_order_policy import request_fingerprint, require_work_order_action
 
 
@@ -124,6 +126,186 @@ class WorkOrderService:
             raise WorkOrderNotFound()
         self._authorize("read", order)
         return serialize_work_order(order)
+
+    async def update_work_order(self, work_order_id: uuid.UUID, body: WorkOrderUpdateRequest) -> dict:
+        current = await self.work_order_repo.get_detailed(work_order_id)
+        if not current:
+            raise WorkOrderNotFound()
+        requested_status = body.status or current.status
+        if current.appointment_id and requested_status in {
+            WorkOrderStatus.READY, WorkOrderStatus.CANCELLED,
+        }:
+            await get_appointment_for_update(
+                self.uow.session, self.service_center_id, current.appointment_id
+            )
+        order = await self.work_order_repo.get_for_update(work_order_id)
+        if not order:
+            raise WorkOrderNotFound()
+
+        target_status, mutable_fields = self._authorize_update(order, body)
+        if target_status == order.status and not mutable_fields:
+            return serialize_work_order(order)
+
+        await self._apply_work_order_fields(order, body)
+        previous_status = order.status
+        history_created = self._apply_transition(order, target_status)
+        changed_fields = sorted(mutable_fields)
+        if target_status != previous_status:
+            changed_fields.append("status")
+        self._audit_update(order, previous_status, target_status, changed_fields, history_created)
+        await self.uow.session.flush()
+        return serialize_work_order(order)
+
+    def _authorize_update(self, order, body: WorkOrderUpdateRequest) -> tuple[str, set[str]]:
+        fields = body.model_fields_set
+        mutable_fields = fields - {"status"}
+        role = self._role()
+        role_name = getattr(role, "name", None)
+        target_status = body.status or order.status
+
+        if role_name == "mechanic":
+            if mutable_fields - {"work_performed"}:
+                self._authorize("edit_fields", order)
+            if "work_performed" in mutable_fields:
+                self._authorize("edit_work", order)
+        elif role_name not in {"admin", "manager", "receptionist"}:
+            self._authorize("edit_fields", order)
+
+        if order.status in {WorkOrderStatus.READY, WorkOrderStatus.COMPLETED, WorkOrderStatus.CANCELLED} and mutable_fields:
+            raise WorkOrderConflict("A ready or closed work order cannot be edited")
+
+        if target_status != order.status:
+            transition_action = {
+                WorkOrderStatus.IN_PROGRESS: "start",
+                WorkOrderStatus.READY: "ready",
+                WorkOrderStatus.CANCELLED: "cancel",
+                WorkOrderStatus.COMPLETED: "complete",
+            }.get(target_status)
+            self._authorize(transition_action or "edit_fields", order)
+            allowed_transitions = {
+                WorkOrderStatus.RECEIVED: {WorkOrderStatus.IN_PROGRESS, WorkOrderStatus.CANCELLED},
+                WorkOrderStatus.IN_PROGRESS: {WorkOrderStatus.READY},
+                WorkOrderStatus.READY: {WorkOrderStatus.COMPLETED},
+                WorkOrderStatus.COMPLETED: set(),
+                WorkOrderStatus.CANCELLED: set(),
+            }
+            if target_status not in allowed_transitions.get(order.status, set()):
+                raise WorkOrderConflict(f"Cannot move a work order from '{order.status}' to '{target_status}'")
+        elif not mutable_fields:
+            self._authorize("read", order)
+
+        if role_name == "mechanic" and "work_performed" in mutable_fields:
+            if order.status != WorkOrderStatus.IN_PROGRESS and target_status not in {
+                WorkOrderStatus.IN_PROGRESS, WorkOrderStatus.READY,
+            }:
+                raise WorkOrderConflict("A mechanic can edit work notes only after starting the work")
+        return target_status, mutable_fields
+
+    async def _apply_work_order_fields(self, order, body: WorkOrderUpdateRequest) -> None:
+        fields = body.model_fields_set
+        if "assigned_mechanic_user_id" in fields:
+            assigned_mechanic = None
+            if body.assigned_mechanic_user_id:
+                assigned_mechanic = await get_user_for_tenant(
+                    self.uow.session, self.service_center_id, body.assigned_mechanic_user_id
+                )
+                role = getattr(assigned_mechanic, "role", None)
+                if not assigned_mechanic or not role or not role.is_active or role.name != "mechanic":
+                    raise WorkOrderValidationError("The assigned user must be an active mechanic in this service center")
+            order.assigned_mechanic_user_id = assigned_mechanic.id if assigned_mechanic else None
+            order.assigned_mechanic = assigned_mechanic
+        for field in ("customer_concern", "work_performed", "actual_cost"):
+            if field in fields:
+                setattr(order, field, getattr(body, field))
+        if "completion_odometer_km" in fields:
+            if body.completion_odometer_km is not None:
+                minimum_km = max(order.intake_odometer_km or 0, order.vehicle.current_km or 0)
+                if body.completion_odometer_km < minimum_km:
+                    raise WorkOrderValidationError("The completion odometer cannot decrease")
+            order.completion_odometer_km = body.completion_odometer_km
+
+    def _apply_transition(self, order, target_status: str) -> bool:
+        if target_status == order.status:
+            return False
+        now = datetime.now(timezone.utc)
+        history_created = False
+        if target_status == WorkOrderStatus.IN_PROGRESS:
+            order.started_at = now
+        elif target_status == WorkOrderStatus.CANCELLED:
+            order.cancelled_at = now
+            if order.appointment:
+                order.appointment.status = AppointmentStatus.CANCELLED
+                self.uow.add_event(AppointmentCancelled(
+                    aggregate_id=order.appointment_id,
+                    appointment_id=order.appointment_id,
+                    service_center_id=self.service_center_id,
+                ))
+        elif target_status == WorkOrderStatus.READY:
+            history_created = self._record_completed_service(order, now)
+        elif target_status == WorkOrderStatus.COMPLETED:
+            order.completed_at = now
+        order.status = target_status
+        return history_created
+
+    def _record_completed_service(self, order, performed_date: datetime) -> bool:
+        if not (order.work_performed and order.work_performed.strip()):
+            raise WorkOrderValidationError("Work performed must be recorded before marking the vehicle ready")
+        vehicle = order.vehicle
+        previous_km = vehicle.current_km or 0
+        performed_km = order.completion_odometer_km
+        if performed_km is None:
+            performed_km = max(order.intake_odometer_km or 0, previous_km)
+        if performed_km < max(order.intake_odometer_km or 0, previous_km):
+            raise WorkOrderValidationError("The completion odometer cannot decrease")
+
+        order.ready_at = performed_date
+        order.completion_odometer_km = performed_km
+        if performed_km > previous_km:
+            vehicle.current_km = performed_km
+            self.uow.add_event(MileageUpdated(
+                aggregate_id=vehicle.id, vehicle_id=vehicle.id,
+                previous_km=previous_km, new_km=performed_km,
+            ))
+
+        record = ServiceRecord(
+            id=uuid.uuid4(),
+            service_center_id=self.service_center_id,
+            vehicle_id=order.vehicle_id,
+            appointment_id=order.appointment_id,
+            work_order_id=order.id,
+            service_type=order.service_type,
+            description=order.work_performed,
+            performed_km=performed_km,
+            performed_date=performed_date,
+            cost=order.actual_cost,
+        )
+        self.uow.session.add(record)
+        order.service_record = record
+        if order.appointment:
+            order.appointment.status = AppointmentStatus.COMPLETED
+            order.appointment.total_cost = order.actual_cost
+            self.uow.add_event(AppointmentCompleted(
+                aggregate_id=order.appointment_id,
+                appointment_id=order.appointment_id,
+                service_record_id=record.id,
+                service_center_id=self.service_center_id,
+            ))
+        return True
+
+    def _audit_update(self, order, previous_status, target_status, changed_fields, history_created):
+        self.uow.session.add(AuditLog(
+            service_center_id=self.service_center_id,
+            actor_user_id=self.actor.id,
+            action="work_order.updated",
+            resource_type="work_order",
+            resource_id=order.id,
+            context={
+                "changed_fields": changed_fields,
+                "from_status": previous_status,
+                "to_status": target_status,
+                "service_record_created": history_created,
+            },
+        ))
 
     async def _lock_idempotency_key(self, key: str) -> None:
         """Serialize same-tenant retries in PostgreSQL; unique constraint is the backstop."""
