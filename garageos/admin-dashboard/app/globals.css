@@ -1,8 +1,148 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap')
+layer(base);
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@source "../../packages/design-system/ui/avatar/avatar-group.tsx";
+@source "../../packages/design-system/ui/avatar/avatar.tsx";
+@source "../../packages/design-system/ui/badge/badge.tsx";
+@source "../../packages/design-system/ui/button/button.demo.tsx";
+@source "../../packages/design-system/ui/button/button.tsx";
+@source "../../packages/design-system/ui/card/card.tsx";
+@source "../../packages/design-system/ui/command/command.tsx";
+@source "../../packages/design-system/ui/datatable/datatable.tsx";
+@source "../../packages/design-system/ui/dialog/dialog.tsx";
+@source "../../packages/design-system/ui/dropdown-menu/dropdown-menu.tsx";
+@source "../../packages/design-system/ui/input/input-field.tsx";
+@source "../../packages/design-system/ui/input/input-helper.tsx";
+@source "../../packages/design-system/ui/input/input-label.tsx";
+@source "../../packages/design-system/ui/input/input-prefix.tsx";
+@source "../../packages/design-system/ui/input/input-root.tsx";
+@source "../../packages/design-system/ui/input/input-suffix.tsx";
+@source "../../packages/design-system/ui/input/input.demo.tsx";
+@source "../../packages/design-system/ui/input/input.tsx";
+@source "../../packages/design-system/ui/sheet/sheet.tsx";
+@source "../../packages/design-system/ui/skeleton/skeleton.tsx";
+@source "../../packages/design-system/ui/spinner/spinner.demo.tsx";
+@source "../../packages/design-system/ui/spinner/spinner.tsx";
+@source "../../packages/design-system/ui/toast/toast.tsx";
+
+@custom-variant dark (&:is(.dark *));
+
+@utility container {
+  margin-inline: auto;
+  padding-inline: 2rem;
+  @media (width >= --theme(--breakpoint-sm)) {
+    max-width: none;
+  }
+  @media (width >= 1400px) {
+    max-width: 1400px;
+  }
+}
+
+@theme {
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #2563eb;
+  --color-primary-600: #1d4ed8;
+  --color-primary-700: #1e40af;
+  --color-primary-800: #1e3a8a;
+  --color-primary-900: #172554;
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-success: #10b981;
+  --color-success-light: #d1fae5;
+  --color-success-dark: #065f46;
+
+  --color-warning: #f59e0b;
+  --color-warning-light: #fef3c7;
+  --color-warning-dark: #92400e;
+
+  --color-danger: #ef4444;
+  --color-danger-light: #fee2e2;
+  --color-danger-dark: #991b1b;
+
+  --color-sidebar: hsl(var(--sidebar-background));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-muted: hsl(var(--sidebar-muted));
+  --color-sidebar-active: hsl(var(--sidebar-active));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+
+  --font-sans: Inter, system-ui, sans-serif;
+
+  --animate-fade-in: fade-in 0.3s ease-out;
+  --animate-slide-in: slide-in 0.3s ease-out;
+  --animate-slide-in-right: slide-in-right 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+
+  @keyframes fade-in {
+    0% {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes slide-in {
+    0% {
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  @keyframes slide-in-right {
+    0% {
+      opacity: 0;
+      transform: translateX(24px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
 
 @layer base {
   :root {

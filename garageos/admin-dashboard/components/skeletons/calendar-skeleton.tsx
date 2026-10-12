@@ -69,7 +69,7 @@ export function CalendarSkeleton() {
         <div className="flex h-full">
           {/* Time gutter */}
           <div className="w-16 shrink-0 border-r border-border">
-            <div className="h-[3.25rem] border-b border-border" />
+            <div className="h-13 border-b border-border" />
             {HOURS.map((h) => (
               <div key={h} className="h-14 px-2 pt-1 border-b border-border/60">
                 <Bar className="h-2.5 w-9" />

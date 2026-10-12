@@ -39,7 +39,7 @@ export function ConfirmDialog({
   if (typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-90 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={busy ? undefined : onClose} />
       <div role="alertdialog" aria-modal="true" aria-label={title}
         className="relative w-full max-w-sm rounded-2xl border border-border bg-card shadow-2xl p-6">

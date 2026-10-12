@@ -4,7 +4,7 @@ import { defineConfig, devices } from "@playwright/test";
 // are already running; point at either with BASE_URL.
 //   npm run e2e                       # against http://localhost:3000
 //   BASE_URL=https://staging npm run e2e
-const BASE_URL = process.env.BASE_URL ?? "http://127.0.0.1:3000";
+const BASE_URL = process.env.BASE_URL ?? "http://localhost:3000";
 
 export default defineConfig({
   testDir: "./e2e",

@@ -9,7 +9,7 @@ import type { CaseMechanic, Customer360, Customer360Vehicle, CustomerList, Custo
 import { useI18n } from "@/lib/i18n/context";
 
 const LABEL = "mb-1.5 block text-xs font-semibold text-muted-foreground";
-const FIELD = "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-60";
+const FIELD = "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-60";
 
 export function WorkOrderIntakeDialog({
   onClose,
@@ -144,7 +144,7 @@ export function WorkOrderIntakeDialog({
 
   if (typeof document === "undefined") return null;
   return createPortal(
-    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/45 p-0 sm:items-center sm:p-4" onMouseDown={(event) => { if (event.target === event.currentTarget && !loading) onClose(); }}>
+    <div className="fixed inset-0 z-80 flex items-end justify-center bg-black/45 p-0 sm:items-center sm:p-4" onMouseDown={(event) => { if (event.target === event.currentTarget && !loading) onClose(); }}>
       <section role="dialog" aria-modal="true" aria-labelledby="wo-intake-title" onKeyDown={keepFocusInside}
         className="max-h-[92vh] w-full overflow-y-auto rounded-t-xl border border-border bg-card shadow-xl sm:max-w-lg sm:rounded-lg">
         <header className="flex items-start justify-between gap-3 border-b border-border px-4 py-4 sm:px-5">
@@ -153,7 +153,7 @@ export function WorkOrderIntakeDialog({
             <p className="mt-1 text-xs text-muted-foreground">{t("wo.subtitle")}</p>
           </div>
           <button type="button" onClick={onClose} disabled={loading} aria-label={t("wo.close")}
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50">
+            className="rounded-md p-1.5 text-muted-foreground hover:bg-muted focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50">
             <X className="size-4" />
           </button>
         </header>
@@ -180,7 +180,7 @@ export function WorkOrderIntakeDialog({
                     <div className="mt-1 max-h-40 overflow-y-auto rounded-md border border-border bg-card" role="listbox" aria-label={t("wo.choose_customer")}>
                       {matches.map((item) => (
                         <button key={item.id} type="button" role="option" aria-selected="false" onClick={() => { setCustomer(item); setQuery(""); setMatches([]); }}
-                          className="block w-full border-b border-border px-3 py-2 text-left text-sm text-foreground last:border-0 hover:bg-muted focus-visible:outline-none focus-visible:bg-muted">
+                          className="block w-full border-b border-border px-3 py-2 text-left text-sm text-foreground last:border-0 hover:bg-muted focus-visible:outline-hidden focus-visible:bg-muted">
                           {item.full_name}
                         </button>
                       ))}

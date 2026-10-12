@@ -70,7 +70,7 @@ export function ReportsWorkspace() {
           {PERIODS.map((p) => (
             <button key={p.key} onClick={() => setPeriod(p.key)}
               className={cn("text-xs font-semibold px-3 py-1.5 rounded-md transition-colors",
-                period === p.key ? "bg-card shadow-sm text-foreground" : "text-muted-foreground")}>{p.label}</button>
+                period === p.key ? "bg-card shadow-xs text-foreground" : "text-muted-foreground")}>{p.label}</button>
           ))}
         </div>
         <button className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-border text-slate-600 inline-flex items-center gap-1.5"><Download className="size-3.5" /> Export</button>

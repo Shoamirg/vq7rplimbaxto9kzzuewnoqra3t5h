@@ -70,7 +70,7 @@ export function CaseDetailPanel({
         <div className="flex items-center mt-4">
           {STEPS.map((s, i) => (
             <div key={s.key} className="flex-1 flex flex-col items-center relative">
-              {i > 0 && <span className={cn("absolute top-3 right-1/2 w-full h-0.5 -z-0", i <= stepIdx ? "bg-emerald-500" : "bg-border")} />}
+              {i > 0 && <span className={cn("absolute top-3 right-1/2 w-full h-0.5 z-0", i <= stepIdx ? "bg-emerald-500" : "bg-border")} />}
               <span className={cn("relative z-10 grid size-6 place-items-center rounded-full text-[10px] font-bold border-2",
                 i < stepIdx ? "bg-emerald-500 border-emerald-500 text-white"
                   : i === stepIdx ? "bg-amber-500 border-amber-500 text-white ring-4 ring-amber-500/20"
@@ -106,7 +106,7 @@ export function CaseDetailPanel({
             <span className="absolute" style={{ left: "56%", top: "46%", transform: "translate(-50%,-50%)" }}>
               <span className="block size-4 rounded-full bg-red-600 border-[3px] border-white shadow-[0_0_0_8px_rgba(220,38,38,.2)]" />
             </span>
-            <div className="absolute left-3 bottom-3 flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs shadow-sm">
+            <div className="absolute left-3 bottom-3 flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs shadow-xs">
               <MapPin className="size-3.5 text-red-500" /> <span className="font-medium">{d.location_text ?? "Location pending"}</span>
             </div>
             {d.assigned_mechanic && (
@@ -194,7 +194,7 @@ export function CaseDetailPanel({
       </div>
 
       {/* AI triage (structured placeholder — M4 wires real model) */}
-      <div className="rounded-2xl border border-border bg-gradient-to-br from-primary/5 to-transparent p-4">
+      <div className="rounded-2xl border border-border bg-linear-to-br from-primary/5 to-transparent p-4">
         <div className="flex items-center gap-2 text-primary mb-2">
           <Sparkles className="size-4" /><span className="text-[11px] font-semibold uppercase tracking-wide">AI Triage</span><Badge variant="primary" size="sm">Beta</Badge>
         </div>
@@ -213,7 +213,7 @@ export function CaseDetailPanel({
             <span className="absolute left-1.5 top-1 bottom-1 w-px bg-border" />
             {d.timeline.map((e, i) => (
               <div key={i} className="relative pb-4 last:pb-0">
-                <span className={cn("absolute -left-[15px] top-0.5 size-2.5 rounded-full ring-2 ring-card", TL_DOT[e.severity ?? "low"])} />
+                <span className={cn("absolute left-[-15px] top-0.5 size-2.5 rounded-full ring-2 ring-card", TL_DOT[e.severity ?? "low"])} />
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm font-medium text-foreground">{e.title}</p>
                   <p className="text-xs text-muted-foreground whitespace-nowrap">{relTime(e.date)}</p>

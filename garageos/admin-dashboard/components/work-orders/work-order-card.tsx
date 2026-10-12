@@ -30,7 +30,7 @@ export function WorkOrderCard({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "w-full rounded-lg border bg-card p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+        "w-full rounded-lg border bg-card p-4 text-left transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary",
         active ? "border-primary/50 bg-primary/5" : "border-border hover:bg-muted/40",
       )}
     >

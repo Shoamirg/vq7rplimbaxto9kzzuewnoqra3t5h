@@ -27,7 +27,7 @@ export default async function VehiclesPage() {
           <Link
             key={v.id}
             href={`/vehicles/${v.id}`}
-            className="group rounded-xl border border-border bg-card p-4 hover:border-primary/40 hover:shadow-sm transition-all"
+            className="group rounded-xl border border-border bg-card p-4 hover:border-primary/40 hover:shadow-xs transition-all"
           >
             <div className="flex items-start justify-between">
               <div className="size-10 rounded-lg bg-primary/10 text-primary grid place-items-center">

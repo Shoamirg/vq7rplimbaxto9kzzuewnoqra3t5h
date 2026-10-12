@@ -27,9 +27,9 @@ export function bandColor(band: string): string {
 }
 
 const CARD_BASE =
-  "block rounded-3xl bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.06),0_8px_24px_-12px_rgba(15,23,42,0.12)] ring-1 ring-slate-900/[0.04]";
+  "block rounded-3xl bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.06),0_8px_24px_-12px_rgba(15,23,42,0.12)] ring-1 ring-slate-900/4";
 const TAPPABLE =
-  " transition motion-safe:active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50";
+  " transition motion-safe:active:scale-[0.99] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50";
 
 export function Card({
   children,
@@ -129,7 +129,7 @@ export function ListSkeleton({ rows = 3 }: { rows?: number }) {
   return (
     <div className="space-y-3" role="status" aria-label="Loading">
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="flex items-center gap-4 rounded-3xl bg-white p-4 ring-1 ring-slate-900/[0.04]">
+        <div key={i} className="flex items-center gap-4 rounded-3xl bg-white p-4 ring-1 ring-slate-900/4">
           <Skeleton className="size-12 shrink-0 rounded-full" />
           <div className="flex-1 space-y-2">
             <Skeleton className="h-4 w-2/3" />
@@ -162,7 +162,7 @@ export function Loading() {
 
 export function EmptyState({ icon, title, note }: { icon?: ReactNode; title: string; note?: string }) {
   return (
-    <div className="grid place-items-center rounded-3xl bg-white/60 px-6 py-10 text-center ring-1 ring-slate-900/[0.04]">
+    <div className="grid place-items-center rounded-3xl bg-white/60 px-6 py-10 text-center ring-1 ring-slate-900/4">
       {icon ? <div className="mb-2 text-slate-300">{icon}</div> : null}
       <p className="font-medium text-slate-700">{title}</p>
       {note ? <p className="mt-1 text-sm text-slate-400">{note}</p> : null}
@@ -182,7 +182,7 @@ export function ScreenError({
 }) {
   const { t } = useI18n();
   return (
-    <div className="grid place-items-center rounded-3xl bg-white/60 px-6 py-12 text-center ring-1 ring-slate-900/[0.04]" role="alert">
+    <div className="grid place-items-center rounded-3xl bg-white/60 px-6 py-12 text-center ring-1 ring-slate-900/4" role="alert">
       {offline ? <WifiOff className="mb-2 size-8 text-slate-300" /> : null}
       <p className="font-medium text-slate-700">{offline ? t("mini.offline") : (message ?? t("mini.error_generic"))}</p>
       <p className="mt-1 text-sm text-slate-400">{offline ? t("mini.offline_hint") : t("mini.error_hint")}</p>
@@ -192,7 +192,7 @@ export function ScreenError({
             haptic("medium");
             onRetry();
           }}
-          className="mt-5 min-h-[44px] rounded-full bg-blue-600 px-6 text-sm font-semibold text-white transition motion-safe:active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50"
+          className="mt-5 min-h-[44px] rounded-full bg-blue-600 px-6 text-sm font-semibold text-white transition motion-safe:active:scale-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50"
         >
           {t("mini.retry")}
         </button>

@@ -55,7 +55,7 @@ export default function ThreadPage() {
       <Link
         href="/mini/messages"
         onClick={() => haptic("light")}
-        className="mb-2 inline-flex min-h-[44px] items-center gap-1 text-sm font-medium text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg"
+        className="mb-2 inline-flex min-h-[44px] items-center gap-1 text-sm font-medium text-slate-500 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg"
       >
         <ArrowLeft className="size-4" aria-hidden /> {t("mini.messages.title")}
       </Link>
@@ -72,7 +72,7 @@ export default function ThreadPage() {
                   className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm ${
                     m.from_me
                       ? "rounded-br-md bg-blue-600 text-white"
-                      : "rounded-bl-md bg-white text-slate-800 ring-1 ring-slate-900/[0.05]"
+                      : "rounded-bl-md bg-white text-slate-800 ring-1 ring-slate-900/5"
                   }`}
                 >
                   {!m.from_me && m.author_name ? (
@@ -93,20 +93,20 @@ export default function ThreadPage() {
             <div ref={bottomRef} />
           </div>
 
-          <div className="sticky bottom-24 mt-3 flex items-center gap-2 rounded-2xl bg-white p-1.5 shadow-lg ring-1 ring-slate-900/[0.06]">
+          <div className="sticky bottom-24 mt-3 flex items-center gap-2 rounded-2xl bg-white p-1.5 shadow-lg ring-1 ring-slate-900/6">
             <input
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && send()}
               placeholder={t("mini.messages.compose")}
               aria-label={t("mini.messages.compose")}
-              className="flex-1 bg-transparent px-3 py-2 text-sm outline-none"
+              className="flex-1 bg-transparent px-3 py-2 text-sm outline-hidden"
             />
             <button
               onClick={send}
               disabled={!draft.trim() || sending}
               aria-label="Send message"
-              className="grid size-11 place-items-center rounded-xl bg-blue-600 text-white transition motion-safe:active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-40"
+              className="grid size-11 place-items-center rounded-xl bg-blue-600 text-white transition motion-safe:active:scale-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-40"
             >
               <Send className="size-4" aria-hidden />
             </button>

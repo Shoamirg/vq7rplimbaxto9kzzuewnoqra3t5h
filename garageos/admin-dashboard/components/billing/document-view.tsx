@@ -228,7 +228,7 @@ export function DocumentView({
               <span className="absolute left-1.5 top-1 bottom-1 w-px bg-border" />
               {doc.timeline.map((e, i) => (
                 <div key={i} className="relative pb-3 last:pb-0">
-                  <span className={cn("absolute -left-[15px] top-0.5 size-2.5 rounded-full ring-2 ring-card", isEstimate ? "bg-blue-500" : "bg-emerald-500")} />
+                  <span className={cn("absolute left-[-15px] top-0.5 size-2.5 rounded-full ring-2 ring-card", isEstimate ? "bg-blue-500" : "bg-emerald-500")} />
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-[13px] font-medium">{e.title}</p>
                     <p className="text-[11px] text-muted-foreground whitespace-nowrap">{fmtDate(e.date)}</p>
@@ -271,9 +271,9 @@ function PayModal({ balance, onClose, onSubmit }: { balance: number; onClose: ()
         <p className="text-base font-bold mb-3">Record payment</p>
         <label className="text-xs font-semibold text-muted-foreground">Amount</label>
         <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal"
-          className="w-full mt-1 mb-3 rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-1 focus:ring-primary" />
+          className="w-full mt-1 mb-3 rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono outline-hidden focus:ring-1 focus:ring-primary" />
         <label className="text-xs font-semibold text-muted-foreground">Method</label>
-        <select value={method} onChange={(e) => setMethod(e.target.value)} className="w-full mt-1 mb-4 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none">
+        <select value={method} onChange={(e) => setMethod(e.target.value)} className="w-full mt-1 mb-4 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-hidden">
           <option value="card">Card</option><option value="cash">Cash</option>
           <option value="bank_transfer">Bank transfer</option><option value="online">Online</option>
         </select>

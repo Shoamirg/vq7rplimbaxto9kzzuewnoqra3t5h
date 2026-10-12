@@ -83,7 +83,7 @@ export function WorkOrdersWorkspace({ role, initialOrderId }: { role: string; in
     <div className="space-y-5 p-4 lg:p-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">GarageOS</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">{t("brand.name")}</p>
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground">{t("wo.title")}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{t("wo.subtitle")}</p>
         </div>
@@ -103,7 +103,7 @@ export function WorkOrdersWorkspace({ role, initialOrderId }: { role: string; in
               aria-pressed={status === filter}
               onClick={() => { setStatus(filter); setPage(1); }}
               className={cn(
-                "shrink-0 rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                "shrink-0 rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary",
                 status === filter ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
@@ -115,7 +115,7 @@ export function WorkOrdersWorkspace({ role, initialOrderId }: { role: string; in
           <Search className="size-4 shrink-0 text-muted-foreground" />
           <span className="sr-only">{t("wo.search")}</span>
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("wo.search")}
-            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
+            className="min-w-0 flex-1 bg-transparent text-sm outline-hidden placeholder:text-muted-foreground" />
         </label>
       </div>
 

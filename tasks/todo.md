@@ -71,7 +71,7 @@
 - [x] Navbatsiz intake soxta appointment yaratmaydi va idempotency key yuboradi.
 - [x] Mechanic ko‘rinishi faqat o‘z ishlariga mos, PII ko‘rsatmaydi; klaviatura label/focus holatlari mavjud.
 
-**Tekshiruv:** `npx tsc --noEmit`, lint, i18n check, production build; mock API bilan Playwright walk-in intake va mobil layout.
+**Tekshiruv:** `npx tsc --noEmit`, lint, i18n check, production build; sintetik demo PostgreSQL va real lokal API bilan Playwright walk-in intake, mobil layout va appointment handoff.
 **Bog‘liqlik:** Task 2-4.
 **Taxminiy fayllar:** app-router page, work-order components, api types, dictionary, sidebar, E2E test.
 **Hajm:** O‘rta.
@@ -93,6 +93,7 @@
 ## Checkpoint B — Pilot uchun to‘liq oqim
 
 - [x] Tasdiqlangan spec qabul mezonlari qoplandi; backend, brauzer va build tekshiruvlari o‘tdi.
-- [ ] npm audit’dagi yuqori/o‘rta xavfli qaramlik ogohlantirishlari hal qilindi yoki xavfsiz chiqarish rejasi bilan qabul qilindi; diff review bajarildi, deploy qilinmadi.
+- [x] Next.js 16, Tailwind CSS 4, ESLint 10 va Node.js 24’ga migratsiya qilindi; production dependency audit toza.
+- [ ] Dev dependency audit’dagi qolgan yuqori xavf upstream tuzatilmaguncha chiqarishdan oldin qayta tekshirilsin; deploy qilinmadi.
 
-**Qolgan xavfsizlik darvozasi:** npm audit 11 ogohlantirish ko‘rsatmoqda (8 high, 3 moderate, 0 critical). To‘liq bartaraf etish Next.js 16 va Tailwind CSS 4 major yangilashini talab qiladi; bu branchda scope va moslikni alohida ko‘rib chiqish kerak. Shu sabab Checkpoint B yopilmagan va deploy qilinmagan.
+**Qolgan xavfsizlik darvozasi:** `npm audit --omit=dev` 0 zaiflik ko‘rsatdi. To‘liq `npm audit` esa ESLint/Next lint tooling dependency tree ichidagi `braces <=3.0.3` uchun 5 high yozuv ko‘rsatmoqda (`GHSA-vfj7-8cjw-p6xm`); advisory’da tuzatilgan versiya ko‘rsatilmagan. Bu ishlab chiqarish dependency tree’iga kirmaydi, ammo dev tooling audit’ini yopmaydi. Checkpoint B release uchun ochiq qoladi; production deploy qilinmagan.

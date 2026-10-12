@@ -105,7 +105,7 @@ export function OperationsConsole() {
           <div className="flex items-center gap-2 rounded-lg bg-slate-800 px-2.5">
             <Search className="size-3.5 text-slate-500" />
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search cases…"
-              className="flex-1 bg-transparent py-2 text-xs text-white outline-none placeholder:text-slate-500" />
+              className="flex-1 bg-transparent py-2 text-xs text-white outline-hidden placeholder:text-slate-500" />
           </div>
           {/* type filters */}
           <div className="flex flex-wrap gap-1 mt-2">

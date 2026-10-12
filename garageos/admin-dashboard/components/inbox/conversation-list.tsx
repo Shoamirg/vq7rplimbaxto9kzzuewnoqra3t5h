@@ -30,7 +30,7 @@ export function ConversationList({
         <div className="flex items-center gap-2 rounded-lg bg-muted/60 px-2.5">
           <Search className="size-3.5 text-muted-foreground" />
           <input value={q} onChange={(e) => onQ(e.target.value)} placeholder="Filter this queue…"
-            className="flex-1 bg-transparent py-2 text-xs text-foreground outline-none placeholder:text-muted-foreground" />
+            className="flex-1 bg-transparent py-2 text-xs text-foreground outline-hidden placeholder:text-muted-foreground" />
         </div>
       </div>
 
@@ -76,7 +76,7 @@ export function ConversationList({
                   </span>
                 )}
                 {c.ai_summary && (
-                  <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-px rounded-full border border-indigo-200 bg-gradient-to-r from-indigo-50 to-violet-50 text-indigo-700">
+                  <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-px rounded-full border border-indigo-200 bg-linear-to-r from-indigo-50 to-violet-50 text-indigo-700">
                     ✦ {c.ai_summary}
                   </span>
                 )}

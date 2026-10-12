@@ -244,7 +244,7 @@ export function AppointmentsList({ role }: { role: string }) {
         <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 ml-auto">
           <Search className="size-4 text-muted-foreground" />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search customer, vehicle, service…"
-            className="bg-transparent py-2 text-sm text-foreground outline-none w-56 placeholder:text-muted-foreground" />
+            className="bg-transparent py-2 text-sm text-foreground outline-hidden w-56 placeholder:text-muted-foreground" />
         </div>
       </div>
 

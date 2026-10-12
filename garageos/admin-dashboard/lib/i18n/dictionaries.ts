@@ -29,6 +29,7 @@ type Dict = Record<string, string>;
 
 export const DICTIONARIES: Record<Locale, Dict> = {
   en: {
+    "brand.name": "GarageOS",
     "brand.tagline": "Admin Panel",
     // section headers
     "section.workspace": "Workspace",
@@ -76,6 +77,7 @@ export const DICTIONARIES: Record<Locale, Dict> = {
     "inbox.desc": "One place for every customer and team conversation — across Telegram, web, phone and email — tied to the same cases, vehicles and customers.",
   },
   ru: {
+    "brand.name": "GarageOS",
     "brand.tagline": "Панель управления",
     "section.workspace": "Рабочее место",
     "section.crm": "Клиенты и авто",
@@ -119,6 +121,7 @@ export const DICTIONARIES: Record<Locale, Dict> = {
     "inbox.desc": "Все переписки с клиентами и командой в одном месте — Telegram, веб, телефон и email — связанные с теми же обращениями, авто и клиентами.",
   },
   uz: {
+    "brand.name": "GarageOS",
     "brand.tagline": "Boshqaruv paneli",
     "section.workspace": "Ish maydoni",
     "section.crm": "Mijozlar va avtolar",

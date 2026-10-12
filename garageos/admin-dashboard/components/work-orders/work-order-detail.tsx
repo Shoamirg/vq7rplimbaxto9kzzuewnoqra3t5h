@@ -9,7 +9,7 @@ import type { WorkOrder, WorkOrderStatus } from "@/lib/api/types";
 import { useI18n } from "@/lib/i18n/context";
 
 const LABEL = "mb-1.5 block text-xs font-semibold text-muted-foreground";
-const FIELD = "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
+const FIELD = "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40";
 
 export function WorkOrderDetail({
   order,
@@ -71,10 +71,10 @@ export function WorkOrderDetail({
       <div className="border-b border-border p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <h2 className="break-words text-lg font-bold leading-snug text-foreground">{order.customer_name}</h2>
-            <p className="mt-1 break-words text-sm text-muted-foreground">{order.vehicle_summary}</p>
+            <h2 className="wrap-break-word text-lg font-bold leading-snug text-foreground">{order.customer_name}</h2>
+            <p className="mt-1 wrap-break-word text-sm text-muted-foreground">{order.vehicle_summary}</p>
           </div>
-          <button type="button" onClick={onClose} className="hidden rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary xl:grid" aria-label={t("wo.close")}>
+          <button type="button" onClick={onClose} className="hidden rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary xl:grid" aria-label={t("wo.close")}>
             <X className="size-4" />
           </button>
         </div>

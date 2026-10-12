@@ -21,7 +21,7 @@ export default function VehicleDetailPage() {
     <Link
       href="/mini/vehicles"
       onClick={() => haptic("light")}
-      className="inline-flex min-h-[44px] items-center gap-1 text-sm font-medium text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg"
+      className="inline-flex min-h-[44px] items-center gap-1 text-sm font-medium text-slate-500 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg"
     >
       <ArrowLeft className="size-4" aria-hidden /> {t("mini.tab.vehicles")}
     </Link>
@@ -48,7 +48,7 @@ export default function VehicleDetailPage() {
       {back}
 
       {/* Passport hero — the differentiator, led with identity */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 to-slate-700 p-5 text-white shadow-xl">
+      <div className="relative overflow-hidden rounded-3xl bg-linear-to-br from-slate-900 to-slate-700 p-5 text-white shadow-xl">
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2">
@@ -78,7 +78,7 @@ export default function VehicleDetailPage() {
       </div>
 
       {/* Highlights */}
-      <Card className="!p-2">
+      <Card className="p-2!">
         <ul className="divide-y divide-slate-100">
           {p.highlights.map((h, i) => (
             <li key={i} className="flex items-center gap-3 px-2 py-2.5">
@@ -93,7 +93,7 @@ export default function VehicleDetailPage() {
       {p.upcoming.length > 0 ? (
         <div>
           <SectionLabel>{t("mini.vehicle.upcoming_service")}</SectionLabel>
-          <Card className="!p-2">
+          <Card className="p-2!">
             <ul className="divide-y divide-slate-100">
               {p.upcoming.map((u, i) => (
                 <li key={i} className="flex items-center gap-3 px-2 py-3">
@@ -118,7 +118,7 @@ export default function VehicleDetailPage() {
       {p.history.length > 0 ? (
         <div>
           <SectionLabel>{t("mini.vehicle.recent_service")}</SectionLabel>
-          <Card className="!p-2">
+          <Card className="p-2!">
             <ul className="divide-y divide-slate-100">
               {p.history.map((h, i) => (
                 <li key={i} className="flex items-center justify-between px-2 py-3">
@@ -137,7 +137,7 @@ export default function VehicleDetailPage() {
       <Link
         href={`/passport/${p.vehicle.id}`}
         onClick={() => haptic("light")}
-        className="flex min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-slate-900 py-3.5 text-sm font-semibold text-white transition motion-safe:active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50"
+        className="flex min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-slate-900 py-3.5 text-sm font-semibold text-white transition motion-safe:active:scale-[0.99] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50"
       >
         <ExternalLink className="size-4" aria-hidden /> {t("mini.vehicle.view_passport")}
       </Link>

@@ -8,7 +8,7 @@ import { Button, useToast } from "@garageos/design-system";
 import { clientFetch, ClientApiError } from "@/lib/api/client";
 import type { Appointment, CaseMechanic } from "@/lib/api/types";
 
-const FIELD = "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
+const FIELD = "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40";
 const LABEL = "block text-xs font-semibold text-muted-foreground mb-1.5";
 const DURATIONS = [30, 60, 90, 120, 180];
 
@@ -62,7 +62,7 @@ export function EditAppointmentModal({
   if (typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-80 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div role="dialog" aria-modal="true" aria-label="Edit appointment"
         className="relative w-full max-w-md rounded-2xl border border-border bg-card shadow-2xl">

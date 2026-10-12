@@ -43,7 +43,7 @@ export function CustomersList({ customers }: { customers: CustomerListItem[] }) 
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search name, phone, email…"
-            className="flex-1 bg-transparent py-2.5 text-sm outline-none text-foreground placeholder:text-muted-foreground/50"
+            className="flex-1 bg-transparent py-2.5 text-sm outline-hidden text-foreground placeholder:text-muted-foreground/50"
           />
         </div>
       </div>
@@ -54,7 +54,7 @@ export function CustomersList({ customers }: { customers: CustomerListItem[] }) 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {filtered.map((c) => (
             <Link key={c.id} href={`/customers/${c.id}`}
-              className="rounded-2xl border border-border bg-card p-4 hover:border-primary/40 hover:shadow-sm transition-all group">
+              className="rounded-2xl border border-border bg-card p-4 hover:border-primary/40 hover:shadow-xs transition-all group">
               <div className="flex items-center gap-3">
                 <div className="grid size-11 place-items-center rounded-xl bg-primary/10 text-primary font-bold shrink-0">
                   {monogram(c.full_name)}

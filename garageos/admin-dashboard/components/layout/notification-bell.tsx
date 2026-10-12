@@ -127,7 +127,7 @@ export function NotificationBell() {
                   onClick={() => openItem(n)}
                   className={cn(
                     "flex w-full items-start gap-3 px-3 py-2.5 text-left border-b border-border/60 last:border-0 hover:bg-muted/50 transition-colors",
-                    !n.is_read && "bg-primary/[0.03]"
+                    !n.is_read && "bg-primary/3"
                   )}
                 >
                   <span className="relative mt-0.5 grid size-8 place-items-center rounded-lg bg-muted text-muted-foreground shrink-0">

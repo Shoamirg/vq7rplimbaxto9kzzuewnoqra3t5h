@@ -11,7 +11,7 @@ Tasdiqlangan `docs/specs/SPEC-work-orders.md` bo‘yicha bitta servis uchun uchr
 - Yaratish idempotency-si Redis’ga emas, shu tranzaksiyada saqlanadigan kalit va canonical request fingerprint’ga tayanadi.
 - `ready` transition buyurtma, xizmat tarixi, odometr, bog‘langan uchrashuv va audit yozuvini bitta UnitOfWork tranzaksiyasida boshqaradi. DB unique constraint parallel takrorni yakuniy himoya qiladi.
 - Buyurtmaga bog‘lanmagan uchrashuvlarni yakunlashning eski yo‘li saqlanadi. Bog‘langan uchrashuv uchun eski endpoint yangi `ready` oqimiga yo‘naltiriladi.
-- Admin panel mavjud Next.js app-router, `clientFetch`, dizayn tizimi va uch tildagi staff dictionary’ni davom ettiradi. E2E uchun mock API ma’lumoti ishlatiladi; database-backed integratsiya testlari PostgreSQL talab qiladi. Production deploy qilinmaydi.
+- Admin panel mavjud Next.js app-router, `clientFetch`, dizayn tizimi va uch tildagi staff dictionary’ni davom ettiradi. E2E sintetik demo ma’lumotlari bilan lokal PostgreSQL/backend’dan foydalanadi; production deploy qilinmaydi. Next 16 dev E2E uchun Playwright `localhost:3000` manzilidan foydalanadi, chunki Next dev server `127.0.0.1` originidan HMR’ni bloklaydi.
 
 ## Amalga oshirish ketma-ketligi
 
@@ -52,14 +52,14 @@ Ruxsatli holat o‘tishlari, completion odometri, bajarilgan ish va narxni yangi
 
 Uchrashuv ekranidan buyurtma yaratish va buyurtma holatini ko‘rish. Reception va mechanic rollariga mos boshqaruvlarni ko‘rsatish. Playwright’da walk-in hamda appointment oqimini tekshirish.
 
-**Holat:** Backend API va UI birga, sintetik demo ma’lumotlari bilan lokal PostgreSQL’da tekshirildi: backend’ning 125 testi va 12 Playwright brauzer testi o‘tdi. Walk-in intake, status o‘tishlari va appointment handoff real lokal API orqali tekshirildi. Dependency audit ogohlantirishlari sabab xavfsizlik darvozasi ochiq.
+**Holat:** Backend API va UI sintetik demo ma’lumotlari bilan lokal PostgreSQL’da tekshirildi: backend’ning 125 testi va 12 Playwright brauzer testi o‘tdi. Walk-in intake, status o‘tishlari va appointment handoff real lokal API orqali tekshirildi. Toolchain Next.js 16.4, Tailwind CSS 4.3, ESLint 10, `tailwind-merge` 3 va Node.js 24’ga yangilandi. Frontend production build, TypeScript, lint va i18n tekshiruvlari o‘tdi. `npm audit --omit=dev` 0 zaiflik qaytardi; to‘liq auditda ESLint/Next lint tooling zanjiridagi `braces <=3.0.3` sababli 5 high yozuv qolgan, upstream advisory’da patch yo‘q. Paid hosting yoki production deploy ishlatilmagan.
 
 ### Checkpoint C
 
 - [x] Backend testlar va frontend lint/build o‘tadi.
 - [x] Desktop/mobile brauzer oqimlari muvaffaqiyatli.
 - [x] Diff xavfsizlik, accessibility, tenant chegarasi va scope bo‘yicha yakuniy ko‘rib chiqilgan.
-- [ ] Dependency audit’dagi high/moderate ogohlantirishlar bartaraf qilingan yoki chiqarishdan oldingi xavfsiz reja bilan qabul qilingan.
+- [ ] Full dev-dependency audit high xavflari upstream patch chiqqach bartaraf qilinsin; production chiqarishdan oldin audit qayta bajarilsin.
 
 ## Xatarlar va kamaytirish
 
@@ -70,9 +70,10 @@ Uchrashuv ekranidan buyurtma yaratish va buyurtma holatini ko‘rish. Reception 
 | API endpointlarda mavjud role dependency yo‘q | Ruxsatsiz amal | Work order endpointlarda aniq role policy va assigned-mechanic tekshiruvi; UI yashirishni yagona himoya qilmaslik |
 | DB parallel create/finalize poygasi | Ikki ish buyurtmasi yoki history | Partial/ordinary unique constraint va tranzaksiya ichidagi state check; IntegrityError’ni domain 409 ga aylantirish |
 | Demo read-only middleware mutatsiyani bloklaydi | E2E create flow ishlamaydi | E2E setup’ni mutatsiya qilish mumkin bo‘lgan test akkauntiga moslash; demo token uchun read-only xatti-harakatni alohida tekshirish |
+| Tailwind CSS 4 eski brauzerlarni qo‘llamaydi | Eski Safari/Chrome/Firefox’da ko‘rinish buzilishi mumkin | Pilot qurilmalar brauzerlarini tekshirish; kerak bo‘lsa qo‘llab-quvvatlash matritsasini kelishib, CSS/browser testini qo‘shish |
 
 ## Ochiq masala
 
 - Pilotda `in_progress` holatidan keyin bekor qilish/qisman bajarilgan xizmatni qayd etish kerakmi — MVP’da hozircha yo‘q.
 
-Security gate: npm audit 11 ogohlantirish ko‘rsatmoqda (8 high, 3 moderate, 0 critical). Tavsiya etilgan tuzatish Next.js 16 va Tailwind CSS 4 major yangilanishini talab qiladi; moslik tekshiruvi tugamaguncha chiqarilmaydi.
+Security gate: `npm audit --omit=dev` 0, to‘liq auditda esa 5 high dev-only transitive finding bor. Ular `eslint-config-next` lint zanjiri orqali `braces <=3.0.3` advisory’siga boradi; 2026-10-12 holatida advisory patched release ko‘rsatmaydi. CI production dependency audit’ini bloklaydigan qilib qo‘yilgan, ammo bu full audit o‘rnini bosmaydi. Shu sabab release/deploy kutadi; audit keyingi ishga tushirishlarda qayta tekshirilsin.

@@ -179,7 +179,7 @@ export function DashboardClient({ userName, stats, today, fleet }: Props) {
       {/* Fleet Health (demo) + Weekly Revenue (demo) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card variant="elevated" className="lg:col-span-1 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-linear-to-br from-primary/5 via-transparent to-transparent" />
           <CardHeader>
             <CardTitle>{t("dash.fleet.title")}</CardTitle>
             <CardDescription>{t("dash.fleet.avg", { count: fleet.evaluated_count })}</CardDescription>
