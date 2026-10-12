@@ -9,7 +9,7 @@ import { AUTH_COOKIE } from "@/lib/api/constants";
 // The public marketing site + demo entry. "/" is handled as an exact match below.
 const PUBLIC_PATHS = ["/login", "/passport", "/invoice", "/mini", "/demo", "/pricing", "/security", "/docs", "/privacy", "/terms"];
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const isAuthed = Boolean(req.cookies.get(AUTH_COOKIE)?.value);
   // "/" is the public landing page (exact match, since every path startsWith "/").
