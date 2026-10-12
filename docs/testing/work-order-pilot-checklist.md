@@ -2,6 +2,8 @@
 
 **Maqsad:** servis xodimi bilan kundalik qabul va ta’mir oqimi tushunarli hamda amaliy ekanini tekshirish. Bu qo‘lda qabul sinovi; CI’dagi avtomatik testlar o‘rnini bosmaydi.
 
+Lokal demoni yoqish bosqichlari: [Lokal demo qo‘llanmasi](../../garageos/docs/setup/local-demo.md).
+
 ## Sinovdan oldin
 
 - Faqat alohida, mahalliy demo muhitidan foydalaning. Brauzer manzili localhost yoki 127.0.0.1 bo‘lsin; ommaviy domen/server ishlatmang.
