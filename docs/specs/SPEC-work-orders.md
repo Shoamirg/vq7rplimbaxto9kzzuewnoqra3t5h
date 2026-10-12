@@ -20,7 +20,7 @@ Bitta servis oldindan yozilgan yoki navbatsiz kelgan mashinani qabul qila olsin,
 
 ## Servisdagi ish tartibi
 
-1. Qabulxona xodimi mijoz va mashinani topadi yoki mavjud oynalar orqali yangisini kiritadi.
+1. Qabulxona xodimi mijozni qidiradi; topilmasa shu qabul oynasida yangi mijozni kiritadi. Mijozning avtomobili tanlanadi yoki faol marka/model katalogidan yangisi qo‘shiladi.
 2. Ish buyurtmasini uchrashuvdan yoki **Navbatsiz qabul** tugmasidan ochadi. Xizmat turini tanlaydi; mijoz aytgan muammo, qabul paytidagi odometr va mexanikni ixtiyoriy kiritadi.
 3. Buyurtma faol ishlar ro‘yxatida ko‘rinadi. Qabulxona va rahbar barcha buyurtmalarni, mexanik faqat o‘ziga biriktirilganlarini ko‘radi.
 4. Mexanik ishni boshlaydi, bajarilgan ishni qayd etadi va mashinani olib ketishga tayyor deb belgilaydi.
@@ -31,6 +31,7 @@ Bitta servis oldindan yozilgan yoki navbatsiz kelgan mashinani qabul qila olsin,
 - Yangi buyurtmada `customer_id`, `vehicle_id`, xizmat turi va holat bo‘ladi. `appointment_id`, mexanik, mijoz aytgan muammo va qabul paytidagi odometr ixtiyoriy.
 - Uchrashuvdan ochilganda mijoz va mashina o‘sha uchrashuvdagiga mos bo‘lishi, uchrashuv bekor qilinmagan va yakunlanmagan bo‘lishi shart. Bitta uchrashuvga ko‘pi bilan bitta ish buyurtmasi ulanadi; buyurtma ochilganda uchrashuv in_progress bo‘ladi.
 - Navbatsiz buyurtmada `appointment_id` bo‘sh qoladi. Buning uchun soxta uchrashuv yaratilmaydi.
+- Qabulxona xodimi intake oynasidan yangi mijoz va avtomobil qo‘sha oladi. Backend mijozni joriy servisga bog‘laydi, faqat ruxsatli ofis rollariga yozishga ruxsat beradi, Telegram identifikatorlarini qabul qilmaydi va avtomobil marka/modeli faol katalogga mosligini tekshiradi.
 - Buyurtmalar ro‘yxati sahifalab olinadi (`page`, `page_size`) va holat bo‘yicha saralanadi. Boshqa servis markazining yoki o‘chirilgan yozuvlar ko‘rinmaydi.
 - Mijoz, mashina va uchrashuv aloqalarini buyurtma ochilgandan keyin almashtirib bo‘lmaydi. Ruxsatli xodim muammo matni, mexanik, bajarilgan ish, yakuniy odometr, haqiqiy narx va holatni faqat mumkin bo‘lgan bosqichda o‘zgartiradi.
 - Holatlar faqat quyidagicha o‘tadi:
@@ -54,6 +55,9 @@ Backend va veb qismi quyidagi manzillardan foydalanadi. Mavjud loyihadagi `snake
 | `POST` | `/api/v1/work-orders` | Uchrashuvli yoki navbatsiz buyurtma ochish |
 | `GET` | `/api/v1/work-orders/{work_order_id}` | Bitta buyurtmani ko‘rish |
 | `PATCH` | `/api/v1/work-orders/{work_order_id}` | Maydonlarni yoki holatni ruxsat bilan o‘zgartirish |
+| `POST` | `/api/v1/customers` | Qabulxona uchun yangi mijoz kiritish |
+| `GET` | `/api/v1/vehicles/catalog` | Faol avtomobil marka va modellari |
+| `POST` | `/api/v1/vehicles` | Tanlangan mijozga avtomobil qo‘shish |
 
 Yangi buyurtma so‘rovida customer_id, vehicle_id, service_type va Idempotency-Key bo‘ladi. Bu kalit so‘rovni takrorlashdan himoya qiladi: tarmoq uzilib so‘rov qayta yuborilsa, bir xil kalit va mazmun avvalgi buyurtmani qaytaradi; kalit boshqa mazmun bilan ishlatilsa 409 xatosi qaytadi. Kafolat ma’lumotlar bazasida saqlanadi; Redis ishlamasa so‘rovni baribir davom ettiradigan mavjud yordamchi kodga tayanmaymiz.
 
@@ -70,6 +74,7 @@ Noto‘g‘ri maydon `422`, mumkin bo‘lmagan holat almashishi yoki takroriy uc
 
 - Har bir amal login qilgan foydalanuvchining faol servis markazi doirasida bajariladi. `service_center_id` mijoz yuborgan so‘rovdan olinmaydi.
 - `admin`, `manager`, `receptionist`: o‘z servisidagi buyurtmalarni ochish, ko‘rish, biriktirish, tahrirlash, bosqichini o‘zgartirish, bekor qilish va yopish.
+- Yangi mijoz yoki avtomobilni qabul oynasidan kiritish faqat `admin`, `manager`, `receptionist` rollariga mumkin. Servis markazi ID’si so‘rovdan olinmaydi; mijozning faolligi/egalik chegarasi va faol marka-model jufti backend’da tekshiriladi. Yangi mijoz yaratish Telegram identifikatorlarini qabul qilmaydi.
 - `mechanic`: faqat o‘ziga biriktirilgan buyurtmani ko‘rish, ish qaydini kiritish, ishni boshlash va `ready` qilish. Buyurtma ochish, boshqa mexanikka topshirish, bekor qilish va yopish mumkin emas.
 - Noma’lum yoki o‘chirilgan rolga ruxsat berilmaydi. `super_admin` belgisi servis markazi chegarasini chetlab o‘tmaydi; MVP’da barcha servislarni kesib ko‘radigan endpoint bo‘lmaydi.
 - Mijoz, mashina, uchrashuv va mexanik ID’lari shu servisga tegishliligi tekshiriladi. Mashina tanlangan mijozniki bo‘lishi, mexanik faol va `mechanic` rolida bo‘lishi shart.

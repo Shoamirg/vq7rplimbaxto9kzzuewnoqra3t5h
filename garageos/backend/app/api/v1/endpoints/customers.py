@@ -9,11 +9,26 @@ import uuid
 
 from fastapi import APIRouter, Depends, Query
 
-from app.api.deps import get_tenant_uow
+from app.api.deps import get_office_write_user, get_tenant_uow
+from app.models.user import User
 from app.repositories.unit_of_work import UnitOfWork
+from app.schemas.customer import StaffCustomerCreate
 from app.services.customer_service import CustomerService
 
 router = APIRouter()
+
+
+@router.post("", status_code=201, summary="Create a customer from staff intake")
+async def create_customer(
+    body: StaffCustomerCreate,
+    uow: UnitOfWork = Depends(get_tenant_uow),
+    actor: User = Depends(get_office_write_user),
+) -> dict:
+    del actor  # authorization is enforced by the dependency
+    return await CustomerService(uow).create_customer(
+        service_center_id=uow.service_center_id,
+        **body.model_dump(),
+    )
 
 
 @router.get("", summary="List customers (value-sorted, searchable)")

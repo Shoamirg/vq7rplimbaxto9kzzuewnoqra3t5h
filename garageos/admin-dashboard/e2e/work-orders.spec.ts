@@ -7,6 +7,46 @@ async function login(page: Page) {
   expect(response.ok(), "staff login should succeed").toBeTruthy();
 }
 
+test("reception can add a customer and vehicle during walk-in intake", async ({ page }) => {
+  await login(page);
+  const catalogResponse = await page.request.get("/api/proxy/vehicles/catalog");
+  expect(catalogResponse.ok()).toBeTruthy();
+  const catalog = await catalogResponse.json() as { id: string; models: { id: string }[] }[];
+  const brand = catalog.find((item) => item.models.length > 0);
+  test.skip(!brand, "demo tenant has no active vehicle catalog entries");
+
+  const customerName = `Walk-in QA ${Date.now()}`;
+  await page.goto("/work-orders", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "New walk-in" }).first().click();
+  await page.getByRole("textbox", { name: "Customer", exact: true }).fill(customerName);
+  await expect(page.getByRole("status")).toContainText("No customer matched");
+  await page.getByRole("button", { name: "Add new customer" }).click();
+  await page.getByLabel("Customer name").fill(customerName);
+  const customerCreate = page.waitForResponse((response) =>
+    response.url().includes("/api/proxy/customers") && response.request().method() === "POST",
+  );
+  await page.getByRole("button", { name: "Save customer" }).click();
+  expect((await customerCreate).status()).toBe(201);
+
+  await page.getByRole("button", { name: "Add vehicle" }).click();
+  await page.getByLabel("Make").selectOption(brand!.id);
+  await page.getByLabel("Model").selectOption(brand!.models[0].id);
+  await page.getByLabel("License plate").fill("QA-INTAKE");
+  const vehicleCreate = page.waitForResponse((response) =>
+    response.url().includes("/api/proxy/vehicles") && response.request().method() === "POST",
+  );
+  await page.getByRole("button", { name: "Save vehicle" }).click();
+  expect((await vehicleCreate).status()).toBe(201);
+
+  await page.getByLabel("Service type").fill("E2E intake for new customer");
+  const orderCreate = page.waitForResponse((response) =>
+    response.url().includes("/api/proxy/work-orders") && response.request().method() === "POST",
+  );
+  await page.getByRole("button", { name: "Create work order" }).click();
+  expect((await orderCreate).status()).toBe(201);
+  await expect(page.getByLabel("Work order details")).toBeVisible();
+});
+
 test("reception can create a walk-in work order on mobile and take it to ready", async ({ page }) => {
   await login(page);
   await page.setViewportSize({ width: 375, height: 812 });

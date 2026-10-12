@@ -304,6 +304,12 @@ export interface Customer360Vehicle {
   passport_code: string;
 }
 
+export interface VehicleCatalogBrand {
+  id: string;
+  name: string;
+  models: { id: string; name: string }[];
+}
+
 export interface Customer360Appointment {
   id: string;
   date: string;

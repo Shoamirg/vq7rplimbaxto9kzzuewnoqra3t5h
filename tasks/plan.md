@@ -46,13 +46,13 @@ Ruxsatli holat o‘tishlari, completion odometri, bajarilgan ish va narxni yangi
 
 ### 5-bosqich: Admin panel ish navbati
 
-`/work-orders` sahifasi, status navbati, tafsilot kartasi va navbatsiz qabul formasi. Mavjud mijoz/mashina qidiruvi va xodimlar ro‘yxatidan foydalanish, yuklanish/xato/bo‘sh holatlari va mobil layoutni qo‘shish.
+`/work-orders` sahifasi, status navbati, tafsilot kartasi va navbatsiz qabul formasi. Mijoz/mashina qidiruvi, topilmagan mijozni yaratish va faol marka/model katalogidan avtomobil qo‘shishni ulash; yuklanish/xato/bo‘sh holatlari va mobil layoutni tekshirish.
 
 ### 6-bosqich: Uchrashuv bilan bog‘lash va brauzer tekshiruvi
 
 Uchrashuv ekranidan buyurtma yaratish va buyurtma holatini ko‘rish. Reception va mechanic rollariga mos boshqaruvlarni ko‘rsatish. Playwright’da walk-in hamda appointment oqimini tekshirish.
 
-**Holat:** Backend API va UI sintetik demo ma’lumotlari bilan lokal PostgreSQL’da tekshirildi: backend’ning 125 testi va 12 Playwright brauzer testi o‘tdi. Walk-in intake, status o‘tishlari va appointment handoff real lokal API orqali tekshirildi. Toolchain Next.js 16.4, Tailwind CSS 4.3, ESLint 10, `tailwind-merge` 3 va Node.js 24’ga yangilandi. Frontend production build, TypeScript, lint va i18n tekshiruvlari o‘tdi. `npm audit --omit=dev` 0 zaiflik qaytardi; to‘liq auditda ESLint/Next lint tooling zanjiridagi `braces <=3.0.3` sababli 5 high yozuv qolgan, upstream advisory’da patch yo‘q. Paid hosting yoki production deploy ishlatilmagan.
+**Holat:** Backend API va UI sintetik demo ma’lumotlari bilan lokal PostgreSQL’da tekshirildi: backend’ning 130 testi va 13 Playwright brauzer testi o‘tdi. Walk-in intake, jumladan yangi mijoz va avtomobil yaratish, status o‘tishlari va appointment handoff real lokal API orqali tekshirildi. Toolchain Next.js 16.4, Tailwind CSS 4.3, ESLint 10, `tailwind-merge` 3 va Node.js 24’ga yangilandi. Frontend production build, TypeScript, lint va i18n tekshiruvlari o‘tdi. `npm audit --omit=dev` 0 zaiflik qaytardi; to‘liq auditda ESLint/Next lint tooling zanjiridagi `braces <=3.0.3` sababli 5 high yozuv qolgan, upstream advisory’da patch yo‘q. Paid hosting yoki production deploy ishlatilmagan.
 
 ### Checkpoint C
 

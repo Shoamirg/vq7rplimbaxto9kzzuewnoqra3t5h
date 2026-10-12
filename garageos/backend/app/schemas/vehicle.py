@@ -1,6 +1,25 @@
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from datetime import datetime
 from typing import Optional
+from uuid import UUID
+
+
+class StaffVehicleCreate(BaseModel):
+    """Vehicle intake linked to a tenant-owned customer and catalog model."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    customer_id: UUID
+    brand_id: UUID
+    vehicle_model_id: UUID
+    year: int = Field(ge=1900, le=2030)
+    license_plate: str | None = Field(None, max_length=20)
+    vin: str | None = Field(None, min_length=11, max_length=17)
+    engine_type: str | None = None
+    transmission: str | None = None
+    color: str | None = None
+    current_km: int = Field(default=0, ge=0)
+    notes: str | None = None
 
 
 class VehicleCreate(BaseModel):

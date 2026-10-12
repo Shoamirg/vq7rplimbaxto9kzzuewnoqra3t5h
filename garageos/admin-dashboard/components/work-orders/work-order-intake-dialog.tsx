@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ClipboardPlus, Loader2, Search, X } from "lucide-react";
+import { Car, ClipboardPlus, Loader2, Search, UserPlus, X } from "lucide-react";
 import { Button, useToast } from "@garageos/design-system";
 import { ClientApiError, clientFetch } from "@/lib/api/client";
-import type { CaseMechanic, Customer360, Customer360Vehicle, CustomerList, CustomerListItem, WorkOrder } from "@/lib/api/types";
+import type { CaseMechanic, Customer360, Customer360Vehicle, CustomerList, CustomerListItem, VehicleCatalogBrand, WorkOrder } from "@/lib/api/types";
 import { useI18n } from "@/lib/i18n/context";
 
 const LABEL = "mb-1.5 block text-xs font-semibold text-muted-foreground";
@@ -21,6 +21,7 @@ export function WorkOrderIntakeDialog({
   const { t } = useI18n();
   const { toast } = useToast();
   const searchRef = useRef<HTMLInputElement>(null);
+  const customerEmailRef = useRef<HTMLInputElement>(null);
   const lastAttempt = useRef<{ body: string; key: string } | null>(null);
   const [query, setQuery] = useState("");
   const [matches, setMatches] = useState<CustomerListItem[]>([]);
@@ -37,6 +38,21 @@ export function WorkOrderIntakeDialog({
   const [loading, setLoading] = useState(false);
   const [loadingVehicles, setLoadingVehicles] = useState(false);
   const [vehicleLoadFailed, setVehicleLoadFailed] = useState(false);
+  const [newCustomerOpen, setNewCustomerOpen] = useState(false);
+  const [newCustomerName, setNewCustomerName] = useState("");
+  const [newCustomerPhone, setNewCustomerPhone] = useState("");
+  const [newCustomerEmail, setNewCustomerEmail] = useState("");
+  const [creatingCustomer, setCreatingCustomer] = useState(false);
+  const [newVehicleOpen, setNewVehicleOpen] = useState(false);
+  const [vehicleCatalog, setVehicleCatalog] = useState<VehicleCatalogBrand[]>([]);
+  const [vehicleCatalogFailed, setVehicleCatalogFailed] = useState(false);
+  const [loadingVehicleCatalog, setLoadingVehicleCatalog] = useState(false);
+  const [newVehicleBrandId, setNewVehicleBrandId] = useState("");
+  const [newVehicleModelId, setNewVehicleModelId] = useState("");
+  const [newVehicleYear, setNewVehicleYear] = useState(String(new Date().getFullYear()));
+  const [newVehiclePlate, setNewVehiclePlate] = useState("");
+  const [newVehicleKm, setNewVehicleKm] = useState("0");
+  const [creatingVehicle, setCreatingVehicle] = useState(false);
 
   useEffect(() => {
     searchRef.current?.focus();
@@ -69,7 +85,7 @@ export function WorkOrderIntakeDialog({
   }, []);
 
   useEffect(() => {
-    if (!customer) { setVehicles([]); setVehicleId(""); setLoadingVehicles(false); setVehicleLoadFailed(false); return; }
+    if (!customer) { setVehicles([]); setVehicleId(""); setLoadingVehicles(false); setVehicleLoadFailed(false); setNewVehicleOpen(false); return; }
     let active = true;
     setLoadingVehicles(true);
     setVehicleLoadFailed(false);
@@ -86,6 +102,122 @@ export function WorkOrderIntakeDialog({
   }, [customer]);
 
   const selectedVehicle = useMemo(() => vehicles.find((vehicle) => vehicle.id === vehicleId) ?? null, [vehicles, vehicleId]);
+  const selectedBrand = vehicleCatalog.find((brand) => brand.id === newVehicleBrandId);
+
+  async function createCustomer() {
+    const fullName = newCustomerName.trim();
+    if (!fullName) return;
+    if (customerEmailRef.current && !customerEmailRef.current.checkValidity()) {
+      customerEmailRef.current.reportValidity();
+      return;
+    }
+    setCreatingCustomer(true);
+    try {
+      const created = await clientFetch<{ id: string; full_name: string; phone: string | null; email: string | null }>("/customers", {
+        method: "POST",
+        body: JSON.stringify({ full_name: fullName, phone: newCustomerPhone.trim() || null, email: newCustomerEmail.trim() || null }),
+      });
+      setCustomer({
+        ...created,
+        vehicle_count: 0,
+        lifetime_value: 0,
+        tier: "standard",
+        last_visit: null,
+      });
+      setQuery("");
+      setMatches([]);
+      setNewCustomerOpen(false);
+      setNewCustomerName("");
+      setNewCustomerPhone("");
+      setNewCustomerEmail("");
+      toast({ title: t("wo.customer_created") });
+    } catch {
+      toast({ title: t("wo.operation_failed"), variant: "danger" });
+    } finally {
+      setCreatingCustomer(false);
+    }
+  }
+
+  async function openVehicleForm() {
+    setNewVehicleOpen(true);
+    if (vehicleCatalog.length || loadingVehicleCatalog) return;
+    setVehicleCatalogFailed(false);
+    setLoadingVehicleCatalog(true);
+    try {
+      setVehicleCatalog(await clientFetch<VehicleCatalogBrand[]>("/vehicles/catalog"));
+    } catch {
+      setVehicleCatalogFailed(true);
+      toast({ title: t("wo.vehicle_load_error"), variant: "danger" });
+    } finally {
+      setLoadingVehicleCatalog(false);
+    }
+  }
+
+  async function createVehicle() {
+    if (!customer || !newVehicleBrandId || !newVehicleModelId || !newVehicleYear) return;
+    setCreatingVehicle(true);
+    let createdVehicleId: string;
+    try {
+      const createdVehicle = await clientFetch<{ id: string }>("/vehicles", {
+        method: "POST",
+        body: JSON.stringify({
+          customer_id: customer.id,
+          brand_id: newVehicleBrandId,
+          vehicle_model_id: newVehicleModelId,
+          year: Number(newVehicleYear),
+          license_plate: newVehiclePlate.trim() || null,
+          current_km: newVehicleKm === "" ? 0 : Number(newVehicleKm),
+        }),
+      });
+      createdVehicleId = createdVehicle.id;
+    } catch {
+      toast({ title: t("wo.operation_failed"), variant: "danger" });
+      setCreatingVehicle(false);
+      return;
+    }
+
+    setNewVehicleOpen(false);
+    setNewVehicleBrandId("");
+    setNewVehicleModelId("");
+    setNewVehiclePlate("");
+    setNewVehicleKm("0");
+    setVehicleId("");
+    setIntakeKm(newVehicleKm);
+    setLoadingVehicles(true);
+    setVehicleLoadFailed(false);
+    try {
+      const profile = await clientFetch<Customer360>(`/customers/${customer.id}`);
+      setVehicles(profile.vehicles);
+      const created = profile.vehicles.find((vehicle) => vehicle.id === createdVehicleId);
+      setVehicleId(created?.id ?? "");
+      setIntakeKm(String(created?.current_km ?? Number(newVehicleKm)));
+      toast({ title: t("wo.vehicle_created") });
+    } catch {
+      setVehicleLoadFailed(true);
+      toast({ title: t("wo.vehicle_created") });
+      toast({ title: t("wo.vehicle_load_error"), variant: "danger" });
+    } finally {
+      setLoadingVehicles(false);
+      setCreatingVehicle(false);
+    }
+  }
+
+  async function retryVehicleLoad() {
+    if (!customer) return;
+    setLoadingVehicles(true);
+    setVehicleLoadFailed(false);
+    try {
+      const profile = await clientFetch<Customer360>(`/customers/${customer.id}`);
+      setVehicles(profile.vehicles);
+      setVehicleId("");
+      setIntakeKm("");
+    } catch {
+      setVehicleLoadFailed(true);
+      toast({ title: t("wo.vehicle_load_error"), variant: "danger" });
+    } finally {
+      setLoadingVehicles(false);
+    }
+  }
 
   function chooseVehicle(id: string) {
     setVehicleId(id);
@@ -186,12 +318,41 @@ export function WorkOrderIntakeDialog({
                       ))}
                     </div>
                   ) : query.trim().length >= 2 ? (
-                    <p className="mt-1 text-xs text-muted-foreground" role="status">
-                      {searchingCustomers ? t("wo.loading") : customerSearchFailed ? t("wo.customer_search_error") : t("wo.no_customer")}
-                    </p>
+                    <div className="mt-1 rounded-md border border-border px-3 py-2">
+                      <p className="text-xs text-muted-foreground" role="status">
+                        {searchingCustomers ? t("wo.loading") : customerSearchFailed ? t("wo.customer_search_error") : t("wo.no_customer")}
+                      </p>
+                      {!searchingCustomers && !customerSearchFailed && !newCustomerOpen ? (
+                        <button type="button" className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline" onClick={() => { setNewCustomerName(query.trim()); setNewCustomerOpen(true); }}>
+                          <UserPlus className="size-3.5" />{t("wo.add_customer")}
+                        </button>
+                      ) : null}
+                    </div>
                   ) : null}
                 </>
               )}
+              {newCustomerOpen ? (
+                <div className="mt-2 space-y-3 rounded-md border border-border bg-muted/30 p-3">
+                  <div>
+                    <label htmlFor="wo-new-customer-name" className={LABEL}>{t("wo.customer_name")}</label>
+                    <input id="wo-new-customer-name" required maxLength={255} value={newCustomerName} onChange={(event) => setNewCustomerName(event.target.value)} className={FIELD} />
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <label htmlFor="wo-new-customer-phone" className={LABEL}>{t("wo.phone")}</label>
+                      <input id="wo-new-customer-phone" type="tel" maxLength={20} pattern="\+?[\d\s()\-]{7,20}" value={newCustomerPhone} onChange={(event) => setNewCustomerPhone(event.target.value)} className={FIELD} />
+                    </div>
+                    <div>
+                      <label htmlFor="wo-new-customer-email" className={LABEL}>{t("wo.email")}</label>
+                      <input ref={customerEmailRef} id="wo-new-customer-email" type="email" maxLength={255} value={newCustomerEmail} onChange={(event) => setNewCustomerEmail(event.target.value)} className={FIELD} />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" variant="ghost" disabled={creatingCustomer} onClick={() => setNewCustomerOpen(false)}>{t("wo.cancel")}</Button>
+                    <Button type="button" disabled={creatingCustomer || !newCustomerName.trim()} loading={creatingCustomer} leftIcon={creatingCustomer ? <Loader2 className="size-4 animate-spin" /> : <UserPlus className="size-4" />} onClick={createCustomer}>{t("wo.save_customer")}</Button>
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             <div>
@@ -200,6 +361,57 @@ export function WorkOrderIntakeDialog({
                 <option value="">{!customer ? t("wo.choose_customer") : loadingVehicles ? t("wo.loading") : vehicleLoadFailed ? t("wo.vehicle_load_error") : vehicles.length ? t("wo.choose_vehicle") : t("wo.no_vehicles")}</option>
                 {vehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicle.label} · {vehicle.year}</option>)}
               </select>
+              {customer && vehicleLoadFailed && !newVehicleOpen ? (
+                <button type="button" className="mt-2 text-xs font-medium text-primary underline" onClick={() => void retryVehicleLoad()}>{t("wo.retry")}</button>
+              ) : null}
+              {customer && !vehicleLoadFailed && !newVehicleOpen ? (
+                <button type="button" disabled={loadingVehicles} className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline disabled:cursor-wait disabled:opacity-60" onClick={openVehicleForm}>
+                  {loadingVehicles ? <Loader2 className="size-3.5 animate-spin" /> : <Car className="size-3.5" />}{loadingVehicles ? t("wo.loading") : t("wo.add_vehicle")}
+                </button>
+              ) : null}
+              {newVehicleOpen ? (
+                <div className="mt-2 space-y-3 rounded-md border border-border bg-muted/30 p-3">
+                  {vehicleCatalogFailed ? (
+                    <p className="text-xs text-destructive" role="alert">
+                      {t("wo.vehicle_load_error")} {" "}
+                      <button type="button" className="font-medium underline" onClick={() => void openVehicleForm()}>{t("wo.retry")}</button>
+                    </p>
+                  ) : null}
+                  {loadingVehicleCatalog ? <p className="text-xs text-muted-foreground" role="status">{t("wo.loading")}</p> : null}
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <label htmlFor="wo-new-vehicle-brand" className={LABEL}>{t("wo.brand")}</label>
+                      <select id="wo-new-vehicle-brand" value={newVehicleBrandId} onChange={(event) => { setNewVehicleBrandId(event.target.value); setNewVehicleModelId(""); }} disabled={!vehicleCatalog.length} className={FIELD}>
+                        <option value="">{t("wo.choose_brand")}</option>
+                        {vehicleCatalog.map((brand) => <option key={brand.id} value={brand.id}>{brand.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="wo-new-vehicle-model" className={LABEL}>{t("wo.model")}</label>
+                      <select id="wo-new-vehicle-model" value={newVehicleModelId} onChange={(event) => setNewVehicleModelId(event.target.value)} disabled={!selectedBrand} className={FIELD}>
+                        <option value="">{t("wo.choose_model")}</option>
+                        {selectedBrand?.models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="wo-new-vehicle-year" className={LABEL}>{t("wo.year")}</label>
+                      <input id="wo-new-vehicle-year" type="number" required min={1900} max={2030} step={1} value={newVehicleYear} onChange={(event) => setNewVehicleYear(event.target.value)} className={FIELD} />
+                    </div>
+                    <div>
+                      <label htmlFor="wo-new-vehicle-plate" className={LABEL}>{t("wo.license_plate")}</label>
+                      <input id="wo-new-vehicle-plate" maxLength={20} value={newVehiclePlate} onChange={(event) => setNewVehiclePlate(event.target.value)} className={FIELD} />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label htmlFor="wo-new-vehicle-km" className={LABEL}>{t("wo.current_km")}</label>
+                      <input id="wo-new-vehicle-km" type="number" min={0} step={1} value={newVehicleKm} onChange={(event) => setNewVehicleKm(event.target.value)} className={FIELD} />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" variant="ghost" disabled={creatingVehicle} onClick={() => setNewVehicleOpen(false)}>{t("wo.cancel")}</Button>
+                    <Button type="button" disabled={creatingVehicle || loadingVehicleCatalog || !newVehicleBrandId || !newVehicleModelId || !Number.isInteger(Number(newVehicleYear)) || Number(newVehicleYear) < 1900 || Number(newVehicleYear) > 2030 || !Number.isInteger(Number(newVehicleKm)) || Number(newVehicleKm) < 0} loading={creatingVehicle} leftIcon={creatingVehicle ? <Loader2 className="size-4 animate-spin" /> : <Car className="size-4" />} onClick={createVehicle}>{t("wo.save_vehicle")}</Button>
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             <div>

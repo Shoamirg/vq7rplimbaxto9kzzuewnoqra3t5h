@@ -70,8 +70,9 @@
 - [x] Active/status queue pagination/filter bilan ishlaydi; details va error/loading/empty state ko‘rinadi.
 - [x] Navbatsiz intake soxta appointment yaratmaydi va idempotency key yuboradi.
 - [x] Mechanic ko‘rinishi faqat o‘z ishlariga mos, PII ko‘rsatmaydi; klaviatura label/focus holatlari mavjud.
+- [x] Qidiruvda topilmagan mijozni qabul oynasidan yaratish va shu servisga marka/model katalogidan avtomobil qo‘shish mumkin; backend ofis rolini, tenant egaligini va kiritilgan ma’lumotlarni tekshiradi.
 
-**Tekshiruv:** `npx tsc --noEmit`, lint, i18n check, production build; sintetik demo PostgreSQL va real lokal API bilan Playwright walk-in intake, mobil layout va appointment handoff.
+**Tekshiruv:** `npx tsc --noEmit`, lint, i18n check, production build; 130 backend testi va sintetik demo PostgreSQL/real lokal API bilan 13 Playwright sinovi, jumladan yangi mijoz-avtomobil qabul oqimi, mobil layout hamda appointment handoff.
 **Bog‘liqlik:** Task 2-4.
 **Taxminiy fayllar:** app-router page, work-order components, api types, dictionary, sidebar, E2E test.
 **Hajm:** O‘rta.
@@ -85,7 +86,7 @@
 - [x] Takroriy appointment bog‘lash UI va API’da xavfsiz rad qilinadi.
 - [x] Mexanik ishni tayyor holatga olib keladi, qabulxona topshirilgach yopadi; phone/address UI’da ko‘rinmaydi.
 
-**Tekshiruv:** Seeded, izolyatsiyalangan lokal PostgreSQL’da to‘liq backend suite — 125 test — o‘tdi; real API bilan Playwright E2E suite — 12 test — o‘tdi, jumladan mobil walk-in status oqimi va appointment handoff. Frontend lint, i18n, TypeScript tekshiruvi va production build o‘tdi.
+**Tekshiruv:** Seeded, izolyatsiyalangan lokal PostgreSQL’da to‘liq backend suite — 130 test — o‘tdi; real API bilan Playwright E2E suite — 13 test — o‘tdi, jumladan walk-in uchun yangi mijoz va avtomobil yaratish, mobil status oqimi va appointment handoff. Frontend lint, i18n, TypeScript tekshiruvi va production build o‘tdi.
 **Bog‘liqlik:** Task 5.
 **Taxminiy fayllar:** appointment list/detail controls, work order components, i18n, E2E.
 **Hajm:** O‘rta.

@@ -1,14 +1,17 @@
 from __future__ import annotations
 import uuid
 from typing import Optional, Sequence
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.repositories.vehicle_repository import VehicleRepository
-from app.repositories.brand_repository import BrandRepository
-from app.repositories.vehicle_model_repository import VehicleModelRepository
 from app.repositories.unit_of_work import UnitOfWork
+from app.models.brand import Brand
+from app.models.customer import Customer
+from app.models.vehicle_model import VehicleModel
 from app.services.maintenance_service import MaintenanceService
 from app.core.events import VehicleAdded, MileageUpdated, event_bus
-from app.exceptions import VehicleNotFound, BrandNotFound
+from app.exceptions import CustomerNotFound, DuplicateVehicle, VehicleNotFound, BrandNotFound
 
 
 class VehicleService:
@@ -18,15 +21,42 @@ class VehicleService:
         self.uow = uow
         sc = uow.service_center_id
         self.vehicle_repo = VehicleRepository(uow.session, sc)
-        self.brand_repo = BrandRepository(uow.session)          # global reference
-        self.model_repo = VehicleModelRepository(uow.session)   # global reference
         self.maintenance_service = MaintenanceService(uow.session, sc)
 
     async def add_vehicle(self, customer_id: uuid.UUID, data: dict) -> dict:
+        customer_id = uuid.UUID(str(customer_id))
+        customer = await self.uow.session.scalar(
+            select(Customer).where(
+                Customer.id == customer_id,
+                Customer.service_center_id == self.uow.service_center_id,
+                Customer.is_active == True,
+            )
+        )
+        if customer is None:
+            raise CustomerNotFound()
+
+        model_id = uuid.UUID(str(data["vehicle_model_id"]))
+        brand_id = uuid.UUID(str(data["brand_id"]))
+        model = await self.uow.session.scalar(
+            select(VehicleModel)
+            .where(
+                VehicleModel.id == model_id,
+                VehicleModel.brand_id == brand_id,
+                VehicleModel.is_active == True,
+            )
+            .options(selectinload(VehicleModel.brand))
+        )
+        if model is None or model.brand is None or not model.brand.is_active:
+            raise BrandNotFound()
+
+        vin = data.get("vin")
+        if vin and await self.vehicle_repo.find_by_vin(vin):
+            raise DuplicateVehicle()
+
         vehicle = await self.vehicle_repo.create(
             customer_id=customer_id,
             service_center_id=data["service_center_id"],
-            vehicle_model_id=uuid.UUID(data["vehicle_model_id"]),
+            vehicle_model_id=model_id,
             year=data["year"],
             license_plate=data.get("license_plate"),
             vin=data.get("vin"),
@@ -41,8 +71,8 @@ class VehicleService:
             aggregate_id=vehicle.id,
             vehicle_id=vehicle.id,
             customer_id=customer_id,
-            brand=data.get("brand", ""),
-            model=data.get("model", ""),
+            brand=model.brand.name,
+            model=model.name,
         ))
 
         return {
@@ -52,6 +82,28 @@ class VehicleService:
             "year": vehicle.year,
             "current_km": vehicle.current_km,
         }
+
+    async def list_catalog(self) -> list[dict]:
+        result = await self.uow.session.execute(
+            select(Brand)
+            .where(Brand.is_active == True)
+            .options(selectinload(Brand.vehicle_models))
+            .order_by(Brand.name)
+        )
+        brands = result.scalars().unique().all()
+        catalog = []
+        for brand in brands:
+            models = sorted(
+                (model for model in brand.vehicle_models if model.is_active),
+                key=lambda model: model.name.casefold(),
+            )
+            if models:
+                catalog.append({
+                    "id": str(brand.id),
+                    "name": brand.name,
+                    "models": [{"id": str(model.id), "name": model.name} for model in models],
+                })
+        return catalog
 
     async def update_mileage(self, vehicle_id: uuid.UUID, new_km: int) -> dict:
         vehicle = await self.vehicle_repo.get_by_id(vehicle_id)

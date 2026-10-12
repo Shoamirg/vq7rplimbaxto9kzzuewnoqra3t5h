@@ -13,10 +13,12 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.exceptions import UnauthorizedError
+from app.exceptions import UnauthorizedAction, UnauthorizedError
 from app.models.user import User
 from app.repositories.unit_of_work import UnitOfWork
 from app.services.auth_service import AuthService
+
+OFFICE_WRITE_ROLES = frozenset({"admin", "manager", "receptionist"})
 
 # auto_error=False so a missing/invalid header yields our own 401 shape.
 _bearer = HTTPBearer(auto_error=False)
@@ -40,6 +42,21 @@ async def get_current_user(
     if credentials is None or not credentials.credentials:
         raise UnauthorizedError()
     return await _auth_service(db).get_current_user(credentials.credentials)
+
+
+async def get_office_write_user(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """Allow customer and vehicle intake writes only to active office staff."""
+    role = current_user.role
+    if (
+        not current_user.is_active
+        or not role
+        or not role.is_active
+        or role.name not in OFFICE_WRITE_ROLES
+    ):
+        raise UnauthorizedAction()
+    return current_user
 
 
 async def get_tenant_uow(
