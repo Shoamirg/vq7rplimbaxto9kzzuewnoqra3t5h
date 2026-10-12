@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import DateTime, Integer, String, ForeignKey, Text
+from sqlalchemy import DateTime, Integer, String, ForeignKey, Text, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
@@ -8,6 +8,10 @@ from app.models.base import BaseModelMixin, ServiceCenterMixin
 
 class ServiceRecord(BaseModelMixin, ServiceCenterMixin, Base):
     __tablename__ = "service_records"
+
+    __table_args__ = (
+        Index("uq_service_records_work_order_id", "work_order_id", unique=True),
+    )
 
     vehicle_id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -18,6 +22,11 @@ class ServiceRecord(BaseModelMixin, ServiceCenterMixin, Base):
     appointment_id: Mapped[UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("appointments.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    work_order_id: Mapped[UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("work_orders.id", ondelete="SET NULL"),
         nullable=True,
     )
     service_type: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -31,3 +40,4 @@ class ServiceRecord(BaseModelMixin, ServiceCenterMixin, Base):
 
     # Relationships
     vehicle = relationship("Vehicle", back_populates="service_records")
+    work_order = relationship("WorkOrder", back_populates="service_record")

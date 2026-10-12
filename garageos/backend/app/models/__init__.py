@@ -10,6 +10,7 @@ from app.models.maintenance_rule import MaintenanceRule
 from app.models.appointment import Appointment
 from app.models.appointment_slot import AppointmentSlot, AppointmentSlotStatus
 from app.models.service_record import ServiceRecord
+from app.models.work_order import WorkOrder, WorkOrderStatus
 from app.models.notification import Notification
 from app.models.operational_case import OperationalCase
 from app.models.conversation import (
@@ -41,6 +42,8 @@ __all__ = [
     "AppointmentSlot",
     "AppointmentSlotStatus",
     "ServiceRecord",
+    "WorkOrder",
+    "WorkOrderStatus",
     "Notification",
     "OperationalCase",
     "Conversation",

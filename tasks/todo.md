@@ -5,9 +5,9 @@
 **Tavsif:** WorkOrder jadvali va ServiceRecord bilan birga-bir aloqani qo‘shib, tenant, appointment va idempotency invariantlarini DB’da kafolatlash.
 
 **Qabul mezonlari:**
-- [ ] WorkOrder barcha spec maydonlarini, tenant yaratish vaqtlarini va creator aloqasini saqlaydi.
-- [ ] Bir servisdagi appointment ko‘pi bilan bitta ish buyurtmasiga, ish buyurtmasi ko‘pi bilan bitta ServiceRecord’ga ulanadi.
-- [ ] Eski ServiceRecord’lar uchun `work_order_id` nullable; migration downgrade/upgraded bo‘ladi.
+- [x] WorkOrder barcha spec maydonlarini, tenant yaratish vaqtlarini va creator aloqasini saqlaydi.
+- [x] Bir servisdagi appointment ko‘pi bilan bitta ish buyurtmasiga, ish buyurtmasi ko‘pi bilan bitta ServiceRecord’ga ulanadi.
+- [x] Eski ServiceRecord’lar uchun `work_order_id` nullable; migration downgrade/upgraded bo‘ladi.
 
 **Tekshiruv:** model metadata testi, migration SQL offline generation; pytest.
 **Bog‘liqlik:** Yo‘q.
