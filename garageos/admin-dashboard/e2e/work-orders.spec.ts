@@ -19,7 +19,7 @@ test("reception can add a customer and vehicle during walk-in intake", async ({ 
   await page.goto("/work-orders", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "New walk-in" }).first().click();
   await page.getByRole("textbox", { name: "Customer", exact: true }).fill(customerName);
-  await expect(page.getByRole("status")).toContainText("No customer matched");
+  await expect(page.getByText("No customer matched that search.")).toBeVisible();
   await page.getByRole("button", { name: "Add new customer" }).click();
   await page.getByLabel("Customer name").fill(customerName);
   const customerCreate = page.waitForResponse((response) =>
