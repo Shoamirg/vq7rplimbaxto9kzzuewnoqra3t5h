@@ -24,8 +24,8 @@ Ish buyurtmasi mavjud mijoz, mashina, kirish odometri va mijoz aytgan muammo bil
 - Mavjud mijoz va mashinani tanlash; kerak bo‘lsa yangi yozuv kiritish.
 - Uchrashuvdan ish buyurtmasi ochish yoki navbatsiz kelgan mashinaga buyurtmani bevosita ochish.
 - Faol ishlarni ko‘rish, holatini o‘zgartirish va ish qaydlarini yuritish.
-- Buyurtmani yakunlashda xizmat tarixini takrorlanmaydigan tarzda yaratish va odometrni faqat yuqoriroq qiymatga yangilash.
-- Mavjud kirish nazorati va servis markazi bo‘yicha ma’lumot ajratilishini saqlash.
+- Servis tayyor bo‘lganda xizmat tarixini takrorlanmaydigan tarzda yaratish va odometrni faqat yuqoriroq qiymatga yangilash.
+- Login va servis markazi bo‘yicha ajratishni saqlash; ish buyurtmasi endpointlari uchun rol ruxsatlarini aniq qo‘shish va tekshirish.
 
 ## Hozircha kirmaydi
 
@@ -42,6 +42,6 @@ To‘lov va hisob-kitobni qayta loyihalash, ehtiyot qismlar ombori, mijoz portal
 
 Hozirgi `Appointment` yakunlash oqimi `ServiceRecord` yaratadi; `Invoice` modelida esa Work Order uchun hozircha ishlatilmaydigan `work_order_id` maydoni zaxiralangan. Shuning uchun yangi oqimni qo‘shishda appointment yakunlash bilan xizmat tarixini yaratish qoidalarini bir joyga muvofiqlashtirish kerak. PR #5 da alohida Work Order modeli yo‘q; uni merge qilishdan oldin PR va CI holatini to‘liq tekshirish lozim.
 
-## Ochiq mahsulot savoli
+## Pilotda tekshiriladigan holat
 
-Mashina mijozga berilishga tayyor bo‘lgan holat bilan mijozga topshirilib ish yopilgan holatni servis alohida kuzatishi kerakmi? Dastlab `tayyor` va `yakunlangan` bosqichlarini ajratishni tavsiya qilaman; batafsil spec’da tasdiqlanadi.
+Tayyor bo‘lish va mijozga topshirish ikki alohida holat bo‘ladi: servis ishni bitirganda xizmat tarixi yoziladi, qabulxona mashinani topshirganda buyurtmani yopadi. Ish boshlanganidan keyin bekor qilish yoki qisman bajarilgan xizmatni hisobga olish pilotdan keyin baholanadi.
