@@ -7,7 +7,7 @@ from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
     appointments, auth, calendar, cases, conversations, customers, fleet,
-    invoices, notifications, public, reports, search, slots, vehicles,
+    invoices, notifications, public, reports, search, slots, vehicles, work_orders,
 )
 from app.api.v1.endpoints import customer as customer_portal
 
@@ -15,6 +15,7 @@ api_router = APIRouter()
 
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(appointments.router, prefix="/appointments", tags=["appointments"])
+api_router.include_router(work_orders.router, prefix="/work-orders", tags=["work-orders"])
 api_router.include_router(slots.router, prefix="/slots", tags=["slots"])
 api_router.include_router(calendar.router, prefix="/calendar", tags=["calendar"])
 api_router.include_router(vehicles.router, prefix="/vehicles", tags=["vehicles"])
