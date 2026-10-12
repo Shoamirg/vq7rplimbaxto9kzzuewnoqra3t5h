@@ -99,3 +99,17 @@
 - [ ] Dev dependency audit’dagi qolgan yuqori xavf upstream tuzatilmaguncha chiqarishdan oldin qayta tekshirilsin; deploy qilinmadi.
 
 **Qolgan xavfsizlik darvozasi:** `npm audit --omit=dev` 0 zaiflik ko‘rsatdi. To‘liq `npm audit` esa ESLint/Next lint tooling dependency tree ichidagi `braces <=3.0.3` uchun 5 high yozuv ko‘rsatmoqda (`GHSA-vfj7-8cjw-p6xm`); advisory’da tuzatilgan versiya ko‘rsatilmagan. Bu ishlab chiqarish dependency tree’iga kirmaydi, ammo dev tooling audit’ini yopmaydi. Checkpoint B release uchun ochiq qoladi; production deploy qilinmagan.
+
+## Task 7: Mahalliy servis pilot sinovi
+
+**Tavsif:** Demo admin hisobida qabulxona ishini, mechanic hisobida o‘ziga biriktirilgan ishlarni mahalliy, sun’iy ma’lumotli muhitda tekshirish.
+
+**Qabul mezonlari:**
+- [ ] Navbatsiz qabul va yangi mijoz/avtomobil oqimi admin hisobida qabulxona vazifasida tushunarli ishlaydi; mechanic o‘ziga biriktirilgan ishni yurita oladi.
+- [ ] Ready yakunida bitta xizmat tarixi qoladi; demo mechanic boshqa mexanik ishini yoki mijoz telefon/manzilini ko‘rmaydi.
+- [ ] Telefon ekranida asosiy qabul va buyurtma amallari ishlaydi; topilgan muammolar qayd etiladi.
+
+**Tekshiruv:** [Mahalliy pilot ro‘yxati](../docs/testing/work-order-pilot-checklist.md) bo‘yicha admin (qabulxona vazifasida) va mechanic bilan tekshirish; faqat sun’iy ma’lumot va localhost. Deploy talab qilinmaydi.
+**Bog‘liqlik:** Task 1-6.
+**Taxminiy fayllar:** Pilot natijasiga qarab aniqlanadi.
+**Hajm:** Kichik, sinov natijasiga qarab keyin alohida tuzatishlar ochiladi.

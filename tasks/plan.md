@@ -84,3 +84,13 @@ Frontend install policy: root monorepo npm `11.21.0` versiyasiga pin qilindi (`p
 Local Compose hardening: development stack’dagi PostgreSQL, Redis, API, dashboard va nginx portlari faqat `127.0.0.1`ga bind qilinadi; host IP ko‘rsatilmasa Compose barcha interfeyslarni tanlaydi ([Docker Compose ports hujjati](https://docs.docker.com/reference/compose-file/services/#ports)). CI effective Compose konfiguratsiyasida barcha besh portning loopback binding’ini tekshiradi. Production Compose o‘zgartirilmadi; u PostgreSQL va Redis’ni published portlarsiz ichki tarmoqda saqlaydi.
 
 2026-10-12 backend hardening: `pip-audit -r requirements.txt` avval 39 advisory yozuvi (6 paket) topdi. FastAPI/Starlette, python-multipart, python-dotenv, pytest toolchain pin’lari yangilandi; `python-jose` JWT-only amaldan PyJWT’ye ko‘chirildi, natijada no-fix `ecdsa` transitive dependency ham olib tashlandi. Eski python-jose bilan yaratilgan HS256 access va refresh tokenlar, expiry va signature tampering uchun moslik testlari bor. Production sozlamalari default kalit namunasini harf registri o‘zgargan/uzaytirilgan holatida ham, 32 baytdan qisqa yoki chekka bo‘shliqli JWT kalitni va `DEBUG=true` qiymatini rad etadi. Yangi alohida CI job Python runtime va test dependency’larini audit qiladi. Lokal yakuniy `pip-audit` natijasi: 0 known vulnerabilities.
+
+### 7-bosqich: Servis xodimi bilan mahalliy pilot
+
+Kod va CI sinovlari biznes oqimi amalda qulay ekanini ko‘rsatmaydi. Demo adminni qabulxona vazifasida ishlatib, mechanic bilan faqat demo tenant hamda sun’iy ma’lumotlardan foydalanib qabul, ta’mir, tayyorlash va topshirish jarayonini tekshirish. Hosting/deploy talab qilinmaydi.
+
+### Checkpoint D
+
+- [ ] Mahalliy pilotning asosiy oqimlari admin (qabulxona vazifasida) va mechanic bilan bajarildi.
+- [ ] Natijalar va ishlashga xalaqit beradigan muammolar qayd etildi.
+- [ ] Qolgan nuqsonlar tuzatilmaguncha yoki ongli ravishda qabul qilinmaguncha ommaviy deploy qilinmaydi.
