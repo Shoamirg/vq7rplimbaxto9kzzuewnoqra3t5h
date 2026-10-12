@@ -48,6 +48,38 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: garageos/backend/requirements.txt
+      - name: Verify local Compose ports bind only to loopback
+        working-directory: garageos
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e .env
+          : > .env
+          trap 'rm -f .env' EXIT
+          docker compose --env-file .env.example config --format json > "$RUNNER_TEMP/garageos-compose.json"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          config_path = Path(os.environ["RUNNER_TEMP"]) / "garageos-compose.json"
+          services = json.loads(config_path.read_text())["services"]
+          expected = {
+              "postgres": ("5432", "5432"),
+              "redis": ("6379", "6379"),
+              "backend": ("8000", "8000"),
+              "admin-dashboard": ("3000", "3000"),
+              "nginx": ("80", "80"),
+          }
+          for name, (published, target) in expected.items():
+              ports = services[name]["ports"]
+              assert len(ports) == 1, f"{name} must have exactly one local published port"
+              binding = ports[0]
+              assert binding["host_ip"] == "127.0.0.1", f"{name} must bind to loopback"
+              assert str(binding["published"]) == published, f"unexpected host port for {name}"
+              assert str(binding["target"]) == target, f"unexpected container port for {name}"
+              print(f"{name}: loopback-only on 127.0.0.1:{published}")
+          PY
       - run: pip install -r requirements.txt
       - name: Apply migrations
         run: alembic upgrade head
