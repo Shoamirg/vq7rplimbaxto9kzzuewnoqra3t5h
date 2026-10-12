@@ -36,6 +36,7 @@ def serialize_appointment(a) -> dict:
     vehicle_summary = f"{brand} {model}".strip()
     if plate:
         vehicle_summary = f"{vehicle_summary} ({plate})".strip()
+    work_order = a.__dict__.get("work_order")
     return {
         "id": str(a.id),
         "customer_id": str(a.customer_id),
@@ -46,6 +47,8 @@ def serialize_appointment(a) -> dict:
         "appointment_time": a.appointment_time,
         "mechanic_name": a.mechanic_name,
         "status": a.status,
+        "work_order_id": str(work_order.id) if work_order else None,
+        "work_order_status": work_order.status if work_order else None,
         # service_type is derived from the linked maintenance rule (canonical
         # source) — Appointment has no service_type column of its own.
         "maintenance_rule_id": str(a.maintenance_rule_id) if a.maintenance_rule_id else None,

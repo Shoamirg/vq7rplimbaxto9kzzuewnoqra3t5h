@@ -5,19 +5,20 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   CalendarClock, CalendarPlus, Check, CheckCheck, ChevronLeft, ChevronRight, Clock,
-  MoreHorizontal, QrCode, Search, User, Wrench, X,
+  ClipboardList, Loader2, MoreHorizontal, QrCode, Search, User, Wrench, X,
 } from "lucide-react";
 import {
   Badge, Button, cn, useToast,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
 } from "@garageos/design-system";
 
-import { clientFetch } from "@/lib/api/client";
+import { ClientApiError, clientFetch } from "@/lib/api/client";
 import { NewAppointmentButton } from "@/components/appointments/new-appointment-modal";
 import { EditAppointmentModal } from "@/components/appointments/edit-appointment-modal";
 import type {
-  Appointment, AppointmentListResponse, AppointmentStats, AppointmentStatus,
+  Appointment, AppointmentListResponse, AppointmentStats, AppointmentStatus, WorkOrder,
 } from "@/lib/api/types";
+import { useI18n } from "@/lib/i18n/context";
 
 // Appointments = operational management queue (Calendar owns scheduling). Real
 // data, KPI strip, date + status filters, per-row launchpad into every module,
@@ -89,8 +90,9 @@ function plateOf(summary: string): { name: string; plate: string | null } {
   return m ? { name: m[1].trim(), plate: m[2] } : { name: summary, plate: null };
 }
 
-export function AppointmentsList() {
+export function AppointmentsList({ role }: { role: string }) {
   const { toast } = useToast();
+  const { t } = useI18n();
   const router = useRouter();
   const [tab, setTab] = useState("all");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
@@ -101,6 +103,8 @@ export function AppointmentsList() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Appointment | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [openingOrderId, setOpeningOrderId] = useState<string | null>(null);
+  const canCreateWorkOrder = ["admin", "manager", "receptionist"].includes(role);
 
   const loadStats = useCallback(() => {
     clientFetch<AppointmentStats>("/appointments/stats").then(setStats).catch(() => {});
@@ -136,6 +140,46 @@ export function AppointmentsList() {
     toast({ title: `${ok}/${ids.length} ${action === "confirm" ? "confirmed" : "cancelled"}`, variant: ok ? "success" : "danger" });
     setSelected(new Set()); load(); loadStats();
   }, [selected, load, loadStats, toast]);
+
+  const openWorkOrder = useCallback(async (appointment: Appointment) => {
+    setOpeningOrderId(appointment.id);
+    try {
+      let orderId = appointment.work_order_id;
+      if (!orderId) {
+        const order = await clientFetch<WorkOrder>("/work-orders", {
+          method: "POST",
+          headers: { "Idempotency-Key": crypto.randomUUID() },
+          body: JSON.stringify({
+            customer_id: appointment.customer_id,
+            vehicle_id: appointment.vehicle_id,
+            appointment_id: appointment.id,
+            service_type: appointment.service_type?.trim() || t("common.general_service"),
+          }),
+        });
+        orderId = order.id;
+      }
+      router.push(`/work-orders?order=${orderId}`);
+      load();
+    } catch (error) {
+      // A concurrent click may have created the link. Re-read the appointment
+      // once so the user is taken to that order instead of seeing a false error.
+      if (error instanceof ClientApiError && error.status === 409) {
+        try {
+          const fresh = await clientFetch<Appointment>(`/appointments/${appointment.id}`);
+          if (fresh.work_order_id) {
+            router.push(`/work-orders?order=${fresh.work_order_id}`);
+            load();
+            return;
+          }
+        } catch { /* report the original request failure below */ }
+      }
+      if (!(error instanceof ClientApiError && error.status === 403)) {
+        toast({ title: t("wo.operation_failed"), variant: "danger" });
+      }
+    } finally {
+      setOpeningOrderId(null);
+    }
+  }, [load, router, t, toast]);
 
   const rows = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -254,7 +298,8 @@ export function AppointmentsList() {
         {!loading && rows.length > 0 && (
           <div className="divide-y divide-border">
             {rows.map((a) => (
-              <Row key={a.id} a={a} selected={selected.has(a.id)} onToggle={() => toggleOne(a.id)} onAct={act} onEdit={setEditing} router={router} />
+              <Row key={a.id} a={a} selected={selected.has(a.id)} onToggle={() => toggleOne(a.id)} onAct={act} onEdit={setEditing} router={router}
+                onOpenWorkOrder={openWorkOrder} openingWorkOrder={openingOrderId === a.id} canCreateWorkOrder={canCreateWorkOrder} />
             ))}
           </div>
         )}
@@ -283,7 +328,7 @@ export function AppointmentsList() {
 }
 
 function Row({
-  a, selected, onToggle, onAct, onEdit, router,
+  a, selected, onToggle, onAct, onEdit, router, onOpenWorkOrder, openingWorkOrder, canCreateWorkOrder,
 }: {
   a: Appointment;
   selected: boolean;
@@ -291,14 +336,18 @@ function Row({
   onAct: (id: string, action: "confirm" | "cancel") => void;
   onEdit: (a: Appointment) => void;
   router: ReturnType<typeof useRouter>;
+  onOpenWorkOrder: (appointment: Appointment) => void;
+  openingWorkOrder: boolean;
+  canCreateWorkOrder: boolean;
 }) {
+  const { t } = useI18n();
   const date = new Date(a.appointment_date).toLocaleDateString("en-US", { month: "short", day: "numeric" });
   const { name: vehName, plate } = plateOf(a.vehicle_summary);
   const canConfirm = a.status === "pending";
   const canCancel = a.status === "pending" || a.status === "confirmed";
 
   return (
-    <div className={cn("grid gap-3 px-4 py-3 items-center transition-colors", GRID,
+    <div data-testid="appointment-row" data-appointment-id={a.id} className={cn("grid gap-3 px-4 py-3 items-center transition-colors", GRID,
       selected ? "bg-primary/5" : "hover:bg-muted/30")}>
       <input type="checkbox" checked={selected} onChange={onToggle} className="size-4 accent-[hsl(var(--primary))]" aria-label="Select row" />
       <div className="flex items-center gap-2 min-w-0">
@@ -311,7 +360,10 @@ function Row({
         <span className="text-sm text-foreground/90 truncate block group-hover:text-primary group-hover:underline">{vehName || "—"}</span>
         {plate && <span className="text-[11px] font-mono text-muted-foreground">{plate}</span>}
       </Link>
-      <span className="text-sm text-muted-foreground truncate flex items-center gap-1.5"><Wrench className="size-3.5 shrink-0 text-muted-foreground/60" />{a.service_type ?? "General service"}</span>
+      <span className="min-w-0 text-sm text-muted-foreground truncate flex flex-col items-start gap-1">
+        <span className="flex items-center gap-1.5 truncate"><Wrench className="size-3.5 shrink-0 text-muted-foreground/60" />{a.service_type ?? "General service"}</span>
+        {a.work_order_id ? <Link href={`/work-orders?order=${a.work_order_id}`} className="ml-5 text-[11px] text-primary hover:underline">{t(`wo.status.${a.work_order_status ?? "received"}`)}</Link> : null}
+      </span>
       <span className="text-sm text-foreground/90 flex items-center gap-1.5"><Clock className="size-3.5 shrink-0 text-muted-foreground/60" /><span className="tabular-nums">{date} · {a.appointment_time}</span></span>
       <span className="text-sm text-muted-foreground truncate flex items-center gap-1.5">
         {a.mechanic_name ? <><User className="size-3.5 shrink-0 text-muted-foreground/60" />{a.mechanic_name}</> : <span className="text-muted-foreground/50">Unassigned</span>}
@@ -329,7 +381,8 @@ function Row({
       <span className="text-sm text-muted-foreground text-center tabular-nums">{fmtDuration(a.estimated_duration_minutes)}</span>
       <div className="flex items-center justify-end gap-2">
         <Badge variant={STATUS_BADGE[a.status]} size="sm" className="capitalize">{a.status.replace("_", " ")}</Badge>
-        <RowActions a={a} canConfirm={canConfirm} canCancel={canCancel} onAct={onAct} onEdit={onEdit} router={router} />
+        <RowActions a={a} canConfirm={canConfirm} canCancel={canCancel} onAct={onAct} onEdit={onEdit} router={router}
+          onOpenWorkOrder={onOpenWorkOrder} openingWorkOrder={openingWorkOrder} canCreateWorkOrder={canCreateWorkOrder} t={t} />
       </div>
     </div>
   );
@@ -355,7 +408,7 @@ function BillingPill({ b, vid }: { b: import("@/lib/api/types").AppointmentBilli
 }
 
 function RowActions({
-  a, canConfirm, canCancel, onAct, onEdit, router,
+  a, canConfirm, canCancel, onAct, onEdit, router, onOpenWorkOrder, openingWorkOrder, canCreateWorkOrder, t,
 }: {
   a: Appointment;
   canConfirm: boolean;
@@ -363,6 +416,10 @@ function RowActions({
   onAct: (id: string, action: "confirm" | "cancel") => void;
   onEdit: (a: Appointment) => void;
   router: ReturnType<typeof useRouter>;
+  onOpenWorkOrder: (appointment: Appointment) => void;
+  openingWorkOrder: boolean;
+  canCreateWorkOrder: boolean;
+  t: (key: string) => string;
 }) {
   return (
     <DropdownMenu>
@@ -375,6 +432,13 @@ function RowActions({
         {canConfirm && <DropdownMenuItem icon={<Check className="size-4" />} onClick={() => onAct(a.id, "confirm")}>Confirm</DropdownMenuItem>}
         {canCancel && <DropdownMenuItem icon={<X className="size-4" />} destructive onClick={() => onAct(a.id, "cancel")}>Cancel</DropdownMenuItem>}
         {(canConfirm || canCancel) && <DropdownMenuSeparator />}
+        {a.status !== "cancelled" && a.status !== "completed" && (a.work_order_id || canCreateWorkOrder) ? (
+          <DropdownMenuItem disabled={openingWorkOrder} icon={openingWorkOrder ? <Loader2 className="size-4 animate-spin" /> : <ClipboardList className="size-4" />}
+            onClick={() => onOpenWorkOrder(a)}>
+            {openingWorkOrder ? t("wo.opening") : a.work_order_id ? t("wo.open_order") : t("wo.create_order")}
+          </DropdownMenuItem>
+        ) : null}
+        {a.status !== "cancelled" && a.status !== "completed" && (a.work_order_id || canCreateWorkOrder) && <DropdownMenuSeparator />}
         <DropdownMenuItem icon={<User className="size-4" />} onClick={() => router.push(`/customers/${a.customer_id}`)}>Open Customer 360</DropdownMenuItem>
         <DropdownMenuItem icon={<Wrench className="size-4" />} onClick={() => router.push(`/vehicles/${a.vehicle_id}`)}>Open Vehicle</DropdownMenuItem>
         <DropdownMenuItem icon={<QrCode className="size-4" />} onClick={() => window.open(`/passport/${a.vehicle_id}`, "_blank")}>Open Passport</DropdownMenuItem>

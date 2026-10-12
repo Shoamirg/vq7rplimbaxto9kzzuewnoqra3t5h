@@ -81,7 +81,7 @@ class WorkOrder(BaseModelMixin, ServiceCenterMixin, Base):
 
     customer = relationship("Customer")
     vehicle = relationship("Vehicle")
-    appointment = relationship("Appointment")
+    appointment = relationship("Appointment", back_populates="work_order")
     assigned_mechanic = relationship("User", foreign_keys=[assigned_mechanic_user_id])
     created_by = relationship("User", foreign_keys=[created_by_user_id])
     service_record = relationship("ServiceRecord", back_populates="work_order", uselist=False)

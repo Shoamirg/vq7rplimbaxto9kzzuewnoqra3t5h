@@ -43,6 +43,7 @@ const SEGMENT_KEYS: Record<string, string> = {
   dashboard: "nav.dashboard",
   calendar: "nav.calendar",
   appointments: "nav.appointments",
+  "work-orders": "nav.work_orders",
   vehicles: "nav.vehicles",
   customers: "nav.customers",
   operations: "nav.operations",

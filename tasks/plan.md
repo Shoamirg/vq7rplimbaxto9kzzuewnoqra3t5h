@@ -11,7 +11,7 @@ Tasdiqlangan `docs/specs/SPEC-work-orders.md` bo‘yicha bitta servis uchun uchr
 - Yaratish idempotency-si Redis’ga emas, shu tranzaksiyada saqlanadigan kalit va canonical request fingerprint’ga tayanadi.
 - `ready` transition buyurtma, xizmat tarixi, odometr, bog‘langan uchrashuv va audit yozuvini bitta UnitOfWork tranzaksiyasida boshqaradi. DB unique constraint parallel takrorni yakuniy himoya qiladi.
 - Buyurtmaga bog‘lanmagan uchrashuvlarni yakunlashning eski yo‘li saqlanadi. Bog‘langan uchrashuv uchun eski endpoint yangi `ready` oqimiga yo‘naltiriladi.
-- Admin panel mavjud Next.js app-router, `clientFetch`, dizayn tizimi va uch tildagi staff dictionary’ni davom ettiradi. Testlarda haqiqiy API/demodagi ma’lumot ishlatiladi; production deploy qilinmaydi.
+- Admin panel mavjud Next.js app-router, `clientFetch`, dizayn tizimi va uch tildagi staff dictionary’ni davom ettiradi. E2E uchun mock API ma’lumoti ishlatiladi; database-backed integratsiya testlari PostgreSQL talab qiladi. Production deploy qilinmaydi.
 
 ## Amalga oshirish ketma-ketligi
 
@@ -51,6 +51,8 @@ Ruxsatli holat o‘tishlari, completion odometri, bajarilgan ish va narxni yangi
 ### 6-bosqich: Uchrashuv bilan bog‘lash va brauzer tekshiruvi
 
 Uchrashuv ekranidan buyurtma yaratish va buyurtma holatini ko‘rish. Reception va mechanic rollariga mos boshqaruvlarni ko‘rsatish. Playwright’da walk-in hamda appointment oqimini tekshirish.
+
+**Holat:** UI/API bog‘lanishi va ikkala Playwright oqimi mock API bilan bajarildi. Real PostgreSQL integratsiya tekshiruvi va dependency audit qoldiqlari sabab Checkpoint C ochiq.
 
 ### Checkpoint C
 

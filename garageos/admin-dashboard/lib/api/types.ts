@@ -30,6 +30,8 @@ export interface Appointment {
   service_type: string | null;
   estimated_duration_minutes: number;
   total_cost: number | null;
+  work_order_id?: string | null;
+  work_order_status?: WorkOrderStatus | null;
   notes?: string | null;
   health_score?: number | null;
   health_band?: HealthBand | null;
@@ -543,6 +545,43 @@ export interface ThreadDetail extends InboxItem {
 
 export interface AppointmentListResponse {
   items: Appointment[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export type WorkOrderStatus = "received" | "in_progress" | "ready" | "completed" | "cancelled";
+
+export interface WorkOrder {
+  id: string;
+  customer_id: string;
+  customer_name: string;
+  vehicle_id: string;
+  vehicle_summary: string;
+  appointment_id: string | null;
+  assigned_mechanic_user_id: string | null;
+  assigned_mechanic_name: string | null;
+  created_by_user_id: string;
+  service_type: string;
+  customer_concern: string | null;
+  work_performed: string | null;
+  status: WorkOrderStatus;
+  intake_odometer_km: number | null;
+  completion_odometer_km: number | null;
+  actual_cost: number | null;
+  service_record_id: string | null;
+  received_at: string;
+  started_at: string | null;
+  ready_at: string | null;
+  completed_at: string | null;
+  cancelled_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkOrderListResponse {
+  items: WorkOrder[];
   total: number;
   page: number;
   page_size: number;

@@ -67,11 +67,11 @@
 **Tavsif:** `/work-orders` queue hamda mavjud mijoz/mashina lookup’dan foydalanuvchi walk-in intake’ni responsive tarzda qurish.
 
 **Qabul mezonlari:**
-- [ ] Active/status queue pagination/filter bilan ishlaydi; details va error/loading/empty state ko‘rinadi.
-- [ ] Navbatsiz intake soxta appointment yaratmaydi va idempotency key yuboradi.
-- [ ] Mechanic ko‘rinishi faqat o‘z ishlariga mos, PII ko‘rsatmaydi; klaviatura label/focus holatlari mavjud.
+- [x] Active/status queue pagination/filter bilan ishlaydi; details va error/loading/empty state ko‘rinadi.
+- [x] Navbatsiz intake soxta appointment yaratmaydi va idempotency key yuboradi.
+- [x] Mechanic ko‘rinishi faqat o‘z ishlariga mos, PII ko‘rsatmaydi; klaviatura label/focus holatlari mavjud.
 
-**Tekshiruv:** TypeScript/lint/build; Playwright walk-in intake va mobil layout.
+**Tekshiruv:** `npx tsc --noEmit`, lint, i18n check, production build; mock API bilan Playwright walk-in intake va mobil layout.
 **Bog‘liqlik:** Task 2-4.
 **Taxminiy fayllar:** app-router page, work-order components, api types, dictionary, sidebar, E2E test.
 **Hajm:** O‘rta.
@@ -81,11 +81,11 @@
 **Tavsif:** Appointment sahifasidan work order yaratish, bog‘langan statusni ko‘rsatish, ishni boshlash/tayyorlash/yopish boshqaruvlari va E2E.
 
 **Qabul mezonlari:**
-- [ ] Uchrashuvdan work order yaratilganda customer, vehicle va appointment to‘g‘ri bog‘lanadi.
-- [ ] Takroriy appointment bog‘lash UI va API’da xavfsiz rad qilinadi.
-- [ ] Mexanik ishni tayyor holatga olib keladi, qabulxona topshirilgach yopadi; phone/address UI’da ko‘rinmaydi.
+- [x] Uchrashuvdan work order yaratilganda customer, vehicle va appointment to‘g‘ri bog‘lanadi.
+- [x] Takroriy appointment bog‘lash UI va API’da xavfsiz rad qilinadi.
+- [x] Mexanik ishni tayyor holatga olib keladi, qabulxona topshirilgach yopadi; phone/address UI’da ko‘rinmaydi.
 
-**Tekshiruv:** Playwright walk-in va appointment handoff (desktop/mobile); to‘liq backend tests; frontend production build.
+**Tekshiruv:** Playwright mock API bilan mobil walk-in va appointment handoff o‘tdi; ma’lumotlar bazasiga ulanmaydigan 52 backend testi o‘tdi. Appointment API va concurrency/rollback integratsiya testlari uchun lokal PostgreSQL kerak, shu sabab to‘liq backend to‘plami hali tasdiqlanmadi. Frontend production build o‘tdi.
 **Bog‘liqlik:** Task 5.
 **Taxminiy fayllar:** appointment list/detail controls, work order components, i18n, E2E.
 **Hajm:** O‘rta.
@@ -94,3 +94,5 @@
 
 - [ ] Tasdiqlangan spec qabul mezonlari qoplandi; backend, brauzer va build tekshiruvlari o‘tdi.
 - [ ] Xavfsizlik va diff review bajarildi; deploy qilinmadi.
+
+**Qolgan tekshiruvlar:** DB integratsiya testlarini PostgreSQL bilan ishga tushirish; npm audit’da qolgan high/moderate ogohlantirishlarni framework/tooling major yangilashini rejalab hal qilish. Shu sabab Checkpoint B hali yopilmagan va deploy qilinmagan.

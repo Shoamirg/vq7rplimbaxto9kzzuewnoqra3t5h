@@ -18,6 +18,7 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
     _DETAIL_OPTIONS = (
         selectinload(Appointment.customer),
         selectinload(Appointment.maintenance_rule),
+        selectinload(Appointment.work_order),
         selectinload(Appointment.vehicle)
         .selectinload(Vehicle.vehicle_model)
         .selectinload(VehicleModel.brand),

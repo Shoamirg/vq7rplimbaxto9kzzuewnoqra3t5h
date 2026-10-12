@@ -20,6 +20,7 @@ import {
   Siren,
   Inbox,
   Receipt,
+  ClipboardList,
 } from "lucide-react";
 import { cn } from "@garageos/design-system";
 
@@ -47,6 +48,7 @@ const NAV_SECTIONS: NavSection[] = [
       { key: "nav.dashboard", href: "/dashboard", icon: <LayoutDashboard className="size-5" /> },
       { key: "nav.calendar", href: "/calendar", icon: <Calendar className="size-5" /> },
       { key: "nav.appointments", href: "/appointments", icon: <Wrench className="size-5" /> },
+      { key: "nav.work_orders", href: "/work-orders", icon: <ClipboardList className="size-5" /> },
     ],
   },
   {

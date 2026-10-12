@@ -54,3 +54,4 @@ class Appointment(BaseModelMixin, ServiceCenterMixin, Base):
     maintenance_rule = relationship("MaintenanceRule", lazy="selectin")
     service_center = relationship("ServiceCenter", back_populates="appointments")
     slot = relationship("AppointmentSlot", back_populates="appointment", uselist=False)
+    work_order = relationship("WorkOrder", back_populates="appointment", uselist=False)
