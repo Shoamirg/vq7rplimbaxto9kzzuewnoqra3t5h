@@ -9,6 +9,9 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   backend:
     name: Backend · tests
@@ -39,8 +42,8 @@ jobs:
       SECRET_KEY: ci-test-secret-key-not-for-production
       ENVIRONMENT: test
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -62,8 +65,8 @@ jobs:
       run:
         working-directory: garageos
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "24"
           cache: npm
@@ -89,9 +92,116 @@ jobs:
         env:
           NEXT_TELEMETRY_DISABLED: "1"
 
-  # E2E is added in Week 2 once the Playwright journey suite lands; it will spin
-  # up the prod compose and walk the staff + customer flows in EN + RU.
-  # e2e:
-  #   needs: [backend, frontend]
-  #   runs-on: ubuntu-latest
-  #   steps: ...
+  e2e:
+    name: Browser · Playwright
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: garageos
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: garage_e2e
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/garage_e2e
+      REDIS_URL: redis://127.0.0.1:6379/0
+      SECRET_KEY: ci-e2e-secret-key-not-for-production
+      ENVIRONMENT: development
+      DEBUG: "true"
+      NEXT_PUBLIC_API_URL: http://127.0.0.1:8000/api/v1
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: garageos/backend/requirements.txt
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: garageos/package-lock.json
+      - name: Install backend dependencies
+        run: pip install -r requirements.txt
+        working-directory: garageos/backend
+      - name: Apply migrations
+        run: alembic upgrade head
+        working-directory: garageos/backend
+      - name: Seed isolated demo database
+        run: python -m app.seeds.demo --fresh
+        working-directory: garageos/backend
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: garageos/admin-dashboard
+      - name: Start services and run browser tests
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          pushd ../backend > /dev/null
+          python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 > /tmp/garageos-api.log 2>&1 &
+          api_pid=$!
+          popd > /dev/null
+          npm run dev -- --hostname 0.0.0.0 > /tmp/garageos-web.log 2>&1 &
+          web_pid=$!
+          cleanup() {
+            kill "$web_pid" "$api_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          api_ready=false
+          for _ in {1..40}; do
+            if curl --fail --silent http://127.0.0.1:8000/ready > /dev/null; then
+              api_ready=true
+              break
+            fi
+            sleep 1
+          done
+          if [ "$api_ready" != true ]; then
+            cat /tmp/garageos-api.log
+            exit 1
+          fi
+
+          web_ready=false
+          for _ in {1..60}; do
+            if curl --fail --silent http://localhost:3000/healthz > /dev/null; then
+              web_ready=true
+              break
+            fi
+            sleep 1
+          done
+          if [ "$web_ready" != true ]; then
+            cat /tmp/garageos-web.log
+            exit 1
+          fi
+
+          npm run e2e
+        working-directory: garageos/admin-dashboard
+      - name: Upload Playwright diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-failure-${{ github.run_id }}
+          path: |
+            garageos/admin-dashboard/playwright-report/
+            garageos/admin-dashboard/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
