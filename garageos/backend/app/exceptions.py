@@ -86,6 +86,28 @@ class AppointmentStateError(ConflictError):
             self.detail = detail
 
 
+class WorkOrderNotFound(NotFoundError):
+    detail = "Work order not found"
+
+
+class WorkOrderConflict(ConflictError):
+    detail = "The work order conflicts with its current state"
+    code = "WORK_ORDER_CONFLICT"
+
+    def __init__(self, detail: str | None = None):
+        if detail:
+            self.detail = detail
+
+
+class WorkOrderValidationError(ValidationError):
+    detail = "The work order is invalid"
+    code = "WORK_ORDER_VALIDATION_ERROR"
+
+    def __init__(self, detail: str | None = None):
+        if detail:
+            self.detail = detail
+
+
 class SlotUnavailable(ConflictError):
     detail = "Requested time slot is not available"
 
