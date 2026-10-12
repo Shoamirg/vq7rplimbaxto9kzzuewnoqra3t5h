@@ -33,7 +33,7 @@ Bitta servis oldindan yozilgan yoki navbatsiz kelgan mashinani qabul qila olsin,
 - Navbatsiz buyurtmada `appointment_id` bo‘sh qoladi. Buning uchun soxta uchrashuv yaratilmaydi.
 - Qabulxona xodimi intake oynasidan yangi mijoz va avtomobil qo‘sha oladi. Backend mijozni joriy servisga bog‘laydi, faqat ruxsatli ofis rollariga yozishga ruxsat beradi, Telegram identifikatorlarini qabul qilmaydi va avtomobil marka/modeli faol katalogga mosligini tekshiradi.
 - Buyurtmalar ro‘yxati sahifalab olinadi (`page`, `page_size`) va holat bo‘yicha saralanadi. Boshqa servis markazining yoki o‘chirilgan yozuvlar ko‘rinmaydi.
-- Mijoz, mashina va uchrashuv aloqalarini buyurtma ochilgandan keyin almashtirib bo‘lmaydi. Ruxsatli xodim muammo matni, mexanik, bajarilgan ish, yakuniy odometr, haqiqiy narx va holatni faqat mumkin bo‘lgan bosqichda o‘zgartiradi.
+- Mijoz, mashina va uchrashuv aloqalarini buyurtma ochilgandan keyin almashtirib bo‘lmaydi. Qabulxona `received` holatida mijoz muammosi, qabul odometri va mexanik biriktiruvini kiritishi mumkin. Bajarilgan ish, yakuniy odometr va haqiqiy narx faqat `in_progress` holatida tahrirlanadi; UI ularni ish boshlanguncha o‘chiradi, API esa bevosita yuborilgan erta o‘zgarishni rad etadi.
 - Holatlar faqat quyidagicha o‘tadi:
   - `received` — qabul qilindi → `in_progress` — ish boshlandi yoki `cancelled` — bekor qilindi
   - `in_progress` → `ready` — tayyor

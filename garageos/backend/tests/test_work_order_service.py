@@ -379,6 +379,42 @@ async def test_cancelling_received_order_cancels_appointment_without_releasing_s
         appointment.slot.status = original_slot_status
 
 
+@pytest.mark.parametrize(
+    "execution_update",
+    [
+        {"work_performed": "Replaced brake pads"},
+        {"completion_odometer_km": 12100},
+        {"actual_cost": Decimal("150.00")},
+    ],
+    ids=["work-performed", "completion-odometer", "actual-cost"],
+)
+@pytest.mark.asyncio
+async def test_received_order_rejects_execution_details_until_work_starts(memory_service, execution_update):
+    service, _ = memory_service
+    created = await service.create_work_order(WorkOrderCreateRequest(
+        customer_id=CUSTOMER_ID, vehicle_id=VEHICLE_ID, service_type="Oil change",
+    ), "execution-details-before-start")
+
+    with pytest.raises(WorkOrderConflict, match="after work starts"):
+        await service.update_work_order(
+            uuid.UUID(created["id"]), WorkOrderUpdateRequest(**execution_update),
+        )
+
+
+@pytest.mark.asyncio
+async def test_start_transition_must_complete_before_execution_details_can_be_saved(memory_service):
+    service, _ = memory_service
+    created = await service.create_work_order(WorkOrderCreateRequest(
+        customer_id=CUSTOMER_ID, vehicle_id=VEHICLE_ID, service_type="Oil change",
+    ), "start-with-execution-details")
+
+    with pytest.raises(WorkOrderConflict, match="after work starts"):
+        await service.update_work_order(
+            uuid.UUID(created["id"]),
+            WorkOrderUpdateRequest(status="in_progress", work_performed="Changed oil"),
+        )
+
+
 @pytest.mark.asyncio
 async def test_ready_requires_work_performed_and_invalid_skips_are_rejected(memory_service):
     service, _ = memory_service

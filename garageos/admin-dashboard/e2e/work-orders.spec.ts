@@ -87,12 +87,20 @@ test("reception can create a walk-in work order on mobile and take it to ready",
   await expect(page.locator("html")).toHaveJSProperty("scrollWidth", 375);
   await page.screenshot({ path: "test-results/work-orders-mobile.png", fullPage: true });
 
+  const executionFields = [
+    page.getByLabel("Work performed"),
+    page.getByLabel("Completion odometer (km)"),
+    page.getByLabel("Actual cost"),
+  ];
+  for (const field of executionFields) await expect(field).toBeDisabled();
+
   const startResponse = page.waitForResponse((response) =>
     response.url().includes("/api/proxy/work-orders/") && response.request().method() === "PATCH",
   );
   await page.getByRole("button", { name: "Start work" }).click();
   expect((await startResponse).status()).toBe(200);
-  await page.getByLabel("Work performed").fill("Inspected pads and discs");
+  for (const field of executionFields) await expect(field).toBeEnabled();
+  await executionFields[0].fill("Inspected pads and discs");
   const readyResponse = page.waitForResponse((response) =>
     response.url().includes("/api/proxy/work-orders/") && response.request().method() === "PATCH",
   );

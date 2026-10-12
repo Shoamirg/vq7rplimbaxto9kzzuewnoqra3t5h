@@ -169,6 +169,10 @@ class WorkOrderService:
         role_name = getattr(role, "name", None)
         target_status = body.status or order.status
 
+        execution_fields = mutable_fields & {"work_performed", "completion_odometer_km", "actual_cost"}
+        if order.status != WorkOrderStatus.IN_PROGRESS and execution_fields:
+            raise WorkOrderConflict("Work execution details can only be changed after work starts")
+
         if role_name == "mechanic":
             if mutable_fields - {"work_performed"}:
                 self._authorize("edit_fields", order)

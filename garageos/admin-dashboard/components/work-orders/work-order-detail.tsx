@@ -61,7 +61,7 @@ export function WorkOrderDetail({
     void update(body);
   }
 
-  const editable = order.status === "in_progress" || (isOffice && order.status === "received");
+  const editable = order.status === "in_progress";
   const statusTone: Record<WorkOrderStatus, "info" | "primary" | "warning" | "success" | "neutral"> = {
     received: "info", in_progress: "primary", ready: "warning", completed: "success", cancelled: "neutral",
   };

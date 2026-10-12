@@ -49,6 +49,7 @@
 **Qabul mezonlari:**
 - [x] `received -> in_progress/cancelled -> ready -> completed` qoidasi server tomonda majburiy.
 - [x] Mechanic faqat o‘z buyurtmasidagi ish matni/start/ready’ni boshqaradi; assign/cancel/close qilolmaydi.
+- [x] Bajarilgan ish, yakuniy odometr va haqiqiy narx faqat buyurtma `in_progress` bo‘lganda tahrirlanadi; UI va API erta o‘zgarishni bloklaydi.
 - [x] Ready uchun work performed talab qilinadi; tarix bitta, odometer kamaymaydi, appointment linked bo‘lsa completed.
 - [x] Bog‘lanmagan eski appointment complete ishlashda davom etadi; linked appointment complete ish order ready oqimiga delegatsiya qiladi.
 
