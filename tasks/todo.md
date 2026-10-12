@@ -109,7 +109,7 @@
 - [ ] Ready yakunida bitta xizmat tarixi qoladi; demo mechanic boshqa mexanik ishini yoki mijoz telefon/manzilini ko‘rmaydi.
 - [ ] Telefon ekranida asosiy qabul va buyurtma amallari ishlaydi; topilgan muammolar qayd etiladi.
 
-**Tekshiruv:** [Mahalliy pilot ro‘yxati](../docs/testing/work-order-pilot-checklist.md) bo‘yicha admin (qabulxona vazifasida) va mechanic bilan tekshirish; faqat sun’iy ma’lumot va localhost. Deploy talab qilinmaydi.
+**Tekshiruv:** [Lokal demo qo‘llanmasi](../garageos/docs/setup/local-demo.md) bilan muhitni ishga tushirib, [pilot ro‘yxati](../docs/testing/work-order-pilot-checklist.md) bo‘yicha admin (qabulxona vazifasida) va mechanic bilan tekshirish; faqat sun’iy ma’lumot va localhost. Deploy talab qilinmaydi.
 **Bog‘liqlik:** Task 1-6.
 **Taxminiy fayllar:** Pilot natijasiga qarab aniqlanadi.
 **Hajm:** Kichik, sinov natijasiga qarab keyin alohida tuzatishlar ochiladi.
