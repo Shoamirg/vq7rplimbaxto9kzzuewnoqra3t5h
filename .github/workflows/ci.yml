@@ -58,6 +58,19 @@ jobs:
       - name: Pytest
         run: python -m pytest -q
 
+  backend-dependency-audit:
+    name: Backend · dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install pip-audit
+        run: python -m pip install pip-audit
+      - name: Audit backend dependencies
+        run: pip-audit --requirement garageos/backend/requirements.txt
+
   frontend:
     name: Frontend · typecheck · i18n · lint · build
     runs-on: ubuntu-latest

@@ -1,6 +1,10 @@
 from pathlib import Path
-from pydantic_settings import BaseSettings
 from typing import List, Optional
+
+from pydantic import model_validator
+from pydantic_settings import BaseSettings
+
+_DEFAULT_SECRET_KEY = "change-this-to-a-random-secret-key"
 
 # The .env lives at the garageos/ root (next to docker-compose.yml), while host
 # tooling (uvicorn, alembic, seeds) runs from garageos/backend/. Resolve it by
@@ -31,7 +35,7 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
 
     # Auth
-    SECRET_KEY: str = "change-this-to-a-random-secret-key"
+    SECRET_KEY: str = _DEFAULT_SECRET_KEY
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     ALGORITHM: str = "HS256"
@@ -75,6 +79,24 @@ class Settings(BaseSettings):
     API_V1_PREFIX: str = "/api/v1"
 
     model_config = {"env_file": str(_ENV_FILE), "case_sensitive": True, "extra": "ignore"}
+
+    @model_validator(mode="after")
+    def validate_production_security(self) -> "Settings":
+        if self.ENVIRONMENT.strip().lower() in {"prod", "production"}:
+            key = self.SECRET_KEY.strip()
+            normalized_key = key.casefold()
+            if (
+                key != self.SECRET_KEY
+                or len(key.encode("utf-8")) < 32
+                or normalized_key.startswith(_DEFAULT_SECRET_KEY.casefold())
+                or normalized_key.startswith("__change_me")
+            ):
+                raise ValueError(
+                    "SECRET_KEY must be a non-placeholder value of at least 32 bytes in production"
+                )
+            if self.DEBUG:
+                raise ValueError("DEBUG must be false in production")
+        return self
 
     @property
     def cors_origins_list(self) -> List[str]:

@@ -59,6 +59,7 @@ Uchrashuv ekranidan buyurtma yaratish va buyurtma holatini ko‘rish. Reception 
 - [x] Backend testlar va frontend lint/build o‘tadi.
 - [x] Desktop/mobile brauzer oqimlari muvaffaqiyatli.
 - [x] Diff xavfsizlik, accessibility, tenant chegarasi va scope bo‘yicha yakuniy ko‘rib chiqilgan.
+- [x] Backend dependency audit’da zaifliklar topilib bartaraf qilindi; `pip-audit` CI gate’iga qo‘shildi.
 - [ ] Full dev-dependency audit high xavflari upstream patch chiqqach bartaraf qilinsin; production chiqarishdan oldin audit qayta bajarilsin.
 
 ## Xatarlar va kamaytirish
@@ -77,3 +78,5 @@ Uchrashuv ekranidan buyurtma yaratish va buyurtma holatini ko‘rish. Reception 
 - Pilotda `in_progress` holatidan keyin bekor qilish/qisman bajarilgan xizmatni qayd etish kerakmi — MVP’da hozircha yo‘q.
 
 Security gate: `npm audit --omit=dev` 0, to‘liq auditda esa 5 high dev-only transitive finding bor. Ular `eslint-config-next` lint zanjiri orqali `braces <=3.0.3` advisory’siga boradi; 2026-10-12 holatida advisory patched release ko‘rsatmaydi. CI production dependency audit’ini bloklaydigan qilib qo‘yilgan, ammo bu full audit o‘rnini bosmaydi. Shu sabab release/deploy kutadi; audit keyingi ishga tushirishlarda qayta tekshirilsin.
+
+2026-10-12 backend hardening: `pip-audit -r requirements.txt` avval 39 advisory yozuvi (6 paket) topdi. FastAPI/Starlette, python-multipart, python-dotenv, pytest toolchain pin’lari yangilandi; `python-jose` JWT-only amaldan PyJWT’ye ko‘chirildi, natijada no-fix `ecdsa` transitive dependency ham olib tashlandi. Eski python-jose bilan yaratilgan HS256 access va refresh tokenlar, expiry va signature tampering uchun moslik testlari bor. Production sozlamalari default kalit namunasini harf registri o‘zgargan/uzaytirilgan holatida ham, 32 baytdan qisqa yoki chekka bo‘shliqli JWT kalitni va `DEBUG=true` qiymatini rad etadi. Yangi alohida CI job Python runtime va test dependency’larini audit qiladi. Lokal yakuniy `pip-audit` natijasi: 0 known vulnerabilities.
