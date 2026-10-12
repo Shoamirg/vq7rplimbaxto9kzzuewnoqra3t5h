@@ -29,6 +29,12 @@ class AuthService:
         self.service_center_repo = BaseRepository(ServiceCenter, uow.session)
         self.role_repo = BaseRepository(Role, uow.session)
 
+    @staticmethod
+    def _is_active_staff_user(user: User | None) -> bool:
+        """A valid session requires both the user and its role to remain active."""
+        role = getattr(user, "role", None) if user else None
+        return bool(user and user.is_active and role and role.is_active)
+
     async def register_admin(
         self,
         email: str,
@@ -70,6 +76,8 @@ class AuthService:
         user = await self.user_repo.find_by_email(email)
         if not user or not verify_password(password, user.password_hash):
             raise InvalidCredentials()
+        if not self._is_active_staff_user(user):
+            raise InvalidCredentials()
 
         access_token = create_access_token(
             data={"sub": str(user.id), "email": user.email, "type": "access"},
@@ -98,8 +106,8 @@ class AuthService:
             raise InvalidToken()
 
         user = await self.user_repo.get_by_id(uuid.UUID(user_id))
-        if not user:
-            raise UserNotFound()
+        if not self._is_active_staff_user(user):
+            raise InvalidToken()
 
         # Carry the demo flag across refresh — otherwise a read-only demo session
         # could refresh into a full-access token and bypass the write guard.
@@ -125,7 +133,7 @@ class AuthService:
         carry a ``demo`` claim that DemoReadOnlyMiddleware uses to reject writes.
         """
         user = await self.user_repo.find_by_email(settings.DEMO_EMAIL)
-        if not user:
+        if not self._is_active_staff_user(user):
             raise UserNotFound()
         access_token = create_access_token(
             data={"sub": str(user.id), "email": user.email, "type": "access", "demo": True},
@@ -153,6 +161,6 @@ class AuthService:
             raise InvalidToken()
 
         user = await self.user_repo.get_by_id(uuid.UUID(user_id))
-        if not user:
-            raise UserNotFound()
+        if not self._is_active_staff_user(user):
+            raise InvalidToken()
         return user
