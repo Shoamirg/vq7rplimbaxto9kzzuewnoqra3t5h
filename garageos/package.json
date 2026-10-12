@@ -1,6 +1,18 @@
 {
   "name": "garageos",
   "private": true,
+  "packageManager": "npm@11.21.0",
+  "devEngines": {
+    "packageManager": {
+      "name": "npm",
+      "version": "11.21.0",
+      "onFail": "error"
+    }
+  },
+  "allowScripts": {
+    "unrs-resolver@1.12.2": false,
+    "fsevents@2.3.2": false
+  },
   "workspaces": [
     "admin-dashboard",
     "packages/*"
