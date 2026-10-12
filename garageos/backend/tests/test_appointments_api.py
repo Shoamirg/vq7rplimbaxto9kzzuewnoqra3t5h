@@ -15,7 +15,7 @@ from app.core.database import async_session_factory, engine
 from app.main import app
 from app.models import Appointment, ServiceCenter
 
-PRIMARY_ADMIN = ("admin@demo.garageos.app", "demo1234")
+PRIMARY_ADMIN = ("admin@demo.garageos.app", "parol12345")
 PRIMARY_EMAIL = "demo@garageos.app"
 TENANT_B_EMAIL = "northside@garageos.app"
 

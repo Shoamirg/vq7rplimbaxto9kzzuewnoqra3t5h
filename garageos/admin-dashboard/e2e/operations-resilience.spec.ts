@@ -130,7 +130,7 @@ test("rejected internal note keeps exact text, mode and case through phone and l
 
 for (const action of ["patch", "message"]) test(`real backend read-only session downgrade rejects a previously enabled ${action}`, async ({ page, baseURL }) => {
   queueProfiles(baseURL!); // Guard the isolated origin before any request.
-  expect((await page.request.post("/api/auth/login", { data: { email: "admin@demo.garageos.app", password: "demo1234" } })).ok()).toBeTruthy();
+  expect((await page.request.post("/api/auth/login", { data: { email: "admin@demo.garageos.app", password: "parol12345" } })).ok()).toBeTruthy();
   await page.context().addCookies([{ name: "garageos_locale", value: "en", url: baseURL! }]);
   const customer = (await (await page.request.get("/api/proxy/customers?limit=1")).json()).items[0];
   const response = await page.request.post("/api/proxy/cases", { data: { customer_id: customer.id, title: `QA37 downgrade ${randomUUID()}` } }); expect(response.ok()).toBeTruthy(); const item = await response.json();

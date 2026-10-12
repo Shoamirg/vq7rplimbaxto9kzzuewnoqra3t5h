@@ -113,9 +113,12 @@ remain separate work.
 - `admin-dashboard/.env.local` must point at the backend: `NEXT_PUBLIC_API_URL=http://127.0.0.1:8010/api/v1`.
 - **Restart the backend after adding any route** — `--reload` is unreliable here and can spawn zombie workers on the old routes.
 
-**Demo logins** (password `demo1234`):
+**Demo logins** (password `parol12345`):
 - Garage A (blue brand): `admin@demo.garageos.app`
 - Garage B (orange brand): `admin@northside.garageos.app`
+
+These seeded demo accounts are read-only when `DEMO_MODE_ENABLED=true`, including
+when signing in with email and password.
 
 ---
 

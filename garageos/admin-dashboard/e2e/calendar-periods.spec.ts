@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test.use({ trace: "off" });
 
 test("calendar week and month load actual periods and preserve account on a time move", async ({ page }) => {
-  expect((await page.request.post("/api/auth/login", { data: { email: "admin@demo.garageos.app", password: "demo1234" } })).ok()).toBeTruthy();
+  expect((await page.request.post("/api/auth/login", { data: { email: "admin@demo.garageos.app", password: "parol12345" } })).ok()).toBeTruthy();
   const customers = (await (await page.request.get("/api/proxy/customers?limit=200")).json()).items;
   const customer = customers.find((row: { vehicle_count: number }) => row.vehicle_count > 0);
   const vehicle = (await (await page.request.get(`/api/proxy/customers/${customer.id}`)).json()).vehicles[0];
@@ -49,7 +49,7 @@ test("calendar week and month load actual periods and preserve account on a time
 });
 
 test("coincident cancelled and unassigned visits remain reachable and long resize preserves duration", async ({ page }) => {
-  expect((await page.request.post("/api/auth/login", { data: { email: "admin@demo.garageos.app", password: "demo1234" } })).ok()).toBeTruthy();
+  expect((await page.request.post("/api/auth/login", { data: { email: "admin@demo.garageos.app", password: "parol12345" } })).ok()).toBeTruthy();
   const customer = (await (await page.request.get("/api/proxy/customers?limit=200")).json()).items.find((row: { vehicle_count: number }) => row.vehicle_count > 0);
   const vehicle = (await (await page.request.get(`/api/proxy/customers/${customer.id}`)).json()).vehicles[0];
   const mechanics = (await (await page.request.get("/api/proxy/mechanics")).json()).items;

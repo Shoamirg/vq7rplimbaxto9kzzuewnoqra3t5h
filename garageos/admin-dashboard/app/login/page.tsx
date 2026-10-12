@@ -9,7 +9,7 @@ import { Logo } from "@/components/brand/logo";
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("admin@demo.garageos.app");
-  const [password, setPassword] = useState("demo1234");
+  const [password, setPassword] = useState("parol12345");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -88,7 +88,7 @@ export default function LoginPage() {
           </form>
 
           <p className="text-xs text-muted-foreground text-center">
-            Demo: <span className="font-mono">admin@demo.garageos.app</span> / <span className="font-mono">demo1234</span>
+            Demo: <span className="font-mono">admin@demo.garageos.app</span> / <span className="font-mono">parol12345</span>
           </p>
         </div>
       </div>

@@ -73,12 +73,21 @@ class AuthService:
         if not await self._is_enabled(user) or not verify_password(password, user.password_hash):
             raise InvalidCredentials()
 
+        # Password-based entry to the configured demo tenant must remain
+        # read-only too. Otherwise a public demo account could bypass the
+        # protections used by /auth/demo simply by using the regular login.
+        demo_domain = settings.DEMO_EMAIL.partition("@")[2].casefold()
+        user_domain = user.email.rpartition("@")[2].casefold()
+        demo_claim = {"demo": True} if (
+            settings.DEMO_MODE_ENABLED and demo_domain and user_domain == demo_domain
+        ) else {}
+
         access_token = create_access_token(
-            data={"sub": str(user.id), "email": user.email, "type": "access"},
+            data={"sub": str(user.id), "email": user.email, "type": "access", **demo_claim},
             expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
         )
         refresh_token = create_refresh_token(
-            data={"sub": str(user.id), "type": "refresh"},
+            data={"sub": str(user.id), "type": "refresh", **demo_claim},
         )
 
         return {

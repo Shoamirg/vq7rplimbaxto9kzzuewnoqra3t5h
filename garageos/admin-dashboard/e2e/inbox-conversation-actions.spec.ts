@@ -400,7 +400,7 @@ test("Inbox export reports a failed fresh read without creating a file", async (
 test("read-only staff can export an authorized thread without enabling mutations", async ({ page, baseURL }) => {
   queueProfiles(baseURL!);
   expect((await page.request.post("/api/auth/login", { data: {
-    email: "admin@demo.garageos.app", password: "demo1234",
+    email: "admin@demo.garageos.app", password: "parol12345",
   } })).ok()).toBeTruthy();
   const target = await createThread(page), marker = `QA39 readonly export ${randomUUID()}`;
   const posted = await page.request.post(`/api/proxy/conversations/${target.id}/messages`, { data: {

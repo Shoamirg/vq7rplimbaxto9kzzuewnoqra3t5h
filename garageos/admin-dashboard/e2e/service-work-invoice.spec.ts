@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { queueCustomer, queueLogin } from "./support/queue";
 
-const CREDS = { email: "admin@demo.garageos.app", password: "demo1234" };
+const CREDS = { email: "admin@demo.garageos.app", password: "parol12345" };
 
 test("new booking selects a mechanic account and persists its UUID", async ({ page }) => {
   expect((await page.request.post("/api/auth/login", { data: CREDS })).ok()).toBeTruthy();

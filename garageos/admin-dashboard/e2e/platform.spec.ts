@@ -44,7 +44,7 @@ for (const width of [390, 1280]) {
 }
 
 test('ordinary owner has no global browser access or global proxy data', async ({ page }) => {
-  expect((await page.request.post('/api/auth/login', { data: { email: 'admin@demo.garageos.app', password: 'demo1234' } })).ok()).toBeTruthy();
+  expect((await page.request.post('/api/auth/login', { data: { email: 'admin@demo.garageos.app', password: 'parol12345' } })).ok()).toBeTruthy();
   expect((await page.request.get('/api/proxy/platform/records/centers')).status()).toBe(403);
   await page.goto('/platform');
   await expect(page.getByRole('main').getByRole('alert')).toContainText('platforma ko‘rish huquqi');

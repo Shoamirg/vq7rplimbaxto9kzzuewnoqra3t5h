@@ -74,11 +74,32 @@ async def test_demo_readonly_survives_refresh(client, monkeypatch):
     assert blocked.status_code == 403
 
 
+async def test_password_login_for_demo_tenant_returns_readonly_token(client, monkeypatch):
+    monkeypatch.setattr(settings, "DEMO_MODE_ENABLED", True)
+    login = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "admin@demo.garageos.app", "password": "parol12345"},
+    )
+    assert login.status_code == 200
+    tokens = login.json()
+    assert decode_token(tokens["access_token"]).get("demo") is True
+    assert decode_token(tokens["refresh_token"]).get("demo") is True
+
+    blocked = await client.post(A_WRITE, headers=_auth(tokens["access_token"]), json={})
+    assert blocked.status_code == 403
+    assert blocked.json()["error"]["code"] == "DEMO_READ_ONLY"
+
+
 async def test_normal_token_can_still_write_path(client, monkeypatch):
     # A non-demo admin token must NOT be caught by the guard: it reaches the
     # endpoint (422 for an empty body), proving the guard keys on the demo claim.
     monkeypatch.setattr(settings, "DEMO_MODE_ENABLED", True)
-    login = await client.post("/api/v1/auth/login", json={"email": "admin@demo.garageos.app", "password": "demo1234"})
+    login = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "admin@northside.garageos.app", "password": "parol12345"},
+    )
+    assert login.status_code == 200
     token = login.json()["access_token"]
+    assert decode_token(token).get("demo") is not True
     resp = await client.post(A_WRITE, headers=_auth(token), json={})
     assert resp.status_code != 403

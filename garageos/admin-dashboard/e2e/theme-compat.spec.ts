@@ -8,7 +8,7 @@ for (const width of [390, 1280]) {
       if (/fonts\.(googleapis|gstatic)\.com/.test(request.url())) externalFonts.push(request.url());
     });
     const login = await page.request.post("/api/auth/login", {
-      data: { email: "admin@demo.garageos.app", password: "demo1234" },
+      data: { email: "admin@demo.garageos.app", password: "parol12345" },
     });
     expect(login.ok()).toBeTruthy();
     await page.goto("/dev/components");

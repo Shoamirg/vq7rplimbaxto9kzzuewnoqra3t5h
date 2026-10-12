@@ -4,7 +4,7 @@ const SEARCH = "Ism, telefon yoki pochta bo‘yicha qidirish…";
 const PAYMENT = "To‘lovni yozish";
 
 test.beforeEach(async ({ page, baseURL }) => {
-  const login = await page.request.post("/api/auth/login", { data: { email: "admin@demo.garageos.app", password: "demo1234" } });
+  const login = await page.request.post("/api/auth/login", { data: { email: "admin@demo.garageos.app", password: "parol12345" } });
   expect(login.ok()).toBeTruthy();
   await page.context().addCookies([{ name: "garageos_locale", value: "uz", url: baseURL! }]);
 });

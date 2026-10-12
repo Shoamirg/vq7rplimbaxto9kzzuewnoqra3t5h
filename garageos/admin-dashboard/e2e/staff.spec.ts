@@ -4,7 +4,7 @@ import { test, expect, type Page } from "@playwright/test";
 // boundary). Locale-resilient: checks URLs, the persistent shell, and stable
 // hrefs/testids rather than translated copy.
 
-const CREDS = { email: "admin@demo.garageos.app", password: "demo1234" };
+const CREDS = { email: "admin@demo.garageos.app", password: "parol12345" };
 
 async function login(page: Page) {
   const res = await page.request.post("/api/auth/login", { data: CREDS });

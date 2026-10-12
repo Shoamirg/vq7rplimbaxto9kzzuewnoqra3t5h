@@ -165,7 +165,7 @@ test("fresh acknowledged case becomes writable after a different pending target 
 test("real read-only demo claims retain case details when its thread has not started", async ({ page, baseURL }) => {
   queueProfiles(baseURL!); // Guard the isolated origin before any request.
   // Actual normal password staff request creates only the case, not its thread.
-  expect((await page.request.post("/api/auth/login", { data: { email: "admin@demo.garageos.app", password: "demo1234" } })).ok()).toBeTruthy();
+  expect((await page.request.post("/api/auth/login", { data: { email: "admin@demo.garageos.app", password: "parol12345" } })).ok()).toBeTruthy();
   const customers = await (await page.request.get("/api/proxy/customers?limit=1")).json();
   const response = await page.request.post("/api/proxy/cases", { data: { customer_id: customers.items[0].id, title: `QA37 readonly ${randomUUID()}`, case_type: "support" } }); expect(response.ok()).toBeTruthy(); const item = await response.json();
   const demoToken = await freshOperationsDemoToken(page, baseURL!);

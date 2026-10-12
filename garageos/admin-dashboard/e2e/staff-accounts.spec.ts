@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-const owner = { email: 'admin@demo.garageos.app', password: 'demo1234' };
+const owner = { email: 'admin@demo.garageos.app', password: 'parol12345' };
 const password = 'Account-test-only-2026!';
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:8010/api/v1';
 

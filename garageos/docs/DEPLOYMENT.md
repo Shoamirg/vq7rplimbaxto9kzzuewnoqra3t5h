@@ -166,8 +166,12 @@ drop those tables as a release rollback step.
 
 ```bash
 docker compose -f docker-compose.prod.yml exec backend python -m app.seeds.demo --fresh
-# Login: admin@demo.garageos.app / demo1234
+# Login: admin@demo.garageos.app / parol12345
 ```
+
+Set `DEMO_MODE_ENABLED=true` to allow the public demo. Password logins for the
+demo tenant receive read-only sessions; keep demo access disabled on a real
+client database unless a public demo is intended.
 
 For a **real** garage, use the implemented operator provisioning command in
 [PROVISIONING.md](PROVISIONING.md). It creates the garage, reference catalog and

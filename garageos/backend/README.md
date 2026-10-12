@@ -134,8 +134,10 @@ cd backend
 Seeded volumes (primary tenant): 7 users, 200 customers, 350 vehicles, 40 appointments,
 150 service records, 132 maintenance rules.
 
-Default demo credentials (all tenants): password `demo1234`,
+Default demo credentials (all tenants): password `parol12345`,
 admin email `admin@<tenant-slug>.garageos.app` (e.g. `admin@demo.garageos.app`).
+When `DEMO_MODE_ENABLED=true`, password logins for the configured demo tenant
+receive the same read-only session as the public demo entry point.
 
 ## Multi-tenant isolation — important
 

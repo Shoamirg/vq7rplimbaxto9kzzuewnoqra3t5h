@@ -11,7 +11,7 @@ from app.core.security import hash_password
 from app.models import Role, ServiceCenter, User
 from app.seeds.base import get_or_create, rng
 
-DEFAULT_PASSWORD = "demo1234"
+DEFAULT_PASSWORD = "parol12345"
 
 MECHANIC_NAMES = [
     "Carlos Mendez", "Dmitri Volkov", "Sami Haddad", "Tom Becker",

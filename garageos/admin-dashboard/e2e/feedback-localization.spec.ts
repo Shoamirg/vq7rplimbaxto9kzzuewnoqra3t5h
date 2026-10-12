@@ -50,7 +50,7 @@ for (const locale of ["en", "ru", "uz"] as const) {
   for (const width of [360, 1280]) {
     test(`notification localization ${locale} ${width}`, async ({ page, context, baseURL }, info) => {
       await page.setViewportSize({ width, height: 900 });
-      const login = await page.request.post("/api/auth/login", { data: { email: "admin@demo.garageos.app", password: "demo1234" } });
+      const login = await page.request.post("/api/auth/login", { data: { email: "admin@demo.garageos.app", password: "parol12345" } });
       expect(login.ok()).toBeTruthy();
       await context.addCookies([{ name: "garageos_locale", value: locale, url: baseURL! }]);
       await page.clock.setFixedTime(NOW);
@@ -94,7 +94,7 @@ for (const locale of ["en", "ru", "uz"] as const) {
 }
 
 test("locale transition preserves notification filter and read action", async ({ page, context, baseURL }) => {
-  const login = await page.request.post("/api/auth/login", { data: { email: "admin@demo.garageos.app", password: "demo1234" } });
+  const login = await page.request.post("/api/auth/login", { data: { email: "admin@demo.garageos.app", password: "parol12345" } });
   expect(login.ok()).toBeTruthy();
   await context.addCookies([{ name: "garageos_locale", value: "ru", url: baseURL! }]);
   await page.clock.setFixedTime(NOW);

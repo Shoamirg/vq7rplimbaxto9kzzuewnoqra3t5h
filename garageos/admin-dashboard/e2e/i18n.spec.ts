@@ -23,7 +23,7 @@ test("Mini App renders in Russian", async ({ context, page, baseURL }) => {
 
 test("staff dashboard renders in Russian", async ({ context, page, baseURL }) => {
   const res = await page.request.post("/api/auth/login", {
-    data: { email: "admin@demo.garageos.app", password: "demo1234" },
+    data: { email: "admin@demo.garageos.app", password: "parol12345" },
   });
   expect(res.ok()).toBeTruthy();
   await context.addCookies([{ name: "garageos_locale", value: "ru", url: baseURL! }]);
