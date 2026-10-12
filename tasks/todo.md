@@ -19,9 +19,9 @@
 **Tavsif:** Uchrashuvga bog‘liq yoki navbatsiz ish buyurtmasini server tomonda ownership tekshiruvlari va DB’da saqlanadigan idempotency bilan ochish.
 
 **Qabul mezonlari:**
-- [ ] Mijoz, mashina, appointment va mechanic faol va shu tenantniki; mashina shu mijozga tegishli.
-- [ ] Appointment faqat ochiq/yaroqli statusda ulanadi va yaratishda `in_progress` bo‘ladi; ikkinchi buyurtma 409.
-- [ ] Bir kalit + bir xil mazmun avvalgi buyurtmani, boshqa mazmun 409’ni qaytaradi; kalitsiz so‘rov 422.
+- [x] Mijoz, mashina, appointment va mechanic faol va shu tenantniki; mashina shu mijozga tegishli.
+- [x] Appointment faqat ochiq/yaroqli statusda ulanadi va yaratishda `in_progress` bo‘ladi; ikkinchi buyurtma 409.
+- [x] Bir kalit + bir xil mazmun avvalgi buyurtmani, boshqa mazmun 409’ni qaytaradi; kalitsiz so‘rov 422.
 
 **Tekshiruv:** TDD API/service testlari (valid, invalid/cross-tenant, duplicate, idempotent retry); pytest.
 **Bog‘liqlik:** Task 1.
