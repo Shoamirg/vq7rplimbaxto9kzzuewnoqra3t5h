@@ -47,20 +47,20 @@
 **Tavsif:** Work order patch transition’lari, `ready` tranzaksiyasi, odometer, bitta ServiceRecord, appointment completion va auditni yakunlash.
 
 **Qabul mezonlari:**
-- [ ] `received -> in_progress/cancelled -> ready -> completed` qoidasi server tomonda majburiy.
-- [ ] Mechanic faqat o‘z buyurtmasidagi ish matni/start/ready’ni boshqaradi; assign/cancel/close qilolmaydi.
-- [ ] Ready uchun work performed talab qilinadi; tarix bitta, odometer kamaymaydi, appointment linked bo‘lsa completed.
-- [ ] Bog‘lanmagan eski appointment complete ishlashda davom etadi; linked appointment complete ish order ready oqimiga delegatsiya qiladi.
+- [x] `received -> in_progress/cancelled -> ready -> completed` qoidasi server tomonda majburiy.
+- [x] Mechanic faqat o‘z buyurtmasidagi ish matni/start/ready’ni boshqaradi; assign/cancel/close qilolmaydi.
+- [x] Ready uchun work performed talab qilinadi; tarix bitta, odometer kamaymaydi, appointment linked bo‘lsa completed.
+- [x] Bog‘lanmagan eski appointment complete ishlashda davom etadi; linked appointment complete ish order ready oqimiga delegatsiya qiladi.
 
-**Tekshiruv:** TDD transition, replay/concurrency uniqueness, rollback, odometer, legacy regressiya va audit testlari; pytest.
+**Tekshiruv:** TDD tests cover transitions, replay, roles, odometer, legacy compatibility and audit; SQL lock queries and offline migration verified. PostgreSQL integration is needed for concurrent transaction/rollback tests.
 **Bog‘liqlik:** Task 1-3.
 **Taxminiy fayllar:** work order service/repository, appointment service, API route, migration/model, testlar.
 **Hajm:** O‘rta, lifecycle va audit bo‘laklarini alohida commit qilish mumkin.
 
 ## Checkpoint A — Backend write/read asoslari
 
-- [ ] Task 1-3 bajarildi va commitlar mavjud.
-- [ ] Model/migration, create/list/detail, idempotency va tenant/role tests o‘tdi.
+- [x] Task 1-3 bajarildi va commitlar mavjud.
+- [x] Model/migration, create/list/detail, idempotency va tenant/role tests o‘tdi.
 
 ## Task 5: Ishlar navbati va navbatsiz qabul UI
 

@@ -25,9 +25,9 @@ API request/response, tenant repository, mijoz-mashina-uchrashuv-mexanik ownersh
 
 ### Checkpoint A
 
-- [ ] Model/migration va create oqimi testdan o‘tadi.
-- [ ] Bir servis doirasidagi aloqalar va qayta yuborish qoidalari isbotlangan.
-- [ ] Migration offline SQL hosil qiladi.
+- [x] Model/migration va create oqimi testdan o‘tadi.
+- [x] Bir servis doirasidagi aloqalar va qayta yuborish qoidalari isbotlangan.
+- [x] Migration offline SQL hosil qiladi.
 
 ### 3-bosqich: Ro‘yxat va tafsilot
 
@@ -39,10 +39,10 @@ Ruxsatli holat o‘tishlari, completion odometri, bajarilgan ish va narxni yangi
 
 ### Checkpoint B
 
-- [ ] Walk-in va appointment-linked buyurtma API orqali end-to-end tasdiqlangan.
-- [ ] Takroriy ServiceRecord yaratib bo‘lmaydi; odometer pasaymaydi.
-- [ ] Legacy appointment complete yo‘li testdan o‘tadi.
-- [ ] Role va cross-tenant testlari o‘tadi.
+- [x] Walk-in va appointment-linked buyurtma API orqali end-to-end tasdiqlangan.
+- [x] Takroriy ServiceRecord yaratib bo‘lmaydi; odometer pasaymaydi.
+- [x] Legacy appointment complete yo‘li testdan o‘tadi.
+- [x] Role va cross-tenant testlari o‘tadi.
 
 ### 5-bosqich: Admin panel ish navbati
 
