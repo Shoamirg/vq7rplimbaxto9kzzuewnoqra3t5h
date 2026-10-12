@@ -34,6 +34,17 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_with_slot_for_update(self, appointment_id: uuid.UUID) -> Optional[Appointment]:
+        """Lock an appointment while changing its linked work-order lifecycle."""
+        stmt = self._scope(
+            select(Appointment).where(
+                Appointment.id == appointment_id,
+                Appointment.is_active == True,
+            )
+        ).options(selectinload(Appointment.slot)).with_for_update().execution_options(populate_existing=True)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def get_detailed(self, appointment_id: uuid.UUID) -> Optional[Appointment]:
         """Tenant-scoped fetch by id with customer + vehicle relations loaded."""
         stmt = self._scope(

@@ -13,11 +13,16 @@ from app.repositories.unit_of_work import UnitOfWork
 from app.services.maintenance_service import MaintenanceService
 from app.models.appointment import AppointmentStatus
 from app.models.appointment_slot import AppointmentSlot, AppointmentSlotStatus
+from app.models.user import User
+from app.models.work_order import WorkOrderStatus
+from app.repositories.work_order_repository import WorkOrderRepository
+from app.schemas.work_order import WorkOrderUpdateRequest
+from app.services.work_order_service import WorkOrderService
 from app.core.events import AppointmentCreated, AppointmentConfirmed, \
     AppointmentCompleted, AppointmentCancelled, MileageUpdated
 from app.exceptions import (
     AppointmentNotFound, SlotUnavailable, AppointmentConflict, AppointmentStateError,
-    VehicleNotFound, CustomerNotFound,
+    VehicleNotFound, CustomerNotFound, UnauthorizedAction, WorkOrderConflict,
 )
 
 
@@ -255,6 +260,7 @@ class AppointmentService:
         odometer_km: Optional[int] = None,
         total_cost: Optional[float] = None,
         notes: Optional[str] = None,
+        actor: User | None = None,
     ) -> dict:
         """Complete an appointment and drive the core value chain.
 
@@ -267,6 +273,48 @@ class AppointmentService:
         appointment = await self.appointment_repo.get_detailed(appointment_id)
         if not appointment:
             raise AppointmentNotFound()
+
+        linked_order = await WorkOrderRepository(
+            self.uow.session, self.uow.service_center_id
+        ).find_by_appointment(appointment_id)
+        if linked_order:
+            if actor is None:
+                raise UnauthorizedAction()
+            work_orders = WorkOrderService(self.uow, actor)
+            if linked_order.status == WorkOrderStatus.RECEIVED:
+                values = {"status": WorkOrderStatus.IN_PROGRESS}
+                if notes is not None:
+                    values["work_performed"] = notes
+                if odometer_km is not None:
+                    values["completion_odometer_km"] = odometer_km
+                if total_cost is not None:
+                    values["actual_cost"] = total_cost
+                await work_orders.update_work_order(
+                    linked_order.id, WorkOrderUpdateRequest(**values)
+                )
+                linked_order.status = WorkOrderStatus.IN_PROGRESS
+
+            if linked_order.status == WorkOrderStatus.IN_PROGRESS:
+                values = {"status": WorkOrderStatus.READY}
+                if notes is not None:
+                    values["work_performed"] = notes
+                if odometer_km is not None:
+                    values["completion_odometer_km"] = odometer_km
+                if total_cost is not None:
+                    values["actual_cost"] = total_cost
+                work_result = await work_orders.update_work_order(
+                    linked_order.id, WorkOrderUpdateRequest(**values)
+                )
+            elif linked_order.status in (WorkOrderStatus.READY, WorkOrderStatus.COMPLETED):
+                work_result = await work_orders.get_work_order(linked_order.id)
+            else:
+                raise WorkOrderConflict("A cancelled work order cannot complete its appointment")
+
+            result = await self.get_appointment(appointment_id)
+            result["work_order_id"] = str(linked_order.id)
+            result["service_record_id"] = work_result.get("service_record_id")
+            return result
+
         if appointment.status == AppointmentStatus.COMPLETED:
             raise AppointmentStateError("Appointment is already completed")
 
@@ -330,14 +378,31 @@ class AppointmentService:
         self,
         appointment_id: uuid.UUID,
         reason: Optional[str] = None,
+        actor: User | None = None,
     ) -> dict:
-        appointment = await self.appointment_repo.get_with_slot(appointment_id)
+        appointment = await self.appointment_repo.get_with_slot_for_update(appointment_id)
         if not appointment:
             raise AppointmentNotFound()
         if appointment.status in (AppointmentStatus.CANCELLED, AppointmentStatus.COMPLETED):
             raise AppointmentStateError(
                 f"Cannot cancel an appointment in status '{appointment.status}'"
             )
+
+        linked_order = await WorkOrderRepository(
+            self.uow.session, self.uow.service_center_id
+        ).find_by_appointment(appointment_id)
+        if linked_order:
+            if actor is None:
+                raise UnauthorizedAction()
+            if linked_order.status != WorkOrderStatus.RECEIVED:
+                raise WorkOrderConflict("An appointment cannot be cancelled after repair work has started")
+            if reason:
+                appointment.notes = reason
+            await WorkOrderService(self.uow, actor).update_work_order(
+                linked_order.id,
+                WorkOrderUpdateRequest(status=WorkOrderStatus.CANCELLED),
+            )
+            return await self.get_appointment(appointment_id)
 
         # Free the linked slot so it can be booked again.
         if appointment.slot:

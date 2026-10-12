@@ -12,10 +12,11 @@ from math import ceil
 
 from fastapi import APIRouter, Body, Depends, Header, Query, status
 
-from app.api.deps import get_tenant_uow
+from app.api.deps import get_current_user, get_tenant_uow
 from app.core.idempotency import idempotency_store
 from app.exceptions import AppointmentStateError
 from app.repositories.unit_of_work import UnitOfWork
+from app.models.user import User
 from app.schemas.appointment import (
     AppointmentBookRequest,
     AppointmentCancelRequest,
@@ -151,10 +152,11 @@ async def confirm_appointment(
 async def cancel_appointment(
     appointment_id: uuid.UUID,
     uow: UnitOfWork = Depends(get_tenant_uow),
+    actor: User = Depends(get_current_user),
     body: AppointmentCancelRequest | None = Body(default=None),
 ) -> dict:
     reason = body.reason if body else None
-    return await AppointmentService(uow).cancel_appointment(appointment_id, reason=reason)
+    return await AppointmentService(uow).cancel_appointment(appointment_id, reason=reason, actor=actor)
 
 
 @router.patch("/{appointment_id}/complete", summary="Complete an appointment (value chain)")
@@ -162,12 +164,14 @@ async def complete_appointment(
     appointment_id: uuid.UUID,
     body: AppointmentCompleteRequest,
     uow: UnitOfWork = Depends(get_tenant_uow),
+    actor: User = Depends(get_current_user),
 ) -> dict:
     return await AppointmentService(uow).complete_appointment(
         appointment_id,
         odometer_km=body.odometer_km,
         total_cost=body.total_cost,
         notes=body.notes,
+        actor=actor,
     )
 
 
