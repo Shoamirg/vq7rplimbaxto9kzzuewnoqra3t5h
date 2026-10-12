@@ -5,9 +5,10 @@ import { test, expect, type Page } from "@playwright/test";
 // hrefs/testids rather than translated copy.
 
 const CREDS = { email: "admin@demo.garageos.app", password: "demo1234" };
+const MECHANIC_CREDS = { email: "carlos.mendez@demo.garageos.app", password: "demo1234" };
 
-async function login(page: Page) {
-  const res = await page.request.post("/api/auth/login", { data: CREDS });
+async function login(page: Page, credentials = CREDS) {
+  const res = await page.request.post("/api/auth/login", { data: credentials });
   expect(res.ok(), "BFF login should succeed").toBeTruthy();
 }
 
@@ -36,6 +37,21 @@ test("every core staff surface renders", async ({ page }) => {
     await page.goto(path, { waitUntil: "networkidle" });
     await expectHealthyPage(page, path);
   }
+});
+
+test("mechanic navigation is limited to work orders", async ({ page }) => {
+  await login(page, MECHANIC_CREDS);
+  await page.goto("/work-orders", { waitUntil: "networkidle" });
+
+  await expect(page.locator('a[href="/work-orders"]')).toBeVisible();
+  for (const path of [
+    "/dashboard", "/calendar", "/appointments", "/vehicles", "/customers",
+    "/operations", "/inbox", "/billing", "/reports", "/settings", "/support",
+  ]) {
+    await expect(page.locator(`a[href="${path}"]`)).toHaveCount(0);
+  }
+  await expect(page.getByRole("button", { name: "Open search" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "New appointment" })).toHaveCount(0);
 });
 
 test("Vehicle Intelligence Center opens for a vehicle", async ({ page }) => {

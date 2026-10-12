@@ -18,7 +18,7 @@ from app.models.user import User
 from app.repositories.unit_of_work import UnitOfWork
 from app.services.auth_service import AuthService
 
-OFFICE_WRITE_ROLES = frozenset({"admin", "manager", "receptionist"})
+OFFICE_ROLES = frozenset({"admin", "manager", "receptionist"})
 
 # auto_error=False so a missing/invalid header yields our own 401 shape.
 _bearer = HTTPBearer(auto_error=False)
@@ -44,18 +44,25 @@ async def get_current_user(
     return await _auth_service(db).get_current_user(credentials.credentials)
 
 
-async def get_office_write_user(
+async def get_office_staff_user(
     current_user: User = Depends(get_current_user),
 ) -> User:
-    """Allow customer and vehicle intake writes only to active office staff."""
+    """Allow staff modules to be used only by active office roles."""
     role = current_user.role
     if (
         not current_user.is_active
         or not role
         or not role.is_active
-        or role.name not in OFFICE_WRITE_ROLES
+        or role.name not in OFFICE_ROLES
     ):
         raise UnauthorizedAction()
+    return current_user
+
+
+async def get_office_write_user(
+    current_user: User = Depends(get_office_staff_user),
+) -> User:
+    """Explicit dependency for write actions limited to office staff."""
     return current_user
 
 

@@ -25,6 +25,7 @@ import {
 import { cn } from "@garageos/design-system";
 
 import { useI18n } from "@/lib/i18n/context";
+import { isOfficeRole } from "@/lib/permissions";
 import { NewAppointmentModal } from "@/components/appointments/new-appointment-modal";
 
 // ─── Navigation ───────────────────────────────────────────────
@@ -105,6 +106,12 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [apptOpen, setApptOpen] = useState(false);
+  const isOfficeUser = isOfficeRole(user?.role);
+  const visibleSections = isOfficeUser
+    ? NAV_SECTIONS
+    : user?.role === "mechanic"
+      ? [{ ...NAV_SECTIONS[0]!, items: NAV_SECTIONS[0]!.items.filter((item) => item.href === "/work-orders") }]
+      : [];
 
   const toggle = useCallback(() => setCollapsed((prev) => !prev), []);
 
@@ -156,7 +163,7 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
         </div>
 
         {/* Quick Action */}
-        <div className={cn("p-3", collapsed && "px-2")}>
+        {isOfficeUser ? <div className={cn("p-3", collapsed && "px-2")}>
           <button
             className={cn(
               "flex items-center gap-2 w-full rounded-lg font-medium transition-all duration-150",
@@ -171,17 +178,17 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
             <Plus className="size-4 shrink-0" />
             {!collapsed && <span>{t("action.new_appointment")}</span>}
           </button>
-        </div>
-        {apptOpen && (
+        </div> : null}
+        {isOfficeUser && apptOpen ? (
           <NewAppointmentModal
             onClose={() => setApptOpen(false)}
             onCreated={() => router.push("/appointments")}
           />
-        )}
+        ) : null}
 
         {/* Main Navigation — grouped sections */}
         <nav className="flex-1 overflow-y-auto px-3 py-1 space-y-1">
-          {NAV_SECTIONS.map((section) => (
+          {visibleSections.map((section) => (
             <div key={section.key} className="space-y-0.5">
               {!collapsed && (
                 <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
@@ -229,7 +236,7 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
 
         {/* Bottom Navigation */}
         <div className="px-3 py-2 border-t border-sidebar-muted space-y-0.5">
-          {bottomNav.map((item) => {
+          {(isOfficeUser ? bottomNav : []).map((item) => {
             const active = isActive(item.href);
             return (
               <Link

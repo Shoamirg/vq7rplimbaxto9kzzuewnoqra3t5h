@@ -11,6 +11,7 @@ import { ApiError, getCurrentUser } from "@/lib/api/server";
 import { brandCssVars } from "@/lib/branding";
 import { I18nProvider } from "@/lib/i18n/context";
 import { LOCALE_COOKIE, isLocale } from "@/lib/i18n/dictionaries";
+import { isOfficeRole } from "@/lib/permissions";
 
 // Authenticated app shell. Reads the auth cookie (via getCurrentUser) at request
 // time, so it renders dynamically. /login lives outside this group and gets no shell.
@@ -41,7 +42,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <TopBar user={shellUser} />
             <main className="flex-1 overflow-y-auto bg-muted/30">{children}</main>
           </div>
-          <CommandMenu />
+          {isOfficeRole(user.role) ? <CommandMenu /> : null}
         </div>
       </ToastProvider>
     </I18nProvider>

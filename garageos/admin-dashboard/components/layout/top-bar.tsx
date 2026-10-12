@@ -20,6 +20,7 @@ import { OPEN_EVENT } from "./command-menu";
 import { NotificationBell } from "./notification-bell";
 import { LanguageSwitcher } from "./language-switcher";
 import { useI18n } from "@/lib/i18n/context";
+import { isOfficeRole } from "@/lib/permissions";
 
 type ShellUser = { name: string; email: string; role: string | null };
 
@@ -77,6 +78,7 @@ export function TopBar({ user }: { user?: ShellUser }) {
   const { resolvedTheme, toggleTheme } = useTheme();
   const { t } = useI18n();
   const router = useRouter();
+  const isOfficeUser = isOfficeRole(user?.role);
 
   const handleSignOut = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -91,7 +93,7 @@ export function TopBar({ user }: { user?: ShellUser }) {
         <Breadcrumbs />
 
         {/* Global Search — opens the ⌘K command menu */}
-        <button
+        {isOfficeUser ? <button
           type="button"
           onClick={() => window.dispatchEvent(new Event(OPEN_EVENT))}
           className="hidden sm:flex items-center gap-2 rounded-lg border border-border hover:border-muted-foreground/30 bg-muted/30 transition-colors flex-1 max-w-md text-left"
@@ -104,7 +106,7 @@ export function TopBar({ user }: { user?: ShellUser }) {
           <kbd className="hidden md:inline-flex items-center gap-0.5 rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground mr-3">
             ⌘K
           </kbd>
-        </button>
+        </button> : null}
       </div>
 
       {/* Right: Actions */}
@@ -126,7 +128,7 @@ export function TopBar({ user }: { user?: ShellUser }) {
         <LanguageSwitcher />
 
         {/* Notifications */}
-        <NotificationBell />
+        {isOfficeUser ? <NotificationBell /> : null}
 
         {/* User Profile Menu */}
         <DropdownMenu>
