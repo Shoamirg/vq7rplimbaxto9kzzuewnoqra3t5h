@@ -52,7 +52,7 @@ Ruxsatli holat o‘tishlari, completion odometri, bajarilgan ish va narxni yangi
 
 Uchrashuv ekranidan buyurtma yaratish va buyurtma holatini ko‘rish. Reception va mechanic rollariga mos boshqaruvlarni ko‘rsatish. Playwright’da walk-in hamda appointment oqimini tekshirish.
 
-**Holat:** Backend API va UI sintetik demo ma’lumotlari bilan lokal PostgreSQL’da tekshirildi: backend’ning 130 testi va 13 Playwright brauzer testi o‘tdi. Walk-in intake, jumladan yangi mijoz va avtomobil yaratish, status o‘tishlari va appointment handoff real lokal API orqali tekshirildi. Toolchain Next.js 16.4, Tailwind CSS 4.3, ESLint 10, `tailwind-merge` 3 va Node.js 24’ga yangilandi. Frontend production build, TypeScript, lint va i18n tekshiruvlari o‘tdi. `npm audit --omit=dev` 0 zaiflik qaytardi; to‘liq auditda ESLint/Next lint tooling zanjiridagi `braces <=3.0.3` sababli 5 high yozuv qolgan, upstream advisory’da patch yo‘q. Paid hosting yoki production deploy ishlatilmagan.
+**Holat:** Backend API va UI sintetik demo ma’lumotlari bilan tekshirildi. Eng so‘nggi GitHub CI run (`38285175618`) backend’ning 165 testini va 14 Playwright brauzer testini to‘liq o‘tkazdi; walk-in intake, yangi mijoz/avtomobil yaratish, mobile holat o‘tishlari va appointment handoff haqiqatan bajarildi. Lokal fokuslangan work-order sinovlaridan 48 tasi ham o‘tdi. Toolchain Next.js 16.4, Tailwind CSS 4.3, ESLint 10, `tailwind-merge` 3 va Node.js 24’ga yangilandi. Frontend production build, TypeScript, lint va i18n tekshiruvlari o‘tdi. `npm audit --omit=dev` 0 zaiflik qaytardi; to‘liq auditda ESLint/Next lint tooling zanjiridagi `braces <=3.0.3` sababli 5 high yozuv qolgan, upstream advisory’da patch yo‘q. Paid hosting yoki production deploy ishlatilmagan.
 
 ### Checkpoint C
 
