@@ -60,6 +60,8 @@ class CustomerService:
         ok = await self.customer_repo.delete(customer_id)
         if not ok:
             raise CustomerNotFound()
+        from app.services.auth_session_service import AuthSessionService
+        await AuthSessionService(self.session).revoke_principal("customer", customer_id)
         await self.uow.flush()
 
     async def register_customer(self, data) -> dict:

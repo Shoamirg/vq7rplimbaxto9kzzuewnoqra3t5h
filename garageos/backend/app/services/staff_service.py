@@ -78,6 +78,9 @@ class StaffService:
         for field in ('full_name', 'phone', 'is_active'):
             if field in data.model_fields_set:
                 setattr(user, field, getattr(data, field))
+        if 'is_active' in data.model_fields_set and not data.is_active:
+            from app.services.auth_session_service import AuthSessionService
+            await AuthSessionService(self.uow.session).revoke_principal("staff", user.id)
         self.audit('staff.update', user, sorted(data.model_fields_set))
         await self.uow.flush()
         return summary(user)

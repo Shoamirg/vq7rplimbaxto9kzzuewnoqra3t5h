@@ -45,6 +45,10 @@ class CustomerAccountService:
         if account.is_active != data.is_active:
             account.is_active = data.is_active
             account.version += 1
+            if not data.is_active:
+                from app.services.auth_session_service import AuthSessionService
+                await AuthSessionService(self.uow.session).revoke_principal("customer", account.customer_id,
+                    customer_account_id=account.id)
             self.audit(customer_id,'customer.account.access')
             await self.uow.flush()
         return self.summary(account)

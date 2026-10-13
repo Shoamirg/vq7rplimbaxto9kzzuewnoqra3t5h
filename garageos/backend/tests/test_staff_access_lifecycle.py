@@ -11,6 +11,7 @@ from sqlalchemy import delete, select, update
 from app.core.database import async_session_factory, engine
 from app.core.config import settings
 from app.core.security import create_access_token, create_refresh_token, hash_password
+from tests.support.auth_sessions import persisted_access, persisted_pair
 from app.main import app
 from app.models import Role, ServiceCenter, User
 
@@ -83,7 +84,8 @@ async def test_suspended_staff_identity_cannot_sign_in(client, identity, kind):
 @pytest.mark.parametrize("operation", ["access", "refresh"])
 async def test_suspension_revokes_existing_staff_tokens(client, identity, kind, operation):
     payload = {"sub": str(identity["user"]), "type": operation}
-    token = create_access_token(payload) if operation == "access" else create_refresh_token(payload)
+    pair = await persisted_pair(payload)
+    token = pair[operation + "_token"]
     await _suspend(identity, kind)
     if operation == "access":
         response = await client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
@@ -110,7 +112,7 @@ async def test_active_staff_login_profile_and_refresh_still_work(client, identit
 
 async def test_mechanic_cannot_read_intake_or_create_customer(client, identity):
     await _as_role(identity, "mechanic")
-    token = create_access_token({"sub": str(identity["user"]), "type": "access"})
+    token = await persisted_access({"sub": str(identity["user"]), "type": "access"})
     headers = {"Authorization": f"Bearer {token}"}
     listed = await client.get("/api/v1/customers", headers=headers)
     assert listed.status_code == 403
@@ -121,7 +123,7 @@ async def test_mechanic_cannot_read_intake_or_create_customer(client, identity):
 @pytest.mark.parametrize("role", ["admin", "manager", "receptionist", "super_admin"])
 async def test_operator_roles_can_run_intake_with_advertised_permissions(client, identity, role):
     await _as_role(identity, role)
-    token = create_access_token({"sub": str(identity["user"]), "type": "access"})
+    token = await persisted_access({"sub": str(identity["user"]), "type": "access"})
     headers = {"Authorization": f"Bearer {token}"}
     profile = await client.get("/api/v1/auth/me", headers=headers)
     assert profile.status_code == 200
@@ -141,7 +143,7 @@ async def test_operator_roles_can_run_intake_with_advertised_permissions(client,
 ])
 async def test_mechanic_cannot_mutate_staff_routes(client, identity, method, path, body):
     await _as_role(identity, "mechanic")
-    token = create_access_token({"sub": str(identity["user"]), "type": "access"})
+    token = await persisted_access({"sub": str(identity["user"]), "type": "access"})
     response = await client.request(method, f"/api/v1{path}", headers={"Authorization": f"Bearer {token}"}, json=body)
     assert response.status_code == 403
     assert response.json()["error"]["code"] == "FORBIDDEN"
@@ -151,7 +153,7 @@ async def test_unknown_role_and_platform_flag_do_not_grant_tenant_access(client,
     async with async_session_factory() as session:
         await session.execute(update(User).where(User.id == identity["user"]).values(is_super_admin=True))
         await session.commit()
-    token = create_access_token({"sub": str(identity["user"]), "type": "access"})
+    token = await persisted_access({"sub": str(identity["user"]), "type": "access"})
     headers = {"Authorization": f"Bearer {token}"}
     profile = await client.get("/api/v1/auth/me", headers=headers)
     assert profile.status_code == 200
@@ -172,7 +174,7 @@ async def test_public_demo_advertises_read_only_even_for_operator_role(client, i
 
 async def _case_with_operator(client, identity):
     await _as_role(identity, "admin")
-    token = create_access_token({"sub": str(identity["user"]), "type": "access"})
+    token = await persisted_access({"sub": str(identity["user"]), "type": "access"})
     headers = {"Authorization": f"Bearer {token}"}
     customer = await client.post("/api/v1/customers", headers=headers, json={"full_name": "Dispatch customer", "phone": "+998900000003"})
     assert customer.status_code == 201
@@ -184,7 +186,7 @@ async def _case_with_operator(client, identity):
 async def _readonly_headers(client, identity, mode, monkeypatch):
     if mode == "mechanic":
         await _as_role(identity, "mechanic")
-        token = create_access_token({"sub": str(identity["user"]), "type": "access"})
+        token = await persisted_access({"sub": str(identity["user"]), "type": "access"})
     else:
         monkeypatch.setattr(settings, "DEMO_MODE_ENABLED", True)
         monkeypatch.setattr(settings, "DEMO_EMAIL", identity["email"])
@@ -244,7 +246,7 @@ async def test_operator_can_create_case_thread_and_readonly_staff_can_read_it(cl
 
 async def test_mechanic_cannot_lookup_unassigned_cases(client, identity):
     await _as_role(identity, "mechanic")
-    token = create_access_token({"sub": str(identity["user"]), "type": "access"})
+    token = await persisted_access({"sub": str(identity["user"]), "type": "access"})
     response = await client.get(f"/api/v1/cases/{uuid.uuid4()}/conversation", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 403
 

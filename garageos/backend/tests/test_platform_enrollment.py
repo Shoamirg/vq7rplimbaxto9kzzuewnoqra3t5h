@@ -16,7 +16,7 @@ from sqlalchemy import text
 
 from app.core.database import async_session_factory, engine
 from app.core.database import Base
-from app.core.security import create_access_token
+from tests.support.auth_sessions import persisted_access
 from app.core.security import hash_password
 from app.main import app
 from app.models import Customer, Role, ServiceCenter, User
@@ -314,7 +314,7 @@ async def test_enrolled_platform_access_rechecks_identity_on_every_request(enrol
                 admin = await session.scalar(select(Role).where(Role.name == 'admin'))
                 await session.execute(update(User).where(User.id == user_id).values(role_id=admin.id))
             else:
-                headers = {'Authorization': 'Bearer ' + create_access_token({'sub': str(user_id), 'type': 'access', 'demo': True})}
+                headers = {'Authorization': 'Bearer ' + await persisted_access({'sub': str(user_id), 'type': 'access', 'demo': True})}
             await session.commit()
         try:
             assert (await client.get('/api/v1/platform/stats', headers=headers)).status_code == (401 if kind in {'user', 'garage', 'role'} else 403)

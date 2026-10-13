@@ -6,7 +6,7 @@ import pytest_asyncio
 from sqlalchemy import delete, event, insert
 
 from app.core.database import async_session_factory, engine
-from app.core.security import create_access_token
+from tests.support.auth_sessions import persisted_access
 from app.models import Brand, Customer, Invoice, ServiceCenter, Vehicle, VehicleModel
 from tests.test_staff_access_lifecycle import _as_role, client, identity
 
@@ -48,7 +48,7 @@ async def distinct_history(identity):
                                                             'customer_id': foreign_customer, 'kind': 'invoice', 'status': 'issued',
                                                             'currency': 'UZS', 'total': 900000, 'balance': 900000}])
         await session.commit()
-    token = create_access_token({'sub': str(identity['user']), 'type': 'access'})
+    token = await persisted_access({'sub': str(identity['user']), 'type': 'access'})
     try:
         yield {'headers': {'Authorization': 'Bearer ' + token}, 'expected': expected}
     finally:

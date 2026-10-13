@@ -5,7 +5,7 @@ import pytest
 import pytest_asyncio
 from sqlalchemy import delete, update
 from app.models import ServiceCenter, User
-from app.core.security import create_access_token
+from tests.support.auth_sessions import persisted_access
 from app.core.database import async_session_factory, engine
 from app.seeds.roles import seed_roles
 
@@ -135,7 +135,7 @@ async def test_duplicate_email_is_generic_and_staff_search_is_literal_paginated(
 
 
 async def test_demo_owner_and_anonymous_cannot_manage_staff(client, identity, owner):
-    demo = create_access_token({'sub': str(identity['user']), 'type': 'access', 'demo': True})
+    demo = await persisted_access({'sub': str(identity['user']), 'type': 'access', 'demo': True})
     headers = {'Authorization': f'Bearer {demo}'}
     assert (await client.get('/api/v1/staff', headers=headers)).status_code == 403
     assert (await client.post('/api/v1/staff', headers=headers, json=employee_data())).status_code == 403

@@ -6,9 +6,11 @@ so the client shows the phone-linking screen, which posts to ``/link``.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 
 from app.api.customer_deps import get_customer_auth_service
+from app.api.logout_proof import logout_proof
+from app.schemas.auth import LogoutRequest, LogoutResponse
 from app.core.config import settings
 from app.core.rate_limit import auth_rate_limit
 from app.exceptions import NotFoundError
@@ -22,6 +24,13 @@ from app.schemas.customer_portal import (
 from app.services.customer_auth_service import CustomerAuthService
 
 router = APIRouter()
+
+
+@router.post("/logout", response_model=LogoutResponse, summary="Revoke this customer session")
+async def logout(request: Request, body: LogoutRequest | None = None,
+                 auth: CustomerAuthService = Depends(get_customer_auth_service)) -> LogoutResponse:
+    await auth.logout(logout_proof(request, body))
+    return LogoutResponse()
 
 
 @router.post(

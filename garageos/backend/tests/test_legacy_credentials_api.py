@@ -1,4 +1,4 @@
-"""Exercise legacy wire credentials against actual persisted API identities."""
+"""Old password hashes survive; sessionless legacy JWTs explicitly require login."""
 import uuid
 
 from sqlalchemy import select, update
@@ -29,17 +29,21 @@ async def test_persisted_staff_old_hash_access_and_refresh(client, identity):
     assert signed.status_code == 200, signed.text
     access = token({'sub': str(identity['user']), 'email': identity['email'], 'type': 'access'})
     refresh = token({'sub': str(identity['user']), 'type': 'refresh'})
-    headers = {'Authorization': 'Bearer ' + access}
+    legacy_headers = {'Authorization': 'Bearer ' + access}
+    assert (await client.get('/api/v1/auth/me', headers=legacy_headers)).status_code == 401
+    assert (await client.post('/api/v1/auth/refresh', json={'refresh_token': refresh})).status_code == 401
+    headers = {'Authorization': 'Bearer ' + signed.json()['access_token']}
     me = await client.get('/api/v1/auth/me', headers=headers)
     assert me.status_code == 200 and me.json()['id'] == str(identity['user'])
     assert (await client.get('/api/v1/customer/me', headers=headers)).status_code == 401
-    renewed = await client.post('/api/v1/auth/refresh', json={'refresh_token': refresh})
+    current_refresh = signed.json()['refresh_token']
+    renewed = await client.post('/api/v1/auth/refresh', json={'refresh_token': current_refresh})
     assert renewed.status_code == 200, renewed.text
     new_headers = {'Authorization': 'Bearer ' + renewed.json()['access_token']}
     assert (await client.get('/api/v1/auth/me', headers=new_headers)).status_code == 200
     await _suspend(identity, 'user')
     assert (await client.get('/api/v1/auth/me', headers=headers)).status_code == 401
-    assert (await client.post('/api/v1/auth/refresh', json={'refresh_token': refresh})).status_code == 401
+    assert (await client.post('/api/v1/auth/refresh', json={'refresh_token': renewed.json()['refresh_token']})).status_code == 401
 
 
 async def test_persisted_customer_old_hash_access_refresh_and_revocation(client, identity, owner):
@@ -63,11 +67,14 @@ async def test_persisted_customer_old_hash_access_refresh_and_revocation(client,
     assert signed.status_code == 200, signed.text
     access = token(dict(claims, type='customer_access'))
     refresh = token(dict(claims, type='customer_refresh'))
-    headers = {'Authorization': 'Bearer ' + access}
+    legacy_headers = {'Authorization': 'Bearer ' + access}
+    assert (await client.get('/api/v1/customer/me', headers=legacy_headers)).status_code == 401
+    assert (await client.post('/api/v1/customer/auth/refresh', json={'refresh_token': refresh})).status_code == 401
+    headers = {'Authorization': 'Bearer ' + signed.json()['access_token']}
     me = await client.get('/api/v1/customer/me', headers=headers)
     assert me.status_code == 200 and me.json()['id'] == customer_id
     assert (await client.get('/api/v1/auth/me', headers=headers)).status_code == 401
-    renewed = await client.post('/api/v1/customer/auth/refresh', json={'refresh_token': refresh})
+    renewed = await client.post('/api/v1/customer/auth/refresh', json={'refresh_token': signed.json()['refresh_token']})
     assert renewed.status_code == 200, renewed.text
     assert (await client.get('/api/v1/customer/me', headers={
         'Authorization': 'Bearer ' + renewed.json()['access_token']})).status_code == 200
@@ -75,4 +82,4 @@ async def test_persisted_customer_old_hash_access_refresh_and_revocation(client,
                                  json={'is_active': False})
     assert changed.status_code == 200
     assert (await client.get('/api/v1/customer/me', headers=headers)).status_code == 401
-    assert (await client.post('/api/v1/customer/auth/refresh', json={'refresh_token': refresh})).status_code == 401
+    assert (await client.post('/api/v1/customer/auth/refresh', json={'refresh_token': renewed.json()['refresh_token']})).status_code == 401

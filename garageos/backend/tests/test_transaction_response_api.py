@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import async_session_factory
 from app.core.events import event_bus
-from app.core.security import create_access_token
+from tests.support.auth_sessions import persisted_access
 from app.main import app
 from app.models import Appointment, Customer, User
 from app.models.appointment_slot import AppointmentSlot
@@ -142,7 +142,7 @@ async def prepare_operation(family, client, workshop, identity):
         return Operation(family, "GET", f"/api/v1/cases/{case_id}/conversation", admin, None, read, 200)
 
     assert family == "customer"
-    headers = {"Authorization": "Bearer " + create_access_token({
+    headers = {"Authorization": "Bearer " + await persisted_access({
         "sub": str(customer), "scid": str(center), "type": "customer_access",
     })}
     async def read():

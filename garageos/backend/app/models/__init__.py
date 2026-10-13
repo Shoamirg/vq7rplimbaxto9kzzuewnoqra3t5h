@@ -4,6 +4,7 @@ from app.models.role import Role
 from app.models.user import User
 from app.models.customer import Customer
 from app.models.customer_account import CustomerAccount
+from app.models.auth_session import AuthSession
 from app.models.brand import Brand
 from app.models.vehicle_model import VehicleModel
 from app.models.vehicle import Vehicle
@@ -37,6 +38,7 @@ __all__ = [
     "User",
     "Customer",
     "CustomerAccount",
+    "AuthSession",
     "Brand",
     "VehicleModel",
     "Vehicle",

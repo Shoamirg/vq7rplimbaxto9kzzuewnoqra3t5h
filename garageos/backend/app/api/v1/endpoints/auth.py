@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_auth_service, get_current_user, get_staff_permissions
+from app.api.logout_proof import logout_proof
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.rate_limit import auth_rate_limit
@@ -19,12 +20,21 @@ from app.schemas.auth import (
     LoginRequest,
     RefreshTokenRequest,
     TokenResponse,
+    LogoutRequest,
+    LogoutResponse,
 )
 from app.schemas.branding import Branding, branding_dict
 from app.services.audit_service import record_audit
 from app.services.auth_service import AuthService
 
 router = APIRouter()
+
+
+@router.post("/logout", response_model=LogoutResponse, summary="Revoke this staff session")
+async def logout(request: Request, body: LogoutRequest | None = None,
+                 auth: AuthService = Depends(get_auth_service)) -> LogoutResponse:
+    await auth.logout(logout_proof(request, body))
+    return LogoutResponse()
 
 
 @router.post(

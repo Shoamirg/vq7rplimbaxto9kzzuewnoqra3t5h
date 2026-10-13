@@ -8,6 +8,7 @@ from sqlalchemy import delete, update
 
 from app.core.database import async_session_factory
 from app.core.security import create_access_token
+from tests.support.auth_sessions import persisted_access
 from app.models import Customer, Invoice, Payment, ServiceCenter, User
 from tests.test_staff_access_lifecycle import client, identity, _as_role, PASSWORD
 
@@ -47,7 +48,8 @@ async def test_platform_privilege_rechecked_on_every_request(client, identity, c
         payload = {'sub': str(identity['user']), 'type': 'access', 'demo': True}
         if change == 'customer_token':
             payload = {'sub': str(identity['user']), 'type': 'customer_access'}
-        headers = {'Authorization': 'Bearer ' + create_access_token(payload)}
+        signed = (await persisted_access(payload)) if change == 'demo' else create_access_token(payload)
+        headers = {'Authorization': 'Bearer ' + signed}
     else:
         model, id_ = {'flag': (User, identity['user']), 'user': (User, identity['user']),
                       'role': (User, identity['user']), 'center': (ServiceCenter, identity['center'])}[change]

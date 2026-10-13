@@ -3,6 +3,7 @@ import pytest
 from sqlalchemy import update
 from app.core.database import async_session_factory
 from app.core.security import create_access_token
+from tests.support.auth_sessions import persisted_access
 from app.models import Customer, ServiceCenter, Invoice
 from tests.test_staff_access_lifecycle import _as_role
 
@@ -32,8 +33,12 @@ async def test_owner_opens_customer_login_and_suspends_existing_session(client, 
     assert (await client.get('/api/v1/customer/home', headers=customer_headers)).status_code == 403
     legacy = {'Authorization': 'Bearer ' + create_access_token({
         'sub': customer_id, 'scid': str(identity['center']), 'type': 'customer_access'})}
-    assert (await client.get('/api/v1/customer/billing', headers=legacy)).status_code == 200
-    assert (await client.post(f'/api/v1/customer/billing/estimates/{uuid.uuid4()}/approve', headers=legacy)).status_code == 404
+    assert (await client.get('/api/v1/customer/billing', headers=legacy)).status_code == 401
+    # A real persisted non-password customer session retains Telegram policy.
+    telegram = {'Authorization': 'Bearer ' + await persisted_access({
+        'sub': customer_id, 'scid': str(identity['center']), 'type': 'customer_access'})}
+    assert (await client.get('/api/v1/customer/billing', headers=telegram)).status_code == 200
+    assert (await client.post(f'/api/v1/customer/billing/estimates/{uuid.uuid4()}/approve', headers=telegram)).status_code == 404
 
     assert (await client.get('/api/v1/customers', headers=customer_headers)).status_code == 401
     assert (await client.get('/api/v1/customer/me', headers=owner)).status_code == 401
@@ -41,10 +46,12 @@ async def test_owner_opens_customer_login_and_suspends_existing_session(client, 
                                    json={'is_active': False})
     assert suspended.status_code == 200
     assert (await client.get('/api/v1/customer/me', headers=customer_headers)).status_code == 401
+    assert (await client.get('/api/v1/customer/me', headers=telegram)).status_code == 200
     assert (await client.post('/api/v1/customer/auth/refresh', json={'refresh_token': tokens['refresh_token']})).status_code == 401
     assert (await client.post('/api/v1/customer/auth/login', json={'email': email, 'password': PASSWORD})).status_code == 401
     assert (await client.patch(f'/api/v1/customers/{customer_id}/account', headers=owner, json={'is_active': True})).status_code == 200
     assert (await client.get('/api/v1/customer/me', headers=customer_headers)).status_code == 401
+    assert (await client.get('/api/v1/customer/me', headers=telegram)).status_code == 200
     assert (await client.post('/api/v1/customer/auth/login', json={'email': email, 'password': PASSWORD})).status_code == 200
 
 

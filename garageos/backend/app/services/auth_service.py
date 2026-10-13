@@ -1,6 +1,5 @@
 from __future__ import annotations
 import uuid
-from datetime import timedelta
 from typing import Optional
 
 from sqlalchemy import select
@@ -8,8 +7,6 @@ from sqlalchemy import select
 from app.core.security import (
     hash_password,
     verify_password,
-    create_access_token,
-    create_refresh_token,
     decode_token,
 )
 from app.core.config import settings
@@ -20,6 +17,7 @@ from app.models.service_center import ServiceCenter
 from app.models.role import Role
 from app.models.user import User
 from app.exceptions import InvalidCredentials, InvalidToken
+from app.services.auth_session_service import AuthSessionService
 
 
 class AuthService:
@@ -30,6 +28,7 @@ class AuthService:
         self.user_repo = UserRepository(uow.session)
         self.service_center_repo = BaseRepository(ServiceCenter, uow.session)
         self.role_repo = BaseRepository(Role, uow.session)
+        self.sessions = AuthSessionService(uow.session)
 
     async def register_admin(
         self,
@@ -69,8 +68,9 @@ class AuthService:
 
     async def login(self, email: str, password: str) -> dict:
         """Authenticate and return token pair."""
-        user = await self.user_repo.find_by_email(email)
-        if not await self._is_enabled(user) or not verify_password(password, user.password_hash):
+        user = await self.uow.session.scalar(select(User).where(User.email == email)
+            .with_for_update(of=User).execution_options(populate_existing=True))
+        if not await self._is_enabled(user, lock=True) or not verify_password(password, user.password_hash):
             raise InvalidCredentials()
 
         # Password-based entry to the configured demo tenant must remain
@@ -82,52 +82,34 @@ class AuthService:
             settings.DEMO_MODE_ENABLED and demo_domain and user_domain == demo_domain
         ) else {}
 
-        access_token = create_access_token(
-            data={"sub": str(user.id), "email": user.email, "type": "access", **demo_claim},
-            expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
-        )
-        refresh_token = create_refresh_token(
-            data={"sub": str(user.id), "type": "refresh", **demo_claim},
-        )
+        return await self.sessions.issue(kind="staff", principal_id=user.id,
+            center_id=user.service_center_id,
+            claims={"sub": str(user.id), "email": user.email, **demo_claim})
 
-        return {
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "token_type": "bearer",
-        }
-
-    async def _is_enabled(self, user: User | None) -> bool:
+    async def _is_enabled(self, user: User | None, *, lock=False) -> bool:
         """A staff identity is usable only while its garage and role are active."""
         if not user or not user.is_active or not user.role or not user.role.is_active:
             return False
-        center_id = await self.uow.session.scalar(
-            select(ServiceCenter.id).where(
+        role_statement = select(Role.id).where(Role.id == user.role_id, Role.is_active.is_(True))
+        center_statement = select(ServiceCenter.id).where(
                 ServiceCenter.id == user.service_center_id,
                 ServiceCenter.is_active.is_(True),
             )
-        )
-        return center_id is not None
+        if lock:
+            role_statement = role_statement.with_for_update(read=True)
+            center_statement = center_statement.with_for_update(read=True)
+        return (await self.uow.session.scalar(role_statement) is not None
+                and await self.uow.session.scalar(center_statement) is not None)
 
     async def refresh(self, refresh_token: str) -> dict:
         """Issue a new access token using a refresh token."""
-        user, payload = await self._token_user(refresh_token, "refresh")
+        user, payload = await self._token_user(refresh_token, "refresh", lock_identity=True)
 
         # Carry the demo flag across refresh — otherwise a read-only demo session
         # could refresh into a full-access token and bypass the write guard.
         demo = {"demo": True} if payload.get("demo") else {}
-        access_token = create_access_token(
-            data={"sub": str(user.id), "email": user.email, "type": "access", **demo},
-            expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
-        )
-        new_refresh = create_refresh_token(
-            data={"sub": str(user.id), "type": "refresh", **demo},
-        )
-
-        return {
-            "access_token": access_token,
-            "refresh_token": new_refresh,
-            "token_type": "bearer",
-        }
+        return await self.sessions.rotate(refresh_token, payload, "staff",
+            {"sub": str(user.id), "email": user.email, **demo})
 
     async def demo_login(self) -> dict:
         """Mint a READ-ONLY demo session for the configured demo account.
@@ -135,28 +117,23 @@ class AuthService:
         No password: entry is gated at the endpoint by DEMO_MODE_ENABLED. Tokens
         carry a ``demo`` claim that DemoReadOnlyMiddleware uses to reject writes.
         """
-        user = await self.user_repo.find_by_email(settings.DEMO_EMAIL)
-        if not await self._is_enabled(user):
+        user = await self.uow.session.scalar(select(User).where(User.email == settings.DEMO_EMAIL)
+            .with_for_update(of=User).execution_options(populate_existing=True))
+        if not await self._is_enabled(user, lock=True):
             raise InvalidCredentials()
-        access_token = create_access_token(
-            data={"sub": str(user.id), "email": user.email, "type": "access", "demo": True},
-            expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
-        )
-        refresh_token = create_refresh_token(
-            data={"sub": str(user.id), "type": "refresh", "demo": True},
-        )
-        return {
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "token_type": "bearer",
-        }
+        return await self.sessions.issue(kind="staff", principal_id=user.id,
+            center_id=user.service_center_id,
+            claims={"sub": str(user.id), "email": user.email, "demo": True})
 
     async def get_current_user(self, token: str) -> User:
         """Decode access token and return the user."""
         user, _ = await self._token_user(token, "access")
         return user
 
-    async def _token_user(self, token: str, kind: str) -> tuple[User, dict]:
+    async def logout(self, token: str) -> None:
+        await self.sessions.logout(token, "staff")
+
+    async def _token_user(self, token: str, kind: str, *, lock_identity=False) -> tuple[User, dict]:
         payload = decode_token(token)
         if not payload or payload.get("type") != kind:
             raise InvalidToken()
@@ -164,7 +141,15 @@ class AuthService:
             user_id = uuid.UUID(payload.get("sub", ""))
         except (ValueError, TypeError, AttributeError):
             raise InvalidToken()
-        user = await self.user_repo.get_by_id(user_id)
-        if not await self._is_enabled(user):
+        # Identity is pinned before the token family to match disable lock order.
+        statement = select(User).where(User.id == user_id)
+        if lock_identity:
+            statement = statement.with_for_update(of=User)
+        user = await self.uow.session.scalar(statement.execution_options(populate_existing=True))
+        if not await self._is_enabled(user, lock=lock_identity):
+            raise InvalidToken()
+        proof = self.sessions.proof(token, "staff")
+        session = await self.sessions.load(proof, "staff")
+        if session.service_center_id != user.service_center_id:
             raise InvalidToken()
         return user, payload
