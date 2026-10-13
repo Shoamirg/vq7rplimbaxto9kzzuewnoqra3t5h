@@ -89,7 +89,7 @@ export function ConversationList({
                   </span>
                 )}
                 {c.ai_summary && (
-                  <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-px rounded-full border border-indigo-200 bg-linear-to-r from-indigo-50 to-violet-50 text-indigo-700">
+                  <span className="inline-flex max-w-full min-w-0 items-center gap-1 [overflow-wrap:anywhere] text-[10.5px] font-semibold px-2 py-px rounded-full border border-indigo-200 bg-linear-to-r from-indigo-50 to-violet-50 text-indigo-700">
                     {t("inbox.stored_summary")} · {c.ai_summary}
                   </span>
                 )}

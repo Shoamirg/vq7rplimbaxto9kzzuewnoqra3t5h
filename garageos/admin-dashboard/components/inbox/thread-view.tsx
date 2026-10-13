@@ -8,9 +8,11 @@ import {
 import { Button, cn } from "@garageos/design-system";
 
 import { clientFetch } from "@/lib/api/client";
-import type { ConvMessage, ConvStatus, ThreadDetail } from "@/lib/api/types";
+import type { ConvMessage, ConvStatus, Passport, ThreadDetail } from "@/lib/api/types";
 import { useI18n } from "@/lib/i18n/context";
 import { useMessageComposer } from "@/lib/use-message-composer";
+import { messageSessionEpoch } from "@/lib/message-reset";
+import { verifyStaffMessageActor } from "@/lib/use-staff-message-session";
 import { MessageSubmissionStatus } from "@/components/message-submission-status";
 import { NewAppointmentModal } from "@/components/appointments/new-appointment-modal";
 import { NewInvoiceModal } from "@/components/billing/new-invoice-modal";
@@ -53,6 +55,13 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
   const [passportShareResult, setPassportShareResult] = useState<{
     threadId: string; actorId: string; result: "copied" | "failed";
   } | null>(null);
+  const shareSelection = useRef({ threadId: thread.id, actorId });
+  if (shareSelection.current.threadId !== thread.id || shareSelection.current.actorId !== actorId) {
+    shareSelection.current = { threadId: thread.id, actorId };
+  }
+  const [sharingTarget, setSharingTarget] = useState<typeof shareSelection.current | null>(null);
+  const sharingRef = useRef<{ selection: typeof shareSelection.current; epoch: string } | null>(null);
+  const sharing = sharingTarget === shareSelection.current;
   const [exporting, setExporting] = useState(false);
   const [exportResult, setExportResult] = useState<"downloaded" | "failed" | null>(null);
   const exportingRef = useRef(false);
@@ -65,24 +74,48 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
   const [caseContext, setCaseContext] = useState<{ customerId: string; customerName: string; vehicleId?: string; vehicleLabel?: string } | null>(null);
   const blocked = !canWrite || loading || readError;
   const callHref = safeCallHref(thread.customer_phone);
-  const passport = thread.linked.find((card) => card.kind === "passport" && card.link);
+  const passport = thread.linked.find((card) => card.kind === "passport" && card.link && card.available !== false);
+  const caseLink = thread.linked.find((card) => card.kind === "case" && card.link && card.available !== false)?.link;
   const appointmentPreset = thread.customer_id && thread.customer_name ? {
     id: thread.customer_id, name: thread.customer_name, vehicleId: thread.vehicle_id ?? undefined,
   } : null;
 
   async function copyPassportLink() {
-    const targetId = thread.id;
-    const targetActor = actorId;
-    const targetLink = passport?.link;
+    const selection = shareSelection.current;
+    if (loading || readError || !passport || sharingRef.current?.selection === selection) return;
+    const action = { selection, epoch: messageSessionEpoch() };
+    sharingRef.current = action;
+    setSharingTarget(selection);
+    const targetVehicle = thread.vehicle_id;
+    const isCurrent = () => mounted.current && sharingRef.current === action
+      && shareSelection.current === selection && messageSessionEpoch() === action.epoch;
     setPassportShareResult(null);
-    if (!targetLink) return;
     try {
-      await navigator.clipboard.writeText(new URL(targetLink, window.location.origin).href);
-      if (currentThreadId.current !== targetId || currentActorId.current !== targetActor) return;
-      setPassportShareResult({ threadId: targetId, actorId: targetActor, result: "copied" });
+      const verified = await verifyStaffMessageActor(isCurrent);
+      if (!isCurrent()) return;
+      if (verified.actor.id !== selection.actorId) throw new Error("Passport actor changed");
+      const fresh = await clientFetch<ThreadDetail>(`/conversations/${selection.threadId}`, { cache: "no-store" });
+      if (!isCurrent()) return;
+      const expectedLink = targetVehicle ? `/passport/${targetVehicle}` : null;
+      const card = fresh.linked.find(item => item.kind === "passport" && item.available !== false);
+      if (fresh.id !== selection.threadId || fresh.vehicle_id !== targetVehicle || !expectedLink || card?.link !== expectedLink) {
+        throw new Error("Current passport context unavailable");
+      }
+      const artifact = await clientFetch<Passport>(`/public/passport/${targetVehicle}`, { cache: "no-store" });
+      if (!isCurrent()) return;
+      if (artifact.vehicle?.id !== targetVehicle) throw new Error("Passport artifact unavailable");
+      await verifyStaffMessageActor(isCurrent, verified.actor);
+      if (!isCurrent()) return;
+      await navigator.clipboard.writeText(new URL(expectedLink, window.location.origin).href);
+      if (!isCurrent()) return;
+      setPassportShareResult({ ...selection, result: "copied" });
     } catch {
-      if (currentThreadId.current !== targetId || currentActorId.current !== targetActor) return;
-      setPassportShareResult({ threadId: targetId, actorId: targetActor, result: "failed" });
+      if (isCurrent()) setPassportShareResult({ ...selection, result: "failed" });
+    } finally {
+      if (sharingRef.current === action) {
+        sharingRef.current = null;
+        setSharingTarget(null);
+      }
     }
   }
 
@@ -161,8 +194,8 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
-            {thread.case_id && (
-              <Link href={`/operations?case=${thread.case_id}`}
+            {caseLink && (
+              <Link href={caseLink}
                 className="min-h-11 min-w-11 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 inline-flex items-center gap-1">
                 <Siren className="size-3.5" /> {t("message.open_case")} <ArrowUpRight className="size-3" />
               </Link>
@@ -291,6 +324,7 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
         {passport ? (
           <Button variant="outline" size="sm" className="min-h-11 min-w-11"
             leftIcon={<Share2 className="size-3.5" aria-hidden="true" />}
+            disabled={loading || readError || sharing} aria-busy={sharing}
             onClick={() => void copyPassportLink()}>
             {t("message.action.share_passport")}
           </Button>
