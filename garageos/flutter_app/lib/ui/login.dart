@@ -139,6 +139,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         : (value) => setState(() => customer = value.first),
                   ),
                   SizedBox(height: 16),
+                  if (widget.state.sessionNotice != null)
+                    ErrorNotice(widget.state.sessionNotice!),
                   if (error != null) ErrorNotice(error!),
                   TextFormField(
                     controller: email,

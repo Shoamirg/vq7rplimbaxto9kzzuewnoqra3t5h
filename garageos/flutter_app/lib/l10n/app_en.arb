@@ -22,6 +22,7 @@
   "confirmSignOut": "Sign out of your account?",
   "stay": "Stay",
   "signOut": "Sign out",
+  "logoutUnconfirmed": "Signed out on this device. Server session revocation could not be confirmed.",
   "appointments": "Appointments",
   "customers": "Customers",
   "invoices": "Invoices",

@@ -19,6 +19,8 @@ String failureText(Object error) => error is AppFailure
     ? error.message
     : 'Maʼlumotni olishda xatolik yuz berdi. Qayta urinib koʻring.';
 
+enum LogoutOutcome { confirmed, unconfirmed, none }
+
 class ApiClient {
   ApiClient(
     String address, {
@@ -36,7 +38,28 @@ class ApiClient {
   final Uri base;
   final String refreshPath;
   final http.Client _client;
-  String? accessToken, refreshToken;
+  String? _accessToken, _refreshToken;
+  int _generation = 0;
+  bool _closed = false, _invalidated = false;
+  String? get accessToken => _accessToken;
+  set accessToken(String? token) {
+    // A deliberate login replaces identity; callbacks from the old session
+    // cannot clear or reinstall credentials for the new one.
+    _generation++;
+    _accessToken = token;
+    _refreshing = null;
+    if (token != null && !_closed) _invalidated = false;
+  }
+
+  String? get refreshToken => _refreshToken;
+  set refreshToken(String? token) {
+    if (_refreshToken != token) {
+      _generation++;
+      _refreshing = null;
+    }
+    _refreshToken = token;
+  }
+
   void Function()? onExpired;
   Future<void>? _refreshing;
   static Uri validateAddress(String value, {bool? requireHttps}) {
@@ -64,6 +87,8 @@ class ApiClient {
     String? idempotencyKey,
     bool authenticated = true,
   }) async {
+    final generation = _generation;
+    if (_closed || (authenticated && _invalidated)) throw _expired();
     final usedToken = accessToken;
     var response = await _send(
       method,
@@ -73,15 +98,21 @@ class ApiClient {
       idempotencyKey,
       authenticated,
     );
+    if (generation != _generation || _closed) {
+      throw _expired(uncertain: method != 'GET');
+    }
     if (response.statusCode == 401 && authenticated && refreshToken != null) {
       // A concurrent request might already have replaced the expired token.
       if (usedToken == accessToken) {
-        _refreshing ??= _refresh();
+        final refreshing = _refreshing ??= _refresh(generation, refreshToken!);
         try {
-          await _refreshing;
+          await refreshing;
         } finally {
-          _refreshing = null;
+          if (identical(_refreshing, refreshing)) _refreshing = null;
         }
+      }
+      if (generation != _generation || _closed || _invalidated) {
+        throw _expired();
       }
       response = await _send(
         method,
@@ -91,6 +122,9 @@ class ApiClient {
         idempotencyKey,
         authenticated,
       );
+    }
+    if (generation != _generation || _closed) {
+      throw _expired(uncertain: method != 'GET');
     }
     if (requireHttps &&
         response.statusCode >= 300 &&
@@ -102,8 +136,7 @@ class ApiClient {
       );
     }
     if (response.statusCode == 401 && authenticated) {
-      accessToken = refreshToken = null;
-      onExpired?.call();
+      _expire(generation);
     }
     dynamic data;
     try {
@@ -192,27 +225,91 @@ class ApiClient {
     }
   }
 
-  Future<void> _refresh() async {
+  AppFailure _expired({bool uncertain = false}) => AppFailure(
+    'Kirish muddati tugadi. Qayta kiring.',
+    status: 401,
+    uncertain: uncertain,
+  );
+
+  void _invalidate() {
+    _generation++;
+    _invalidated = true;
+    _accessToken = _refreshToken = null;
+    _refreshing = null;
+  }
+
+  void _expire(int generation) {
+    if (generation != _generation || _closed || _invalidated) return;
+    _invalidate();
+    onExpired?.call();
+  }
+
+  Future<void> _refresh(int generation, String token) async {
     try {
       final data = await request(
         'POST',
         refreshPath,
         authenticated: false,
-        body: {'refresh_token': refreshToken},
+        body: {'refresh_token': token},
       );
-      accessToken = data['access_token'];
-      refreshToken = data['refresh_token'];
-    } on AppFailure catch (e) {
-      if (e.status == 401 || e.status == 403) {
-        accessToken = refreshToken = null;
-        onExpired?.call();
+      if (generation != _generation || _closed || _refreshToken != token) {
+        throw _expired();
       }
-      rethrow;
+      if (data is! Map ||
+          data['access_token'] is! String ||
+          (data['access_token'] as String).trim().isEmpty ||
+          data['refresh_token'] is! String ||
+          (data['refresh_token'] as String).trim().isEmpty ||
+          data['refresh_token'] == token ||
+          (data['token_type'] != null && data['token_type'] != 'bearer')) {
+        throw _expired(uncertain: true);
+      }
+      _accessToken = data['access_token'];
+      _refreshToken = data['refresh_token'];
+    } catch (_) {
+      // Rotation may already have committed when its reply is lost. Keeping
+      // the old token would turn a transport retry into replay revocation.
+      _expire(generation);
+      throw _expired();
+    }
+  }
+
+  Future<LogoutOutcome> logout() async {
+    final refresh = _refreshToken, access = _accessToken;
+    _invalidate(); // Hide the old identity before any server await.
+    if (_closed || (refresh == null && access == null)) {
+      return LogoutOutcome.none;
+    }
+    final path = refreshPath == '/customer/auth/refresh'
+        ? '/customer/auth/logout'
+        : '/auth/logout';
+    final request =
+        http.Request('POST', base.replace(path: '${base.path}$path'))
+          ..followRedirects = false
+          ..headers['Content-Type'] = 'application/json'
+          ..headers['Accept'] = 'application/json';
+    if (refresh != null) {
+      request.body = jsonEncode({'refresh_token': refresh});
+    } else {
+      request.headers['Authorization'] = 'Bearer $access';
+    }
+    try {
+      final response = await _client
+          .send(request)
+          .then(http.Response.fromStream)
+          .timeout(const Duration(seconds: 15));
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+      return response.statusCode == 200 && data is Map && data['ok'] == true
+          ? LogoutOutcome.confirmed
+          : LogoutOutcome.unconfirmed;
+    } catch (_) {
+      return LogoutOutcome.unconfirmed;
     }
   }
 
   void close() {
-    accessToken = refreshToken = null;
+    _invalidate();
+    _closed = true;
     _client.close();
   }
 }

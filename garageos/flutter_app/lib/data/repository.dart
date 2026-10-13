@@ -54,6 +54,7 @@ abstract class GarageRepository {
   Future<Bill?> billForWork(String id);
   Future<Bill> createBill(Work work, List<BillLine> lines, double taxRate);
   Future<Bill> pay(String id, Money amount, String method, String key);
+  Future<LogoutOutcome> logout() async => LogoutOutcome.none;
   void close() {}
 }
 
@@ -253,6 +254,8 @@ class LiveRepository extends GarageRepository {
     }
   }
 
+  @override
+  Future<LogoutOutcome> logout() => api.logout();
   @override
   void close() => api.close();
 }

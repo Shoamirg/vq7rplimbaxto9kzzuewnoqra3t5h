@@ -5,6 +5,7 @@ import 'data/session.dart';
 import 'data/customer_repository.dart';
 import 'data/demo_repository.dart';
 import 'data/repository.dart';
+import 'data/api_client.dart';
 
 class AppState extends ChangeNotifier {
   GarageRepository? repository;
@@ -14,6 +15,8 @@ class AppState extends ChangeNotifier {
   Locale locale = const Locale('uz');
   int _localeRevision = 0;
   bool _disposed = false;
+  int _sessionRevision = 0;
+  String? sessionNotice;
   Future<void> _preferenceWrites = Future.value();
   void Function()? onExpired;
   Future<void> restoreLocale() async {
@@ -63,6 +66,8 @@ class AppState extends ChangeNotifier {
   }
 
   void demo() {
+    _sessionRevision++;
+    sessionNotice = null;
     repository?.close();
     customerRepository?.close();
     customerRepository = null;
@@ -78,6 +83,7 @@ class AppState extends ChangeNotifier {
     String password, {
     bool customer = false,
   }) async {
+    final revision = ++_sessionRevision;
     if (customer) {
       final session = await CustomerRepository.login(
         address,
@@ -85,12 +91,17 @@ class AppState extends ChangeNotifier {
         password,
         onExpired: () => onExpired?.call(),
       );
+      if (_disposed || revision != _sessionRevision) {
+        session.close();
+        return;
+      }
       repository?.close();
       customerRepository?.close();
       repository = null;
       customerRepository = session;
       name = session.name;
       garageName = session.garageName;
+      sessionNotice = null;
       notifyListeners();
       return;
     }
@@ -100,26 +111,63 @@ class AppState extends ChangeNotifier {
       password,
       onExpired: () => onExpired?.call(),
     );
+    if (_disposed || revision != _sessionRevision) {
+      session.repository.close();
+      return;
+    }
     repository?.close();
     customerRepository?.close();
     customerRepository = null;
     repository = session.repository;
     name = session.name;
     garageName = session.garageName;
+    sessionNotice = null;
     notifyListeners();
   }
 
-  void logout() {
+  void expire() {
+    _sessionRevision++;
     repository?.close();
     customerRepository?.close();
     customerRepository = null;
     repository = null;
     name = garageName = '';
+    sessionNotice = 'Kirish muddati tugadi. Qayta kiring.';
+    notifyListeners();
+  }
+
+  Future<void> logout() async {
+    final staff = repository, customer = customerRepository;
+    final revision = ++_sessionRevision;
+    // Detach immediately; pending UI and refresh callbacks own the old client.
+    repository = null;
+    customerRepository = null;
+    name = garageName = '';
+    sessionNotice = null;
+    notifyListeners();
+    LogoutOutcome outcome;
+    try {
+      outcome = customer != null
+          ? await customer.logout()
+          : staff != null
+          ? await staff.logout()
+          : LogoutOutcome.none;
+    } catch (_) {
+      outcome = LogoutOutcome.unconfirmed;
+    } finally {
+      staff?.close();
+      customer?.close();
+    }
+    if (_disposed || revision != _sessionRevision) return;
+    if (outcome == LogoutOutcome.unconfirmed) {
+      sessionNotice = 'Qurilmada hisobdan chiqildi. Serverdagi sessiya bekor qilingani tasdiqlanmadi.';
+    }
     notifyListeners();
   }
 
   @override
   void dispose() {
+    _sessionRevision++;
     _disposed = true;
     repository?.close();
     customerRepository?.close();

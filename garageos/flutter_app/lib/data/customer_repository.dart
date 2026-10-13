@@ -54,5 +54,6 @@ class CustomerRepository {
 
   Future<Json> invoice(String id) async =>
       Json.from(await _api.request('GET', '/customer/history/invoices/$id'));
+  Future<LogoutOutcome> logout() => _api.logout();
   void close() => _api.close();
 }

@@ -136,6 +136,8 @@ extension LocalizedContext on BuildContext {
     "Kirish muddati tugadi. Qayta kiring." ||
     "Your session expired. Sign in again." ||
     "Сеанс истёк. Войдите снова." => l10n.sessionExpired,
+    "Qurilmada hisobdan chiqildi. Serverdagi sessiya bekor qilingani tasdiqlanmadi." =>
+      l10n.logoutUnconfirmed,
     "Bu amal uchun ruxsat yoʻq." ||
     "You do not have permission for this action." ||
     "У вас нет разрешения на это действие." => l10n.forbidden,

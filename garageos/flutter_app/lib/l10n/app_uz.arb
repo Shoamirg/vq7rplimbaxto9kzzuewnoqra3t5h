@@ -22,6 +22,7 @@
   "confirmSignOut": "Hisobdan chiqasizmi?",
   "stay": "Qolish",
   "signOut": "Chiqish",
+  "logoutUnconfirmed": "Qurilmada hisobdan chiqildi. Serverdagi sessiya bekor qilingani tasdiqlanmadi.",
   "appointments": "Navbat",
   "customers": "Mijozlar",
   "invoices": "Hisoblar",

@@ -87,6 +87,213 @@ void main() {
     expect(api.accessToken, isNull);
     api.close();
   });
+  for (final failure in [
+    'offline',
+    'server',
+    'malformed',
+    'unchanged',
+    'wrong-type',
+  ]) {
+    test(
+      'uncertain $failure refresh expires locally and is never replayed',
+      () async {
+        var refreshes = 0, writes = 0, expired = 0;
+        final api = ApiClient(
+          'https://example.test/api/v1',
+          client: MockClient((r) async {
+            if (r.url.path.endsWith('/refresh')) {
+              refreshes++;
+              if (failure == 'offline') {
+                throw http.ClientException('response lost');
+              }
+              if (failure == 'server') return json({}, 503);
+              if (failure == 'unchanged') {
+                return json({
+                  'access_token': 'new',
+                  'refresh_token': 'refresh',
+                });
+              }
+              if (failure == 'wrong-type') {
+                return json({
+                  'access_token': 'new',
+                  'refresh_token': 'rotated',
+                  'token_type': 'other',
+                });
+              }
+              return json({'access_token': 'new', 'refresh_token': null});
+            }
+            writes++;
+            return json({}, 401);
+          }),
+        );
+        api.accessToken = 'old';
+        api.refreshToken = 'refresh';
+        api.onExpired = () => expired++;
+        await expectLater(
+          api.request('POST', '/invoices/i/payments', body: {'amount': 1}),
+          throwsA(isA<AppFailure>()),
+        );
+        expect(api.accessToken, isNull);
+        expect(api.refreshToken, isNull);
+        await expectLater(
+          api.request('POST', '/invoices/i/payments', body: {'amount': 1}),
+          throwsA(isA<AppFailure>()),
+        );
+        expect(refreshes, 1);
+        expect(writes, 1);
+        expect(expired, 1);
+        api.close();
+      },
+    );
+  }
+  test('late refresh cannot restore tokens after logout, and customer logout uses its own endpoint', () async {
+    final held = Completer<http.Response>(), entered = Completer<void>();
+    final api = ApiClient(
+      'https://example.test/api/v1',
+      refreshPath: '/customer/auth/refresh',
+      client: MockClient((r) async {
+        if (r.url.path.endsWith('/refresh')) {
+          entered.complete();
+          return held.future;
+        }
+        if (r.url.path.endsWith('/logout')) {
+          expect(r.url.path, '/api/v1/customer/auth/logout');
+          expect(jsonDecode(r.body)['refresh_token'], 'refresh');
+          return json({'ok': true});
+        }
+        return json({}, 401);
+      }),
+    );
+    api.accessToken = 'old';
+    api.refreshToken = 'refresh';
+    final request = api.request('GET', '/customer/me');
+    final failed = expectLater(request, throwsA(isA<AppFailure>()));
+    await entered.future;
+    expect(await api.logout(), LogoutOutcome.confirmed);
+    held.complete(json({'access_token': 'new', 'refresh_token': 'rotated'}));
+    await failed;
+    expect(api.accessToken, isNull);
+    expect(api.refreshToken, isNull);
+    api.close();
+  });
+  test(
+    'close prevents a late successful refresh from reviving the client',
+    () async {
+      final held = Completer<http.Response>(), entered = Completer<void>();
+      final api = ApiClient(
+        'https://example.test/api/v1',
+        client: MockClient((r) async {
+          if (r.url.path.endsWith('/refresh')) {
+            entered.complete();
+            return held.future;
+          }
+          return json({}, 401);
+        }),
+      );
+      api.accessToken = 'old';
+      api.refreshToken = 'refresh';
+      final failed = expectLater(
+        api.request('GET', '/auth/me'),
+        throwsA(isA<AppFailure>()),
+      );
+      await entered.future;
+      api.close();
+      held.complete(json({'access_token': 'new', 'refresh_token': 'rotated'}));
+      await failed;
+      expect(api.accessToken, isNull);
+      expect(api.refreshToken, isNull);
+    },
+  );
+  test('offline logout clears local tokens and reports unconfirmed server revocation', () async {
+    final api = ApiClient(
+      'https://example.test/api/v1',
+      client: MockClient((r) async => throw http.ClientException('offline')),
+    );
+    api.accessToken = 'old';
+    api.refreshToken = 'refresh';
+    expect(await api.logout(), LogoutOutcome.unconfirmed);
+    expect(api.accessToken, isNull);
+    expect(api.refreshToken, isNull);
+    api.close();
+  });
+  test(
+    'late old refresh does not clear a deliberately replaced token pair',
+    () async {
+      final held = Completer<http.Response>(), entered = Completer<void>();
+      var expired = 0;
+      final api = ApiClient(
+        'https://example.test/api/v1',
+        client: MockClient((r) async {
+          if (r.url.path.endsWith('/refresh')) {
+            entered.complete();
+            return held.future;
+          }
+          return json({}, 401);
+        }),
+      );
+      api.accessToken = 'old';
+      api.refreshToken = 'refresh';
+      api.onExpired = () => expired++;
+      final failed = expectLater(
+        api.request('GET', '/auth/me'),
+        throwsA(isA<AppFailure>()),
+      );
+      await entered.future;
+      api.accessToken = 'deliberate-login';
+      api.refreshToken = 'deliberate-refresh';
+      held.complete(
+        json({
+          'access_token': 'late-old-access',
+          'refresh_token': 'late-old-refresh',
+        }),
+      );
+      await failed;
+      expect(api.accessToken, 'deliberate-login');
+      expect(api.refreshToken, 'deliberate-refresh');
+      expect(expired, 0);
+      api.close();
+    },
+  );
+  for (final status in [401, 403]) {
+    test(
+      'revoked or suspended refresh $status expires both concurrent callers once',
+      () async {
+        final arrived = Completer<void>();
+        var requests = 0, refreshes = 0, expired = 0;
+        final api = ApiClient(
+          'https://example.test/api/v1',
+          client: MockClient((r) async {
+            if (r.url.path.endsWith('/refresh')) {
+              refreshes++;
+              return json({}, status);
+            }
+            requests++;
+            if (requests == 2) arrived.complete();
+            await arrived.future;
+            return json({}, 401);
+          }),
+        );
+        api.accessToken = 'old';
+        api.refreshToken = 'refresh';
+        api.onExpired = () => expired++;
+        await Future.wait([
+          expectLater(
+            api.request('GET', '/auth/me'),
+            throwsA(isA<AppFailure>()),
+          ),
+          expectLater(
+            api.request('GET', '/customers'),
+            throwsA(isA<AppFailure>()),
+          ),
+        ]);
+        expect(expired, 1);
+        expect(refreshes, 1);
+        expect(api.accessToken, isNull);
+        expect(api.refreshToken, isNull);
+        api.close();
+      },
+    );
+  }
   test('unknown payment result retains intent across repository recreation and retry', () async {
     final store = MemoryPaymentStore();
     var calls = 0;

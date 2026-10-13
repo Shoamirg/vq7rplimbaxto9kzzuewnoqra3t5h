@@ -22,6 +22,7 @@
   "confirmSignOut": "Выйти из аккаунта?",
   "stay": "Остаться",
   "signOut": "Выйти",
+  "logoutUnconfirmed": "Вы вышли на этом устройстве. Отзыв сеанса на сервере не подтверждён.",
   "appointments": "Записи",
   "customers": "Клиенты",
   "invoices": "Счета",

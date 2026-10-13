@@ -25,13 +25,18 @@ class _GarageAppState extends State<GarageApp> {
   @override
   void initState() {
     super.initState();
-    state.onExpired = logout;
+    state.onExpired = expire;
     unawaited(state.restoreLocale());
   }
 
   void logout() {
     navigator.currentState?.popUntil((route) => route.isFirst);
-    state.logout();
+    unawaited(state.logout());
+  }
+
+  void expire() {
+    navigator.currentState?.popUntil((route) => route.isFirst);
+    state.expire();
   }
 
   @override
