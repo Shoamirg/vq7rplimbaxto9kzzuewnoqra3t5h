@@ -415,6 +415,27 @@ async def test_start_transition_must_complete_before_execution_details_can_be_sa
         )
 
 
+@pytest.mark.parametrize(
+    "intake_update",
+    [
+        {"customer_concern": "Newly reported issue"},
+        {"assigned_mechanic_user_id": mechanic.id},
+    ],
+    ids=["customer-concern", "mechanic-assignment"],
+)
+@pytest.mark.asyncio
+async def test_intake_fields_cannot_change_after_work_starts(memory_service, intake_update):
+    service, _ = memory_service
+    created = await service.create_work_order(WorkOrderCreateRequest(
+        customer_id=CUSTOMER_ID, vehicle_id=VEHICLE_ID, service_type="Oil change",
+    ), "intake-fields-lock-key")
+    order_id = uuid.UUID(created["id"])
+    await service.update_work_order(order_id, WorkOrderUpdateRequest(status="in_progress"))
+
+    with pytest.raises(WorkOrderConflict):
+        await service.update_work_order(order_id, WorkOrderUpdateRequest(**intake_update))
+
+
 @pytest.mark.asyncio
 async def test_ready_requires_work_performed_and_invalid_skips_are_rejected(memory_service):
     service, _ = memory_service

@@ -173,6 +173,10 @@ class WorkOrderService:
         if order.status != WorkOrderStatus.IN_PROGRESS and execution_fields:
             raise WorkOrderConflict("Work execution details can only be changed after work starts")
 
+        intake_fields = mutable_fields & {"customer_concern", "assigned_mechanic_user_id"}
+        if order.status != WorkOrderStatus.RECEIVED and intake_fields:
+            raise WorkOrderConflict("Intake details can only be changed before work starts")
+
         if role_name == "mechanic":
             if mutable_fields - {"work_performed"}:
                 self._authorize("edit_fields", order)
