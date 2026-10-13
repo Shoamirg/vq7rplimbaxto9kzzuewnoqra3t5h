@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Manrope } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
+import { AuthSessionListener } from "@/components/providers/auth-session-listener";
 
 // Body font — Cyrillic subset added so RU/UZ render in Inter, not a fallback.
 const inter = Inter({ subsets: ["latin", "cyrillic"], variable: "--font-sans" });
@@ -27,7 +28,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning className={`${inter.variable} ${manrope.variable}`}>
       <body className={inter.className}>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <AuthSessionListener />
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

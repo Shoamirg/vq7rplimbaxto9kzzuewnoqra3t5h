@@ -7,11 +7,28 @@ import { AUTH_COOKIE } from "@/lib/api/constants";
 // /mini/* is the customer Mini App: a separate principal with its own customer
 // token cookie, so it must bypass the staff auth gate entirely.
 // The public marketing site + demo entry. "/" is handled as an exact match below.
-const PUBLIC_PATHS = ["/login", "/passport", "/invoice", "/mini", "/demo", "/pricing", "/security", "/docs", "/privacy", "/terms"];
+const PUBLIC_PATHS = ["/login", "/passport", "/invoice", "/mini", "/demo", "/pricing", "/security", "/docs", "/privacy", "/terms", "/session/refresh"];
+
+function accessTokenNeedsRefresh(token: string): boolean {
+  try {
+    const encodedPayload = token.split(".")[1];
+    if (!encodedPayload) return true;
+    const base64 = encodedPayload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+    const payload = JSON.parse(atob(padded)) as {
+      exp?: unknown;
+    };
+    return typeof payload.exp !== "number" || payload.exp <= Math.floor(Date.now() / 1000) + 30;
+  } catch {
+    // This is only a redirect hint. The backend remains the authority for JWT validation.
+    return true;
+  }
+}
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  const isAuthed = Boolean(req.cookies.get(AUTH_COOKIE)?.value);
+  const accessToken = req.cookies.get(AUTH_COOKIE)?.value;
+  const isAuthed = Boolean(accessToken);
   // "/" is the public landing page (exact match, since every path startsWith "/").
   const isPublic = pathname === "/" || PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 
@@ -20,6 +37,14 @@ export function proxy(req: NextRequest) {
     const url = req.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("from", pathname);
+    return NextResponse.redirect(url);
+  }
+
+  if (isAuthed && !isPublic && accessToken && accessTokenNeedsRefresh(accessToken)) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/session/refresh";
+    url.search = "";
+    url.searchParams.set("returnTo", `${pathname}${req.nextUrl.search}`);
     return NextResponse.redirect(url);
   }
 

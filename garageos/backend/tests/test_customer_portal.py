@@ -112,6 +112,30 @@ async def test_refresh_issues_new_pair(session):
 
 
 @pytest.mark.asyncio
+async def test_replayed_customer_refresh_revokes_its_session_family(session):
+    _, customer = await _tenant(session, telegram_id=910006)
+    svc = _svc(session)
+    original = (await svc.authenticate_telegram(_init_data(910006)))["refresh_token"]
+
+    first = await svc.refresh(original)
+    with pytest.raises(InvalidToken):
+        await svc.refresh(original)
+    with pytest.raises(InvalidToken):
+        await svc.refresh(first["refresh_token"])
+
+
+@pytest.mark.asyncio
+async def test_customer_logout_revokes_refresh_family(session):
+    _, customer = await _tenant(session, telegram_id=910007)
+    svc = _svc(session)
+    tokens = await svc.authenticate_telegram(_init_data(910007))
+
+    await svc.logout(tokens["refresh_token"])
+    with pytest.raises(InvalidToken):
+        await svc.refresh(tokens["refresh_token"])
+
+
+@pytest.mark.asyncio
 async def test_link_by_phone(session):
     _, customer = await _tenant(session, telegram_id=None)  # unlinked
     svc = _svc(session)

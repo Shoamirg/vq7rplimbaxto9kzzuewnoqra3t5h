@@ -21,6 +21,7 @@ from app.schemas.auth import (
 from app.schemas.branding import Branding, branding_dict
 from app.services.audit_service import record_audit
 from app.services.auth_service import AuthService
+from app.services.refresh_token_service import RefreshTokenReplay
 
 router = APIRouter()
 
@@ -71,11 +72,32 @@ async def refresh(
     # login. The token itself is never recorded — only the outcome + provenance.
     try:
         tokens = await auth.refresh(body.refresh_token)
+    except RefreshTokenReplay:
+        # Persist family revocation before returning 401; get_db rolls back the
+        # request transaction when an auth exception leaves the endpoint.
+        await auth.uow.session.commit()
+        await record_audit(action="auth.refresh.replay", status="failure", request=request)
+        raise
     except GarageException:
         await record_audit(action="auth.refresh.failure", status="failure", request=request)
         raise
     await record_audit(action="auth.refresh.success", request=request)
     return TokenResponse(**tokens)
+
+
+@router.post(
+    "/logout",
+    summary="Revoke a refresh-token session",
+    dependencies=[Depends(auth_rate_limit)],
+)
+async def logout(
+    body: RefreshTokenRequest,
+    request: Request,
+    auth: AuthService = Depends(get_auth_service),
+) -> dict[str, bool]:
+    await auth.logout(body.refresh_token)
+    await record_audit(action="auth.logout", request=request)
+    return {"ok": True}
 
 
 @router.post(

@@ -128,3 +128,9 @@
 - Haqiqiy lokal servisga qarshi 4 ta Playwright smoke-test o‘tdi: admin login, mechanic login va navigatsiya ruxsatlari, 320px walk-in layout. Ma’lumot yaratadigan oqimlar bu qayta tekshiruvda ishga tushirilmadi.
 - Audit npm `11.21.0` bilan workspace lockfile’dan qayta bajarildi: `npm audit --omit=dev` — 0; to‘liq audit — 5 high, hammasi `eslint-config-next@16.4.0 -> @next/eslint-plugin-next@16.4.0 -> fast-glob@3.3.1 -> micromatch@4.0.8 -> braces@3.0.3` development zanjirida. GitHub advisory patched version ko‘rsatmaydi; maintainer advisory da’vosiga ochiqchasiga qo‘shilmayapti ([advisory](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm), [upstream muhokama](https://github.com/micromatch/braces/issues/84)). Xavfsiz, mos-range remediation hozir yo‘q; release gate ochiq qoladi. 2026-10-20 gacha qayta tekshirish.
 - CLI `npm@11.21.0` vaqtinchalik tool papkasidan ishga tushirildi; project package manifests va lockfile o‘zgarmadi.
+
+## Task 8: Refresh-token sessiyalarini mustahkamlash
+
+**Reja:** [Auth session hardening](auth-session-plan.md). Bu ish backend staff/customer token rotation, BFF HttpOnly refresh cookie va logout revocation’ni qamrab oladi.
+
+**Holat:** Bajarildi. Backend refresh-token rotation/replay/logout, staff/customer BFF cookie refresh, same-origin request guard, ADR, migration, regression tests complete. Backend 179 test, Playwright 20 test, TypeScript, i18n, lint, build all passed. Production deploy qilinmadi.

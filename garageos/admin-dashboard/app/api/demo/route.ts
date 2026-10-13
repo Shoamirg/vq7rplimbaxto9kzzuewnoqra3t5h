@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { DEMO_COOKIE } from "@/lib/api/constants";
+import { DEMO_COOKIE, REFRESH_COOKIE } from "@/lib/api/constants";
 import { AUTH_COOKIE, apiBaseUrl } from "@/lib/api/server";
 
 // Zero-friction entry into the read-only public demo: log into the demo tenant
@@ -20,11 +20,16 @@ export async function GET(req: Request) {
     return NextResponse.redirect(`${origin}/?demo=unavailable`);
   }
 
-  const tokens = (await res.json()) as { access_token: string };
+  const tokens = (await res.json()) as { access_token: string; refresh_token: string };
   const response = NextResponse.redirect(`${origin}/dashboard`);
   const secure = process.env.NODE_ENV === "production";
   const opts = { httpOnly: true, secure, sameSite: "lax" as const, path: "/", maxAge: 60 * 30 };
   response.cookies.set(AUTH_COOKIE, tokens.access_token, opts);
   response.cookies.set(DEMO_COOKIE, "1", opts);
+  response.cookies.set(REFRESH_COOKIE, tokens.refresh_token, {
+    ...opts,
+    path: "/api/auth",
+    maxAge: 60 * 60 * 24 * 7,
+  });
   return response;
 }

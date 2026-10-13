@@ -173,6 +173,9 @@ jobs:
       SECRET_KEY: ci-e2e-secret-key-not-for-production
       ENVIRONMENT: development
       DEBUG: "true"
+      # Login-heavy browser flows exceed the public auth ceiling by design;
+      # rate-limit behavior is covered in the dedicated backend tests.
+      RATE_LIMIT_ENABLED: "false"
       NEXT_PUBLIC_API_URL: http://127.0.0.1:8000/api/v1
       NEXT_TELEMETRY_DISABLED: "1"
     steps:

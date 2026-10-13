@@ -4,7 +4,7 @@ import base64
 from datetime import timedelta
 
 from app.core.config import settings
-from app.core.security import create_access_token, decode_token
+from app.core.security import create_access_token, create_refresh_token, decode_token
 
 _LEGACY_JOSE_TOKEN = (
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
@@ -71,3 +71,13 @@ def test_access_token_with_tampered_signature_is_rejected():
     invalid_signature = base64.urlsafe_b64encode(bytes(32)).decode().rstrip("=")
 
     assert decode_token(f"{header}.{payload}.{invalid_signature}") is None
+
+
+def test_refresh_tokens_have_distinct_random_ids():
+    first = create_refresh_token({"sub": "staff-123", "type": "refresh"})
+    second = create_refresh_token({"sub": "staff-123", "type": "refresh"})
+
+    first_payload = decode_token(first)
+    second_payload = decode_token(second)
+    assert first != second
+    assert first_payload["jti"] != second_payload["jti"]

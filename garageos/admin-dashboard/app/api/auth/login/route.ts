@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 
 import { AUTH_COOKIE, apiBaseUrl } from "@/lib/api/server";
+import { REFRESH_COOKIE } from "@/lib/api/constants";
+import { isSameOriginRequest } from "@/lib/api/request-security";
 
 // BFF login: proxy credentials to the backend, then store the access token in
 // an httpOnly cookie so it is never exposed to client JS (XSS-safe).
 export async function POST(req: Request) {
+  if (!isSameOriginRequest(req)) {
+    return NextResponse.json({ error: "same-origin request required" }, { status: 403 });
+  }
   const body = await req.json().catch(() => null);
   if (!body?.email || !body?.password) {
     return NextResponse.json({ error: "email and password are required" }, { status: 400 });
@@ -20,7 +25,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
   }
 
-  const tokens = (await res.json()) as { access_token: string };
+  const tokens = (await res.json()) as { access_token: string; refresh_token: string };
   let profile: { role?: string | null };
   try {
     const profileRes = await fetch(`${apiBaseUrl()}/auth/me`, {
@@ -43,6 +48,13 @@ export async function POST(req: Request) {
     sameSite: "lax",
     path: "/",
     maxAge: 60 * 30, // matches backend ACCESS_TOKEN_EXPIRE_MINUTES
+  });
+  response.cookies.set(REFRESH_COOKIE, tokens.refresh_token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/api/auth",
+    maxAge: 60 * 60 * 24 * 7,
   });
   return response;
 }

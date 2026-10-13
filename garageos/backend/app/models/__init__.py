@@ -26,6 +26,7 @@ from app.models.invoice import (
 )
 from app.models.ledger import LedgerEntry
 from app.models.audit_log import AuditLog
+from app.models.refresh_session_token import RefreshSessionToken
 
 __all__ = [
     "BaseModelMixin",
@@ -55,4 +56,5 @@ __all__ = [
     "Payment",
     "LedgerEntry",
     "AuditLog",
+    "RefreshSessionToken",
 ]

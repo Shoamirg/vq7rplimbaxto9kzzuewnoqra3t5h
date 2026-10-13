@@ -16,7 +16,7 @@ The backend dependency audit found known issues in the pinned `python-jose` and 
 
 ## Decision
 
-Use [PyJWT](https://pypi.org/project/PyJWT/) for token encoding and decoding. Pin the audited dependency set in `garageos/backend/requirements.txt`, remove `python-jose`, and keep the existing signed JWT claims and algorithm allow-list. Add token tests that cover expiry, tampered signatures, and fixed access and refresh tokens produced by the previous library to prove existing sessions remain compatible. Production configuration must also reject placeholder/short JWT secrets and `DEBUG=true`.
+Use [PyJWT](https://pypi.org/project/PyJWT/) for token encoding and decoding. Pin the audited dependency set in `garageos/backend/requirements.txt`, remove `python-jose`, and keep the existing access-token claims and algorithm allow-list. Refresh-session persistence and the random refresh-token `jti` are defined by [ADR-002](ADR-002-stateful-refresh-sessions.md). Add token tests that cover expiry, tampered signatures, and fixed access and refresh tokens produced by the previous library to prove existing signed tokens remain compatible. Production configuration must also reject placeholder/short JWT secrets and `DEBUG=true`.
 
 Upgrade FastAPI and Starlette together to compatible security-fixed releases, update the other packages identified by `pip-audit`, and run a Python dependency audit as its own CI job.
 
@@ -32,7 +32,7 @@ Rejected because the runtime JWT library and framework stack had available fixes
 
 ## Consequences
 
-- Existing HS256 access and refresh tokens remain valid; no login/API contract or claim changes are intended.
+- Existing HS256 access and refresh tokens remain verifiable. Existing untracked refresh tokens can be exchanged once into the session system; new refresh tokens include a random `jti` as described in ADR-002. The API token response shape is unchanged.
 - JWT encryption (JWE) is not supported. The current application does not use JWE.
 - Production startup fails fast unless the JWT secret is at least 32 bytes and debug mode is disabled.
 - The full backend test suite, browser tests, and dependency audit must pass in CI before this dependency update is considered verified.

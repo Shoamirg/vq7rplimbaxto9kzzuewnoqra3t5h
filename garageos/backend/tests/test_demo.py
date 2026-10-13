@@ -7,7 +7,9 @@ read-only property survives a token refresh (no escalation path).
 """
 from __future__ import annotations
 
+import time
 import httpx
+import jwt
 import pytest_asyncio
 
 from app.core.config import settings
@@ -72,6 +74,67 @@ async def test_demo_readonly_survives_refresh(client, monkeypatch):
     assert decode_token(new_access).get("demo") is True
     blocked = await client.post(A_WRITE, headers=_auth(new_access), json={})
     assert blocked.status_code == 403
+
+
+async def test_replayed_refresh_token_revokes_its_session_family(client, monkeypatch):
+    monkeypatch.setattr(settings, "DEMO_MODE_ENABLED", True)
+    original = (await client.post(DEMO)).json()["refresh_token"]
+
+    first = await client.post("/api/v1/auth/refresh", json={"refresh_token": original})
+    assert first.status_code == 200
+
+    replay = await client.post("/api/v1/auth/refresh", json={"refresh_token": original})
+    assert replay.status_code == 401
+
+    # Reuse is evidence the family may be compromised; invalidate its successor too.
+    successor = await client.post(
+        "/api/v1/auth/refresh",
+        json={"refresh_token": first.json()["refresh_token"]},
+    )
+    assert successor.status_code == 401
+
+
+async def test_logout_revokes_refresh_session(client, monkeypatch):
+    monkeypatch.setattr(settings, "DEMO_MODE_ENABLED", True)
+    refresh_token = (await client.post(DEMO)).json()["refresh_token"]
+
+    logout = await client.post("/api/v1/auth/logout", json={"refresh_token": refresh_token})
+    assert logout.status_code == 200
+
+    refreshed = await client.post("/api/v1/auth/refresh", json={"refresh_token": refresh_token})
+    assert refreshed.status_code == 401
+
+
+async def test_pre_rotation_refresh_token_can_be_migrated_once(client, monkeypatch):
+    monkeypatch.setattr(settings, "DEMO_MODE_ENABLED", True)
+    access = (await client.post(DEMO)).json()["access_token"]
+    subject = decode_token(access)["sub"]
+    legacy = jwt.encode(
+        {"sub": subject, "type": "refresh", "exp": int(time.time()) + 60 * 60},
+        settings.SECRET_KEY,
+        algorithm=settings.ALGORITHM,
+    )
+
+    first = await client.post("/api/v1/auth/refresh", json={"refresh_token": legacy})
+    assert first.status_code == 200
+    replay = await client.post("/api/v1/auth/refresh", json={"refresh_token": legacy})
+    assert replay.status_code == 401
+
+
+async def test_logout_tombstones_untracked_legacy_refresh_token(client, monkeypatch):
+    monkeypatch.setattr(settings, "DEMO_MODE_ENABLED", True)
+    access = (await client.post(DEMO)).json()["access_token"]
+    subject = decode_token(access)["sub"]
+    legacy = jwt.encode(
+        {"sub": subject, "type": "refresh", "exp": int(time.time()) + 60 * 60},
+        settings.SECRET_KEY,
+        algorithm=settings.ALGORITHM,
+    )
+
+    logout = await client.post("/api/v1/auth/logout", json={"refresh_token": legacy})
+    assert logout.status_code == 200
+    refresh = await client.post("/api/v1/auth/refresh", json={"refresh_token": legacy})
+    assert refresh.status_code == 401
 
 
 async def test_normal_token_can_still_write_path(client, monkeypatch):

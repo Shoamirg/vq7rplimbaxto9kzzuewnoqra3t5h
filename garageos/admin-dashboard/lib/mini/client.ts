@@ -11,6 +11,30 @@ export interface CustomerSummary {
 }
 
 let sessionPromise: Promise<CustomerSummary> | null = null;
+let refreshPromise: Promise<boolean> | null = null;
+
+function refreshSession(): Promise<boolean> {
+  if (!refreshPromise) {
+    const refresh = async () => {
+      const res = await fetch("/api/mini/auth/refresh", { method: "POST" });
+      return res.ok;
+    };
+    const locks = typeof navigator !== "undefined"
+      ? (navigator as unknown as {
+          locks?: { request<T>(name: string, callback: () => T | PromiseLike<T>): Promise<T> };
+        }).locks
+      : undefined;
+    const pending: Promise<boolean> = locks
+      ? locks.request<boolean>("garageos-customer-refresh", refresh)
+      : refresh();
+    const tracked = pending.catch(() => false).finally(() => {
+      refreshPromise = null;
+    });
+    refreshPromise = tracked;
+    return tracked;
+  }
+  return refreshPromise;
+}
 
 async function signIn(): Promise<CustomerSummary> {
   const initData = telegram()?.initData ?? "";
@@ -53,10 +77,14 @@ export async function miniFetch<T>(path: string, init?: RequestInit): Promise<T>
 
   let res = await run();
   if (res.status === 401) {
-    // Session expired — re-authenticate once and retry.
-    sessionPromise = null;
-    await ensureSession();
-    res = await run();
+    // First rotate the refresh token; fall back to Telegram sign-in if needed.
+    if (await refreshSession()) {
+      res = await run();
+    } else {
+      sessionPromise = null;
+      await ensureSession();
+      res = await run();
+    }
   }
   if (!res.ok) {
     throw new MiniApiError(`${path} responded ${res.status}`, res.status);

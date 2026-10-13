@@ -20,6 +20,7 @@ from app.schemas.customer_portal import (
     TokenResponse,
 )
 from app.services.customer_auth_service import CustomerAuthService
+from app.services.refresh_token_service import RefreshTokenReplay
 
 router = APIRouter()
 
@@ -60,7 +61,25 @@ async def refresh(
     body: RefreshRequest,
     auth: CustomerAuthService = Depends(get_customer_auth_service),
 ) -> TokenResponse:
-    return TokenResponse(**await auth.refresh(body.refresh_token))
+    try:
+        tokens = await auth.refresh(body.refresh_token)
+    except RefreshTokenReplay:
+        await auth.uow.session.commit()
+        raise
+    return TokenResponse(**tokens)
+
+
+@router.post(
+    "/logout",
+    summary="Revoke a customer refresh-token session",
+    dependencies=[Depends(auth_rate_limit)],
+)
+async def logout(
+    body: RefreshRequest,
+    auth: CustomerAuthService = Depends(get_customer_auth_service),
+) -> dict[str, bool]:
+    await auth.logout(body.refresh_token)
+    return {"ok": True}
 
 
 @router.post("/dev", response_model=TokenResponse, summary="DEBUG-only sign-in (no Telegram)")

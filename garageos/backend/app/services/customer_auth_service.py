@@ -31,6 +31,11 @@ from app.models.customer import Customer
 from app.repositories.customer_repository import CustomerRepository
 from app.repositories.unit_of_work import UnitOfWork
 from app.services.telegram_auth import TelegramUser, verify_init_data
+from app.services.refresh_token_service import (
+    consume_refresh_token,
+    register_refresh_token,
+    revoke_refresh_token,
+)
 
 _ACCESS = "customer_access"
 _REFRESH = "customer_refresh"
@@ -67,7 +72,7 @@ class CustomerAuthService:
             customer.telegram_username = tg.username
             await self.uow.session.flush()
 
-        return self._tokens(customer)
+        return await self._tokens(customer)
 
     async def link_by_phone(self, init_data: str, phone: str) -> dict:
         """Link a verified Telegram user to a customer found by phone.
@@ -96,7 +101,7 @@ class CustomerAuthService:
         customer.telegram_id = tg.telegram_id
         customer.telegram_username = tg.username
         await self.uow.session.flush()
-        return self._tokens(customer)
+        return await self._tokens(customer)
 
     async def dev_authenticate(self, telegram_id: int | None = None) -> dict:
         """DEBUG-only: mint a token for a seeded customer without Telegram.
@@ -114,7 +119,7 @@ class CustomerAuthService:
             )).scalar_one_or_none()
             if customer is None:
                 raise TelegramNotLinked("No seeded customer available for dev sign-in")
-            return self._tokens(customer)
+            return await self._tokens(customer)
 
         # No target: pick the telegram-linked customer with the MOST vehicles, so
         # the dev/demo session lands on the richest experience (and stays
@@ -134,7 +139,7 @@ class CustomerAuthService:
             .limit(1)
         )).scalar_one_or_none()
         if rich is not None:
-            return self._tokens(rich)
+            return await self._tokens(rich)
 
         customer = (await self.uow.session.execute(
             select(Customer).where(
@@ -144,14 +149,39 @@ class CustomerAuthService:
         )).scalar_one_or_none()
         if customer is None:
             raise TelegramNotLinked("No seeded customer available for dev sign-in")
-        return self._tokens(customer)
+        return await self._tokens(customer)
 
     async def refresh(self, refresh_token: str) -> dict:
         payload = decode_token(refresh_token)
         if not payload or payload.get("type") != _REFRESH:
             raise InvalidToken()
         customer = await self._load(payload.get("sub"))
-        return self._tokens(customer)
+        family_id = await consume_refresh_token(
+            self.uow.session,
+            refresh_token,
+            payload,
+            customer_id=customer.id,
+        )
+        return await self._tokens(customer, family_id=family_id)
+
+    async def logout(self, refresh_token: str) -> None:
+        """Revoke the refresh-token family; malformed tokens are ignored."""
+        payload = decode_token(refresh_token)
+        if not payload or payload.get("type") != _REFRESH:
+            return
+        try:
+            customer_id = uuid.UUID(payload.get("sub", ""))
+        except (ValueError, TypeError, AttributeError):
+            return
+        customer = await self.uow.session.get(Customer, customer_id)
+        if customer is None:
+            return
+        await revoke_refresh_token(
+            self.uow.session,
+            refresh_token,
+            payload,
+            customer_id=customer.id,
+        )
 
     # --- Resolution (used by deps) -----------------------------------------
 
@@ -175,7 +205,9 @@ class CustomerAuthService:
             raise UnauthorizedError()
         return customer
 
-    def _tokens(self, customer: Customer) -> dict:
+    async def _tokens(
+        self, customer: Customer, *, family_id: uuid.UUID | None = None
+    ) -> dict:
         claims = {
             "sub": str(customer.id),
             "scid": str(customer.service_center_id),
@@ -185,6 +217,13 @@ class CustomerAuthService:
             expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
         )
         refresh = create_refresh_token(data={"sub": str(customer.id), "type": _REFRESH})
+        family_id = family_id or uuid.uuid4()
+        await register_refresh_token(
+            self.uow.session,
+            refresh,
+            family_id,
+            customer_id=customer.id,
+        )
         return {
             "access_token": access,
             "refresh_token": refresh,

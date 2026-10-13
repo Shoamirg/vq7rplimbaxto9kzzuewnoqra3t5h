@@ -18,6 +18,11 @@ from app.models.service_center import ServiceCenter
 from app.models.role import Role
 from app.models.user import User
 from app.exceptions import InvalidCredentials, TokenExpired, InvalidToken, UserNotFound
+from app.services.refresh_token_service import (
+    consume_refresh_token,
+    register_refresh_token,
+    revoke_refresh_token,
+)
 
 
 class AuthService:
@@ -86,6 +91,9 @@ class AuthService:
         refresh_token = create_refresh_token(
             data={"sub": str(user.id), "type": "refresh"},
         )
+        await register_refresh_token(
+            self.uow.session, refresh_token, uuid.uuid4(), staff_user_id=user.id
+        )
 
         return {
             "access_token": access_token,
@@ -104,10 +112,18 @@ class AuthService:
         user_id = payload.get("sub")
         if not user_id:
             raise InvalidToken()
+        try:
+            parsed_user_id = uuid.UUID(user_id)
+        except (ValueError, TypeError, AttributeError) as exc:
+            raise InvalidToken() from exc
 
-        user = await self.user_repo.get_by_id(uuid.UUID(user_id))
+        user = await self.user_repo.get_by_id(parsed_user_id)
         if not self._is_active_staff_user(user):
             raise InvalidToken()
+
+        family_id = await consume_refresh_token(
+            self.uow.session, refresh_token, payload, staff_user_id=user.id
+        )
 
         # Carry the demo flag across refresh — otherwise a read-only demo session
         # could refresh into a full-access token and bypass the write guard.
@@ -118,6 +134,9 @@ class AuthService:
         )
         new_refresh = create_refresh_token(
             data={"sub": str(user.id), "type": "refresh", **demo},
+        )
+        await register_refresh_token(
+            self.uow.session, new_refresh, family_id, staff_user_id=user.id
         )
 
         return {
@@ -142,11 +161,30 @@ class AuthService:
         refresh_token = create_refresh_token(
             data={"sub": str(user.id), "type": "refresh", "demo": True},
         )
+        await register_refresh_token(
+            self.uow.session, refresh_token, uuid.uuid4(), staff_user_id=user.id
+        )
         return {
             "access_token": access_token,
             "refresh_token": refresh_token,
             "token_type": "bearer",
         }
+
+    async def logout(self, refresh_token: str) -> None:
+        """Revoke the refresh-token family. Invalid or expired tokens are harmless."""
+        payload = decode_token(refresh_token)
+        if not payload or payload.get("type") != "refresh":
+            return
+        try:
+            user_id = uuid.UUID(payload.get("sub", ""))
+        except (ValueError, TypeError, AttributeError):
+            return
+        user = await self.user_repo.get_by_id(user_id)
+        if user is None:
+            return
+        await revoke_refresh_token(
+            self.uow.session, refresh_token, payload, staff_user_id=user.id
+        )
 
     async def get_current_user(self, token: str) -> User:
         """Decode access token and return the user."""
