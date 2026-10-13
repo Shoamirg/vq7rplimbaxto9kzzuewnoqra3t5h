@@ -121,3 +121,10 @@
 - Agent bajargan sun’iy ma’lumotli smoke-test buyurtmani topshirishgacha olib bordi va bitta xizmat tarixi yozuvini tasdiqladi. Servis xodimi bilan amaliy pilot hali bajarilmadi; pilot ro‘yxati ochiq.
 - Production dependency auditi: 0 zaiflik. To‘liq auditda `braces@3.0.3` development zanjiridan 5 ta yuqori darajali ogohlantirish bor; tuzatilgan versiya chiqsa, chiqarishdan oldin qayta tekshirish kerak.
 - Qo‘shimcha server-side policy ko‘rik: `customer_concern` va `assigned_mechanic_user_id` qabul maydonlarini `in_progress` holatidan keyin PATCH orqali o‘zgartirish mumkin edi. Endi `received` holatidan keyin bu o‘zgarishlar rad qilinadi. Ikkala holat unit regression testlarida, `409` javobi esa seeded PostgreSQL bilan haqiqiy API testida tasdiqlandi. Test transaction rollback qilinadi, doimiy demo ma’lumotiga o‘zgarish kiritmaydi. Backend suite 172 test bilan o‘tdi.
+
+## 2026-10-13 qo‘shimcha lokal QA
+
+- Alohida `garageos-local-qa` muhitida API `/ready` `ready` qaytardi; PostgreSQL va Redis sog‘lom, dashboard `/login` HTTP 200.
+- Haqiqiy lokal servisga qarshi 4 ta Playwright smoke-test o‘tdi: admin login, mechanic login va navigatsiya ruxsatlari, 320px walk-in layout. Ma’lumot yaratadigan oqimlar bu qayta tekshiruvda ishga tushirilmadi.
+- Audit npm `11.21.0` bilan workspace lockfile’dan qayta bajarildi: `npm audit --omit=dev` — 0; to‘liq audit — 5 high, hammasi `eslint-config-next@16.4.0 -> @next/eslint-plugin-next@16.4.0 -> fast-glob@3.3.1 -> micromatch@4.0.8 -> braces@3.0.3` development zanjirida. GitHub advisory patched version ko‘rsatmaydi; maintainer advisory da’vosiga ochiqchasiga qo‘shilmayapti ([advisory](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm), [upstream muhokama](https://github.com/micromatch/braces/issues/84)). Xavfsiz, mos-range remediation hozir yo‘q; release gate ochiq qoladi. 2026-10-20 gacha qayta tekshirish.
+- CLI `npm@11.21.0` vaqtinchalik tool papkasidan ishga tushirildi; project package manifests va lockfile o‘zgarmadi.
