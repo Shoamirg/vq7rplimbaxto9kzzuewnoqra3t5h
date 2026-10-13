@@ -38,7 +38,7 @@ focused test, keyin integratsiyadan so'ng bitta to'liq release tekshiruvi.
 
 - [x] Mahalliy/remote branch, SHA, toza ishchi daraxt va agent qoidalari tekshirildi.
 - [x] #39 uchun 13 qatorli talab -> kod -> test -> natija -> kamchilik jadvali.
-- [ ] Joriy dalillar GitHub'dagi eskirgan checkpointlar bilan yarashtiriladi.
+- [x] Joriy dalillar GitHub'dagi eskirgan checkpointlar bilan yarashtirildi; original scope/history saqlandi.
 
 Qabul: tayyor kodni qayta yaratmasdan, haqiqiy qolgan kamchiliklarni aniqlash.
 
@@ -128,10 +128,10 @@ as reassurance takrorlanmaydi. Interrupted run SUCCESS deb ko'rsatilmaydi.
 
 - [x] Mustaqil review topilmalari hal qilingan; delayed SSR ham sessiyaga bog'langan.
 - [x] Focused va final gate'lar, commit SHA va private evidence bog'langan.
-- [ ] Atomic commitlar o'z branchimizga push qilingan; remote SHA tasdiqlangan.
-- [ ] PR5 va tegishli issue'lar aktual evidence bilan yangilangan.
+- [x] Atomic commitlar o'z branchimizga push qilingan; remote va PR5 SHA tasdiqlangan.
+- [x] PR5 va #39/#12/#10 aktual evidence bilan yangilangan; body va original scope saqlanishi qayta o'qib tekshirilgan.
 - [x] Owned services/credential fixtures to'xtatilgan/olib tashlangan; quyidagi disk exception saqlangan.
-- [x] O'zbekcha natija va external gate'lar `tasks/inbox-acceptance.md`da yozilgan; publication receipt keyin qo'shiladi.
+- [x] O'zbekcha natija va external gate'lar `tasks/inbox-acceptance.md`da yozilgan; publication receipt quyida.
 
 ## Yakuniy tekshiruv dalili — 2026-10-14 (Tashkent)
 
@@ -154,6 +154,21 @@ Owned test ports55444/8010/3001 bo'sh, `owned.json` va credential fixture'lar
 yo'q. Docker/private signing cleanup receipts true. Avtomatik approval review
 to'xtatilgan test bazasi papkasini o'chirishni `blocked by policy` deb rad etdi;
 PGdata papkalari diskda qoldi. Alternativ recursive deletion qilinmadi.
+
+## GitHub publication receipt
+
+Application/test va evidence commitlari `codex/service-work-demo`ga push qilindi.
+`3389816e79394ce0d3f6430086730c4898efa51b` checkpointida remote branch va PR5
+HEAD bir xil bo'ldi. PR5 title/body, #39/#12/#10 checkpointlari yangilandi;
+GitHub'dan qayta o'qilgan body'lar yuborilgan fayllarga mos, barcha original
+scope/history saqlangan. Issue'lar va PR review/merge yoki external acceptance
+uchun OPEN qolgan.
+
+GitHub check: CodeRabbit pass, lekin matni `Review skipped: manual review
+required for this OSS repository`; bu test yoki haqiqiy bot-review dalili emas.
+Joriy test/build dalili yuqoridagi exact-SHA lokal release run'dir.
+Ushbu publication receipt va keyingi head yangilanishlari faqat Markdown
+metadata: tested `be24c902...`dan application/test fayllari o'zgarmagan.
 
 Main merge/tag, paid hosting, production deploy, owner signing keys va client
 pilot bu bosqichda bajarilmaydi. Server, off-host backup/recovery/rollback,

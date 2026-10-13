@@ -91,6 +91,18 @@ o'z cleanup receipts bilan tekshirilgan.
 Private credentials, JWTs, traces and runtime fixtures are not published.
 Evidence remains in gitignored `ci-evidence` and the owned CI workspace.
 
+## GitHub holati
+
+Own branch `codex/service-work-demo` va PR5: source/evidence checkpoint
+`3389816e79394ce0d3f6430086730c4898efa51b` push qilingan, remote va PR HEAD
+tasdiqlangan. PR5 hamda #39/#12/#10 body'lari yangi evidence bilan yangilangan;
+original acceptance/history saqlanishi GitHub'dan qayta o'qib tekshirilgan.
+Keyingi publication-receipt commitlari faqat shu Markdown hujjatlarni o'zgartiradi.
+Application/test verification SHA `be24c902...` bo'lib qoladi.
+CodeRabbit pass matni review skipped; current-SHA GitHub CI yoki Jenkins server
+build SUCCESS deb ko'rsatilmaydi. PR/issue'lar review/merge va external acceptance
+qolganligi uchun OPEN.
+
 ## Moslik va tashqi qabul
 
 Sid-less old tokens require deliberate re-login. Auth-session jadvali destructive
