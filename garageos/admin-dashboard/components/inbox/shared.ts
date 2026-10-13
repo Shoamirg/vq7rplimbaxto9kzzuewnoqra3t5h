@@ -15,7 +15,7 @@ export function safeCallHref(phone: string | null | undefined): string | null {
   return `tel:${normalized}`;
 }
 
-export function activityMessageTimestamp(
+export function conversationMessageTimestamp(
   date: string | null,
   now: number,
   t: Translate,

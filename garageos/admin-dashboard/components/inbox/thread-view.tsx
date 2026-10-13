@@ -15,8 +15,9 @@ import { MessageSubmissionStatus } from "@/components/message-submission-status"
 import { NewAppointmentModal } from "@/components/appointments/new-appointment-modal";
 import { NewInvoiceModal } from "@/components/billing/new-invoice-modal";
 import { NewInboxCaseModal } from "@/components/inbox/new-inbox-case-modal";
+import { InternalNoteBubble } from "@/components/inbox/internal-note-bubble";
 import { relTime as localizedRelTime } from "../operations/shared";
-import { CHANNEL_META, CONV_TYPE_ICON, activityIcon, activityMessageTimestamp, inboxEnumLabel, roleColor, safeCallHref } from "./shared";
+import { CHANNEL_META, CONV_TYPE_ICON, activityIcon, conversationMessageTimestamp, inboxEnumLabel, roleColor, safeCallHref } from "./shared";
 
 type ComposerTab = "reply" | "note" | "announcement";
 
@@ -400,12 +401,11 @@ function MessageBubble({ m }: { m: ConvMessage }) {
   const { t, fmt } = useI18n();
   const side = bubbleSide(m.author_role);
   if (m.is_internal && m.kind === "note") {
-    return (
-      <div className="mx-auto w-[88%] rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
-        <p className="text-[10px] font-bold uppercase tracking-wide text-amber-700 mb-1">{t("message.note")}</p>
-        <p className="text-[13px] text-amber-900 whitespace-pre-wrap">{renderMentions(m.body)}</p>
-      </div>
-    );
+    return <InternalNoteBubble
+      label={t("message.note")}
+      body={renderMentions(m.body)}
+      timestamp={conversationMessageTimestamp(m.created_at, Date.now(), t, fmt.number, "block text-[10px] text-amber-700 mt-1 px-1")}
+    />;
   }
   return (
     <div className={cn("max-w-[74%]", side === "me" ? "ml-auto" : "")}>
@@ -443,7 +443,7 @@ function MiniBubble({ role, name, body, date }: { role: string; name: string; bo
         side === "me" ? "bg-primary text-primary-foreground" : side === "mech" ? "bg-emerald-50 border border-emerald-200 text-emerald-900" : "bg-card border border-border")}>
         {body ?? "—"}
       </div>
-      {activityMessageTimestamp(date, Date.now(), t, fmt.number, cn("block text-[10px] text-muted-foreground mt-1 px-1", side === "me" && "text-right"))}
+      {conversationMessageTimestamp(date, Date.now(), t, fmt.number, cn("block text-[10px] text-muted-foreground mt-1 px-1", side === "me" && "text-right"))}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { activityMessageTimestamp } from "../components/inbox/shared";
+import { conversationMessageTimestamp } from "../components/inbox/shared";
 import { makeFormatters } from "../lib/i18n/formatters";
 import { translate, type Locale } from "../lib/i18n/dictionaries";
 
@@ -16,7 +16,7 @@ test("Inbox activity messages render their timestamps in the selected locale", a
 
   for (const locale of ["en", "ru", "uz"] as const) {
     const t = (key: string, params?: Record<string, string | number>) => translate(locale, key, params);
-    const element = activityMessageTimestamp(date, now, t, makeFormatters(locale).number);
+    const element = conversationMessageTimestamp(date, now, t, makeFormatters(locale).number);
     await page.setContent(renderToStaticMarkup(element));
     const time = page.locator("time");
     await expect(time, `${locale} activity timestamp`).toHaveText(expected[locale]);
@@ -25,6 +25,6 @@ test("Inbox activity messages render their timestamps in the selected locale", a
 });
 
 test("Inbox activity messages omit unavailable timestamps", () => {
-  const element = activityMessageTimestamp(null, Date.UTC(2026, 9, 13, 12), key => key, String);
+  const element = conversationMessageTimestamp(null, Date.UTC(2026, 9, 13, 12), key => key, String);
   expect(element).toBeNull();
 });
