@@ -16,7 +16,7 @@ import { NewAppointmentModal } from "@/components/appointments/new-appointment-m
 import { NewInvoiceModal } from "@/components/billing/new-invoice-modal";
 import { NewInboxCaseModal } from "@/components/inbox/new-inbox-case-modal";
 import { relTime as localizedRelTime } from "../operations/shared";
-import { CHANNEL_META, CONV_TYPE_ICON, activityIcon, inboxEnumLabel, roleColor, safeCallHref } from "./shared";
+import { CHANNEL_META, CONV_TYPE_ICON, activityIcon, activityMessageTimestamp, inboxEnumLabel, roleColor, safeCallHref } from "./shared";
 
 type ComposerTab = "reply" | "note" | "announcement";
 
@@ -434,6 +434,7 @@ function MessageBubble({ m }: { m: ConvMessage }) {
 }
 
 function MiniBubble({ role, name, body, date }: { role: string; name: string; body: string | null; date: string | null }) {
+  const { t, fmt } = useI18n();
   const side = bubbleSide(role);
   return (
     <div className={cn("max-w-[70%]", side === "me" ? "ml-auto" : "")}>
@@ -442,6 +443,7 @@ function MiniBubble({ role, name, body, date }: { role: string; name: string; bo
         side === "me" ? "bg-primary text-primary-foreground" : side === "mech" ? "bg-emerald-50 border border-emerald-200 text-emerald-900" : "bg-card border border-border")}>
         {body ?? "—"}
       </div>
+      {activityMessageTimestamp(date, Date.now(), t, fmt.number, cn("block text-[10px] text-muted-foreground mt-1 px-1", side === "me" && "text-right"))}
     </div>
   );
 }

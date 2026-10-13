@@ -1,5 +1,6 @@
 import type { Channel, ConvPriority, ConvStatus, ConvType, InboxCounts } from "@/lib/api/types";
-import type { Translate } from "../operations/shared";
+import { createElement, type ReactElement } from "react";
+import { relTime, type Translate } from "../operations/shared";
 
 export function inboxEnumLabel(t: Translate, kind: string, value: string | null | undefined) {
   const key = `inbox.${kind}.${value}`, label = t(key);
@@ -12,6 +13,16 @@ export function safeCallHref(phone: string | null | undefined): string | null {
   const digits = normalized.startsWith("+") ? normalized.slice(1) : normalized;
   if (digits.length < 7 || digits.length > 15) return null;
   return `tel:${normalized}`;
+}
+
+export function activityMessageTimestamp(
+  date: string | null,
+  now: number,
+  t: Translate,
+  number: (value: number) => string,
+  className = "block text-[10px] text-muted-foreground mt-1 px-1",
+): ReactElement | null {
+  return date ? createElement("time", { dateTime: date, className }, relTime(date, now, t, number)) : null;
 }
 
 // Channel metadata — chip label + colour. Channel is *metadata*, so the same
