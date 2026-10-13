@@ -14,6 +14,7 @@ from sqlalchemy.engine import make_url
 from app.core.config import settings
 from app.core.database import async_session_factory
 from tests.test_message_intent_api import client, identity, owner, snapshot, target  # noqa: F401
+from tests.test_staff_management_api import login as staff_login
 
 
 async def migrate(*args):
@@ -47,7 +48,7 @@ async def message_rows(conversation):
         return list(rows.scalars()), list(attachments.scalars())
 
 
-async def test_downgrade_preserves_messages_but_reupgrade_cannot_restore_receipts(client, target):
+async def test_downgrade_preserves_messages_but_reupgrade_cannot_restore_receipts(client, target, identity):
     path = f"/api/v1/conversations/{target['id']}/messages"
     legacy = await client.post(path, headers=target["staff"], json={"body": "Legacy unkeyed message"})
     assert legacy.status_code == 201
@@ -70,6 +71,14 @@ async def test_downgrade_preserves_messages_but_reupgrade_cannot_restore_receipt
     await migrate("check")
     assert await message_rows(target["id"]) == before
     assert (await snapshot(target))["intents"] == []
+    # Auth session rows are intentionally lost too. Re-authenticate the same
+    # persisted staff identity; never restore the discarded session or receipt.
+    assert (await client.get('/api/v1/auth/me', headers=target['staff'])).status_code == 401
+    assert (await client.get('/api/v1/customer/me', headers=target['customer'])).status_code == 401
+    target['staff'] = await staff_login(client, identity['email'])
+    fresh = await client.get('/api/v1/auth/me', headers=target['staff'])
+    assert fresh.status_code == 200 and fresh.json()['id'] == str(identity['user'])
+    headers = {**target['staff'], 'Idempotency-Key': key}
     # Documented destructive downgrade consequence, rather than false safe
     # replay: the old key has been lost and would create a new durable message.
     replay = await client.post(path, headers=headers, json=payload)

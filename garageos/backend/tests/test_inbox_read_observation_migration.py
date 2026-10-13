@@ -7,6 +7,7 @@ from app.core.database import async_session_factory
 from tests.test_identity_migration import migration_database  # noqa: F401
 from tests.test_message_intent_migration import migrate, message_rows
 from tests.test_message_intent_api import client, identity, owner, target  # noqa: F401
+from tests.test_staff_management_api import login as staff_login
 
 
 async def test_populated_legacy_counts_initialize_generations_without_guessing_history(migration_database):
@@ -36,7 +37,7 @@ async def test_populated_legacy_counts_initialize_generations_without_guessing_h
     assert result.returncode == 0, result.stderr
 
 
-async def test_reupgrade_discards_observations_and_old_uuid_cannot_clear_new_arrivals(client, target):
+async def test_reupgrade_discards_observations_and_old_uuid_cannot_clear_new_arrivals(client, target, identity):
     path = f"/api/v1/conversations/{target['id']}"
     response = await client.post(path + '/messages', headers=target['staff'],
                                 json={'body': 'Before downgrade', 'author_role': 'customer'})
@@ -57,6 +58,13 @@ async def test_reupgrade_discards_observations_and_old_uuid_cannot_clear_new_arr
     assert await message_rows(target['id']) == history
     async with async_session_factory() as session:
         assert await session.scalar(text('SELECT count(*) FROM conversation_read_observations WHERE conversation_id=:id'), {'id': uuid.UUID(target['id'])}) == 0
+    # This destructive downgrade also drops server session authority. Historical
+    # business records survive, while both old bearer families require login.
+    assert (await client.get('/api/v1/auth/me', headers=target['staff'])).status_code == 401
+    assert (await client.get('/api/v1/customer/me', headers=target['customer'])).status_code == 401
+    target['staff'] = await staff_login(client, identity['email'])
+    fresh = await client.get('/api/v1/auth/me', headers=target['staff'])
+    assert fresh.status_code == 200 and fresh.json()['id'] == str(identity['user'])
     response = await client.post(path + '/messages', headers=target['staff'],
                                 json={'body': 'After reupgrade', 'author_role': 'customer'})
     assert response.status_code == 201
