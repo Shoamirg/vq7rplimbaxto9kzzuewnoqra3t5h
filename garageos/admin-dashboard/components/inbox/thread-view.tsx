@@ -144,7 +144,7 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
   return (
     <div className="flex-1 min-h-0 min-w-0 flex flex-col bg-muted/20 [overflow-wrap:anywhere]">
       {/* Header */}
-      <div role="region" aria-label={t("message.overview")} tabIndex={0} className="max-h-[25%] lg:max-h-[45%] overflow-y-auto bg-card border-b border-border px-4 pt-3 shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
+      <div role="region" aria-label={t("message.overview")} tabIndex={0} className="max-h-[20%] sm:max-h-[25%] lg:max-h-[45%] overflow-y-auto bg-card border-b border-border px-4 pt-3 shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
         {readAcknowledgement}
         {actionNotice}
         {!canWrite && <p className="pb-3 text-sm">{t("ops.readonly")}</p>}
@@ -270,7 +270,7 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
       </div>
 
       {/* Quick actions */}
-      <div role="region" aria-label={t("message.quick_actions")} tabIndex={0} className="flex gap-1.5 px-4 py-2 bg-card border-t border-border overflow-x-auto shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
+      <div role="region" aria-label={t("message.quick_actions")} tabIndex={0} className="flex gap-1.5 px-4 py-2 bg-card border-t border-border overflow-x-auto shrink-0 [&>*]:shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
         {callHref ? (
           <a href={callHref} className="min-h-11 min-w-11 inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11.5px] font-semibold whitespace-nowrap text-slate-600 dark:text-slate-300 focus-visible:outline-2 focus-visible:outline-primary">
             <Phone className="size-3.5" aria-hidden="true" />{t("message.action.call")}

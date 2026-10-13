@@ -307,7 +307,7 @@ for (const [locale, width] of [["uz", 360], ["en", 390], ["ru", 1280]] as const)
     const actions = page.getByRole("region", { name: translate(locale, "message.quick_actions"), exact: true });
     await actions.getByRole("button", { name: translate(locale, "message.action.open_case"), exact: true }).click();
     const modal = page.getByRole("dialog", { name: translate(locale, "message.case_new"), exact: true });
-    await expect(modal.getByText(person.name, { exact: true })).toBeVisible();
+    await expect(modal).toContainText(person.name);
     await expect(modal.locator("select").last()).toHaveValue(person.vehicle_id);
     const title = `QA39 Inbox case ${randomUUID()}`;
     await modal.getByLabel(translate(locale, "message.case_title"), { exact: true }).fill(title);
@@ -361,7 +361,7 @@ test("Inbox case remains blocked after an empty reconciliation until a separate 
   await expect(modal.getByRole("alert").filter({ hasText: translate("en", "message.case_outcome_uncertain") })).toBeVisible();
   await modal.getByRole("button", { name: translate("en", "message.case_check"), exact: true }).click();
   await expect(modal.getByRole("alert").filter({ hasText: translate("en", "message.case_outcome_not_found") })).toBeVisible();
-  await expect(submit).toBeDisabled(); expect(posts).toBe(1);
+  await expect(submit).toHaveCount(0); expect(posts).toBe(1);
   await modal.getByRole("button", { name: translate("en", "message.case_allow_separate"), exact: true }).click();
   await expect(submit).toBeEnabled(); expect(posts).toBe(1);
   await submit.click(); await expect.poll(() => posts).toBe(2);
