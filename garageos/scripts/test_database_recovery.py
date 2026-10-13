@@ -4,6 +4,8 @@ Only uniquely owned QA containers/volumes are used; no ports are published.
 Raw archives, rows and temporary credentials are never written to evidence.
 """
 import argparse
+from copy import deepcopy
+from datetime import datetime, timedelta, timezone
 import gzip
 import hashlib
 import json
@@ -22,6 +24,177 @@ import uuid
 ROOT = Path(__file__).resolve().parents[1]
 OWNER = 'garageos.recovery.run'
 OUTPUT = None
+
+
+def row_sha256(row):
+    return hashlib.sha256(json.dumps(row, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+
+
+def summarize_auth_sessions(rows, identities, now):
+    """Bind the probe's three auth flows; retain only full-row hashes/proofs."""
+    def identity(name):
+        return str(uuid.uuid5(uuid.NAMESPACE_URL, 'garageos/recovery/' + name))
+
+    indexed = {table: {row['id']: row for row in data} for table, data in identities.items()}
+    center_id = identity('center-a')
+    center = indexed['service_centers'].get(center_id, {})
+    staff = indexed['users'].get(identity('user-a'), {})
+    role = indexed['roles'].get(staff.get('role_id'), {})
+    customer = indexed['customers'].get(identity('customer-a'), {})
+    account = indexed['customer_accounts'].get(identity('account-a'), {})
+    enabled_center = center.get('is_active') is True
+    enabled_staff = (staff.get('email') == 'recovery-staff-a@example.com'
+        and staff.get('service_center_id') == center_id and staff.get('is_active') is True
+        and staff.get('is_super_admin') is False and role.get('name') == 'admin'
+        and role.get('is_active') is True)
+    enabled_customer = (customer.get('service_center_id') == center_id and customer.get('is_active') is True)
+    enabled_account = (account.get('email') == 'recovery-customer-a@example.com'
+        and account.get('customer_id') == identity('customer-a') and account.get('service_center_id') == center_id
+        and account.get('is_active') is True and account.get('version') == 7)
+    linked_telegram = customer.get('telegram_id') == uuid.UUID(identity('telegram-a')).int % 10**12
+    summaries = {}
+    for row in rows:
+        try:
+            uuid.UUID(row['id'])
+            created = datetime.fromisoformat(row['created_at'])
+            expires = datetime.fromisoformat(row['expires_at'])
+            # created_at is PostgreSQL's transaction clock, before bounded
+            # password/locking work preceding application login expiry.
+            valid_lifetime = (created.tzinfo is not None and expires.tzinfo is not None
+                and created <= now < expires and timedelta(days=7) <= expires - created <= timedelta(days=7, seconds=60))
+        except (ValueError, TypeError, KeyError):
+            valid_lifetime = False
+        common = (enabled_center and row.get('service_center_id') == center_id
+            and row.get('demo') is False and row.get('revoked_at') is None and valid_lifetime
+            and isinstance(row.get('refresh_digest'), str)
+            and re.fullmatch(r'[0-9a-f]{64}', row['refresh_digest']) is not None)
+        is_staff = (common and enabled_staff and row.get('principal_kind') == 'staff'
+            and row.get('user_id') == identity('user-a') and row.get('customer_id') is None
+            and row.get('customer_account_id') is None and row.get('account_version') is None)
+        is_customer = (common and enabled_customer and row.get('principal_kind') == 'customer'
+            and row.get('customer_id') == identity('customer-a') and row.get('user_id') is None)
+        is_password = (is_customer and enabled_account and row.get('customer_account_id') == identity('account-a')
+            and type(row.get('account_version')) is int and row['account_version'] == 7)
+        is_telegram = (is_customer and linked_telegram and row.get('customer_account_id') is None
+            and row.get('account_version') is None)
+        summaries[row['id']] = {'sha256': row_sha256(row), 'expected_fresh_staff_login': bool(is_staff),
+            'expected_fresh_customer_password_login': bool(is_password),
+            'expected_fresh_customer_telegram_login': bool(is_telegram)}
+    return summaries
+
+
+class ProbeEffectsContractTest(unittest.TestCase):
+    """Pure validator regressions; no Docker, database, credentials or API."""
+
+    def setUp(self):
+        self.now = datetime(2026, 10, 13, tzinfo=timezone.utc)
+        def key(name):
+            return str(uuid.uuid5(uuid.NAMESPACE_URL, 'garageos/recovery/' + name))
+        self.key = key
+        self.identities = {
+            'service_centers': [{'id': key('center-a'), 'is_active': True}],
+            'roles': [{'id': key('role'), 'name': 'admin', 'is_active': True}],
+            'users': [{'id': key('user-a'), 'email': 'recovery-staff-a@example.com',
+                       'service_center_id': key('center-a'), 'role_id': key('role'),
+                       'is_active': True, 'is_super_admin': False}],
+            'customers': [{'id': key('customer-a'), 'service_center_id': key('center-a'),
+                           'telegram_id': uuid.UUID(key('telegram-a')).int % 10**12, 'is_active': True}],
+            'customer_accounts': [{'id': key('account-a'), 'customer_id': key('customer-a'),
+                                   'service_center_id': key('center-a'), 'version': 7,
+                                   'email': 'recovery-customer-a@example.com', 'is_active': True}],
+        }
+        base = {'id': key('new-staff-session'), 'principal_kind': 'staff',
+                'user_id': key('user-a'), 'customer_id': None,
+                'service_center_id': key('center-a'), 'customer_account_id': None,
+                'account_version': None, 'demo': False,
+                'refresh_digest': hashlib.sha256(b'synthetic non-credential').hexdigest(),
+                'created_at': (self.now - timedelta(seconds=5)).isoformat(),
+                'expires_at': (self.now + timedelta(days=7, seconds=-5)).isoformat(), 'revoked_at': None}
+        self.fresh = [base,
+            dict(base, id=key('new-password-session'), principal_kind='customer', user_id=None,
+                 customer_id=key('customer-a'), customer_account_id=key('account-a'), account_version=7),
+            dict(base, id=key('new-telegram-session'), principal_kind='customer', user_id=None,
+                 customer_id=key('customer-a'))]
+        self.old = [dict(base, id=key('old-active-session')),
+                    dict(base, id=key('old-revoked-session'), revoked_at=self.now.isoformat()),
+                    dict(base, id=key('old-expired-session'),
+                         created_at=(self.now - timedelta(days=8)).isoformat(),
+                         expires_at=(self.now - timedelta(days=1)).isoformat())]
+
+    def snapshot(self, sessions, *, audits=1):
+        summaries = summarize_auth_sessions(sessions, self.identities, self.now)
+        return {'tables': {'auth_sessions': {'rows': len(sessions), 'sha256': row_sha256(sessions)},
+                           'audit_logs': {'rows': audits, 'sha256': str(audits)},
+                           'invoices': {'rows': 2, 'sha256': 'unchanged'}},
+                'session_rows': summaries,
+                'audit_rows': {str(i): {'sha256': str(i), 'expected_login': True} for i in range(audits)},
+                'schema_sha256': 'same-schema', 'sequences': {'retained': '4|t'}, 'alembic_revision': 'same'}
+
+    def test_exact_three_bound_families_and_one_audit_are_allowed(self):
+        before = self.snapshot(self.old)
+        after = self.snapshot(self.old + self.fresh, audits=2)
+        DatabaseRecoveryTest.assert_probe_effects(before, after)
+
+    def test_changing_or_removing_an_existing_family_is_rejected(self):
+        before = self.snapshot(self.old)
+        for field, value in [('refresh_digest', 'f' * 64), ('revoked_at', self.now.isoformat()),
+                             ('expires_at', (self.now + timedelta(days=2)).isoformat())]:
+            with self.subTest(field=field):
+                altered = deepcopy(self.old)
+                altered[0][field] = value
+                with self.assertRaises(AssertionError):
+                    DatabaseRecoveryTest.assert_probe_effects(before, self.snapshot(altered + self.fresh, audits=2))
+        with self.assertRaises(AssertionError):
+            DatabaseRecoveryTest.assert_probe_effects(before, self.snapshot(self.old[1:] + self.fresh, audits=2))
+
+    def test_wrong_owner_account_flags_or_malformed_digest_are_rejected(self):
+        before = self.snapshot(self.old)
+        for index, field, value in [(0, 'user_id', self.key('user-b')),
+                (0, 'service_center_id', self.key('center-b')), (0, 'demo', True),
+                (1, 'customer_id', self.key('customer-b')), (1, 'customer_account_id', self.key('account-b')),
+                (1, 'account_version', 8), (2, 'customer_account_id', self.key('account-a')),
+                (0, 'revoked_at', self.now.isoformat()), (0, 'refresh_digest', 'not-a-digest'),
+                (0, 'expires_at', (self.now - timedelta(seconds=1)).isoformat()),
+                (0, 'expires_at', (self.now + timedelta(days=8)).isoformat()),
+                (0, 'created_at', (self.now + timedelta(seconds=1)).isoformat())]:
+            with self.subTest(index=index, field=field):
+                fresh = deepcopy(self.fresh)
+                fresh[index][field] = value
+                with self.assertRaises(AssertionError):
+                    DatabaseRecoveryTest.assert_probe_effects(before, self.snapshot(self.old + fresh, audits=2))
+
+    def test_extra_missing_or_duplicate_family_kind_is_rejected(self):
+        before = self.snapshot(self.old)
+        extra = dict(self.fresh[0], id=self.key('unexpected-extra-session'))
+        duplicated_kind = dict(self.fresh[0], id=self.fresh[2]['id'])
+        for fresh in [self.fresh + [extra], self.fresh[:2], self.fresh[:2] + [duplicated_kind]]:
+            with self.assertRaises(AssertionError):
+                DatabaseRecoveryTest.assert_probe_effects(before, self.snapshot(self.old + fresh, audits=2))
+
+    def test_other_table_schema_sequence_or_audit_mutations_are_rejected(self):
+        before = self.snapshot(self.old)
+        good = self.snapshot(self.old + self.fresh, audits=2)
+        for field, value in [('schema_sha256', 'changed'), ('sequences', {'retained': '5|t'}),
+                             ('alembic_revision', 'changed')]:
+            with self.subTest(field=field):
+                after = deepcopy(good)
+                after[field] = value
+                with self.assertRaises(AssertionError):
+                    DatabaseRecoveryTest.assert_probe_effects(before, after)
+        for mutation in ('business', 'audit', 'row-count'):
+            after = deepcopy(good)
+            if mutation == 'business': after['tables']['invoices']['sha256'] = 'changed'
+            elif mutation == 'audit': after['audit_rows']['0']['sha256'] = 'changed'
+            else: after['tables']['auth_sessions']['rows'] += 1
+            with self.subTest(mutation=mutation), self.assertRaises(AssertionError):
+                DatabaseRecoveryTest.assert_probe_effects(before, after)
+
+    def test_session_evidence_contains_only_full_row_hash_and_boolean_proofs(self):
+        summary = summarize_auth_sessions(self.fresh, self.identities, self.now)
+        for row in summary.values():
+            self.assertEqual(set(row), {'sha256', 'expected_fresh_staff_login',
+                'expected_fresh_customer_password_login', 'expected_fresh_customer_telegram_login'})
+            self.assertNotIn('refresh_digest', row)
 
 
 class DatabaseRecoveryTest(unittest.TestCase):
@@ -91,6 +264,7 @@ class DatabaseRecoveryTest(unittest.TestCase):
             'DATABASE_URL': f'postgresql+asyncpg://recovery_role:{cls.secrets[0]}@postgres:5432/garageos_recovery',
             'REDIS_URL': 'redis://redis:6379/0', 'ENVIRONMENT': 'production', 'DEBUG': 'false',
             'SECRET_KEY': cls.secrets[1], 'CORS_ORIGINS': 'https://recovery.example.com',
+            'REFRESH_TOKEN_EXPIRE_DAYS': '7',
             'WEB_CONCURRENCY': '1', 'GARAGEOS_RECOVERY_RUN': cls.tag,
             'GARAGEOS_RECOVERY_PASSWORD': cls.secrets[2], 'TELEGRAM_BOT_TOKEN': cls.secrets[3]})
         cls.target_env = cls.private/'backend restored.env'
@@ -150,7 +324,7 @@ class DatabaseRecoveryTest(unittest.TestCase):
             'changed_tables': [name for name in cls.before['tables'] if cls.before['tables'][name] != after_restart['tables'][name]],
         }, indent=2))
         cls.assert_probe_effects(cls.before, after_restart)
-        cls.before = after_restart  # includes the new, independently verified login audit
+        cls.before = after_restart  # Verified login audit and three fresh token families.
         cls.docker('restart', cls.source, log='source-restart')
         cls.ready(cls.source)
         assert cls.snapshot(cls.source) == cls.before, 'Database restart changed stored records/schema'
@@ -222,13 +396,19 @@ class DatabaseRecoveryTest(unittest.TestCase):
         tables = cls.query(container, "SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename;").splitlines()
         rows = {}
         audits = {}
+        identities = {}
+        session_data = []
         for table in tables:
             data = json.loads(cls.query(container, f"SELECT coalesce(json_agg(t ORDER BY row_to_json(t)::text),'[]'::json) FROM public.{quoted(table)} t;"))
-            rows[table] = {'rows': len(data), 'sha256': hashlib.sha256(json.dumps(data, sort_keys=True, separators=(',', ':')).encode()).hexdigest()}
+            rows[table] = {'rows': len(data), 'sha256': row_sha256(data)}
+            if table in {'users', 'customers', 'customer_accounts', 'roles', 'service_centers'}:
+                identities[table] = data
+            if table == 'auth_sessions':
+                session_data = data
             if table == 'audit_logs':
                 for row in data:
                     audits[row['id']] = {
-                        'sha256': hashlib.sha256(json.dumps(row, sort_keys=True, separators=(',', ':')).encode()).hexdigest(),
+                        'sha256': row_sha256(row),
                         'expected_login': (row['action'] == 'auth.login.success' and row['status'] == 'success'
                                            and row['actor_email'] == 'recovery-staff-a@example.com'
                                            and row['service_center_id'] is None and row['actor_user_id'] is None
@@ -247,19 +427,19 @@ class DatabaseRecoveryTest(unittest.TestCase):
         sequences = {}
         for name in cls.query(container, "SELECT sequencename FROM pg_sequences WHERE schemaname='public' ORDER BY sequencename;").splitlines():
             sequences[name] = cls.query(container, f'SELECT last_value,is_called FROM public.{quoted(name)};')
-        return {'tables': rows, 'audit_rows': audits, 'schema_sha256': schema_hash,
+        sessions = summarize_auth_sessions(session_data, identities, datetime.now(timezone.utc))
+        return {'tables': rows, 'audit_rows': audits, 'session_rows': sessions, 'schema_sha256': schema_hash,
                 'sequences': sequences, 'alembic_revision': cls.query(container, 'SELECT version_num FROM alembic_version;')}
 
     @classmethod
     def assert_probe_effects(cls, before, after):
-        # A fresh genuine sign-in deliberately appends one security audit.
-        # Prove that precise effect without excluding audit integrity or hiding
-        # changes in any business table, including notification/event effects.
+        # Probe does exactly staff/password-customer/Telegram sign-ins. Prove
+        # their precise append-only effects, including every retained family.
         for field in ('schema_sha256', 'sequences', 'alembic_revision'):
             assert after[field] == before[field], field
         assert set(before['tables']) == set(after['tables'])
         for name in before['tables']:
-            if name != 'audit_logs':
+            if name not in {'audit_logs', 'auth_sessions'}:
                 assert before['tables'][name] == after['tables'][name], name
         assert before['audit_rows'].keys() <= after['audit_rows'].keys()
         for key, row in before['audit_rows'].items():
@@ -267,6 +447,20 @@ class DatabaseRecoveryTest(unittest.TestCase):
         added = after['audit_rows'].keys() - before['audit_rows'].keys()
         assert len(added) == 1 and all(after['audit_rows'][key]['expected_login'] for key in added)
         assert after['tables']['audit_logs']['rows'] == before['tables']['audit_logs']['rows'] + 1
+        assert before['session_rows'].keys() <= after['session_rows'].keys(), 'Existing session removed'
+        for key, row in before['session_rows'].items():
+            assert row == after['session_rows'][key], 'Existing session row changed'
+        added_sessions = after['session_rows'].keys() - before['session_rows'].keys()
+        assert len(added_sessions) == 3, 'Probe must append exactly three bound sessions'
+        proofs = ('expected_fresh_staff_login', 'expected_fresh_customer_password_login',
+                  'expected_fresh_customer_telegram_login')
+        assert all(sum(after['session_rows'][key][proof] for proof in proofs) == 1
+                   for key in added_sessions), 'Each new session must match exactly one probe flow'
+        for proof in proofs:
+            assert sum(after['session_rows'][key][proof] for key in added_sessions) == 1, proof
+        for snapshot in (before, after):
+            assert snapshot['tables']['auth_sessions']['rows'] == len(snapshot['session_rows']), 'Session snapshot incomplete'
+        assert after['tables']['auth_sessions']['rows'] == before['tables']['auth_sessions']['rows'] + 3
 
     def restore_script(self, archive, name, expected_success):
         container_name = self.tag + '-script-' + name
@@ -348,6 +542,7 @@ class DatabaseRecoveryTest(unittest.TestCase):
         self.assert_probe_effects(self.before, post_probe)
         self.report = {**self.identities, 'snapshot': after, 'api': after_api,
                        'post_restore_probe_snapshot': post_probe, 'fresh_probe_login_audit_verified': True,
+                       'fresh_probe_auth_sessions_verified': ['staff', 'customer_password', 'customer_telegram'],
                        'archive_sha256': hashlib.sha256(archive.read_bytes()).hexdigest(),
                        'archive_bytes': archive.stat().st_size, 'archive_mode': '0600',
                        'qa_only': True, 'client_environment_verified': False}
