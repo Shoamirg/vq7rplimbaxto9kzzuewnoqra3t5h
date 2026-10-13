@@ -54,7 +54,7 @@ UZ/EN/RU/keyboard/focus/44px/short-phone/light-dark/accessibility;
 Operations/Mini/Flutter/financial/auth/event-bus kontraktlari.
 
 - [x] Faqat aniqlangan xatti-harakat kamchiliklari tuzatildi.
-- [x] Har 13 guruhga regressiya va joriy natija bog'landi; final suite hali alohida.
+- [x] Har 13 guruhga regressiya va joriy natija bog'landi; final combined run o'tdi.
 - [x] Mustaqil spec/standards review va Inbox light/dark screenshots tekshirildi.
 
 ## Bosqich C: serverdagi sessiyalar
@@ -78,7 +78,9 @@ response maydonlari saqlanadi. `POST /api/v1/auth/logout` va
 fallback yo'q. Signed unexpired proof sid/sub/type bilan bog'liq sessiyani revoke
 qiladi, already-revoked proof idempotent; success 200 `{ok:true}`, missing yoki
 foreign/wrong-type proof 401. Bloklangan identity ham o'z sessiyasini revoke qila
-oladi. Token/hash/private fixture log yoki response'ga chiqmaydi.
+oladi. Xom token faqat intended login/refresh response'da qaytariladi;
+log/evidence/export yoki boshqa response'da chiqarilmaydi. Session hash va
+private fixture response yoki public evidence'ga chiqmaydi.
 
 Mavjud default muddatlar: access 30 daqiqa; sessiya login paytidan 7 kun.
 Configured expiry saqlanadi, refresh absolute session expiry'ni uzaytirmaydi.
@@ -89,8 +91,11 @@ tekshiriladi; production uchun sid-less bypass qo'shilmaydi.
 ## Bosqich D: klientlar
 
 - [x] Brauzer access-only 30min tartibi saqlanadi; avtomatik browser refresh yo'q.
-- [x] BFF logout backend revoke qiladi; cookies va #38 message reset/purge
-      offline holatda ham tozalanadi, server revoke unconfirmed bo'lsa rost izoh.
+- [x] BFF logout backend revoke qiladi; BFF reachable bo'lsa, backend revocation
+      unreachable holatda ham cookies va #38 message reset/purge tozalanadi,
+      server revoke unconfirmed bo'lsa rost izoh. Browser->BFF network uzilsa,
+      HttpOnly cookie'ni lokal JavaScript o'chira olmaydi; logout failure/retry
+      holati ochiq ko'rsatiladi, muvaffaqiyat deb aytilmaydi.
 - [x] Flutter refresh single-flight; logout/close'dan keyingi late response
       tokenlarni qayta o'rnata olmaydi.
 - [x] Unknown refresh response/transport/5xx/malformed success'da eski refresh
@@ -122,11 +127,33 @@ as reassurance takrorlanmaydi. Interrupted run SUCCESS deb ko'rsatilmaydi.
 ## Yakunlash
 
 - [x] Mustaqil review topilmalari hal qilingan; delayed SSR ham sessiyaga bog'langan.
-- [ ] Focused va final gate'lar, commit SHA va private evidence bog'langan.
+- [x] Focused va final gate'lar, commit SHA va private evidence bog'langan.
 - [ ] Atomic commitlar o'z branchimizga push qilingan; remote SHA tasdiqlangan.
 - [ ] PR5 va tegishli issue'lar aktual evidence bilan yangilangan.
-- [ ] Faqat owned services/credentials/resources tozalangan.
-- [ ] O'zbekcha hisobot: nima o'zgardi, testlar, push SHA, qolgan external gate'lar.
+- [x] Owned services/credential fixtures to'xtatilgan/olib tashlangan; quyidagi disk exception saqlangan.
+- [x] O'zbekcha natija va external gate'lar `tasks/inbox-acceptance.md`da yozilgan; publication receipt keyin qo'shiladi.
+
+## Yakuniy tekshiruv dalili — 2026-10-14 (Tashkent)
+
+Tested application/test SHA: `be24c902acb3030638d7d99994fa65d40fd4f5ae`.
+`qa-session-inbox-final4-20261013-be24c90`: bitta to'liq lokal Windows runner,
+exit0, tracked checkout toza; barcha Docker/application/recovery/invoice-volume
+natijalari `passed`. 990 backend,574 authenticated Chromium (retries0),107
+Flutter/live API testi o'tdi. Schema,TypeScript,lint,1458 browser keys/249 Flutter
+messages, i18n audit0, Python55/55 va Node audits0, dashboard/web build va QA
+Android34 gate o'tdi. Android3 ABI nusxalari QA kaliti bilan; private fixture
+cleanup true, owner/physical device qabuli deb ko'rsatilmaydi.
+
+Destructive downgrade testlari eski staff/customer token401 va real re-login'ni
+endi ochiq tekshiradi. Read UUID422/new arrivals, yo'qolgan message receipt va
+same key/payload talablari pasaytirilmagan. Historical seed modeli ham bugungi
+auth-session jadvalini oldingi schema'ga qo'shmaydi. Old failed/interrupted
+run'lar yakuniy muvaffaqiyat dalili emas.
+
+Owned test ports55444/8010/3001 bo'sh, `owned.json` va credential fixture'lar
+yo'q. Docker/private signing cleanup receipts true. Avtomatik approval review
+to'xtatilgan test bazasi papkasini o'chirishni `blocked by policy` deb rad etdi;
+PGdata papkalari diskda qoldi. Alternativ recursive deletion qilinmadi.
 
 Main merge/tag, paid hosting, production deploy, owner signing keys va client
 pilot bu bosqichda bajarilmaydi. Server, off-host backup/recovery/rollback,
