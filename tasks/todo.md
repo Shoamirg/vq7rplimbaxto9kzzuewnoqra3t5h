@@ -113,3 +113,10 @@
 **Bog‘liqlik:** Task 1-6.
 **Taxminiy fayllar:** Pilot natijasiga qarab aniqlanadi.
 **Hajm:** Kichik, sinov natijasiga qarab keyin alohida tuzatishlar ochiladi.
+
+## 2026-10-13 tekshiruv qaydi
+
+- Mahalliy brauzer regressiya to‘plami: 17/17 Playwright testi o‘tdi; TypeScript va production build o‘tdi; lint’da xato yo‘q, 2 ta mavjud rasm ogohlantirishi qoldi.
+- GitHub Actions 38346548668 tekshiruvi 4760e97 commit uchun muvaffaqiyatli yakunlandi.
+- Agent bajargan sun’iy ma’lumotli smoke-test buyurtmani topshirishgacha olib bordi va bitta xizmat tarixi yozuvini tasdiqladi. Servis xodimi bilan amaliy pilot hali bajarilmadi; pilot ro‘yxati ochiq.
+- Production dependency auditi: 0 zaiflik. To‘liq auditda `braces@3.0.3` development zanjiridan 5 ta yuqori darajali ogohlantirish bor; tuzatilgan versiya chiqsa, chiqarishdan oldin qayta tekshirish kerak.

@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// E2E regression suite. Assumes the backend (:8010) and the Next dev/prod server
+// E2E regression suite. Assumes the backend (:8000) and the Next dev/prod server
 // are already running; point at either with BASE_URL.
 //   npm run e2e                       # against http://localhost:3000
 //   BASE_URL=https://staging npm run e2e

@@ -52,7 +52,7 @@ Ruxsatli holat o‘tishlari, completion odometri, bajarilgan ish va narxni yangi
 
 Uchrashuv ekranidan buyurtma yaratish va buyurtma holatini ko‘rish. Reception va mechanic rollariga mos boshqaruvlarni ko‘rsatish. Playwright’da walk-in hamda appointment oqimini tekshirish.
 
-**Holat:** Work-order MVP implementatsiyasi `d6dff3a` commitda yakunlandi. Lokal demo yo‘riqnomasi `garageos/docs/setup/local-demo.md` faylida, sinov ro‘yxati `docs/testing/work-order-pilot-checklist.md` faylida. Oxirgi GitHub Actions tekshiruvi (run 38298489077, commit 5d0d88d) backend testlari, dependency audit, frontend typecheck/i18n/lint/build va Browser Playwrightni muvaffaqiyatli bajardi. Bu tekshiruvlar avtomatlashtirilgan; servis xodimi bilan mahalliy pilotning o‘rnini bosmaydi. Joriy ish muhitida Docker Engine ishlamayapti (`dockerDesktopLinuxEngine` pipe mavjud emas), shuning uchun Task 7/Checkpoint D hali bajarilmagan. Pulli hosting va production deploy qilinmagan.
+**Holat:** Work-order MVP implementatsiyasi `d6dff3a` commitda yakunlandi. Lokal demo yo‘riqnomasi `garageos/docs/setup/local-demo.md` faylida, sinov ro‘yxati `docs/testing/work-order-pilot-checklist.md` faylida. Avvalgi GitHub Actions tekshiruvi (run 38298489077, commit 5d0d88d) backend testlari, dependency audit, frontend typecheck/i18n/lint/build va Browser Playwrightni muvaffaqiyatli bajardi. Bu avtomatlashtirilgan tekshiruvlar servis xodimi bilan mahalliy pilotning o‘rnini bosmaydi. 2026-10-13 holatiga ko‘ra lokal Docker demo va dashboard ishlayapti, lekin servis xodimi bilan amaliy pilot bajarilmagani uchun Task 7/Checkpoint D ochiq. Pulli hosting va production deploy qilinmagan.
 
 ### Checkpoint C
 
@@ -94,3 +94,11 @@ Kod va CI sinovlari biznes oqimi amalda qulay ekanini ko‘rsatmaydi. Demo admin
 - [ ] Mahalliy pilotning asosiy oqimlari admin (qabulxona vazifasida) va mechanic bilan bajarildi.
 - [ ] Natijalar va ishlashga xalaqit beradigan muammolar qayd etildi.
 - [ ] Qolgan nuqsonlar tuzatilmaguncha yoki ongli ravishda qabul qilinmaguncha ommaviy deploy qilinmaydi.
+
+### 2026-10-13 tekshiruv natijasi
+
+Mahalliy regressiya to‘plamidagi 17 ta Playwright testi, TypeScript tekshiruvi va production build muvaffaqiyatli o‘tdi. Lint’da xato yo‘q; marketing sahifasidagi rasmlar bo‘yicha avvaldan mavjud 2 ogohlantirish qoldi. GitHub Actions’dagi [38346548668-run](https://github.com/Shoamirg/vq7rplimbaxto9kzzuewnoqra3t5h/actions/runs/38346548668) `4760e97` commit uchun muvaffaqiyatli yakunlandi.
+
+Sun’iy ma’lumot bilan agent bajargan smoke-test qabuldan mijozga topshirishgacha bordi va yakunlangan buyurtma uchun bitta xizmat tarixi yozuvini tasdiqladi. Bu servis xodimi bilan amaliy pilot emas; Checkpoint D va xodim bajaradigan pilot ro‘yxati ochiq qoladi. Pulli hosting yoki production deploy ishlatilmadi.
+
+Production dependency auditi toza (`npm audit --omit=dev`: 0 zaiflik). To‘liq audit `braces@3.0.3` development dependency zanjirida 5 ta yuqori darajali ogohlantirish ko‘rsatadi. GitHub Advisory tuzatilgan versiyani hozircha ko‘rsatmaydi; ommaviy chiqarishdan oldin qayta tekshirish kerak.
