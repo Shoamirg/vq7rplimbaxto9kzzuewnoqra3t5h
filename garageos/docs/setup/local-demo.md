@@ -4,11 +4,11 @@ Bu qo‘llanma GarageOS’ni bitta Windows kompyuterida, bulut xizmati yoki pull
 
 ## Kerak bo‘ladi
 
-- Docker Desktop ishga tushgan bo‘lishi kerak. `docker info` server qismiga xatosiz ulanishi shart.
+- Docker Desktop WSL 2 backend bilan ishga tushgan bo‘lishi kerak. `docker info` server qismiga xatosiz ulanishi shart.
 - Node.js 24 va npm 11.21.0. Repo npm versiyasini aniq belgilagan.
 - PowerShell.
 
-Agar Docker Desktop ochiq bo‘lsa-yu `docker info` xizmatga ulanmasa, davom etmang. Windows Docker xizmatini administrator huquqi bilan yoqish kerak bo‘lishi mumkin; administrator oynasini o‘zingiz tasdiqlamasdan ochmang. `5432`, `6379` yoki `8000` port band bo‘lsa, boshqa servisni to‘xtatmay, xato matnini yozib oling.
+Agar `docker info` Server qismiga ulana olmasa, Docker Desktop oynasida ko‘rsatilgan Engine holati yoki xatoni tekshiring. WSL 2 orqali Linux konteynerlarini ishlatganda `com.docker.service` to‘xtagani o‘zi sabab bo‘lmasligi kerak: Docker hujjatlariga ko‘ra bu xizmat Windows konteynerlari va Hyper-V backend uchun, WSL 2 backend uchun emas ([Windows ruxsatlari](https://docs.docker.com/desktop/setup/install/windows-permission-requirements/)). Shu sabab xizmatni ko‘r-ko‘rona qo‘lda ishga tushirmang; Docker Desktop ko‘rsatgan nosozlik matnini yoki diagnostic ID’ni oling. `5432`, `6379` yoki `8000` port band bo‘lsa, boshqa servisni to‘xtatmay xatoni yozib oling.
 
 ## 1. Demo backendni tayyorlash
 

@@ -52,7 +52,7 @@ Ruxsatli holat o‘tishlari, completion odometri, bajarilgan ish va narxni yangi
 
 Uchrashuv ekranidan buyurtma yaratish va buyurtma holatini ko‘rish. Reception va mechanic rollariga mos boshqaruvlarni ko‘rsatish. Playwright’da walk-in hamda appointment oqimini tekshirish.
 
-**Holat:** Work-order MVP implementatsiyasi `d6dff3a` commitda yakunlandi. Lokal demo yo‘riqnomasi `garageos/docs/setup/local-demo.md` faylida, sinov ro‘yxati `docs/testing/work-order-pilot-checklist.md` faylida. Oxirgi GitHub Actions tekshiruvi (run 38297346125, commit ebdda29) backend testlari, dependency audit, frontend typecheck/i18n/lint/build va Browser Playwrightni muvaffaqiyatli bajardi. Bu tekshiruvlar avtomatlashtirilgan; servis xodimi bilan mahalliy pilotning o‘rnini bosmaydi. Joriy ish muhitida Docker Engine ishlamayapti (`dockerDesktopLinuxEngine` pipe mavjud emas), shuning uchun Task 7/Checkpoint D hali bajarilmagan. Pulli hosting va production deploy qilinmagan.
+**Holat:** Work-order MVP implementatsiyasi `d6dff3a` commitda yakunlandi. Lokal demo yo‘riqnomasi `garageos/docs/setup/local-demo.md` faylida, sinov ro‘yxati `docs/testing/work-order-pilot-checklist.md` faylida. Oxirgi GitHub Actions tekshiruvi (run 38298489077, commit 5d0d88d) backend testlari, dependency audit, frontend typecheck/i18n/lint/build va Browser Playwrightni muvaffaqiyatli bajardi. Bu tekshiruvlar avtomatlashtirilgan; servis xodimi bilan mahalliy pilotning o‘rnini bosmaydi. Joriy ish muhitida Docker Engine ishlamayapti (`dockerDesktopLinuxEngine` pipe mavjud emas), shuning uchun Task 7/Checkpoint D hali bajarilmagan. Pulli hosting va production deploy qilinmagan.
 
 ### Checkpoint C
 
