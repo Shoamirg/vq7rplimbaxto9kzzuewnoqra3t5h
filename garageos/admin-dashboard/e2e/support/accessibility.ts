@@ -98,20 +98,24 @@ export async function assertKeyboardFocus(page: Page, locator: Locator) {
   for (let i = 0; i < steps; i++) {
     await page.keyboard.press("Tab");
     if (await locator.evaluate((el) => el === document.activeElement)) break;
-    expect(
-      await page.evaluate(() => {
+    // A scrollable modal may scroll after the browser moves keyboard focus.
+    // Wait for that native scroll to settle before judging the intermediate stop.
+    await expect.poll(
+      () => page.evaluate(() => {
         const e = document.activeElement as HTMLElement;
-        if (e === document.body) return true; // the browser's cycle boundary
+        if (e === document.body) return { visible: true, tag: e.tagName };
         const r = e.getBoundingClientRect();
-        return (
-          r.right > 0 &&
-          r.left < innerWidth &&
-          r.bottom > 0 &&
-          r.top < innerHeight
-        );
+        return {
+          visible: r.right > 0 && r.left < innerWidth && r.bottom > 0 && r.top < innerHeight,
+          tag: e.tagName,
+          role: e.getAttribute("role"),
+          type: e.getAttribute("type"),
+          rect: { left: r.left, top: r.top, right: r.right, bottom: r.bottom },
+          viewport: { width: innerWidth, height: innerHeight },
+        };
       }),
-      "Keyboard focus must remain on a visible on-screen control",
-    ).toBeTruthy();
+      { message: "Keyboard focus must remain on a visible on-screen control", timeout: 500 },
+    ).toMatchObject({ visible: true });
   }
   await expect(locator).toBeFocused();
   await settleMotion(page);
