@@ -61,6 +61,9 @@ class JenkinsOwnedCleanupTest(unittest.TestCase):
         self.assertTrue(self.fixture.exists())
         self.assertTrue(self.browser_fixture.exists())
 
+    def test_console_failure_report_survives_legacy_windows_encoding(self):
+        self.assertEqual(self.runner.console_safe("failure 🙂", "cp1251"), r"failure \U0001f642")
+
     def test_running_owned_database_is_stopped_before_fixture_cleanup(self):
         def stop(*_args):
             self.pid_file.unlink()

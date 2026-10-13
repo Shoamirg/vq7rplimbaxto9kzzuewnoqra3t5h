@@ -52,6 +52,12 @@ PROCESSES = []
 HANDLES = []
 
 
+def console_safe(text, encoding=None):
+    """Keep UTF-8 test output from masking a failure on legacy Windows consoles."""
+    codec = encoding or getattr(sys.stdout, "encoding", None) or "utf-8"
+    return text.encode(codec, errors="backslashreplace").decode(codec)
+
+
 def run(args, cwd, name):
     print(f"GATE {name}", flush=True)
     EVIDENCE.mkdir(parents=True, exist_ok=True)
@@ -61,7 +67,8 @@ def run(args, cwd, name):
                                 creationflags=subprocess.CREATE_NO_WINDOW)
     print(f"RESULT {name}: {result.returncode}", flush=True)
     if result.returncode:
-        print((EVIDENCE / (name + ".log")).read_text(encoding="utf-8", errors="replace")[-6000:], flush=True)
+        log_tail = (EVIDENCE / (name + ".log")).read_text(encoding="utf-8", errors="replace")[-6000:]
+        print(console_safe(log_tail), flush=True)
         raise RuntimeError(name + " failed")
 
 

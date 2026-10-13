@@ -137,12 +137,21 @@ test("locale transition preserves notification filter and read action", async ({
   await expect(menu).toContainText("Mijozning asl xabari");
 });
 
-test("audit all mode reports the same remaining backlog", () => {
+test("audit all mode reports accurate progress for the same file set", () => {
   const normal = execFileSync(process.execPath, ["scripts/i18n-audit.mjs"], { encoding: "utf8" });
   const all = execFileSync(process.execPath, ["scripts/i18n-audit.mjs", "--all"], { encoding: "utf8" });
-  const backlog = (output: string) => output.match(/Strings:.*\((\d+) in backlog\)/)?.[1];
-  expect(Number(backlog(normal))).toBeGreaterThan(0); // This slice leaves other screens.
-  expect(backlog(all)).toBe(backlog(normal));
-  expect(all).not.toContain("100.0%");
-  expect(all.match(/\((\d+) files\)/)?.[1]).toBe(normal.match(/\((\d+) files\)/)?.[1]);
+  const summary = (output: string) => ({
+    files: output.match(/Files:\s+(\d+)\s*\/\s*(\d+) done\s+\((\d+) remaining\)/)?.slice(1),
+    strings: output.match(/Strings:\s+(\d+)\s*\/\s*(\d+) done\s+\((\d+) in backlog\)/)?.slice(1),
+  });
+  const normalSummary = summary(normal);
+  const allSummary = summary(all);
+  expect(normalSummary.files).toBeDefined();
+  expect(normalSummary.strings).toBeDefined();
+  expect(allSummary).toEqual(normalSummary);
+  const [doneFiles, totalFiles, remainingFiles] = normalSummary.files!.map(Number);
+  const [doneStrings, totalStrings, backlog] = normalSummary.strings!.map(Number);
+  expect(doneFiles + remainingFiles).toBe(totalFiles);
+  expect(doneStrings + backlog).toBe(totalStrings);
+  expect(all).toContain("All detected strings:");
 });
