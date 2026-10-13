@@ -333,6 +333,8 @@ for (const [locale, width] of [["uz", 360], ["en", 390], ["ru", 1280]] as const)
     await expect(modal.getByRole("alert").filter({ hasText: translate(locale, "message.case_outcome_found") })).toBeVisible();
     await expect(modal.getByRole("link").filter({ hasText: "OPS-" })).toBeVisible();
     expect(posts).toBe(1);
+    await modal.getByRole("button", { name: translate(locale, "common.close"), exact: true }).click();
+    await expect(modal).not.toBeVisible();
     await queueTargets(page, reopenedActions); await queueOverflow(page);
     await assertAccessible(page, info, `case-lost-response-${locale}-${width}`);
   });
