@@ -95,7 +95,7 @@ export function WorkOrdersWorkspace({ role, initialOrderId }: { role: string; in
       </header>
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex gap-1 overflow-x-auto pb-1" role="group" aria-label={t("wo.title")}>
+        <div className="flex flex-wrap gap-1 pb-1" role="group" aria-label={t("wo.title")}>
           {FILTERS.map((filter) => (
             <button
               key={filter}

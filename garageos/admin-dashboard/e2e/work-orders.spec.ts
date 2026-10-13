@@ -47,6 +47,42 @@ test("reception can add a customer and vehicle during walk-in intake", async ({ 
   await expect(page.getByLabel("Work order details")).toBeVisible();
 });
 
+test("walk-in intake fits a 320px mobile viewport", async ({ page }) => {
+  await login(page);
+  await page.setViewportSize({ width: 320, height: 812 });
+  await page.goto("/work-orders", { waitUntil: "networkidle" });
+
+  await expect(page.locator("html")).toHaveJSProperty("scrollWidth", 320);
+
+  const statusFilters = page.getByRole("group").first().getByRole("button");
+  const filterBounds = await statusFilters.evaluateAll((buttons) =>
+    buttons.map((button) => {
+      const { left, right } = button.getBoundingClientRect();
+      return { left, right };
+    }),
+  );
+  expect(filterBounds).toHaveLength(6);
+  for (const bounds of filterBounds) {
+    expect(bounds.left).toBeGreaterThanOrEqual(0);
+    expect(bounds.right).toBeLessThanOrEqual(320);
+  }
+
+  await page.screenshot({ path: "test-results/work-orders-320px.png", fullPage: true });
+  await page.getByRole("button", { name: "New walk-in" }).first().click();
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("textbox", { name: "Customer", exact: true })).toBeVisible();
+  await expect(dialog.getByLabel("Service type")).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Create work order" })).toBeVisible();
+  await expect(page.locator("html")).toHaveJSProperty("scrollWidth", 320);
+
+  await page.screenshot({ path: "test-results/work-orders-intake-320px.png", fullPage: true });
+
+  const dialogWidth = await dialog.evaluate((element) => element.getBoundingClientRect().width);
+  expect(dialogWidth).toBeLessThanOrEqual(320);
+});
+
 test("reception can create a walk-in work order on mobile and take it to ready", async ({ page }) => {
   await login(page);
   await page.setViewportSize({ width: 375, height: 812 });
