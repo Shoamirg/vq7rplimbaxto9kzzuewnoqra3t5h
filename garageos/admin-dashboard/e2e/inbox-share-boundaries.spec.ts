@@ -126,16 +126,18 @@ test("Inbox counts keep combined search type and channel filters when selecting 
 });
 
 for (const [locale, width] of [["uz", 360], ["en", 390], ["ru", 1280]] as const) {
-  test(`unbroken stored summaries fit Inbox panes ${locale}/${width}`, async ({ page, baseURL }, info) => {
+  for (const theme of ["light", "dark"] as const) {
+  test(`unbroken stored summaries fit Inbox panes ${locale}/${width}/${theme}`, async ({ page, baseURL }, info) => {
     await queueLogin(page, baseURL!, locale, width);
     await page.setViewportSize({ width, height: 480 });
-    await page.context().addCookies([{ name: "garageos_theme", value: "dark", url: baseURL! }]);
+    await page.emulateMedia({ colorScheme: theme });
     const text = "SavedSummary".repeat(16);
     const subject = `Long summary ${randomUUID()}`;
     const created = await page.request.post("/api/proxy/conversations", { data: { subject, ai_summary: text } });
     expect(created.status()).toBe(201);
     const id = (await created.json()).id as string;
     await page.goto(`/inbox?c=${id}`);
+    await expect(page.locator("html")).toHaveClass(new RegExp(`\\b${theme}\\b`));
     const queues = page.getByRole("button", { name: translate(locale, "message.queues"), exact: true });
     await queues.click();
     await page.getByRole("navigation", { name: translate(locale, "inbox.queue_navigation"), exact: true })
@@ -154,7 +156,8 @@ for (const [locale, width] of [["uz", 360], ["en", 390], ["ru", 1280]] as const)
     await expect(context.getByText(text, { exact: true })).toBeVisible();
     await expect.poll(() => context.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
     await queueOverflow(page);
-    await assertAccessible(page, info, `long-summary-${locale}-${width}`);
-    await page.screenshot({ path: info.outputPath(`long-summary-${locale}-${width}.png`), fullPage: true });
+    await assertAccessible(page, info, `long-summary-${locale}-${width}-${theme}`);
+    await page.screenshot({ path: info.outputPath(`long-summary-${locale}-${width}-${theme}.png`), fullPage: true });
   });
+  }
 }
