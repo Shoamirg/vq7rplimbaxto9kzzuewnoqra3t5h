@@ -21,7 +21,22 @@ export async function POST(req: Request) {
   }
 
   const tokens = (await res.json()) as { access_token: string };
-  const response = NextResponse.json({ ok: true });
+  let profile: { role?: string | null };
+  try {
+    const profileRes = await fetch(`${apiBaseUrl()}/auth/me`, {
+      headers: { Authorization: `Bearer ${tokens.access_token}` },
+      cache: "no-store",
+    });
+    if (!profileRes.ok) {
+      return NextResponse.json({ error: "Could not load your account. Please try again." }, { status: 502 });
+    }
+    profile = (await profileRes.json()) as { role?: string | null };
+  } catch {
+    return NextResponse.json({ error: "Could not load your account. Please try again." }, { status: 502 });
+  }
+
+  const redirectTo = profile.role === "mechanic" ? "/work-orders" : "/dashboard";
+  const response = NextResponse.json({ ok: true, redirectTo });
   response.cookies.set(AUTH_COOKIE, tokens.access_token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
