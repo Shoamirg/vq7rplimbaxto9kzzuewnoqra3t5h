@@ -99,16 +99,6 @@ export const CHANNEL_FILTERS: { key: Channel; label: string; icon: string }[] = 
   { key: "internal", label: "Internal", icon: "🔒" },
 ];
 
-export function relTime(iso: string | null): string {
-  if (!iso) return "";
-  const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
-  if (m < 1) return "now";
-  if (m < 60) return `${m}m`;
-  const h = Math.round(m / 60);
-  if (h < 24) return `${h}h`;
-  return `${Math.round(h / 24)}d`;
-}
-
 export function fmtTimer(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;

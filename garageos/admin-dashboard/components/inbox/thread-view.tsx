@@ -15,7 +15,8 @@ import { MessageSubmissionStatus } from "@/components/message-submission-status"
 import { NewAppointmentModal } from "@/components/appointments/new-appointment-modal";
 import { NewInvoiceModal } from "@/components/billing/new-invoice-modal";
 import { NewInboxCaseModal } from "@/components/inbox/new-inbox-case-modal";
-import { CHANNEL_META, CONV_TYPE_ICON, activityIcon, inboxEnumLabel, relTime, roleColor, safeCallHref } from "./shared";
+import { relTime as localizedRelTime } from "../operations/shared";
+import { CHANNEL_META, CONV_TYPE_ICON, activityIcon, inboxEnumLabel, roleColor, safeCallHref } from "./shared";
 
 type ComposerTab = "reply" | "note" | "announcement";
 
@@ -396,7 +397,7 @@ function bubbleSide(role: string): "them" | "me" | "mech" {
 }
 
 function MessageBubble({ m }: { m: ConvMessage }) {
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
   const side = bubbleSide(m.author_role);
   if (m.is_internal && m.kind === "note") {
     return (
@@ -427,7 +428,7 @@ function MessageBubble({ m }: { m: ConvMessage }) {
           <span className="font-medium text-foreground">{a.label}</span>
         </div>
       ))}
-      <p className={cn("text-[10px] text-muted-foreground mt-1 px-1", side === "me" && "text-right")}>{relTime(m.created_at)}</p>
+      <p className={cn("text-[10px] text-muted-foreground mt-1 px-1", side === "me" && "text-right")}>{m.created_at ? localizedRelTime(m.created_at, Date.now(), t, fmt.number) : ""}</p>
     </div>
   );
 }
@@ -446,12 +447,13 @@ function MiniBubble({ role, name, body, date }: { role: string; name: string; bo
 }
 
 function EventLine({ icon, title, detail, date }: { icon: string; title: string; detail: string | null; date: string | null }) {
+  const { t, fmt } = useI18n();
   return (
     <div className="flex items-center gap-2 justify-center text-[11.5px] text-muted-foreground">
       <span className="text-sm">{icon}</span>
       <span className="font-medium text-slate-600 dark:text-slate-300">{title}</span>
       {detail && <span>· {detail}</span>}
-      <span className="text-muted-foreground/70 dark:text-muted-foreground">· {relTime(date)}</span>
+      <span className="text-muted-foreground/70 dark:text-muted-foreground">· {date ? localizedRelTime(date, Date.now(), t, fmt.number) : ""}</span>
     </div>
   );
 }

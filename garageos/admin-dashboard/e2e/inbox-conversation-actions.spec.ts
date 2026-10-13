@@ -4,7 +4,9 @@ import { withFailureDiagnostics } from "./support/failure-diagnostics";
 import { queueCustomer, queueDate, queueLogin, queueOverflow, queueProfiles, queueTargets, switchQueueLocale } from "./support/queue";
 import { assertAccessible, assertKeyboardFocus } from "./support/accessibility";
 import { translate, type Locale } from "../lib/i18n/dictionaries";
+import { makeFormatters } from "../lib/i18n/formatters";
 import { safeCallHref } from "../components/inbox/shared";
+import { relTime as localizedRelTime } from "../components/operations/shared";
 import { freshOperationsDemoToken } from "./support/demo-session";
 
 test.use({ trace: "off" });
@@ -44,6 +46,25 @@ test("recorded phone call destinations reject non-phone schemes and malformed va
   expect(safeCallHref("901234567")).toBe("tel:901234567");
   for (const value of [null, "", "javascript:alert(1)", "tel:+998901234567", "+998+901234567", "+998;5551234", "123456", "1".repeat(16)]) {
     expect(safeCallHref(value)).toBeNull();
+  }
+});
+
+test("Inbox message and activity timestamps use the selected locale", () => {
+  const now = Date.UTC(2026, 9, 13, 12);
+  const cases = [0, 5, 120, 3 * 24 * 60];
+  const expected: Record<Locale, string[]> = {
+    en: ["Just now", "5 min ago", "2 hr ago", "3 days ago"],
+    ru: ["Только что", "5 мин назад", "2 ч назад", "3 дн. назад"],
+    uz: ["Hozirgina", "5 daq oldin", "2 soat oldin", "3 kun oldin"],
+  };
+
+  for (const locale of ["en", "ru", "uz"] as const) {
+    const formatNumber = makeFormatters(locale).number;
+    const t = (key: string, params?: Record<string, string | number>) => translate(locale, key, params);
+    for (const [index, minutesAgo] of cases.entries()) {
+      const timestamp = new Date(now - minutesAgo * 60_000).toISOString();
+      expect(localizedRelTime(timestamp, now, t, formatNumber)).toBe(expected[locale][index]);
+    }
   }
 });
 
