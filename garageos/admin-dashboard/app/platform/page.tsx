@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { ApiError, getCurrentUser } from '@/lib/api/server';
+import { ApiError, getCurrentUser, renderedAuthFingerprint } from '@/lib/api/server';
 import { I18nProvider } from '@/lib/i18n/context';
 import { isLocale, LOCALE_COOKIE } from '@/lib/i18n/dictionaries';
 import { PlatformWorkspace } from '@/components/platform/workspace';
@@ -16,6 +16,6 @@ export default async function PlatformPage() {
   }
   const cookie = (await cookies()).get(LOCALE_COOKIE)?.value;
   return <I18nProvider initialLocale={isLocale(cookie) ? cookie : 'uz'}>
-    <PlatformWorkspace name={user.full_name} allowed={user.platform_permissions?.includes('platform.read') ?? false} />
+    <PlatformWorkspace name={user.full_name} authFingerprint={await renderedAuthFingerprint()} allowed={user.platform_permissions?.includes('platform.read') ?? false} />
   </I18nProvider>;
 }

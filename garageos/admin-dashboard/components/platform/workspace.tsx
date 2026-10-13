@@ -7,6 +7,7 @@ import { LanguageSwitcher } from '@/components/layout/language-switcher';
 import { clientFetch, ClientApiError } from '@/lib/api/client';
 import { useI18n } from '@/lib/i18n/context';
 import { logoutMessageSession } from '@/lib/message-intents';
+import { authTransitionFailureKey, captureAuthOwnership } from '@/lib/auth-transition';
 
 const kinds = ['centers', 'staff', 'customers', 'vehicles', 'appointments', 'invoices', 'payments'] as const;
 type Kind = typeof kinds[number];
@@ -14,7 +15,7 @@ type RecordRow = { id: string; service_center_id: string; garage: string; title:
 type Page = { items: RecordRow[]; total: number; page: number; page_size: number };
 type Stats = { counts: Record<string, number>; money: { currency: string; invoiced: string; received: string; refunds: string; net_received: string }[] };
 
-export function PlatformWorkspace({ name, allowed }: { name: string; allowed: boolean }) {
+export function PlatformWorkspace({ name, allowed, authFingerprint }: { name: string; allowed: boolean; authFingerprint: string | null }) {
   const { t, locale } = useI18n();
   const router = useRouter();
   const [denied, setDenied] = useState(!allowed);
@@ -26,7 +27,8 @@ export function PlatformWorkspace({ name, allowed }: { name: string; allowed: bo
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
-  const [logoutError, setLogoutError] = useState(false);
+  const [logoutError, setLogoutError] = useState<string | null>(null);
+  const [logoutOwner] = useState(captureAuthOwnership);
   useEffect(() => {
     if (denied) return;
     const abort = new AbortController();
@@ -50,12 +52,10 @@ export function PlatformWorkspace({ name, allowed }: { name: string; allowed: bo
   }, [filters, revision, denied]);
 
   async function logout() {
-    setLogoutError(false);
-    setData(null); setDenied(true);
+    setLogoutError(null);
     try {
-      await logoutMessageSession();
-      router.replace('/login'); router.refresh();
-    } catch { setLogoutError(true); }
+      await logoutMessageSession(destination => { router.replace(destination); router.refresh(); }, logoutOwner, authFingerprint, () => { setData(null); setDenied(true); });
+    } catch (error) { setLogoutError(authTransitionFailureKey(error)); }
   }
   function apply(event: FormEvent) {
     event.preventDefault();
@@ -79,7 +79,7 @@ export function PlatformWorkspace({ name, allowed }: { name: string; allowed: bo
     </header>
     <main className="mx-auto max-w-6xl p-4 sm:p-8 space-y-6">
       <div><h1 className="text-2xl font-semibold">{t('platform.title')}</h1><p className="mt-2 max-w-3xl text-muted-foreground">{t('platform.hint')}</p></div>
-      {logoutError && <p role="alert" className="text-destructive">{t('platform.logout_failed')}</p>}
+      {logoutError && <p role="alert" className="text-destructive">{t(logoutError)}</p>}
       {denied ? <p role="alert" className="rounded-lg border border-border p-4">{t('platform.denied')}</p> : <>
         <form onSubmit={apply} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 items-end">
           <label className="space-y-1 text-sm"><span className="block">{t('platform.records')}</span><select value={filters.kind} onChange={(e) => { setQuery(''); setFilters((old) => ({ ...old, kind: e.target.value as Kind, q: '', page: 1 })); }} className="w-full rounded-lg border border-border bg-background px-3 py-2">{kinds.map((kind) => <option key={kind} value={kind}>{t(`platform.${kind}`)}</option>)}</select></label>

@@ -21,6 +21,7 @@ import { NotificationBell } from "./notification-bell";
 import { LanguageSwitcher } from "./language-switcher";
 import { useI18n } from "@/lib/i18n/context";
 import { logoutMessageSession } from "@/lib/message-intents";
+import { authTransitionFailureKey, captureAuthOwnership } from '@/lib/auth-transition';
 
 type ShellUser = { name: string; email: string; role: string | null };
 
@@ -73,19 +74,19 @@ function Breadcrumbs() {
 }
 
 // ─── TopBar ───────────────────────────────────────────────────
-export function TopBar({ user }: { user?: ShellUser }) {
+export function TopBar({ user, authFingerprint }: { user?: ShellUser; authFingerprint: string | null }) {
   const { resolvedTheme, toggleTheme } = useTheme();
   const { t } = useI18n();
   const router = useRouter();
-  const [logoutError, setLogoutError] = useState(false);
+  const [logoutError, setLogoutError] = useState<string | null>(null);
+  const [logoutOwner] = useState(captureAuthOwnership);
 
   const handleSignOut = useCallback(async () => {
-    setLogoutError(false);
+    setLogoutError(null);
     try {
-      await logoutMessageSession();
-      router.replace("/login"); router.refresh();
-    } catch { setLogoutError(true); }
-  }, [router]);
+      await logoutMessageSession(destination => { router.replace(destination); router.refresh(); }, logoutOwner, authFingerprint);
+    } catch (error) { setLogoutError(authTransitionFailureKey(error)); }
+  }, [router, logoutOwner, authFingerprint]);
 
   return (
     <>
@@ -170,7 +171,7 @@ export function TopBar({ user }: { user?: ShellUser }) {
         </DropdownMenu>
       </div>
     </header>
-    {logoutError && <p role="alert" className="shrink-0 border-b border-border bg-background p-3 text-sm">{t("platform.logout_failed")}</p>}
+    {logoutError && <p role="alert" className="shrink-0 border-b border-border bg-background p-3 text-sm">{t(logoutError)}</p>}
     </>
   );
 }

@@ -1,13 +1,27 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogIn } from "lucide-react";
 import { Button } from "@garageos/design-system";
 import { Logo } from "@/components/brand/logo";
+import { useI18n } from '@/lib/i18n/context';
+import { LanguageSwitcher } from '@/components/layout/language-switcher';
+import { staffAuthTransition, AuthTransitionUnavailable, authTransitionMarkerCurrent } from '@/lib/auth-transition';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { t } = useI18n();
+  const [revocationUnconfirmed, setRevocationUnconfirmed] = useState(false);
+  useEffect(() => {
+    const notice = () => {
+      const query = new URLSearchParams(window.location.search);
+      setRevocationUnconfirmed(query.get('logout') === 'unconfirmed' && authTransitionMarkerCurrent(query.get('auth_epoch')));
+    };
+    notice();
+    window.addEventListener('storage', notice);
+    return () => window.removeEventListener('storage', notice);
+  }, []);
   const [email, setEmail] = useState("admin@demo.garageos.app");
   const [password, setPassword] = useState("parol12345");
   const [error, setError] = useState<string | null>(null);
@@ -17,29 +31,34 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+    setRevocationUnconfirmed(false);
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+      await staffAuthTransition(async (current, _marker, complete) => {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          if (current()) setError(data.error ?? "Login failed");
+          return;
+        }
+        const result = await res.json();
+        if (!current()) return;
+        complete();
+        router.replace(result.redirectTo === "/platform" ? "/platform" : "/dashboard");
+        router.refresh();
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error ?? "Login failed");
-        return;
-      }
-      const result = await res.json();
-      router.replace(result.redirectTo === "/platform" ? "/platform" : "/dashboard");
-      router.refresh();
-    } catch {
-      setError("Could not reach the server. Is the backend running?");
+    } catch (error) {
+      setError(error instanceof AuthTransitionUnavailable ? t('platform.auth_coordination_unavailable') : "Could not reach the server. Is the backend running?");
     } finally {
       setIsLoading(false);
     }
   }
 
   return (
-    <main className="min-h-screen grid place-items-center bg-linear-to-br from-primary/5 via-background to-background p-4">
+    <main className="min-h-screen grid place-items-center bg-background p-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-1.5">
           <Logo size={26} theme="light" />
@@ -47,6 +66,8 @@ export default function LoginPage() {
         </div>
 
         <div className="rounded-2xl border border-border bg-card shadow-lg p-6 space-y-5">
+          <div className="flex justify-end"><LanguageSwitcher /></div>
+          {revocationUnconfirmed && <p role="alert" className="text-sm text-foreground">{t('platform.logout_unconfirmed')}</p>}
           <div>
             <h1 className="text-lg font-semibold text-foreground">Sign in</h1>
             <p className="text-sm text-muted-foreground">Access your garage dashboard</p>

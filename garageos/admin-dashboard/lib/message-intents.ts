@@ -2,6 +2,7 @@
 // and current thread ownership before exposing drafts or dispatching a recovery.
 // Storage contains no authentication credentials and confers no permissions.
 import { completeMessageLogout, messageSessionEpoch, requireMessageResetEpoch, revokeMessageSession } from "./message-reset";
+import { staffAuthTransition, requireAuthFingerprint, AuthTransitionConflict, type AuthOwnership } from './auth-transition';
 export type MessageActor = { center: string; kind: "staff" | "customer"; id: string };
 export type MessageMode = "reply" | "note" | "announcement";
 export type IntentStatus = "pending" | "uncertain" | "rejected" | "conflict" | "suspended";
@@ -108,17 +109,29 @@ export function synchronizeMessageReset(storage: Storage): void {
   }
 }
 
-export async function logoutMessageSession(): Promise<void> {
-  // Revoke pending verifications and hide all protected composers before await.
-  revokeMessageSession();
-  // Explicit logout must purge even if the cookie setter failed. Invalidating
-  // the processed marker also prevents later confirmation from skipping cleanup.
-  try { window.sessionStorage.removeItem(RESET); } catch { /* Continue all cleanup attempts. */ }
-  try { purgeMessageIntents(window.sessionStorage); } catch { /* The persisted cookie marks cleanup required. */ }
-  try { synchronizeMessageReset(window.sessionStorage); } catch { /* Never prevent server authentication cleanup. */ }
-  const response = await fetch("/api/auth/logout", { method: "POST" });
-  if (!response.ok) throw new Error("Logout failed");
-  completeMessageLogout();
+export async function logoutMessageSession(navigate: (destination: string) => void, owner: AuthOwnership, fingerprint: string | null, onBegin?: () => void): Promise<void> {
+  await staffAuthTransition(async (current, marker, complete) => {
+    // Ownership is checked at click and again after lock acquisition, before
+    // purging receipts, hiding composers or changing any authentication cookie.
+    onBegin?.();
+    revokeMessageSession();
+    try { window.sessionStorage.removeItem(RESET); } catch { /* Continue all cleanup attempts. */ }
+    try { purgeMessageIntents(window.sessionStorage); } catch { /* The persisted cookie marks cleanup required. */ }
+    try { synchronizeMessageReset(window.sessionStorage); } catch { /* Never prevent server authentication cleanup. */ }
+    const response = await fetch("/api/auth/logout", {
+      method: "POST", headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ expected_fingerprint: fingerprint }),
+    });
+    if (response.status === 409) throw new AuthTransitionConflict('stale');
+    if (!response.ok) throw new Error("Logout failed");
+    // A blocked reset-cookie read keeps recovery revoked, but cannot leave the
+    // signed-out browser on a protected page after the BFF cleared auth cookies.
+    try { completeMessageLogout(); } catch { /* Require a valid reset on the next identity check. */ }
+    const result = await response.json().catch(() => null);
+    if (!current()) return;
+    complete();
+    navigate(result?.revocation === 'confirmed' || result?.revocation === 'none'
+      ? '/login' : `/login?logout=unconfirmed&auth_epoch=${marker}`);
+  }, owner, () => requireAuthFingerprint(fingerprint));
 }
 
 /** Observe a freshly authenticated identity even when its thread GET is denied.

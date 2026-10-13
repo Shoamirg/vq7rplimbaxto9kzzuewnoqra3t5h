@@ -46,9 +46,11 @@ import type { Appointment, AppointmentStats, FleetHealth, HealthBand } from "@/l
 import { HealthGauge } from "@/components/vehicles/health-gauge";
 import { useI18n } from "@/lib/i18n/context";
 import { logoutMessageSession } from "@/lib/message-intents";
+import { authTransitionFailureKey, captureAuthOwnership } from '@/lib/auth-transition';
 
 type Props = {
   userName: string;
+  authFingerprint: string | null;
   stats: AppointmentStats;
   today: Appointment[];
   fleet: FleetHealth;
@@ -141,24 +143,24 @@ function StatCard({
   );
 }
 
-export function DashboardClient({ userName, stats, today, fleet }: Props) {
+export function DashboardClient({ userName, authFingerprint, stats, today, fleet }: Props) {
   const router = useRouter();
-  const [logoutError, setLogoutError] = React.useState(false);
+  const [logoutError, setLogoutError] = React.useState<string | null>(null);
+  const [logoutOwner] = React.useState(captureAuthOwnership);
   const { t, fmt } = useI18n();
   const activeCount = stats.pending_count + stats.confirmed_count;
   const chartData = weeklyRevenue.map((d) => ({ ...d, label: t(`day.${d.day.toLowerCase()}`) }));
 
   async function handleLogout() {
-    setLogoutError(false);
+    setLogoutError(null);
     try {
-      await logoutMessageSession();
-      router.replace("/login"); router.refresh();
-    } catch { setLogoutError(true); }
+      await logoutMessageSession(destination => { router.replace(destination); router.refresh(); }, logoutOwner, authFingerprint);
+    } catch (error) { setLogoutError(authTransitionFailureKey(error)); }
   }
 
   return (
     <div className="p-4 lg:p-6 space-y-6 animate-fade-in">
-      {logoutError && <p role="alert" className="text-sm">{t("platform.logout_failed")}</p>}
+      {logoutError && <p role="alert" className="text-sm">{t(logoutError)}</p>}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>

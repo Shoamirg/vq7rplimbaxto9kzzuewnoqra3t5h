@@ -2,6 +2,7 @@
 // token to the FastAPI backend. Importing `next/headers` keeps this server-only
 // (it throws if pulled into a Client Component).
 import { cookies } from "next/headers";
+import { createHash } from 'node:crypto';
 
 import { AUTH_COOKIE } from "./constants";
 import type {
@@ -21,6 +22,17 @@ import type {
 } from "./types";
 
 export { AUTH_COOKIE };
+
+export function accessFingerprint(token: string | null | undefined): string | null {
+  return token ? createHash('sha256').update(token).digest('hex') : null;
+}
+
+/** The cookie on this authenticated render request is immutable. Its public
+ * fingerprint binds logout to the session that actually produced these props.
+ */
+export async function renderedAuthFingerprint(): Promise<string | null> {
+  return accessFingerprint((await cookies()).get(AUTH_COOKIE)?.value);
+}
 
 export function apiBaseUrl(): string {
   // 127.0.0.1 not localhost: Node may resolve localhost to IPv6 ::1 while the

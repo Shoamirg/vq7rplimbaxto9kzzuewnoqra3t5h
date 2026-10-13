@@ -7,7 +7,7 @@ import { DemoBanner } from "@/components/layout/demo-banner";
 import { Sidebar } from "@/components/layout/sidebar";
 import { TopBar } from "@/components/layout/top-bar";
 import { DEMO_COOKIE } from "@/lib/api/constants";
-import { ApiError, getCurrentUser } from "@/lib/api/server";
+import { ApiError, getCurrentUser, renderedAuthFingerprint } from "@/lib/api/server";
 import { brandCssVars } from "@/lib/branding";
 import { I18nProvider } from "@/lib/i18n/context";
 import { LOCALE_COOKIE, isLocale } from "@/lib/i18n/dictionaries";
@@ -40,7 +40,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <Sidebar user={shellUser} branding={user.branding} />
           <div className="flex-1 flex flex-col overflow-hidden">
             {isDemo ? <DemoBanner /> : null}
-            <TopBar user={shellUser} />
+            <TopBar user={shellUser} authFingerprint={await renderedAuthFingerprint()} />
             <main className="flex-1 overflow-y-auto bg-muted/30">{children}</main>
           </div>
           <CommandMenu />

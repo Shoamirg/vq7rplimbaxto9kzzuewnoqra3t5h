@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 
-import { AUTH_COOKIE, apiBaseUrl } from "@/lib/api/server";
+import { AUTH_COOKIE, apiBaseUrl, accessFingerprint } from "@/lib/api/server";
+import { DEMO_COOKIE, AUTH_FINGERPRINT_COOKIE } from '@/lib/api/constants';
+import { logoutRequestAllowed } from '@/lib/server-logout';
 
 // BFF login: proxy credentials to the backend, then store the access token in
 // an httpOnly cookie so it is never exposed to client JS (XSS-safe).
 export async function POST(req: Request) {
+  if (!logoutRequestAllowed(req)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const body = await req.json().catch(() => null);
   if (!body?.email || !body?.password) {
     return NextResponse.json({ error: "email and password are required" }, { status: 400 });
@@ -33,6 +36,10 @@ export async function POST(req: Request) {
     sameSite: "lax",
     path: "/",
     maxAge: 60 * 30, // matches backend ACCESS_TOKEN_EXPIRE_MINUTES
+  });
+  response.cookies.set(DEMO_COOKIE, '', { path: '/', maxAge: 0 });
+  response.cookies.set(AUTH_FINGERPRINT_COOKIE, accessFingerprint(tokens.access_token)!, {
+    httpOnly: false, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 60 * 30,
   });
   return response;
 }
