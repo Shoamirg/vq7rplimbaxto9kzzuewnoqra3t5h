@@ -381,6 +381,8 @@ class ConversationService:
         if assignment_supplied and assigned_user_id is not None:
             await self._eligible_staff(assigned_user_id)
         reads = ConversationReadService(self.uow)
+        if actor_id is not None:
+            await reads._actor(actor_id, "staff.write")
         observation = await reads.validate(conv, read_observation, actor_id) if mark_read else None
         changed = ((status is not None and status != conv.status)
             or (assignment_supplied and assigned_user_id != conv.assigned_user_id))
@@ -409,7 +411,7 @@ class ConversationService:
 
     async def follow(self, conversation_id: uuid.UUID, *, user_id: uuid.UUID, display_name: str) -> dict:
         conv = await self._get(conversation_id, for_update=True)
-        await self._eligible_staff(user_id)
+        await ConversationReadService(self.uow)._actor(user_id, "staff.write")
         existing = list(await self.session.scalars(
             select(Participant).where(
                 Participant.service_center_id == self.sc,
@@ -428,7 +430,7 @@ class ConversationService:
 
     async def unfollow(self, conversation_id: uuid.UUID, *, user_id: uuid.UUID) -> dict:
         conv = await self._get(conversation_id, for_update=True)
-        await self._eligible_staff(user_id)
+        await ConversationReadService(self.uow)._actor(user_id, "staff.write")
         existing = list(await self.session.scalars(
             select(Participant).where(
                 Participant.service_center_id == self.sc,
@@ -680,7 +682,8 @@ class ConversationService:
             if case:
                 cards.append({"kind": "case", "title": case.code, "case_type": case.case_type,
                               "subtitle": case.status,
-                              "link": f"/operations?case={case.id}"})
+                              "available": bool(case.is_active),
+                              "link": f"/operations?case={case.id}" if case.is_active else None})
         if conv.appointment_id:
             appointment = await local_reference(self.session, Appointment, conv.appointment_id, self.sc, active=True)
             if appointment:
@@ -715,7 +718,8 @@ class ConversationService:
             if cust:
                 cards.append({"kind": "customer", "title": cust.full_name,
                               "subtitle": "Customer 360", "phone": cust.phone,
-                              "link": f"/customers/{cust.id}"})
+                              "available": bool(cust.is_active),
+                              "link": f"/customers/{cust.id}" if cust.is_active else None})
         return cards
 
 

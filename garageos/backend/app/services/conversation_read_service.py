@@ -10,13 +10,14 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.orm import contains_eager
 
 from app.core.staff_access import staff_permissions
-from app.exceptions import UnauthorizedAction, ValidationError
+from app.exceptions import InvalidToken, UnauthorizedAction, ValidationError
 from app.models.conversation import Conversation
 from app.models.conversation_read_observation import ConversationReadObservation
 from app.models.role import Role
 from app.models.service_center import ServiceCenter
 from app.models.user import User
 from app.repositories.unit_of_work import UnitOfWork
+from app.services.auth_session_service import AuthSessionService
 
 OBSERVATION_TTL = timedelta(hours=24)
 PRUNE_BATCH_SIZE = 100
@@ -63,6 +64,20 @@ class ConversationReadService:
             ).execution_options(populate_existing=True))
         if actor is None or permission not in staff_permissions(actor):
             raise UnauthorizedAction()
+
+    async def guard_write_session(self, actor_id: uuid.UUID, token: str) -> None:
+        # Aggregate work may have waited after initial HTTP auth. Pin identity
+        # first, then its family, matching staff disable/refresh lock ordering.
+        await self._actor(actor_id, "staff.write")
+        sessions = AuthSessionService(self.session)
+        proof = sessions.proof(token, "staff")
+        if proof["type"] != "access":
+            raise InvalidToken()
+        if proof.get("demo"):
+            raise UnauthorizedAction()
+        row = await sessions.load(proof, "staff", read_lock=True)
+        if row.user_id != actor_id or row.service_center_id != self.sc:
+            raise InvalidToken()
 
     async def issue(self, conv: Conversation, actor_id: uuid.UUID) -> str:
         await self._actor(actor_id, "staff.read")

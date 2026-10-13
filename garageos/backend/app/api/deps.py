@@ -61,6 +61,7 @@ async def get_tenant_uow(
     request: Request,
     current_user: User = Depends(get_current_user),
     permissions: list[str] = Depends(get_staff_permissions),
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
 ) -> AsyncIterator[UnitOfWork]:
     """A UnitOfWork scoped to the authenticated user's tenant.
 
@@ -71,6 +72,14 @@ async def get_tenant_uow(
     if required not in permissions:
         raise UnauthorizedAction()
     async with UnitOfWork(service_center_id=current_user.service_center_id) as uow:
+        path = request.url.path.rstrip("/")
+        if required == "staff.write" and (path == "/api/v1/conversations" or path.startswith("/api/v1/conversations/")):
+            from app.services.conversation_read_service import ConversationReadService
+            if credentials is None:
+                raise UnauthorizedError()
+            async def current_inbox_policy():
+                await ConversationReadService(uow).guard_write_session(current_user.id, credentials.credentials)
+            uow.before_commit(current_inbox_policy)
         yield uow
 
 
