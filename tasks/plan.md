@@ -37,7 +37,7 @@ focused test, keyin integratsiyadan so'ng bitta to'liq release tekshiruvi.
 ## Bosqich A: holat va talablar
 
 - [x] Mahalliy/remote branch, SHA, toza ishchi daraxt va agent qoidalari tekshirildi.
-- [ ] #39 uchun 13 qatorli talab -> kod -> test -> natija -> kamchilik jadvali.
+- [x] #39 uchun 13 qatorli talab -> kod -> test -> natija -> kamchilik jadvali.
 - [ ] Joriy dalillar GitHub'dagi eskirgan checkpointlar bilan yarashtiriladi.
 
 Qabul: tayyor kodni qayta yaratmasdan, haqiqiy qolgan kamchiliklarni aniqlash.
@@ -53,23 +53,23 @@ sakkiz real yoki aniq unavailable quick action; authorized UTF-8 JSON export;
 UZ/EN/RU/keyboard/focus/44px/short-phone/light-dark/accessibility;
 Operations/Mini/Flutter/financial/auth/event-bus kontraktlari.
 
-- [ ] Faqat aniqlangan xatti-harakat kamchiliklari tuzatiladi.
-- [ ] Har 13 guruhga aniq regressiya va natija bog'lanadi.
-- [ ] Mustaqil spec/standards review va zarur screenshots tekshiriladi.
+- [x] Faqat aniqlangan xatti-harakat kamchiliklari tuzatildi.
+- [x] Har 13 guruhga regressiya va joriy natija bog'landi; final suite hali alohida.
+- [x] Mustaqil spec/standards review va Inbox light/dark screenshots tekshirildi.
 
 ## Bosqich C: serverdagi sessiyalar
 
-- [ ] PostgreSQL sessiyasi principal turi/ID, servis, amaldagi refresh token
+- [x] PostgreSQL sessiyasi principal turi/ID, servis, amaldagi refresh token
       xeshi, absolute expiry va revoked_at bilan saqlanadi; xom token saqlanmaydi.
-- [ ] Access va refresh `sid` (UUID) bilan bog'lanadi; refresh `jti` unique.
-- [ ] SELECT FOR UPDATE orqali atomik refresh rotation; eski refresh qayta
+- [x] Access va refresh `sid` (UUID) bilan bog'lanadi; refresh `jti` unique.
+- [x] SELECT FOR UPDATE orqali atomik refresh rotation; eski refresh qayta
       ishlatilsa sessiya durably revoke bo'lib, keyin 401 qaytariladi.
-- [ ] Login/refresh commit bo'lmasdan muvaffaqiyatli token javobi berilmaydi.
-- [ ] Access current session/principal/role/garage holatini qayta tekshiradi.
-- [ ] Customer `account_version`, token types, demo va read-only chegaralari saqlanadi.
-- [ ] Supported staff/customer disable amallari sessiyalarni revoke qiladi;
+- [x] Login/refresh commit bo'lmasdan muvaffaqiyatli token javobi berilmaydi.
+- [x] Access current session/principal/role/garage holatini qayta tekshiradi.
+- [x] Customer `account_version`, token types, demo va read-only chegaralari saqlanadi.
+- [x] Supported staff/customer disable amallari sessiyalarni revoke qiladi;
       akkauntni qayta faollashtirish avvalgi sessiyani tiriltirmaydi.
-- [ ] Migratsiya upgrade/downgrade va schema metadata mosligi tekshiriladi.
+- [x] Migratsiya upgrade/downgrade va schema metadata mosligi tekshirildi.
 
 API kontrakti: login/refresh manzillari va access_token/refresh_token/token_type
 response maydonlari saqlanadi. `POST /api/v1/auth/logout` va
@@ -88,16 +88,16 @@ tekshiriladi; production uchun sid-less bypass qo'shilmaydi.
 
 ## Bosqich D: klientlar
 
-- [ ] Brauzer access-only 30min tartibi saqlanadi; avtomatik browser refresh yo'q.
-- [ ] BFF logout backend revoke qiladi; cookies va #38 message reset/purge
+- [x] Brauzer access-only 30min tartibi saqlanadi; avtomatik browser refresh yo'q.
+- [x] BFF logout backend revoke qiladi; cookies va #38 message reset/purge
       offline holatda ham tozalanadi, server revoke unconfirmed bo'lsa rost izoh.
-- [ ] Flutter refresh single-flight; logout/close'dan keyingi late response
+- [x] Flutter refresh single-flight; logout/close'dan keyingi late response
       tokenlarni qayta o'rnata olmaydi.
-- [ ] Unknown refresh response/transport/5xx/malformed success'da eski refresh
+- [x] Unknown refresh response/transport/5xx/malformed success'da eski refresh
       avtomatik qayta yuborilmaydi; mahalliy sessiya expire va deliberate login.
-- [ ] Staff/customer logout server bilan ishlaydi, offline local clear ham mavjud.
-- [ ] To'lov/xabar unknown mutation avtomatik replay qilinmaydi.
-- [ ] Yangi holatlar UZ/EN/RU; tokenlar mavjud in-memory arxitekturadan chiqmaydi.
+- [x] Flutter staff/customer logout server bilan ishlaydi, offline local clear ham mavjud.
+- [x] To'lov/xabar unknown mutation avtomatik replay qilinmaydi.
+- [x] Yangi holatlar UZ/EN/RU; tokenlar mavjud in-memory arxitekturadan chiqmaydi.
 
 ## Tekshiruv
 
@@ -121,7 +121,7 @@ as reassurance takrorlanmaydi. Interrupted run SUCCESS deb ko'rsatilmaydi.
 
 ## Yakunlash
 
-- [ ] Mustaqil review topilmalari hal qilingan.
+- [x] Mustaqil review topilmalari hal qilingan; delayed SSR ham sessiyaga bog'langan.
 - [ ] Focused va final gate'lar, commit SHA va private evidence bog'langan.
 - [ ] Atomic commitlar o'z branchimizga push qilingan; remote SHA tasdiqlangan.
 - [ ] PR5 va tegishli issue'lar aktual evidence bilan yangilangan.
