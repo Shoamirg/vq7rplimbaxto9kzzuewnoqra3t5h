@@ -4,10 +4,18 @@ import uuid
 
 import httpx
 import pytest
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_user, get_tenant_uow
 from app.api.v1.endpoints import work_orders
+from app.models.customer import Customer
+from app.models.role import Role
+from app.models.user import User
+from app.models.vehicle import Vehicle
+from app.models.work_order import WorkOrder
 from app.main import app
+from app.repositories.unit_of_work import UnitOfWork
 
 
 TENANT_ID = uuid.uuid4()
@@ -166,3 +174,94 @@ async def test_work_order_patch_forwards_validated_fields(authorized_work_order_
     assert authorized_work_order_api == [(
         "patch", ORDER_ID, {"status": "in_progress", "work_performed": "Started inspection"},
     )]
+
+
+@pytest.mark.asyncio
+async def test_work_order_patch_rejects_intake_changes_after_start(session):
+    actor = await session.scalar(
+        select(User)
+        .options(selectinload(User.role))
+        .where(User.email == "admin@demo.garageos.app", User.is_active.is_(True))
+    )
+    assert actor is not None and actor.role and actor.role.is_active
+    vehicle = await session.scalar(
+        select(Vehicle).where(
+            Vehicle.service_center_id == actor.service_center_id,
+            Vehicle.is_active.is_(True),
+        ).limit(1)
+    )
+    assert vehicle is not None
+    customer = await session.scalar(
+        select(Customer).where(
+            Customer.id == vehicle.customer_id,
+            Customer.service_center_id == actor.service_center_id,
+            Customer.is_active.is_(True),
+        )
+    )
+    assert customer is not None
+    mechanic = await session.scalar(
+        select(User)
+        .join(Role, User.role_id == Role.id)
+        .where(
+            User.service_center_id == actor.service_center_id,
+            User.is_active.is_(True),
+            Role.name == "mechanic",
+            Role.is_active.is_(True),
+        )
+        .limit(1)
+    )
+    assert mechanic is not None
+
+    uow = UnitOfWork(service_center_id=actor.service_center_id)
+    uow.session = session
+
+    async def current_user():
+        return actor
+
+    async def tenant_uow():
+        yield uow
+
+    previous_current_user = app.dependency_overrides.get(get_current_user)
+    previous_tenant_uow = app.dependency_overrides.get(get_tenant_uow)
+    app.dependency_overrides[get_current_user] = current_user
+    app.dependency_overrides[get_tenant_uow] = tenant_uow
+    try:
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            created = await client.post(
+                "/api/v1/work-orders",
+                headers={"Idempotency-Key": f"intake-policy-{uuid.uuid4()}"},
+                json={
+                    "customer_id": str(customer.id),
+                    "vehicle_id": str(vehicle.id),
+                    "service_type": "Intake policy integration test",
+                },
+            )
+            assert created.status_code == 201, created.text
+            order_id = created.json()["id"]
+
+            started = await client.patch(
+                f"/api/v1/work-orders/{order_id}", json={"status": "in_progress"},
+            )
+            assert started.status_code == 200, started.text
+
+            for payload in (
+                {"customer_concern": "Attempted post-start edit"},
+                {"assigned_mechanic_user_id": str(mechanic.id)},
+            ):
+                rejected = await client.patch(f"/api/v1/work-orders/{order_id}", json=payload)
+                assert rejected.status_code == 409, rejected.text
+
+        order = await session.get(WorkOrder, uuid.UUID(order_id))
+        assert order is not None
+        assert order.customer_concern is None
+        assert order.assigned_mechanic_user_id is None
+    finally:
+        if previous_current_user is None:
+            app.dependency_overrides.pop(get_current_user, None)
+        else:
+            app.dependency_overrides[get_current_user] = previous_current_user
+        if previous_tenant_uow is None:
+            app.dependency_overrides.pop(get_tenant_uow, None)
+        else:
+            app.dependency_overrides[get_tenant_uow] = previous_tenant_uow
