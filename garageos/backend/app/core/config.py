@@ -84,6 +84,17 @@ class Settings(BaseSettings):
     def normalize_environment(cls, value):
         return value.strip().lower() if isinstance(value, str) else value
 
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def use_async_postgresql_driver(cls, value):
+        # Hosting providers expose standard PostgreSQL URLs. Keep encoded
+        # credentials/query options intact while selecting our installed driver.
+        if isinstance(value, str):
+            for prefix in ("postgres://", "postgresql://"):
+                if value.startswith(prefix):
+                    return "postgresql+asyncpg://" + value[len(prefix):]
+        return value
+
     @model_validator(mode="after")
     def validate_deployment(self):
         if self.ENVIRONMENT not in {"staging", "production"}:

@@ -22,8 +22,8 @@ import app.models  # noqa: F401  (registers all tables on Base.metadata)
 
 config = context.config
 
-# Inject the runtime DB URL (kept out of alembic.ini on purpose).
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# ConfigParser interpolates %, so preserve URL-encoded credentials by escaping it.
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL.replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
