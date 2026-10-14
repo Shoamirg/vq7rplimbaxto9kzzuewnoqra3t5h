@@ -4,7 +4,7 @@ from uuid import uuid4
 import httpx
 import pytest
 
-from app.api.deps import get_tenant_uow
+from app.api.deps import get_staff_permissions, get_tenant_uow
 from app.main import app
 
 
@@ -13,7 +13,11 @@ async def test_nonfinite_payment_json_returns_422(amount):
     async def unused_uow():
         yield object()
 
+    async def payment_permissions():
+        return ["billing.payment.record"]
+
     app.dependency_overrides[get_tenant_uow] = unused_uow
+    app.dependency_overrides[get_staff_permissions] = payment_permissions
     try:
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post(
@@ -27,6 +31,7 @@ async def test_nonfinite_payment_json_returns_422(amount):
         assert error["detail"][0]["loc"][-1] == "amount"
     finally:
         app.dependency_overrides.pop(get_tenant_uow, None)
+        app.dependency_overrides.pop(get_staff_permissions, None)
 
 
 async def test_custom_name_validator_error_is_json_safe():

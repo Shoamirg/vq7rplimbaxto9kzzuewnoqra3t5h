@@ -98,7 +98,16 @@ async def test_operator_provisioned_staff_can_sign_in_to_an_empty_workspace(mani
             assert profile.json()["role"] == staff["role"]
             assert profile.json()["is_super_admin"] is False
             mechanic = staff["role"] == "mechanic"
-            permissions = ["work.read.assigned", "work.write.assigned"] if mechanic else ["staff.read", "staff.write"]
+            operator_permissions = {
+                "admin": ["staff.read", "staff.write", "billing.read", "billing.create", "billing.write",
+                          "billing.payment.record", "financial.refund", "financial.invoice.void", "financial.reports.read"],
+                "manager": ["staff.read", "staff.write", "billing.read", "billing.create", "billing.write",
+                            "billing.payment.record", "financial.refund", "financial.invoice.void", "financial.reports.read"],
+                "receptionist": ["staff.read", "staff.write", "billing.read", "billing.create", "billing.write",
+                                 "billing.payment.record"],
+            }
+            permissions = (["work.read.assigned", "work.write.assigned"] if mechanic
+                           else operator_permissions[staff["role"]])
             assert profile.json()["permissions"] == permissions
             for route in ("customers", "vehicles", "appointments", "invoices"):
                 listed = await client.get(f"/api/v1/{route}", headers=headers)

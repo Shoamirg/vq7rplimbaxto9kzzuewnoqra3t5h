@@ -10,7 +10,7 @@ from app.models.service_center import ServiceCenter
 def _center_timezone(model):
     return select(ServiceCenter.timezone).where(
         ServiceCenter.id == model.service_center_id
-    ).scalar_subquery()
+    ).correlate(model).scalar_subquery()
 
 
 def appointment_start():

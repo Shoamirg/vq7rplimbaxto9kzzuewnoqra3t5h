@@ -10,7 +10,7 @@ from pydantic import ValidationError
 
 from app.core.config import Settings
 
-VALID = dict(ENVIRONMENT="production", DEBUG=False,
+VALID = dict(ENVIRONMENT="production", DEBUG=False, RATE_LIMIT_ENABLED=True,
              SECRET_KEY="c31ab862ba6855e49cf7581a61fe0f736d70a8c835c7ae149a324ced932a82d4",
              DATABASE_URL="postgresql+asyncpg://garage:secret@postgres.railway.internal:5432/garage",
              REDIS_URL="redis://redis.railway.internal:6379/0",

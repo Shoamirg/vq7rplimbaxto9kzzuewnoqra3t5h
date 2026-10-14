@@ -127,7 +127,16 @@ async def test_operator_roles_can_run_intake_with_advertised_permissions(client,
     headers = {"Authorization": f"Bearer {token}"}
     profile = await client.get("/api/v1/auth/me", headers=headers)
     assert profile.status_code == 200
-    assert profile.json()["permissions"] == ["staff.read", "staff.write"]
+    expected_permissions = {
+        "admin": ["staff.read", "staff.write", "billing.read", "billing.create", "billing.write",
+                  "billing.payment.record", "financial.refund", "financial.invoice.void", "financial.reports.read"],
+        "manager": ["staff.read", "staff.write", "billing.read", "billing.create", "billing.write",
+                    "billing.payment.record", "financial.refund", "financial.invoice.void", "financial.reports.read"],
+        "receptionist": ["staff.read", "staff.write", "billing.read", "billing.create", "billing.write",
+                         "billing.payment.record"],
+        "super_admin": ["staff.read", "staff.write"],
+    }
+    assert profile.json()["permissions"] == expected_permissions[role]
     response = await client.post("/api/v1/customers", headers=headers, json={"full_name": "Authorized intake", "phone": "+998900000001"})
     assert response.status_code == 201
     listed = await client.get("/api/v1/customers", headers=headers)

@@ -10,7 +10,7 @@ import pytest
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from app.api.deps import get_tenant_uow
+from app.api.deps import get_staff_permissions, get_tenant_uow
 from app.exceptions import GarageException
 from app.main import app
 from app.models import Customer, ServiceCenter
@@ -46,12 +46,20 @@ async def _api(session, center_id):
         svc = _svc(session, center_id)
         yield svc.uow
 
+    async def permissions_override():
+        # Exercise invoice validation and tenant scoping as an authorized
+        # operator; authentication and role grants have dedicated API tests.
+        return ["staff.read", "staff.write", "billing.read", "billing.create",
+                "billing.write", "billing.payment.record"]
+
     app.dependency_overrides[get_tenant_uow] = uow_override
+    app.dependency_overrides[get_staff_permissions] = permissions_override
     try:
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
             yield client
     finally:
         app.dependency_overrides.pop(get_tenant_uow, None)
+        app.dependency_overrides.pop(get_staff_permissions, None)
 
 
 async def test_payment_retry_records_one_payment_and_one_credit(session):

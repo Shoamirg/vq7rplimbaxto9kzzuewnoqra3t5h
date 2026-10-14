@@ -135,6 +135,7 @@ async def test_operator_enrollment_opens_platform_reads_without_promoting_an_own
         assert profile['id'] == result['account']['id'] and profile['role'] == 'super_admin'
         assert profile['platform_permissions'] == ['platform.read']
         assert profile['permissions'] == ['staff.read', 'staff.write']
+        assert (await client.get('/api/v1/invoices', headers=headers)).status_code == 403
         global_rows = await client.get('/api/v1/platform/records/customers', params={'q': ids['tag']}, headers=headers)
         assert global_rows.status_code == 200, global_rows.text
         assert {row['id'] for row in global_rows.json()['items']} == {str(i) for i in ids['customers']}

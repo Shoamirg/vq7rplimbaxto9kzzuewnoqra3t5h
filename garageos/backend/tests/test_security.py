@@ -82,7 +82,7 @@ async def test_successful_login_is_audited(client):
 async def test_rate_limit_returns_429_with_retry_after(client, monkeypatch):
     monkeypatch.setattr(settings, "RATE_LIMIT_ENABLED", True)
     # Force the limiter's store to report "over limit" without needing Redis.
-    async def _over(_key, _limit, _window):
+    async def _over(_key, _limit, _window, *, fail_closed=False):
         return False, 7
     monkeypatch.setattr(rate_limit, "_hit", _over)
 

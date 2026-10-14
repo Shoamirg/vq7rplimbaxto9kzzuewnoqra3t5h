@@ -23,7 +23,11 @@ def staff_permissions(user: User) -> list[str]:
     role = user.role
     if not role or not role.is_active:
         return []
-    if role.name in {"admin", "super_admin", "manager"}:
+    # Platform-wide support identity is read-only at the platform boundary;
+    # enrollment must not silently turn it into a tenant finance administrator.
+    if role.name == "super_admin":
+        return ["staff.read", "staff.write"]
+    if role.name in {"admin", "manager"}:
         return [
             "staff.read",
             "staff.write",

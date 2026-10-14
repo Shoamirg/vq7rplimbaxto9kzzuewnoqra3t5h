@@ -206,15 +206,13 @@ async def test_failed_transaction_cannot_send_success_or_leave_partial_state(fam
         assert replay.status_code == 201 and await operation.read() == ("partial", 100, 25, 75, 1, 1)
 
 
-@pytest.mark.parametrize("route", ["link", "telegram"])
 @pytest.mark.parametrize("fail", [False, True], ids=["success", "failed-commit"])
-async def test_customer_auth_session_finishes_before_token_success(route, fail, client, workshop, identity, monkeypatch):
+async def test_customer_telegram_session_finishes_before_token_success(fail, client, workshop, identity, monkeypatch):
     telegram_id = uuid.uuid4().int % 10**15
     phone = "998" + str(uuid.uuid4().int)[:10]
     async with async_session_factory() as session:
         customer = Customer(service_center_id=identity["center"], full_name="Transaction customer",
-                            phone=phone, telegram_id=telegram_id if route == "telegram" else None,
-                            telegram_username="old" if route == "telegram" else None)
+                            phone=phone, telegram_id=telegram_id, telegram_username="old")
         session.add(customer)
         await session.commit()
         customer_id = customer.id
@@ -223,9 +221,7 @@ async def test_customer_auth_session_finishes_before_token_success(route, fail, 
             row = await session.get(Customer, customer_id)
             return row.telegram_id, row.telegram_username
     body = {"init_data": _init_data(telegram_id)}
-    if route == "link":
-        body["phone"] = phone
-    operation = Operation("customer-auth", "POST", f"/api/v1/customer/auth/{route}", {}, body, read, 200)
+    operation = Operation("customer-auth", "POST", "/api/v1/customer/auth/telegram", {}, body, read, 200)
     before = await read()
     observations, statuses = [], []
     async def failed_commit(session):
@@ -241,6 +237,32 @@ async def test_customer_auth_session_finishes_before_token_success(route, fail, 
     else:
         assert response.status_code == 200 and statuses == [200]
         assert observations == [(telegram_id, "tg")] and await read() == (telegram_id, "tg")
+
+
+async def test_disabled_phone_linking_does_not_issue_a_customer_session(client, identity, monkeypatch):
+    telegram_id = uuid.uuid4().int % 10**15
+    phone = "998" + str(uuid.uuid4().int)[:10]
+    async with async_session_factory() as session:
+        customer = Customer(service_center_id=identity["center"], full_name="Unlinked customer", phone=phone)
+        session.add(customer)
+        await session.commit()
+        customer_id = customer.id
+
+    async def read():
+        async with async_session_factory() as session:
+            row = await session.get(Customer, customer_id)
+            return row.telegram_id, row.telegram_username
+
+    before = await read()
+    with monkeypatch.context() as patch:
+        patch.setattr(settings, "TELEGRAM_BOT_TOKEN", BOT)
+        patch.setattr(settings, "TELEGRAM_PHONE_LINKING_ENABLED", False)
+        response = await client.post("/api/v1/customer/auth/link", json={
+            "init_data": _init_data(telegram_id), "phone": phone,
+        })
+    assert response.status_code == 404
+    assert "access_token" not in response.json()
+    assert await read() == before
 
 
 async def slot_booking(client, workshop, identity):
@@ -300,6 +322,7 @@ async def test_booking_failed_commit_rolls_back_key_and_same_key_retry_recovers(
         patch.setattr(UnitOfWork, "commit", sometimes_fail)
         patch.setattr(event_bus, "dispatch", events.append)
         headers = {**workshop["admin"], "Idempotency-Key": key}
+        failed = await client.post("/api/v1/appointments", headers=headers, json=body)
         failed_events = len(events)
         async with async_session_factory() as session:
             slot = await session.get(AppointmentSlot, slot_id)

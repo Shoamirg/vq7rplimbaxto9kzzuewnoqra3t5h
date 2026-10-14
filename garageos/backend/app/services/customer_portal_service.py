@@ -475,7 +475,7 @@ class CustomerPortalService:
             meta = {"lat": req.lat, "lng": req.lng}
         await self._post_attachment(
             uuid.UUID(conv["id"]), kind=req.kind, label=req.label,
-            url=req.url, meta=meta, note=req.note,
+            meta=meta, note=req.note,
         )
         return self._roadside(case, conversation_id=conv["id"])
 
