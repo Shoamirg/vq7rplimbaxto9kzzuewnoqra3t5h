@@ -5,7 +5,8 @@ import 'package:garageos_staff/data/api_client.dart';
 import 'package:garageos_staff/data/customer_repository.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
+import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -36,7 +37,8 @@ void main() {
       }
       return http.Response('{}', 404);
     }
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferencesAsyncPlatform.instance =
+        InMemorySharedPreferencesAsync.empty();
 
     final repository = await CustomerRepository.login(
       'http://garage.test/api/v1',
