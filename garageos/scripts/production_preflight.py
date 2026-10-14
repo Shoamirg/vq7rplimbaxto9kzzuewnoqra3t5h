@@ -28,7 +28,8 @@ class EnvFormatError(ValueError):
 
 def read_env(path):
     """Bounded Compose-style flat dotenv syntax; no eval, shell or expansion."""
-    raw = Path(path).read_bytes()
+    with Path(path).open('rb') as stream:
+        raw = stream.read(MAX_ENV_BYTES + 1)
     if len(raw) > MAX_ENV_BYTES:
         raise EnvFormatError('env_format_invalid')
     values = {}
@@ -175,7 +176,7 @@ def validate_compose(config, values, telegram=False):
     if any(database.get(key) != values.get(key) for key in ('POSTGRES_USER', 'POSTGRES_PASSWORD', 'POSTGRES_DB')):
         return 'database_environment_invalid'
     dashboard = services['dashboard'].get('environment', {})
-    if dashboard.get('NODE_ENV') != 'production' or dashboard.get('NEXT_PUBLIC_API_URL') != 'http://backend:8000/api/v1' or _boolean(dashboard.get('GARAGEOS_TRUST_CADDY_IP')) is not True:
+    if dashboard.get('NODE_ENV') != 'production' or dashboard.get('NEXT_PUBLIC_API_URL') != 'http://backend:8000/api/v1' or dashboard.get('GARAGEOS_TRUST_CADDY_IP') != 'true':
         return 'dashboard_proxy_contract_invalid'
     caddy = services['caddy'].get('environment', {})
     if caddy.get('DOMAIN') != values.get('DOMAIN') or caddy.get('ACME_EMAIL') != values.get('ACME_EMAIL'):

@@ -173,6 +173,8 @@ class BackupOperationsTest(unittest.TestCase):
 
     def test_unsafe_ssh_destination_is_rejected_before_any_command(self):
         for target, directory in (("-oProxyCommand=evil", "/private/backups"),
+                                  ("fixture@localhost", "/private/backups"),
+                                  ("fixture@127.0.0.1", "/private/backups"),
                                   ("fixture@backup.example", "/backups/../other"),
                                   ("fixture@backup.example", "/backups;echo-secret")):
             with self.subTest(target=target):

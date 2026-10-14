@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 import gzip
 import hashlib
+import ipaddress
 import json
 import os
 from pathlib import Path, PurePosixPath
@@ -67,6 +68,15 @@ def ssh_configuration():
     directory = os.environ.get("BACKUP_SSH_DIRECTORY", "")
     if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_-]*@[A-Za-z0-9][A-Za-z0-9.-]*", target):
         raise ValueError("invalid destination")
+    host = target.rsplit("@", 1)[1].lower().rstrip(".")
+    if host in {"localhost", "localhost.localdomain"} or host.endswith(".localhost"):
+        raise ValueError("backup destination must be separate")
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        address = None
+    if address is not None and (address.is_loopback or address.is_unspecified):
+        raise ValueError("backup destination must be separate")
     if (not re.fullmatch(r"/[A-Za-z0-9_./-]+", directory)
             or ".." in PurePosixPath(directory).parts or directory.rstrip("/") == ""):
         raise ValueError("invalid directory")

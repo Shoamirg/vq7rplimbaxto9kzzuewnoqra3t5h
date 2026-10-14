@@ -145,6 +145,15 @@ class ProductionPreflightTest(unittest.TestCase):
             self.assertFalse(self.run_preflight()[0]['ok'])
             self.config['services']['backend']['environment'][field] = original
 
+    def test_dashboard_opt_in_matches_the_bff_exact_true_contract(self):
+        dashboard = self.config['services']['dashboard']['environment']
+        for invalid in ('1', 'yes', 'on', 'True', True):
+            with self.subTest(invalid=invalid):
+                dashboard['GARAGEOS_TRUST_CADDY_IP'] = invalid
+                self.assertFalse(self.run_preflight()[0]['ok'])
+        dashboard['GARAGEOS_TRUST_CADDY_IP'] = 'true'
+        self.assertTrue(self.run_preflight()[0]['ok'])
+
     def test_proxy_trust_and_rate_limits_are_required_private_production_controls(self):
         flags = ('TRUST_PROXY_HEADERS', 'RATE_LIMIT_ENABLED')
         limits = ('RATE_LIMIT_AUTH_MAX', 'RATE_LIMIT_AUTH_WINDOW_SECONDS',
