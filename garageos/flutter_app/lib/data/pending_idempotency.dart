@@ -12,21 +12,19 @@ class PendingIdempotency {
   }
 
   static Future<String> getOrCreate(String scope, String fingerprint) async {
-    final preferences = await SharedPreferences.getInstance();
+    final preferences = SharedPreferencesAsync();
     final storageKey = _storageKey(scope, fingerprint);
-    final existing = preferences.getString(storageKey);
+    final existing = await preferences.getString(storageKey);
     if (existing != null && _isUuid(existing)) return existing;
 
     final key = _uuid.v4();
-    if (!await preferences.setString(storageKey, key)) {
-      throw StateError('Could not persist the request retry key');
-    }
+    await preferences.setString(storageKey, key);
     return key;
   }
 
   static Future<void> clear(String scope, String fingerprint) async {
     try {
-      final preferences = await SharedPreferences.getInstance();
+      final preferences = SharedPreferencesAsync();
       await preferences.remove(_storageKey(scope, fingerprint));
     } catch (_) {
       // A committed request stays safe to replay if best-effort cleanup fails.

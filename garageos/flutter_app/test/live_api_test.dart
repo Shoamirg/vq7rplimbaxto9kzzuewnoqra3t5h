@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
@@ -45,19 +44,19 @@ class _DiagnosingApiClient extends ApiClient {
 }
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+  setUp(() {
+    final originalPreferences = SharedPreferencesAsyncPlatform.instance;
+    SharedPreferencesAsyncPlatform.instance =
+        InMemorySharedPreferencesAsync.empty();
+    addTearDown(
+      () => SharedPreferencesAsyncPlatform.instance = originalPreferences,
+    );
+  });
 
   const enabled = bool.fromEnvironment('RUN_LIVE_API');
   test(
     'real FastAPI: server permissions reach the signed-in Flutter account',
     () async {
-      final originalPreferences = SharedPreferencesAsyncPlatform.instance;
-      SharedPreferencesAsyncPlatform.instance =
-          InMemorySharedPreferencesAsync.empty();
-      addTearDown(
-        () => SharedPreferencesAsyncPlatform.instance = originalPreferences,
-      );
       final fixture = jsonDecode(
         await File(const String.fromEnvironment('SMOKE_FIXTURE'))
             .readAsString(),
