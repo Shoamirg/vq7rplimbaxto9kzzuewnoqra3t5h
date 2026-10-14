@@ -112,6 +112,24 @@ Import the frontend repository, then choose these settings:
 Sources: [Hobby usage](https://vercel.com/docs/plans/hobby),
 [monorepo settings](https://vercel.com/docs/monorepos/monorepo-faq).
 
+## Current custom domain
+
+On 2026-10-14, `garageos.uz` was attached to Netlify project
+`dazzling-marigold-9d5bdd` as its primary domain. `www.garageos.uz` redirects
+to the primary domain. Cloudflare remains the DNS provider, with these web records:
+
+| Type | Name | Target | Proxy |
+| --- | --- | --- | --- |
+| CNAME | `@` | `apex-loadbalancer.netlify.com` | DNS only |
+| CNAME | `www` | `dazzling-marigold-9d5bdd.netlify.app` | DNS only |
+
+These replace the retired server tunnel. Email/FTP records and nameservers
+were preserved. Cloudflare's HTTP proxy/security rules do not apply in DNS-only
+mode. Netlify issued a Let's Encrypt certificate covering both names;
+automatic renewal and forced HTTPS are enabled. The HTTPS home page, login page,
+health endpoint and CSS returned 200; HTTP and `www` redirect to `https://garageos.uz/`.
+This verifies frontend hosting only, not successful backend login.
+
 ## Minimal deployment verification
 
 The local production build passed on 2026-10-14 with existing lint warnings.
