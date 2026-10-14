@@ -69,8 +69,8 @@ export default function MePage() {
 function Row({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <li className="flex items-center gap-3 px-2 py-3">
-      <div className="grid size-8 place-items-center rounded-full bg-muted text-muted-foreground">{icon}</div>
-      <div className="flex-1">
+      <div className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">{icon}</div>
+      <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
         <p className="text-xs text-muted-foreground">{label}</p>
         <p className="text-sm font-medium text-foreground">{value}</p>
       </div>

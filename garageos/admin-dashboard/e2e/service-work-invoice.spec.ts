@@ -1,13 +1,11 @@
 import { expect, test } from "@playwright/test";
 import { queueCustomer, queueLogin } from "./support/queue";
 
-const CREDS = { email: "admin@demo.garageos.app", password: "parol12345" };
-
-test("new booking selects a mechanic account and persists its UUID", async ({ page }) => {
-  expect((await page.request.post("/api/auth/login", { data: CREDS })).ok()).toBeTruthy();
-  await page.context().addCookies([{ name: "garageos_locale", value: "uz", url: "http://localhost:3001" }]);
-  const customers = await page.request.get("/api/proxy/customers?limit=200");
-  const customer = (await customers.json()).items.find((item: { vehicle_count: number }) => item.vehicle_count > 0);
+test("new booking selects a mechanic account and persists its UUID", async ({ page, baseURL }) => {
+  // Writes belong to the isolated owner fixture; the public demo is read-only.
+  const { profile } = await queueLogin(page, baseURL!, "uz", 1280);
+  const person = await queueCustomer(page, profile);
+  const customer = { full_name: person.name };
   const roster = await page.request.get("/api/proxy/mechanics");
   const mechanic = (await roster.json()).items[0];
   expect(mechanic).toBeTruthy();
@@ -142,17 +140,13 @@ test("staff completes service work and shows one Uzbek UZS invoice", async ({ pa
   await expect(page).toHaveURL(invoiceUrl);
 });
 
-test("calendar completion records the performed work in vehicle history", async ({ page }) => {
-  const login = await page.request.post("/api/auth/login", { data: CREDS });
-  expect(login.ok()).toBeTruthy();
-  await page.context().addCookies([{ name: "garageos_locale", value: "uz", url: "http://localhost:3001" }]);
-
-  const customers = await page.request.get("/api/proxy/customers?limit=200");
-  const customer = (await customers.json()).items.find((item: { vehicle_count: number }) => item.vehicle_count > 0);
-  const detail = await page.request.get(`/api/proxy/customers/${customer.id}`);
-  const vehicleId = (await detail.json()).vehicles[0].id;
-  const mechanics = await page.request.get("/api/proxy/cases/mechanics");
-  const mechanicName = (await mechanics.json())[0].name;
+test("calendar completion records the performed work in vehicle history", async ({ page, baseURL }) => {
+  const { profile } = await queueLogin(page, baseURL!, "uz", 1280);
+  const person = await queueCustomer(page, profile);
+  const vehicleId = person.vehicle_id;
+  const mechanics = await page.request.get("/api/proxy/mechanics");
+  const mechanic = (await mechanics.json()).items[0];
+  const mechanicName = mechanic.full_name;
   const date = new Date().toISOString().slice(0, 10);
   const nextDate = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
   const calendar = await page.request.get(`/api/proxy/calendar?start=${date}&end=${nextDate}`);
@@ -169,9 +163,9 @@ test("calendar completion records the performed work in vehicle history", async 
   const appointmentTime = `${String(Math.floor(start! / 60)).padStart(2, "0")}:${String(start! % 60).padStart(2, "0")}`;
 
   const created = await page.request.post("/api/proxy/appointments/direct", { data: {
-    customer_id: customer.id, vehicle_id: vehicleId,
+    customer_id: person.customer_id, vehicle_id: vehicleId,
     appointment_date: date, appointment_time: appointmentTime,
-    estimated_duration_minutes: 60, mechanic_name: mechanicName,
+    estimated_duration_minutes: 60, mechanic_user_id: mechanic.id,
   } });
   expect(created.ok(), await created.text()).toBeTruthy();
   const appointmentId = (await created.json()).id;
