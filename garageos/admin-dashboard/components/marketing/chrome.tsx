@@ -13,10 +13,10 @@ export const SIGN_IN_HREF = "/login";
 export const LIVE_DEMO_HREF = "/demo";
 
 const NAV_LINKS = [
-  { href: "/#showroom", label: "Showroom" },
+  { href: "/#product", label: "Product" },
   { href: "/#workflow", label: "Workflow" },
   { href: "/#vehicle-passport", label: "Vehicle record" },
-  { href: "/pricing", label: "Pricing" },
+  { href: "/#pricing", label: "Pricing" },
 ];
 
 export function MarketingNav() {
@@ -24,7 +24,7 @@ export function MarketingNav() {
     <header className="mkt-nav">
       <div className="mkt-shell mkt-nav__row">
         <Link href="/" aria-label="GarageOS home" className="mkt-nav__brand"><Logo theme="dark" size={24} className="mkt-nav__logo" /></Link>
-        <nav className="mkt-nav__links" aria-label="Primary">
+        <nav className="mkt-nav__links" aria-label="Primary navigation">
           {NAV_LINKS.map((l) => (<a key={l.href} href={l.href}>{l.label}</a>))}
         </nav>
         <div className="mkt-nav__cta">

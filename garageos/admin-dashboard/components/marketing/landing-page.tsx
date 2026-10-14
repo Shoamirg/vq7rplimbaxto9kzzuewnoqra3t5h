@@ -2,13 +2,11 @@ import Image from "next/image";
 import {
   ArrowDownRight,
   ArrowRight,
-  CalendarDays,
   CarFront,
   Check,
   ClipboardList,
   Clock3,
   FileText,
-  ShieldCheck,
   Wrench,
 } from "lucide-react";
 
@@ -23,6 +21,106 @@ const WORKFLOW = [
   { number: "05", title: "Invoice", detail: "Record the payment" },
 ];
 
+const CAPABILITIES = [
+  {
+    id: "linked-record",
+    label: "CUSTOMER · VEHICLE · JOB",
+    title: "Keep the whole job together.",
+    detail: "Link the customer, vehicle, estimate, assigned mechanic, and invoice to one work order.",
+    icon: CarFront,
+    rows: [["Customer", "Linked"], ["Vehicle", "Service history"], ["Work order", "In progress"]],
+  },
+  {
+    id: "estimate",
+    label: "ESTIMATE",
+    title: "Make agreed work easy to follow.",
+    detail: "Keep the proposed work and its approval attached to the service record.",
+    icon: FileText,
+    rows: [["Scope", "Recorded"], ["Customer", "Approval"], ["Next step", "Invoice"]],
+  },
+  {
+    id: "assigned-work",
+    label: "TEAM ACCESS",
+    title: "Give each person the right view.",
+    detail: "Staff permissions follow their role; mechanics focus on work assigned to them.",
+    icon: Wrench,
+    rows: [["Service advisor", "Front desk"], ["Mechanic", "Assigned work"], ["Manager", "Operations"]],
+  },
+  {
+    id: "local-time",
+    label: "SERVICE SCHEDULE",
+    title: "Schedule in the garage’s local time.",
+    detail: "Appointments use the service center’s time zone, including Asia/Tashkent.",
+    icon: Clock3,
+    rows: [["Calendar", "Local time"], ["Service center", "Asia/Tashkent"], ["Booking", "Request"]],
+  },
+  {
+    id: "vehicle-history",
+    label: "VEHICLE HISTORY",
+    title: "See what has already been done.",
+    detail: "Keep mileage, completed services, and invoices with the vehicle’s history.",
+    icon: ClipboardList,
+    rows: [["Mileage", "Recorded"], ["Service", "Timeline"], ["Invoices", "Linked"]],
+  },
+];
+
+function VehicleShowroom() {
+  return (
+    <div className="mkt-home__showcase" role="group" aria-label="Illustrative GarageOS vehicle and work order preview">
+      <div className="mkt-home__showcase-top">
+        <span className="mkt-home__window-dots" aria-hidden="true"><i /><i /><i /></span>
+        <span>GarageOS · Vehicle record</span>
+        <span className="mkt-home__sample"><span /> Sample data</span>
+      </div>
+      <div className="mkt-home__vehicle-stage">
+        <div className="mkt-home__stage-label">SERVICE HISTORY · VEHICLE VIEW</div>
+        <svg className="mkt-home__vehicle-art" viewBox="0 0 800 330" role="img" aria-label="Illustrative side view of a passenger car">
+          <defs>
+            <linearGradient id="garage-car-body" x1="0" x2="0.15" y1="0" y2="1">
+              <stop offset="0" stopColor="#f9fafb" />
+              <stop offset="0.42" stopColor="#d8dde1" />
+              <stop offset="1" stopColor="#929da5" />
+            </linearGradient>
+            <linearGradient id="garage-car-glass" x1="0" x2="1" y1="0" y2="1">
+              <stop offset="0" stopColor="#64717a" />
+              <stop offset="1" stopColor="#263138" />
+            </linearGradient>
+            <linearGradient id="garage-car-wheel" x1="0" x2="1" y1="0" y2="1">
+              <stop offset="0" stopColor="#59636a" />
+              <stop offset="1" stopColor="#20262b" />
+            </linearGradient>
+          </defs>
+          <ellipse cx="401" cy="274" rx="306" ry="22" fill="#373e42" opacity="0.16" />
+          <path d="M82 235c9-22 30-36 71-43l65-12 66-75c14-16 34-24 57-25h124c29 0 51 10 70 30l70 71 64 11c37 7 61 22 72 46l-5 19H86z" fill="url(#garage-car-body)" stroke="#89939a" strokeWidth="3" />
+          <path d="m239 177 58-65c12-14 27-20 46-20h45v85z" fill="url(#garage-car-glass)" stroke="#f5f7f8" strokeWidth="5" />
+          <path d="M401 92h61c22 0 39 8 54 25l54 60H401z" fill="url(#garage-car-glass)" stroke="#f5f7f8" strokeWidth="5" />
+          <path d="M399 94v142m-162-49h367m-176 2v84" fill="none" stroke="#7e898f" strokeWidth="3" opacity="0.68" />
+          <path d="M103 228c20-18 39-24 64-27m531 3c28 7 45 17 55 32" fill="none" stroke="#fff" strokeWidth="6" strokeLinecap="round" opacity="0.65" />
+          <path d="M102 232h35m523 0h54" stroke="#f6c56f" strokeWidth="7" strokeLinecap="round" />
+          <circle cx="235" cy="247" r="53" fill="#262c30" />
+          <circle cx="235" cy="247" r="34" fill="url(#garage-car-wheel)" stroke="#aeb6bb" strokeWidth="5" />
+          <circle cx="235" cy="247" r="12" fill="#d7dde0" />
+          <circle cx="576" cy="247" r="53" fill="#262c30" />
+          <circle cx="576" cy="247" r="34" fill="url(#garage-car-wheel)" stroke="#aeb6bb" strokeWidth="5" />
+          <circle cx="576" cy="247" r="12" fill="#d7dde0" />
+          <path d="M177 199h-26m478-4 41 7" stroke="#737d83" strokeWidth="3" strokeLinecap="round" />
+        </svg>
+        <div className="mkt-home__stage-note mkt-home__stage-note--left">
+          <small>WORK ORDER</small><strong>Brake inspection</strong><span>Example · awaiting review</span>
+        </div>
+        <div className="mkt-home__stage-note mkt-home__stage-note--right">
+          <small>VEHICLE HISTORY</small><strong>Record linked</strong><span>Mileage · service notes</span>
+        </div>
+      </div>
+      <div className="mkt-home__vehicle-meta" aria-label="Sample vehicle record fields">
+        <span><small>Customer</small><strong>Linked to vehicle</strong></span>
+        <span><small>Service</small><strong>Work recorded</strong></span>
+        <span><small>History</small><strong>Ready to review</strong></span>
+      </div>
+    </div>
+  );
+}
+
 export function LandingPage() {
   return (
     <main className="mkt-home">
@@ -32,7 +130,7 @@ export function LandingPage() {
             <span className="mkt-home__eyebrow"><span /> Built for the work happening in your garage</span>
             <h1 id="home-title">Every vehicle. Every job. <em>One clear view.</em></h1>
             <p className="mkt-home__lede">
-              Connect the customer, vehicle, work order, and invoice in one practical flow — so your team knows what is happening next.
+              Keep the customer, vehicle, estimate, assigned mechanic, and invoice together — so every handoff starts with the right context.
             </p>
             <div className="mkt-home__actions">
               <a href={LIVE_DEMO_HREF} className="mkt-home__button mkt-home__button--dark">
@@ -43,30 +141,7 @@ export function LandingPage() {
             <p className="mkt-home__note">A read-only preview with sample garage data. No account required.</p>
           </div>
 
-          <div className="mkt-home__showcase" aria-label="GarageOS dashboard preview">
-            <div className="mkt-home__showcase-top">
-              <span className="mkt-home__window-dots" aria-hidden="true"><i /><i /><i /></span>
-              <span>GarageOS workspace</span>
-              <span className="mkt-home__sample"><span /> Sample data</span>
-            </div>
-            <div className="mkt-home__screen">
-              <Image
-                src="/marketing/dashboard.png"
-                alt="GarageOS sample dashboard with appointments, vehicle health, and a revenue chart"
-                fill
-                priority
-                sizes="(max-width: 900px) 100vw, 58vw"
-              />
-            </div>
-            <div className="mkt-home__floating mkt-home__floating--top">
-              <span className="mkt-home__floating-icon"><CalendarDays size={17} /></span>
-              <span><strong>Work, in order</strong><small>Customer → vehicle → job</small></span>
-            </div>
-            <div className="mkt-home__floating mkt-home__floating--bottom">
-              <span className="mkt-home__floating-icon mkt-home__floating-icon--green"><ShieldCheck size={17} /></span>
-              <span><strong>Access by role</strong><small>Each teammate sees their work</small></span>
-            </div>
-          </div>
+          <VehicleShowroom />
         </div>
 
         <div className="mkt-shell mkt-home__proof-row" aria-label="GarageOS capabilities">
@@ -85,6 +160,34 @@ export function LandingPage() {
             <p>Switch roles to preview how the same job moves from the front desk to the workshop and back to the customer.</p>
           </div>
           <ShowroomSwitcher />
+        </div>
+      </section>
+
+      <section className="mkt-home__capability-section" id="product" aria-labelledby="capability-title">
+        <div className="mkt-shell">
+          <div className="mkt-home__section-heading">
+            <span className="mkt-home__eyebrow"><span /> Less gets lost between handoffs</span>
+            <h2 id="capability-title">Built around the details a service job depends on.</h2>
+            <p>These previews use sample content to show how GarageOS connects the work from check-in through the vehicle record.</p>
+          </div>
+          <div className="mkt-home__capability-grid">
+            {CAPABILITIES.map(({ id, label, title, detail, icon: Icon, rows }) => (
+              <article className={`mkt-home__capability mkt-home__capability--${id}`} key={id}>
+                <div className="mkt-home__capability-top">
+                  <span className="mkt-home__capability-icon"><Icon size={18} aria-hidden="true" /></span>
+                  <span>{label}</span>
+                </div>
+                <h3>{title}</h3>
+                <p>{detail}</p>
+                <div className="mkt-home__capability-preview" aria-hidden="true">
+                  <span className="mkt-home__capability-preview-title">ILLUSTRATIVE WORKFLOW</span>
+                  {rows.map(([name, value]) => (
+                    <div className="mkt-home__capability-row" key={name}><span>{name}</span><strong>{value}</strong></div>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -137,13 +240,13 @@ export function LandingPage() {
       <section className="mkt-home__closing" id="pricing" aria-labelledby="closing-title">
         <div className="mkt-shell mkt-home__closing-card">
           <div>
-            <span className="mkt-home__eyebrow mkt-home__eyebrow--dark"><span /> Start with your actual workflow</span>
-            <h2 id="closing-title">See how GarageOS fits your service center.</h2>
-            <p>Explore the sample workspace, then talk with us about the setup and pricing that fit your team.</p>
+            <span className="mkt-home__eyebrow mkt-home__eyebrow--dark"><span /> Pricing for local service centers</span>
+            <h2 id="closing-title">Choose a setup that fits your garage.</h2>
+            <p>Talk with our team about rollout and pricing in UZS, or explore the sample workspace first.</p>
           </div>
           <div className="mkt-home__actions">
-            <a href="/pricing" className="mkt-home__button mkt-home__button--green">View plans <ArrowRight size={17} aria-hidden="true" /></a>
-            <a href={DEMO_HREF} className="mkt-home__button mkt-home__button--light">Book a walkthrough</a>
+            <a href={DEMO_HREF} className="mkt-home__button mkt-home__button--green">Ask about pricing <ArrowRight size={17} aria-hidden="true" /></a>
+            <a href={LIVE_DEMO_HREF} className="mkt-home__button mkt-home__button--light">Explore the sample workspace</a>
           </div>
         </div>
       </section>
