@@ -1,8 +1,9 @@
 # Frontend hosting with a Railway backend
 
 The frontend is `garageos/admin-dashboard` in
-[`Shoamirg/garageos`](https://github.com/Shoamirg/garageos), branch
+[`Shoamirg/vq7rplimbaxto9kzzuewnoqra3t5h`](https://github.com/Shoamirg/vq7rplimbaxto9kzzuewnoqra3t5h), branch
 `codex/service-work-demo`. `Shoamirg/Backend-repo` contains the backend only.
+GitHub currently redirects the former `Shoamirg/garageos` name to that repository.
 The frontend also needs `garageos/packages/design-system` and the workspace
 lockfile at `garageos/package-lock.json`; keep these in the build checkout.
 
@@ -15,12 +16,13 @@ insufficient.
 Configure these in the hosting dashboard for both build and runtime:
 
 ```dotenv
-NEXT_PUBLIC_API_URL=https://YOUR-BACKEND.up.railway.app/api/v1
+NEXT_PUBLIC_API_URL=https://backend-repo-production-3c9a.up.railway.app/api/v1
 GARAGEOS_TRUST_CADDY_IP=false
 NEXT_TELEMETRY_DISABLED=1
 ```
 
-Replace the example hostname with the backend's actual public Railway hostname.
+This is the public Railway hostname supplied for the current deployment;
+update it if the backend hostname changes.
 Include `/api/v1` once and omit a trailing slash. Do not use Railway's private
 hostname, localhost, HTTP, or put database credentials, SSH passwords, tokens,
 or `SECRET_KEY` in frontend variables. The provider sets `NODE_ENV=production`.
@@ -84,6 +86,10 @@ Sources: [Hobby usage](https://vercel.com/docs/plans/hobby),
 
 The local production build passed on 2026-10-14 with existing lint warnings.
 It used a placeholder backend URL and does not prove Railway connectivity.
+The initial live check on 2026-10-14 returned `/health` 200 and `/ready` 503:
+database and Redis checks both failed. `/version` reported development/debug
+mode. Configure Railway Variables from the backend's `.env.example`, using
+the actual PostgreSQL/Redis service names, and redeploy before testing login.
 After the backend build finishes, confirm its `/ready` returns HTTP 200.
 Then verify frontend HTTPS, `/healthz`, `/login`, one real login, a dashboard
 read, and logout. Check login failures in both providers' logs without copying
