@@ -45,6 +45,10 @@ the site when exhausted. Use the Free plan without enabling paid upgrades.
 
 Import the frontend repository and select `codex/service-work-demo`:
 
+The repository-root `netlify.toml` supplies the base, build command, publish
+directory, Node version and baseline browser security headers below. Set the
+package directory and environment variables in the Netlify dashboard.
+
 | Setting | Value |
 | --- | --- |
 | Base directory | `garageos` |

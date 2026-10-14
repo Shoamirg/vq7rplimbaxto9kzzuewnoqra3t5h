@@ -41,6 +41,8 @@ node_modules/
 .next/
 out/
 .turbo/
+.netlify/
+.vercel/
 .pnpm-store/
 npm-debug.log*
 yarn-debug.log*

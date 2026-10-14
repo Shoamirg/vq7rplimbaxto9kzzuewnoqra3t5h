@@ -1,0 +1,19 @@
+# Install at the workspace root so the shared design system is available.
+[build]
+  base = "garageos"
+  command = "npm run build --workspace=admin-dashboard"
+  publish = "admin-dashboard/.next"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NEXT_TELEMETRY_DISABLED = "1"
+
+# NEXT_PUBLIC_API_URL belongs in the Netlify UI (build + runtime scopes).
+# Netlify automatically installs its Next.js adapter for this project.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Strict-Transport-Security = "max-age=31536000"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "SAMEORIGIN"
+    Referrer-Policy = "strict-origin-when-cross-origin"
