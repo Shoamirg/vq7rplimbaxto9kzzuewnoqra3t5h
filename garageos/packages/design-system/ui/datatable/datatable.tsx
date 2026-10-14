@@ -426,7 +426,7 @@ function BadgeCell({ variant, children }: { variant: string; children: ReactNode
     success: "bg-success/15 text-success border-success/25",
     warning: "bg-warning/15 text-warning border-warning/25",
     danger: "bg-danger/15 text-danger border-danger/25",
-    info: "bg-blue-100 text-blue-700 border-blue-200",
+    info: "bg-primary-100 text-primary-700 border-primary-200",
     neutral: "bg-muted text-muted-foreground border-border",
   };
   return (

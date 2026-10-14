@@ -32,7 +32,7 @@ export function hexToHslChannels(hex: string): string | null {
   return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
 }
 
-/** CSS custom properties that re-theme the app's semantic tokens for a tenant.
+/** CSS custom properties that identify the tenant without overriding GarageOS action semantics for a tenant.
  *  Applied on a wrapping element; custom properties inherit to all children. */
 export function brandCssVars(
   branding: Branding | null | undefined,
@@ -62,10 +62,8 @@ export function brandCssVars(
       ? "0 0% 0%"
       : "0 0% 100%";
   return {
-    "--primary": primary,
-    "--primary-foreground": foreground,
-    "--sidebar-active": primary,
-    "--ring": primary,
-    ...(accent ? { "--accent": accent } : {}),
+    "--tenant-primary": primary,
+    "--tenant-foreground": foreground,
+    ...(accent ? { "--tenant-accent": accent } : {}),
   } as CSSProperties;
 }

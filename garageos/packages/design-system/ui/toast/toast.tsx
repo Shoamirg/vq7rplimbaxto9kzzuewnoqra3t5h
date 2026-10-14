@@ -11,7 +11,7 @@ const variantIcons: Record<ToastVariant, React.ReactNode> = {
   success: <CheckCircle className="size-5 text-success" />,
   warning: <AlertTriangle className="size-5 text-warning" />,
   danger: <AlertCircle className="size-5 text-danger" />,
-  info: <Info className="size-5 text-blue-500" />,
+  info: <Info className="size-5 text-primary-500" />,
 };
 
 const variantClasses: Record<ToastVariant, string> = {
@@ -19,7 +19,7 @@ const variantClasses: Record<ToastVariant, string> = {
   success: "border-success/30 bg-card",
   warning: "border-warning/30 bg-card",
   danger: "border-danger/30 bg-card",
-  info: "border-blue-200 bg-card dark:border-blue-800",
+  info: "border-primary-200 bg-card dark:border-primary-800",
 };
 
 const positionClasses: Record<string, string> = {

@@ -2,13 +2,12 @@ import type { CSSProperties } from "react";
 
 // GarageOS mark: a bold "G" ring with a road lane sweeping up through it to a
 // telemetry node — vehicle + intelligence + operations. The G uses `tone`, the
-// road + node use `accent`, so the same geometry recolors per context (blue on
-// dark/app surfaces, gold on the light wordmark).
+// road + node use `accent`, so the same geometry recolors per surface.
 
-export const BRAND_BLUE = "#2563EB";
-export const BRAND_GOLD = "#D9A322";
-export const GARAGE_BLACK = "#0B1220";
-export const GARAGE_WHITE = "#F8FAFC";
+export const BRAND_BLUE = "#111315";
+export const BRAND_GOLD = "#686E76";
+export const GARAGE_BLACK = "#181B20";
+export const GARAGE_WHITE = "#F5F6F8";
 
 function MarkPaths({ tone, accent }: { tone: string; accent: string }) {
   return (
@@ -72,7 +71,7 @@ export function LogoTile({ size = 96, radius = 0.225 }: { size?: number; radius?
         width: size,
         height: size,
         borderRadius: size * radius,
-        background: "linear-gradient(160deg,#111a2e,#0B1220)",
+        background: "linear-gradient(160deg,#23272F,#14171C)",
         display: "grid",
         placeItems: "center",
         boxShadow: "0 10px 30px -8px rgba(0,0,0,.5)",
@@ -86,21 +85,21 @@ export function LogoTile({ size = 96, radius = 0.225 }: { size?: number; radius?
 /** Horizontal lockup: mark + wordmark. `theme` picks the palette. */
 export function Logo({
   size = 28,
-  theme = "light",
+  theme = "auto",
   showWordmark = true,
   className,
   style,
 }: {
   size?: number;
-  theme?: "light" | "dark";
+  theme?: "light" | "dark" | "auto";
   showWordmark?: boolean;
   className?: string;
   style?: CSSProperties;
 }) {
   const dark = theme === "dark";
-  const tone = dark ? GARAGE_WHITE : GARAGE_BLACK;
-  const accent = dark ? BRAND_BLUE : BRAND_GOLD;
-  const osColor = dark ? "#94A3B8" : "#334155";
+  const tone = theme === "auto" ? "var(--color-foreground)" : dark ? GARAGE_WHITE : GARAGE_BLACK;
+  const accent = theme === "auto" ? "var(--color-muted-foreground)" : dark ? "#B1BCCD" : BRAND_GOLD;
+  const osColor = accent;
   return (
     <span className={className} style={{ display: "inline-flex", alignItems: "center", gap: size * 0.42, ...style }}>
       <LogoMark size={size * 1.5} tone={tone} accent={accent} />
