@@ -29,7 +29,8 @@ with httpx.Client(base_url=base, timeout=10) as client:
         stage = 'login response parsing'
         token = login.json().get('access_token')
         stage = 'profile request'
-        profile = client.get('/api/v1/auth/me', headers={'Authorization':'Bearer ' + (token or '')})
+        profile_headers = {'Authorization':'Bearer ' + token} if isinstance(token, str) and token else {}
+        profile = client.get('/api/v1/auth/me', headers=profile_headers)
         stage = 'allowed CORS preflight'
         cors = client.options('/api/v1/auth/login', headers={'Origin':'https://recovery.example.com',
                     'Access-Control-Request-Method':'POST','Access-Control-Request-Headers':'content-type'})
@@ -137,7 +138,12 @@ class RailwayBackendTest(unittest.TestCase):
         OUTPUT.joinpath('runtime-requirements.txt').write_text(''.join(
             item['name'] + '==' + item['version'] + '\n' for item in packages))
         runtime_env = qa.private/'railway runtime.env'
-        runtime_env.write_text(qa.backend_env.read_text() +
+        backend_settings = qa.backend_env.read_text()
+        if 'REDIS_URL=redis://redis:6379/0\n' not in backend_settings:
+            raise AssertionError('Expected isolated rehearsal Redis database configuration')
+        runtime_settings = backend_settings.replace(
+            'REDIS_URL=redis://redis:6379/0\n', 'REDIS_URL=redis://redis:6379/1\n', 1)
+        runtime_env.write_text(runtime_settings +
             '\nPORT=8087\nTRUST_PROXY_HEADERS=true\nRATE_LIMIT_ENABLED=true\n'
             'RATE_LIMIT_AUTH_MAX=4\nRATE_LIMIT_AUTH_WINDOW_SECONDS=300\n')
         runtime_env.chmod(0o600)
