@@ -2,7 +2,10 @@
 import argparse
 import json
 from pathlib import Path
+import subprocess
+import sys
 import time
+from textwrap import indent
 import unittest
 
 import test_database_recovery as recovery
@@ -42,9 +45,51 @@ with httpx.Client(base_url=base, timeout=10) as client:
                   'no_cookies':all('set-cookie' not in r.headers for r in replies)}
     else:
         response = client.get('/ready')
-        result = {'status':response.status_code, 'body':response.json()}
+        data = response.json()
+        checks = data.get('checks', {})
+        result = {'status':response.status_code, 'not_ready':data.get('status') == 'not_ready'}
+        for dependency in ('database', 'redis'):
+            check = checks.get(dependency, {})
+            result[dependency + '_ok'] = check.get('ok') is True
+            result[dependency + '_unavailable'] = check.get('ok') is False and check.get('error') == 'unavailable'
 print(json.dumps(result))
 """
+SAFE_PROBE = "try:\n" + indent(PROBE, '    ') + "\nexcept Exception:\n    print('{\"probe_failed\":true}')\n"
+
+PRIVACY_HARNESS = r"""import json, sys
+from contextlib import nullcontext
+from types import SimpleNamespace
+sys.path.insert(0, sys.argv[1])
+from test_railway_backend import SAFE_PROBE
+mode = sys.argv[2]
+class Client:
+    def get(self, path):
+        if mode == 'exception':
+            raise RuntimeError('private-qa-dependency-detail')
+        return SimpleNamespace(status_code=503, json=lambda: {'status':'not_ready',
+            'checks':{key:{'ok':False,'error':'private-qa-dependency-detail'} for key in ('database','redis')}})
+sys.modules['httpx'] = SimpleNamespace(Client=lambda **kwargs: nullcontext(Client()))
+sys.argv = ['private-probe', 'ready']
+exec(SAFE_PROBE)
+"""
+
+
+class RailwayProbePrivacyTest(unittest.TestCase):
+    def check_probe(self, mode):
+        result = subprocess.run([sys.executable, '-c', PRIVACY_HARNESS,
+                                 str(Path(__file__).parent), mode], capture_output=True,
+                                text=True, timeout=30)
+        self.assertNotIn('private-qa-dependency-detail', result.stdout + result.stderr)
+        self.assertEqual(result.returncode, 0)
+        return json.loads(result.stdout)
+
+    def test_private_readiness_body_is_reduced_to_boolean_proofs(self):
+        proof = self.check_probe('body')
+        self.assertEqual(proof, {'status':503, 'not_ready':True, 'database_ok':False,
+                               'database_unavailable':False, 'redis_ok':False, 'redis_unavailable':False})
+
+    def test_probe_exception_is_sanitized_before_crossing_container_boundary(self):
+        self.assertEqual(self.check_probe('exception'), {'probe_failed':True})
 
 
 class RailwayBackendTest(unittest.TestCase):
@@ -70,6 +115,10 @@ class RailwayBackendTest(unittest.TestCase):
         cls.addClassCleanup(cls.cleanup)
         cls.qa.setUpClass()  # Actual pre-deploy migration, auth and data restart proofs.
         qa = cls.qa
+        packages = json.loads(qa.backend('railway-packages', qa.backend_env,
+                             ['python', '-m', 'pip', 'list', '--format=json']).stdout)
+        OUTPUT.joinpath('runtime-requirements.txt').write_text(''.join(
+            item['name'] + '==' + item['version'] + '\n' for item in packages))
         runtime_env = qa.private/'railway runtime.env'
         runtime_env.write_text(qa.backend_env.read_text() +
             '\nPORT=8087\nTRUST_PROXY_HEADERS=true\nRATE_LIMIT_ENABLED=true\n'
@@ -87,7 +136,10 @@ class RailwayBackendTest(unittest.TestCase):
 
     @classmethod
     def probe(cls, action):
-        return json.loads(cls.qa.docker('exec', cls.api, 'python', '-c', PROBE, action).stdout)
+        proof = json.loads(cls.qa.docker('exec', cls.api, 'python', '-c', SAFE_PROBE, action).stdout)
+        if proof.get('probe_failed'):
+            raise RuntimeError('Railway QA HTTP probe failed; private response withheld')
+        return proof
 
     @classmethod
     def wait_ready(cls):
@@ -124,7 +176,8 @@ class RailwayBackendTest(unittest.TestCase):
                 try:
                     proof = self.probe('ready')
                     self.assertEqual(proof['status'], 503)
-                    self.assertEqual(proof['body']['checks'][dependency], {'ok':False, 'error':'unavailable'})
+                    self.assertTrue(proof['not_ready'] and proof[dependency + '_unavailable'], proof)
+                    self.assertFalse(proof[dependency + '_ok'])
                 finally:
                     qa.docker('start', name)
                     self.wait_ready()
