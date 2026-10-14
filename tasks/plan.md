@@ -1,4 +1,50 @@
-# GarageOS: Inbox qabuli va sessiya himoyasi
+# GarageOS: productionga tayyorgarlik — 2026-10-14
+
+Foydalanuvchi tasdiqlagan navbatdagi reja. Server hali tayyor emas; mavjud
+Windows kompyuter, WSL/Docker, web panel va Android vositalari bilan ishlanadi.
+Boshlang'ich HEAD: `27444a64bb05fee776eee3ac2cec4886b57b01dd`, repository
+`C:/Users/u0129/Desktop/garageos-source`, branch `codex/service-work-demo`, PR5.
+Vazifalar GitHub #10 va unga bog'liq mavjud issue'larda yuritiladi.
+
+## Joriy bosqich — serversiz bajariladigan ishlar
+
+- [x] 1. Proxy socket peer IP'sini ikkala upstreamda belgilash; soxta X-Real-IP
+      va X-Forwarded-For regressionini RED -> GREEN tekshirish (8 routing tests).
+- [ ] 2. BFF canonical IP va 429/Retry-After/unavailable holatlarini UZ/EN/RU
+      bilan uzatish; origin/session/fingerprint/unknown-mutation kontraktlari.
+- [ ] 3. Default botsiz production Compose va maxfiy qiymatlarni chiqarmaydigan
+      read-only preflight; optional private readiness DB+Redis tekshiruvi.
+- [ ] 4. Backup jadvali, tekshirilgan tashqi nusxa va xato/stale backup monitoring
+      vositalari; isolated archive/restore va failure regressionlari.
+- [ ] 5. Joriy Android native/emulator va mavjud physical-device imkoniyatlarini
+      tekshirish; real server/key/telefon qabuli bo'lmasa uni aniq pending yozish.
+- [ ] 6. Joriy handoff/release ko'rsatmalari, mustaqil review, yakuniy combined
+      release tekshiruvi, evidence va GitHub own-branch publication.
+
+Egalik: bosh agent Caddy, backup/monitor, native/runtime, hujjatlar, umumiy test
+muhiti va Git/GitHub integratsiyasi; client agent faqat admin-dashboard; ops
+agent Compose/env example/preflight va uning testlari; reviewer read-only.
+Umumiy PostgreSQL/API/browser/Docker/native muhitini bosh agent boshqaradi.
+Atomic commitlar; har behavior uchun meaningful RED/GREEN, keyin yakuniy SHA'da
+bitta full release run. Unchanged testlar faqat reassurance uchun takrorlanmaydi.
+
+## Server va mijozga bog'liq keyingi qabul
+
+- [ ] 7. Aniq ruxsatli server, garageos.uz HTTPS, real servis/xodimlar va persistent
+      deployment; restartdan keyin data saqlanishini tekshirish.
+- [ ] 8. O'sha muhitda jadval/off-host nusxa, restore/rollback va monitoring qabuli.
+- [ ] 9. Owner Android signing identity, real HTTPS API, o'rnatish/yangilash.
+- [ ] 10. Bitta servisda kamida bir ish kuni pilot, support va mas'ul qabul.
+
+Paid hosting/Apple enrollment, main merge/tag, deployment, private target accounts,
+owner key yoki real-device acceptance ushbu serversiz increment natijasi emas.
+iPhone tarqatish keyingi bosqichda qoladi. Eski hujjatlar bulk-restore qilinmaydi;
+faqat joriy zarur ko'rsatmalar yoziladi. Private fixtures/JWT/dump/key GitHub'ga
+chiqarilmaydi. Old stopped PGdata deletion policy rejection chetlab o'tilmaydi.
+
+---
+
+# Yakunlangan oldingi reja: Inbox qabuli va sessiya himoyasi
 
 ## Maqsad va ish joyi
 
