@@ -10,6 +10,39 @@ import 'package:garageos_staff/data/api_client.dart';
 import 'package:garageos_staff/data/repository.dart';
 import 'package:garageos_staff/domain/models.dart';
 
+class _DiagnosingApiClient extends ApiClient {
+  _DiagnosingApiClient(super.address);
+
+  @override
+  Future<dynamic> request(
+    String method,
+    String path, {
+    Json? body,
+    Map<String, String>? query,
+    String? idempotencyKey,
+    bool authenticated = true,
+  }) async {
+    try {
+      return await super.request(
+        method,
+        path,
+        body: body,
+        query: query,
+        idempotencyKey: idempotencyKey,
+        authenticated: authenticated,
+      );
+    } on AppFailure catch (failure) {
+      if (failure.message == 'Server javobini oʻqib boʻlmadi.') {
+        throw StateError(
+          'Live API returned non-JSON from $method $path '
+          '(HTTP ${failure.status}).',
+        );
+      }
+      rethrow;
+    }
+  }
+}
+
 void main() {
   const enabled = bool.fromEnvironment('RUN_LIVE_API');
   test(
@@ -68,7 +101,7 @@ void main() {
         await File(const String.fromEnvironment('SMOKE_FIXTURE'))
             .readAsString(),
       );
-      final api = ApiClient(
+      final api = _DiagnosingApiClient(
         const String.fromEnvironment(
           'API_URL',
           defaultValue: 'http://127.0.0.1:8010/api/v1',
@@ -151,7 +184,7 @@ void main() {
       await repo.changeWork(work.id, 'assign-mechanic', {
         'mechanic_user_id': account.id,
       });
-      final mechanicApi = ApiClient(api.base.toString());
+      final mechanicApi = _DiagnosingApiClient(api.base.toString());
       addTearDown(mechanicApi.close);
       final mechanicToken = await mechanicApi.request(
         'POST',
