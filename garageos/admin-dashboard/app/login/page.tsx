@@ -7,12 +7,14 @@ import { Button } from "@garageos/design-system";
 import { Logo } from "@/components/brand/logo";
 import { useI18n } from '@/lib/i18n/context';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
+import { useTheme } from '@/components/providers/theme-provider';
 import { staffAuthTransition, AuthTransitionUnavailable, authTransitionMarkerCurrent } from '@/lib/auth-transition';
 import { loginFailureKey, retryAfterSeconds } from '@/lib/login-feedback';
 
 export default function LoginPage() {
   const router = useRouter();
   const { t } = useI18n();
+  const { resolvedTheme } = useTheme();
   const [revocationUnconfirmed, setRevocationUnconfirmed] = useState(false);
   useEffect(() => {
     const notice = () => {
@@ -81,7 +83,7 @@ export default function LoginPage() {
     <main className="min-h-screen grid place-items-center bg-background p-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-1.5">
-          <Logo size={26} theme="light" />
+          <Logo size={26} theme={resolvedTheme} />
           <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Vehicle Intelligence</p>
         </div>
 

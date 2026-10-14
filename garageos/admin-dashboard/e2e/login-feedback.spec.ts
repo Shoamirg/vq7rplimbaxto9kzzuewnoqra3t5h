@@ -3,6 +3,21 @@ import { translate, type Locale } from '../lib/i18n/dictionaries';
 import { assertAccessible } from './support/accessibility';
 
 for (const locale of ['uz', 'en', 'ru'] as Locale[]) {
+  for (const theme of ['light', 'dark'] as const) test(`login failure ${locale} ${theme} fits a short phone`, async ({ page, baseURL }, info) => {
+    await page.setViewportSize({ width: theme === 'dark' ? 360 : 390, height: 540 });
+    await page.emulateMedia({ colorScheme: theme });
+    await page.context().addCookies([{ name: 'garageos_locale', value: locale, url: baseURL! }]);
+    await page.route('**/api/auth/login', route => route.fulfill({ status: 503,
+      contentType: 'application/json', body: JSON.stringify({ code: 'BACKEND_UNAVAILABLE' }) }));
+    await page.goto('/login');
+    await expect(page.locator('html')).toHaveClass(new RegExp(`(^|\\s)${theme}(\\s|$)`));
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await expect(page.getByRole('alert').filter({ hasText: translate(locale, 'platform.login_unavailable') })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await assertAccessible(page, info, `login-feedback-phone-${locale}-${theme}`);
+    await page.screenshot({ path: info.outputPath('login-feedback-phone.png'), fullPage: true });
+  });
+
   test(`login 429 ${locale} honors Retry-After with deliberate retry only`, async ({ page, baseURL }, info) => {
     await page.context().addCookies([{ name: 'garageos_locale', value: locale, url: baseURL! }]);
     await page.clock.install();
