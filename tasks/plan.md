@@ -10,13 +10,13 @@ Vazifalar GitHub #10 va unga bog'liq mavjud issue'larda yuritiladi.
 
 - [x] 1. Proxy socket peer IP'sini ikkala upstreamda belgilash; soxta X-Real-IP
       va X-Forwarded-For regressionini RED -> GREEN tekshirish (8 routing tests).
-- [ ] 2. BFF canonical IP va 429/Retry-After/unavailable holatlarini UZ/EN/RU
+- [x] 2. BFF canonical IP va 429/Retry-After/unavailable holatlarini UZ/EN/RU
       bilan uzatish; origin/session/fingerprint/unknown-mutation kontraktlari.
-- [ ] 3. Default botsiz production Compose va maxfiy qiymatlarni chiqarmaydigan
+- [x] 3. Default botsiz production Compose va maxfiy qiymatlarni chiqarmaydigan
       read-only preflight; optional private readiness DB+Redis tekshiruvi.
-- [ ] 4. Backup jadvali, tekshirilgan tashqi nusxa va xato/stale backup monitoring
+- [x] 4. Backup jadvali, tekshirilgan tashqi nusxa va xato/stale backup monitoring
       vositalari; isolated archive/restore va failure regressionlari.
-- [ ] 5. Joriy Android native/emulator va mavjud physical-device imkoniyatlarini
+- [x] 5. Joriy Android native/emulator va mavjud physical-device imkoniyatlarini
       tekshirish; real server/key/telefon qabuli bo'lmasa uni aniq pending yozish.
 - [ ] 6. Joriy handoff/release ko'rsatmalari, mustaqil review, yakuniy combined
       release tekshiruvi, evidence va GitHub own-branch publication.
