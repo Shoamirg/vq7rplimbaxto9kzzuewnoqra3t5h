@@ -1,7 +1,7 @@
 name: CI
 
 on:
-  # Automatic trusted-branch CI runs on the local Windows Jenkins installation.
+  # Manual GitHub runs; the isolated local Windows runner provides release evidence.
   workflow_dispatch:
 
 concurrency:
@@ -21,6 +21,13 @@ jobs:
         run: python garageos/scripts/test_dashboard_build_context.py
       - name: Verify native API and dashboard routes through production Caddyfile
         run: python garageos/scripts/test_public_routing.py
+      - name: Verify operator preflight and backup failure contracts
+        run: |
+          python garageos/scripts/test_production_preflight.py
+          python garageos/scripts/test_production_ops.py
+          python garageos/scripts/test_production_compose.py
+      - name: Verify Caddy and dashboard share the real backend auth quota
+        run: python garageos/scripts/test_bff_public_routing.py --output ci-evidence/production-bff-routing
       - name: Verify actual PostgreSQL backup and recovery
         run: python garageos/scripts/test_database_recovery.py --output ci-evidence/database-recovery
       - name: Verify bounded invoice queries and production volume reads
@@ -32,6 +39,7 @@ jobs:
           path: |
             ci-evidence/database-recovery
             ci-evidence/invoice-volume
+            ci-evidence/production-bff-routing
           retention-days: 7
 
   backend:

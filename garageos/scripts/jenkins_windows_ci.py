@@ -43,6 +43,7 @@ DEPS_KEY = hashlib.sha256((BACKEND / "requirements.txt").read_bytes()
 PYTHON = TOOLS / ("backend-py312-" + DEPS_KEY) / "Scripts/python.exe"
 AUDITOR = TOOLS / "pip-audit-2.10.1/Scripts/python.exe"
 ENV = dict(os.environ, PYTHONUTF8="1", ENVIRONMENT="test", RATE_LIMIT_ENABLED="false",
+           GARAGEOS_TRUST_CADDY_IP="false",  # This fixture connects directly to Next.
            GARAGEOS_BROWSER_PYTHON=str(PYTHON),
            DATABASE_URL="postgresql+asyncpg://postgres@127.0.0.1:55444/garage_test",
            SECRET_KEY="jenkins-isolated-test-only-not-production",
@@ -309,12 +310,16 @@ def main(allow_missing_docker):
     EVIDENCE.mkdir(parents=True, exist_ok=True)
     run([sys.executable, ROOT / "garageos/scripts/test_jenkins_windows_ci_cleanup.py"],
         ROOT, "runner-cleanup-contracts")
+    run([sys.executable, ROOT / "garageos/scripts/test_production_preflight.py"],
+        ROOT, "production-preflight-contracts")
+    run([sys.executable, ROOT / "garageos/scripts/test_production_ops.py"],
+        ROOT, "production-operations-contracts")
     docker_prefix, available = docker_environment()
     missing = not available
     if missing and not allow_missing_docker:
         raise RuntimeError("Docker Linux engine is required for production transport/recovery gates")
     if missing:
-        (EVIDENCE / "unavailable-gates.txt").write_text("NOT RUN: Docker production routing, dashboard build-context, database recovery and invoice volume gates.\n", encoding="utf-8")
+        (EVIDENCE / "unavailable-gates.txt").write_text("NOT RUN: Docker production routing, production Compose, real BFF quota, dashboard build-context, database recovery and invoice volume gates.\n", encoding="utf-8")
         print("LIMIT: Docker transport/recovery gates unavailable; result cannot be SUCCESS.", flush=True)
     else:
         if docker_prefix:
@@ -322,6 +327,8 @@ def main(allow_missing_docker):
                 ROOT, "wsl-transport")
         docker_gate(docker_prefix, "test_dashboard_build_context.py", "build-context")
         docker_gate(docker_prefix, "test_public_routing.py", "public-routing")
+        docker_gate(docker_prefix, "test_production_compose.py", "production-compose")
+        docker_gate(docker_prefix, "test_bff_public_routing.py", "production-bff-routing", EVIDENCE / 'production-bff-routing')
         docker_gate(docker_prefix, "test_database_recovery.py", "database-recovery", EVIDENCE / 'database-recovery')
         docker_gate(docker_prefix, "test_invoice_volume.py", "invoice-volume", EVIDENCE / 'invoice-volume')
     run([sys.executable, "-m", "venv", PYTHON.parent.parent], ROOT, "python-environment")
@@ -413,6 +420,9 @@ def main(allow_missing_docker):
         (EVIDENCE / "result.json").write_text(json.dumps({"sha": revision, "docker_gates": "unavailable" if missing else "passed", "application_gates": "passed",
             "database_recovery_gates": "unavailable" if missing else "passed",
             "invoice_volume_gates": "unavailable" if missing else "passed",
+            "operator_tool_gates": "passed",
+            "production_proxy_gates": "unavailable" if missing else "passed",
+            "production_compose_gates": "unavailable" if missing else "passed",
             "docker_environment": "WSL " + os.environ["GARAGEOS_DOCKER_WSL_DISTRO"] if docker_prefix else "Windows Docker context"}, indent=2), encoding="utf-8")
         return 3 if missing else 0
     finally:
