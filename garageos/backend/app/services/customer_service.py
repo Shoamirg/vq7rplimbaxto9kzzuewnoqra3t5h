@@ -288,6 +288,7 @@ class CustomerService:
         if not customer:
             raise CustomerNotFound()
         center_name = await self._center_name()
+        zone_name = await service_center_timezone(self.session, self.sc)
         vehicles = await self._vehicles_with_models([v.id for v in (customer.vehicles or [])])
 
         vehicle_out: List[dict] = []

@@ -7,7 +7,7 @@ import pytest_asyncio
 from sqlalchemy import update
 
 from app.core.database import async_session_factory
-from app.models import Appointment, Customer, Role, User, Vehicle
+from app.models import Appointment, Customer, Role, ServiceCenter, User, Vehicle
 from tests.test_mechanic_work_api import workshop as mechanic_workshop, create_job  # noqa: F401
 from tests.test_staff_access_lifecycle import client, identity  # noqa: F401
 
@@ -100,7 +100,12 @@ async def test_time_resize_tomorrow_reassignment_and_clear_preserve_native_visib
     assert (await client.get(f"/api/v1/mechanic/work/{job}", headers=workshop["mechanics"][1])).status_code == 404
 
 
-async def test_customer_contacts_are_recorded_staff_reads(client, workshop):
+async def test_customer_contacts_and_service_center_dates_are_recorded_staff_reads(client, workshop, identity):
+    async with async_session_factory() as session:
+        await session.execute(update(ServiceCenter).where(
+            ServiceCenter.id == identity["center"]
+        ).values(timezone="Asia/Tashkent"))
+        await session.commit()
     job = await create_job(client, workshop)
     appointment = (await client.get(f"/api/v1/appointments/{job}", headers=workshop["admin"])).json()
     customer_id = uuid.UUID(appointment["customer_id"])
@@ -111,8 +116,11 @@ async def test_customer_contacts_are_recorded_staff_reads(client, workshop):
     path = f"/api/v1/customers/{customer_id}"
     response = await client.get(path, headers=workshop["admin"])
     assert response.status_code == 200
-    assert response.json().get("telegram_username") == "qa_calendar_contact"
-    assert response.json()["phone"] == "+998900000032"
+    details = response.json()
+    assert details.get("telegram_username") == "qa_calendar_contact"
+    assert details["phone"] == "+998900000032"
+    assert details["stats"]["next_booking_local_date"] == "2030-05-01"
+    assert details["appointments"][0]["local_date"] == "2030-05-01"
     assert (await client.get(path, headers=workshop["mechanics"][0])).status_code == 403
     async with async_session_factory() as session:
         await session.execute(update(Customer).where(Customer.id == customer_id).values(telegram_username=None, phone=None))
