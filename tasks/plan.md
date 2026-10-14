@@ -1,4 +1,26 @@
-# GarageOS: productionga tayyorgarlik — 2026-10-14
+# GarageOS: Railway backend tayyorgarligi — 2026-10-14
+
+Foydalanuvchi oldingi umumiy testni Stop bilan to'xtatdi, keyin Railway uchun
+backendni tayyorlashni so'radi. Hozirgi scope faqat backend joylashga tayyorgarlik:
+
+- [x] PostgreSQL provider URL'larini asyncpgga moslash va Alembicda kodlangan
+      parolni saqlash; regression RED -> GREEN.
+- [x] Public readiness xatosida private dependency tafsilotlarini yashirish;
+      regression RED -> GREEN.
+- [x] Backend rootida Railway auto-Dockerfile, dynamic PORT, nonroot runtime,
+      bitta worker; private Variables va pre-deploy/healthcheck yo'riqnomasi.
+- [ ] Haqiqiy PostgreSQL16/Redis bilan yangi Docker image, migratsiya, custom
+      PORT/auth/CORS/rate-limit/dependency-failure/cleanup rehearsal.
+- [ ] Backend regressiyalari, independent review va o'z branchimizga push.
+
+Oldingi full release `25e17b1`da user-interrupted: backend 997 va Flutter 107
+o'tgan, butun browser/Android release yakunlanmagan. Bu task o'sha umumiy suite'ni
+avtomatik davom ettirmaydi. Railway live deploy/account, HTTPS edge acceptance,
+real backup/telefon/pilot topshirilishi ushbu local tayyorgarlik orqali tasdiqlanmaydi.
+
+---
+
+# Oldingi reja: productionga tayyorgarlik — 2026-10-14
 
 Foydalanuvchi tasdiqlagan navbatdagi reja. Server hali tayyor emas; mavjud
 Windows kompyuter, WSL/Docker, web panel va Android vositalari bilan ishlanadi.

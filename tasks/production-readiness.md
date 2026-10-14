@@ -2,6 +2,10 @@
 
 ## Joriy yo'nalish
 
+Railway backend uchun alohida [joriy yo'riqnoma](../garageos/backend/RAILWAY.md)
+mavjud. Quyidagi `/opt/garageos` va systemd ko'rsatmalari Ubuntu hostga tegishli;
+ular Railway service'iga avtomatik o'rnatilmaydi.
+
 Server olinmaguncha mavjud Windows/WSL, web panel va Android vositalari bilan
 tayyorgarlik qilinadi. Birinchi qabul — bitta servis, web va Android. iPhone
 tarqatish keyingi bosqich. Server, real owner signing va physical-device/pilot
@@ -164,7 +168,9 @@ native/BFF yo'llari uchun umumiy Redis hisoblagichi va 429/Retry-After tekshiril
 Android emulatorida 3 native test o'tdi. Test paytidagi Flutter tree:
 `ea2bdd935978a5e16898c485b0fc0658e766b87e`. Keyingi Flutter o'zgarishi faqat
 shu yo'riqnomaga Markdown havola; compiled code o'zgarmagan. Physical device
-ulanganligi tasdiqlanmagan. Yakuniy commitdagi to'liq release tekshiruvi hali pending.
+ulanganligi tasdiqlanmagan. `25e17b1`dagi combined release user Stop bilan
+to'xtatildi: backend 997 va Flutter 107 o'tgan; butun browser/Android suite
+yakunlanmagan. To'liq release tekshiruvi hali pending.
 
 Primary transport references: [Caddy headers](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy#defaults),
 [OpenSSH](https://man.openbsd.org/ssh), [SCP](https://man.openbsd.org/scp).
