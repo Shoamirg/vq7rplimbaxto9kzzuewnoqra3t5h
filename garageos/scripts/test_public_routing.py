@@ -6,6 +6,7 @@ Only the proxy's random loopback port is published; no production stack is used.
 """
 
 import json
+import ipaddress
 import subprocess
 import sys
 import time
@@ -155,11 +156,28 @@ class PublicRoutingTest(unittest.TestCase):
                 _, _, result = self.request(path, headers={
                     "X-Forwarded-For": "198.51.100.77", "X-Forwarded-Proto": "https",
                     "X-Forwarded-Host": "attacker.example",
+                    "X-Real-IP": "198.51.100.88",
                 })
                 headers = {key.lower(): value for key, value in result["headers"].items()}
                 self.assertNotIn("198.51.100.77", headers["x-forwarded-for"])
                 self.assertEqual(headers["x-forwarded-proto"], "http")
                 self.assertEqual(headers["x-forwarded-host"], "localhost")
+                self.assertNotEqual(headers.get("x-real-ip"), "198.51.100.88")
+                self.assertEqual(headers["x-real-ip"], headers["x-forwarded-for"])
+                ipaddress.ip_address(headers["x-real-ip"])
+
+    def test_real_ip_stays_bound_to_peer_when_client_changes_headers(self):
+        for path in ("/api/auth/login", "/api/v1/auth/me"):
+            with self.subTest(path=path):
+                observed = []
+                for supplied in ("203.0.113.1", "203.0.113.2", "not-an-ip, 203.0.113.3"):
+                    _, _, result = self.request(path, headers={
+                        "X-Real-IP": supplied, "X-Forwarded-For": supplied,
+                    })
+                    headers = {key.lower(): value for key, value in result["headers"].items()}
+                    observed.append(headers.get("x-real-ip"))
+                    self.assertEqual(headers.get("x-real-ip"), headers["x-forwarded-for"])
+                self.assertEqual(len(set(observed)), 1)
 
     def test_production_https_configuration_validates(self):
         docker("exec", "-e", "DOMAIN=app.garageos.example", self.proxy,

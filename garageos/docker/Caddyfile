@@ -27,11 +27,17 @@
 	# Keep the /api/v1 prefix: FastAPI registers its routes with that prefix.
 	@native_api path /api/v1 /api/v1/*
 	handle @native_api {
-		reverse_proxy backend:8000
+		reverse_proxy backend:8000 {
+			# The backend rate limiter trusts this header. Replace client input
+			# with the socket peer; only this proxy is exposed to the internet.
+			header_up X-Real-IP {remote_host}
+		}
 	}
 
 	# Next pages and its /api/auth/* and /api/proxy/* BFF stay on the dashboard.
 	handle {
-		reverse_proxy dashboard:3000
+		reverse_proxy dashboard:3000 {
+			header_up X-Real-IP {remote_host}
+		}
 	}
 }
