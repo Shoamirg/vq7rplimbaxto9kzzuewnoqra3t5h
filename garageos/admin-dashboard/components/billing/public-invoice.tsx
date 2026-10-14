@@ -12,7 +12,7 @@ const GROUPS: { kind: LineKind; labelKey: string }[] = [
 // (no app shell) so it's clean to view on a phone and to print/save as PDF.
 export function PublicInvoice({ doc, locale = "uz" }: { doc: InvoiceDoc; locale?: Locale }) {
   const isEstimate = doc.kind === "estimate";
-  const accent = isEstimate ? "#2563eb" : "#16a34a";
+  const accent = isEstimate ? "#111315" : "#0B7E55";
   const t = (key: string) => translate(locale, key);
   const fmt = makeFormatters(locale);
   const money = (n: number) => fmt.money(n, doc.currency || "UZS");

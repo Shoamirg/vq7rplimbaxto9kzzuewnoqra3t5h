@@ -24,7 +24,7 @@ export function MarketingNav() {
   return (
     <header className="mkt-nav">
       <div className="mkt-shell mkt-nav__row">
-        <Link href="/" aria-label="GarageOS home" className="mkt-nav__brand"><Logo theme="dark" size={24} className="mkt-nav__logo" /></Link>
+        <Link href="/" aria-label="GarageOS home" className="mkt-nav__brand"><Logo theme="auto" size={24} className="mkt-nav__logo" /></Link>
         <nav className="mkt-nav__links" aria-label="Primary">
           {NAV_LINKS.map((l) => (<a key={l.href} href={l.href}>{l.label}</a>))}
         </nav>
@@ -64,7 +64,7 @@ export function MarketingFooter() {
       <div className="mkt-shell">
         <div className="mkt-footer__grid">
           <div className="mkt-footer__brandcol">
-            <Logo theme="dark" size={22} />
+            <Logo theme="auto" size={22} />
             <p>The operating system for modern garages — scheduling, vehicle intelligence, operations, billing, and customer messaging on one platform.</p>
           </div>
           <div className="mkt-footer__cols">

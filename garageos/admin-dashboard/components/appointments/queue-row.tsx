@@ -20,8 +20,8 @@ const HEALTH_COLOR: Record<string, string> = {
   poor: "text-red-800 bg-red-50 border-red-200 dark:text-red-200 dark:bg-red-950 dark:border-red-700",
 };
 const STATUS_COLOR: Record<AppointmentStatus, string> = {
-  pending: HEALTH_COLOR.fair, confirmed: "text-sky-800 bg-sky-50 border-sky-200 dark:text-sky-200 dark:bg-sky-950 dark:border-sky-700",
-  in_progress: "text-violet-800 bg-violet-50 border-violet-200 dark:text-violet-200 dark:bg-violet-950 dark:border-violet-700",
+  pending: HEALTH_COLOR.fair, confirmed: "text-primary-800 bg-primary-50 border-primary-200 dark:text-primary-200 dark:bg-primary-900 dark:border-primary-700",
+  in_progress: "text-primary-800 bg-primary-50 border-primary-200 dark:text-primary-200 dark:bg-primary-900 dark:border-primary-700",
   completed: HEALTH_COLOR.excellent, cancelled: HEALTH_COLOR.poor,
   rescheduled: "text-foreground bg-muted border-border",
 };

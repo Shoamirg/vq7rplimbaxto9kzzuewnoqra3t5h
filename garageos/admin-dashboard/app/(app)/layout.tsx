@@ -36,12 +36,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <I18nProvider initialLocale={initialLocale}>
       <LocalizedToastProvider>
-        <div className="flex h-screen overflow-hidden" style={brandCssVars(user.branding)}>
+        <div className="garage-shell flex h-dvh overflow-hidden" style={brandCssVars(user.branding)}>
           <Sidebar user={shellUser} branding={user.branding} />
           <div className="flex-1 flex flex-col overflow-hidden">
             {isDemo ? <DemoBanner /> : null}
             <TopBar user={shellUser} authFingerprint={await renderedAuthFingerprint()} />
-            <main className="flex-1 overflow-y-auto bg-muted/30">{children}</main>
+            <main className="garage-content flex-1 overflow-y-auto">{children}</main>
           </div>
           <CommandMenu />
         </div>

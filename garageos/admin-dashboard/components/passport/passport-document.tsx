@@ -1,3 +1,4 @@
+import { VehicleTelemetryBlueprint } from "@/components/vehicles/vehicle-telemetry-blueprint";
 import { Fragment, type CSSProperties } from "react";
 import type { HealthBand, Passport } from "@/lib/api/types";
 import { translate, type Locale } from "@/lib/i18n/dictionaries";
@@ -5,9 +6,9 @@ import "./passport.css";
 
 // ─── Derivations ──────────────────────────────────────────────
 const ACCENT: Record<HealthBand, { accent: string; soft: string }> = {
-  excellent: { accent: "#0E8A5F", soft: "#E8F2EC" },
-  good: { accent: "#1F6FEB", soft: "#E7EEFC" },
-  fair: { accent: "#B07A22", soft: "#F6EEDD" },
+  excellent: { accent: "#086344", soft: "#E8F2EC" },
+  good: { accent: "#2B3036", soft: "#ECEEF1" },
+  fair: { accent: "#94560A", soft: "#F6EEDD" },
   poor: { accent: "#B4442E", soft: "#F7E5E1" },
 };
 
@@ -100,26 +101,13 @@ export function PassportDocument({
             <div className="pp-sub">{sub}</div>
             {v.license_plate && <span className="pp-plate">{v.license_plate}</span>}
           </div>
-          <svg className="pp-silo" width="300" height="118" viewBox="0 0 300 118" fill="none" aria-hidden>
-            <g stroke="#15120C" strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round" fill="#15120C" fillOpacity="0.05">
-              <path d="M18 84 L30 84 C34 66 44 58 62 57 L96 55 C108 44 124 36 150 35 L206 36 C226 37 240 46 250 58 L272 62 C282 64 286 70 286 80 L286 84 L268 84" />
-              <path d="M104 55 L118 40 L168 39 L172 54 Z" fillOpacity="0.09" />
-              <path d="M180 54 L176 39 L206 40 C220 41 232 47 240 55 Z" fillOpacity="0.09" />
-            </g>
-            <circle cx="72" cy="84" r="17" fill="#fff" stroke="#15120C" strokeWidth="2.4" />
-            <circle cx="72" cy="84" r="7" fill="#15120C" fillOpacity="0.15" stroke="#15120C" strokeWidth="1.6" />
-            <circle cx="238" cy="84" r="17" fill="#fff" stroke="#15120C" strokeWidth="2.4" />
-            <circle cx="238" cy="84" r="7" fill="#15120C" fillOpacity="0.15" stroke="#15120C" strokeWidth="1.6" />
-          </svg>
+
         </div>
 
-        {/* Health hero */}
-        <div className="pp-hero">
-          <div className="pp-lbl">{translate(locale, "passport.health")}</div>
-          <div className="pp-score pp-disp">{Math.round(p.health.score)}<sup>/100</sup></div>
-          <div className="pp-grade pp-disp">{translate(locale, GRADE[band])}</div>
-        </div>
-
+        <VehicleTelemetryBlueprint title={translate(locale, "passport.health")} systems={[
+          { name: "health", label: translate(locale, GRADE[band]), score: p.health.score },
+          { name: "compliance", label: translate(locale, "passport.compliance"), score: p.health.compliance },
+        ]} />
         {/* Maintenance compliance */}
         <div className="pp-comp">
           <div className="pp-cl">{translate(locale, "passport.compliance")}</div>

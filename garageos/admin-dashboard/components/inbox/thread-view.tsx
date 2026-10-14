@@ -202,7 +202,7 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
             )}
             <button onClick={onToggleFollow} disabled={actionBlocked}
               className={cn("min-h-11 min-w-11 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-colors",
-                thread.is_following ? "border-primary/40 bg-primary/5 text-primary dark:text-blue-300" : "border-border text-slate-600 dark:text-slate-300 hover:bg-muted")}>
+                thread.is_following ? "border-primary/40 bg-primary/5 text-primary dark:text-primary-300" : "border-border text-slate-600 dark:text-slate-300 hover:bg-muted")}>
               {t(thread.is_following ? "message.following" : "message.follow")}
             </button>
             <button onClick={() => onStatus("snoozed")} disabled={actionBlocked || thread.status === "snoozed"}
@@ -415,7 +415,7 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
             }} className="mt-1 min-h-11 w-full min-w-0 resize-y rounded-lg border border-border bg-background p-2 text-sm focus-visible:outline-2 focus-visible:outline-primary" />
         </label>
         <button onClick={onSend} disabled={blocked || composer.pending || !!composer.intent || !!composer.storageError || !composer.text.trim()}
-          className="min-h-11 min-w-11 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50">
+          className="min-h-11 min-w-11 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-conversion px-4 py-2 text-sm font-bold text-white focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50">
           {composerTab === "announcement" ? <Megaphone className="size-4" /> : <Send className="size-4" />}
           {t(composer.pending ? "message.pending" : "message.send")}
         </button>
@@ -443,7 +443,7 @@ function MessageBubble({ m }: { m: ConvMessage }) {
   }
   return (
     <div className={cn("max-w-[74%]", side === "me" ? "ml-auto" : "")}>
-      <p className={cn("text-[10px] font-bold mb-1 px-1", side === "me" ? "text-primary dark:text-blue-300 text-right" : roleColor(m.author_role))}>
+      <p className={cn("text-[10px] font-bold mb-1 px-1", side === "me" ? "text-primary dark:text-primary-300 text-right" : roleColor(m.author_role))}>
         {m.author_name ?? m.author_role}
       </p>
       {m.body && (
@@ -472,7 +472,7 @@ function MiniBubble({ role, name, body, date }: { role: string; name: string; bo
   const side = bubbleSide(role);
   return (
     <div className={cn("max-w-[70%]", side === "me" ? "ml-auto" : "")}>
-      <span className={cn("text-[10px] font-bold px-1", side === "me" ? "text-primary dark:text-blue-300" : roleColor(role))}>{name}</span>
+      <span className={cn("text-[10px] font-bold px-1", side === "me" ? "text-primary dark:text-primary-300" : roleColor(role))}>{name}</span>
       <div className={cn("px-3 py-1.5 rounded-xl text-[12.5px]",
         side === "me" ? "bg-primary text-primary-foreground" : side === "mech" ? "bg-emerald-50 border border-emerald-200 text-emerald-900" : "bg-card border border-border")}>
         {body ?? "—"}
@@ -498,6 +498,6 @@ function renderMentions(body: string | null) {
   if (!body) return null;
   return body.split(/(@\w+)/g).map((part, i) =>
     part.startsWith("@")
-      ? <span key={i} className="font-bold text-purple-600 bg-purple-100 rounded px-1">{part}</span>
+      ? <span key={i} className="font-bold text-primary-600 bg-primary-100 rounded px-1">{part}</span>
       : <span key={i}>{part}</span>);
 }

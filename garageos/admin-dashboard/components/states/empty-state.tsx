@@ -17,6 +17,7 @@ export function EmptyState({
   secondary,
   className,
   compact = false,
+  titleAs: Heading = 'h3',
 }: {
   icon: LucideIcon;
   title: string;
@@ -25,6 +26,7 @@ export function EmptyState({
   secondary?: Action;
   className?: string;
   compact?: boolean;
+  titleAs?: 'h1' | 'h2' | 'h3';
 }) {
   return (
     <div className={cn("grid place-items-center text-center", compact ? "py-10" : "py-16", className)}>
@@ -32,7 +34,7 @@ export function EmptyState({
         <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-muted text-muted-foreground">
           <Icon className="size-7" />
         </div>
-        <h3 className="text-base font-semibold text-foreground">{title}</h3>
+        <Heading className="text-base font-semibold text-foreground">{title}</Heading>
         <p className="text-sm text-muted-foreground">{description}</p>
         {(action || secondary) && (
           <div className="flex items-center justify-center gap-2 pt-1">

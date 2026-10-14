@@ -15,7 +15,7 @@ import type { InvoiceDoc, LineKind } from "@/lib/api/types";
 import { LINE_ICON, METHOD_ICON } from "./shared";
 import { DocumentIssuer } from "./document-issuer";
 
-const ABTN = "text-[12.5px] font-bold px-3.5 py-2 rounded-lg border border-border bg-card text-slate-600 inline-flex items-center gap-1.5 hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-wait";
+const ABTN = "text-[12.5px] font-bold px-3.5 py-2 rounded-lg border border-border bg-card text-muted-foreground inline-flex items-center gap-1.5 hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-wait";
 const TIMELINE_LABELS: Record<string, string> = {
   "Estimate created": "estimate_created", "Estimate sent": "estimate_sent",
   "Estimate approved": "estimate_approved", "Estimate declined": "estimate_rejected",
@@ -90,16 +90,16 @@ export function DocumentView({
       <div className="max-w-[820px] mx-auto mb-3 flex items-center gap-2 flex-wrap">
         {isEstimate ? (
           <>
-            <button disabled={actionPending} onClick={onSend} className={cn(ABTN, "bg-blue-600 text-white border-blue-600 hover:bg-blue-700")}>✉ {t("billing.send")}</button>
-            {doc.status !== "approved" && <button disabled={actionPending} onClick={() => onStatus("approved")} className={cn(ABTN, "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700")}>✓ {t("billing.approve")}</button>}
-            {doc.status !== "rejected" && <button disabled={actionPending} onClick={() => onStatus("rejected")} className={cn(ABTN, "text-red-600")}>✕ {t("billing.reject")}</button>}
+            <button disabled={actionPending} onClick={onSend} className={cn(ABTN, "bg-primary-600 text-white border-primary-600 hover:bg-primary-700")}>✉ {t("billing.send")}</button>
+            {doc.status !== "approved" && <button disabled={actionPending} onClick={() => onStatus("approved")} className={cn(ABTN, "bg-conversion text-white border-conversion hover:brightness-90")}>✓ {t("billing.approve")}</button>}
+            {doc.status !== "rejected" && <button disabled={actionPending} onClick={() => onStatus("rejected")} className={cn(ABTN, "text-status-danger")}>✕ {t("billing.reject")}</button>}
             <button disabled={actionPending} onClick={() => onStatus("changes_requested")} className={ABTN}>✎ {t("billing.request_changes")}</button>
             {doc.status === "approved" && <button disabled={actionPending} onClick={onConvert} className={cn(ABTN, "bg-slate-900 text-white border-slate-900 hover:bg-slate-800")}>→ {t("billing.convert_to_invoice")}</button>}
           </>
         ) : (
           <>
-            <button disabled={actionPending} onClick={onSend} className={cn(ABTN, "bg-blue-600 text-white border-blue-600 hover:bg-blue-700")}>✉ {t("billing.send")}</button>
-            {doc.balance > 0 && doc.status !== "void" && <button disabled={actionPending} onClick={() => setPayOpen(true)} className={cn(ABTN, "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700")}>＋ {t("billing.record_payment")}</button>}
+            <button disabled={actionPending} onClick={onSend} className={cn(ABTN, "bg-primary-600 text-white border-primary-600 hover:bg-primary-700")}>✉ {t("billing.send")}</button>
+            {doc.balance > 0 && doc.status !== "void" && <button disabled={actionPending} onClick={() => setPayOpen(true)} className={cn(ABTN, "bg-conversion text-white border-conversion hover:brightness-90")}>＋ {t("billing.record_payment")}</button>}
             {doc.vehicle_id && <Link href={`/passport/${doc.vehicle_id}`} target="_blank" className={ABTN}>🏅 {t("billing.attach_passport")}</Link>}
           </>
         )}
@@ -117,7 +117,7 @@ export function DocumentView({
         {canEdit && <button disabled={actionPending} onClick={onEdit} className={ABTN} aria-label={t("billing.edit")}>✎ {t("billing.edit")}</button>}
         <button onClick={() => window.print()} className={ABTN} aria-label={t("public.print")}>🖨 PDF</button>
         {!hasPayments && !(doc.kind === "invoice" && doc.appointment_id) && (
-          <button disabled={actionPending} onClick={onDelete} className={cn(ABTN, "hover:text-red-600 hover:border-red-200")} aria-label={t("billing.delete")}>🗑 {t("billing.delete")}</button>
+          <button disabled={actionPending} onClick={onDelete} className={cn(ABTN, "hover:text-status-danger hover:border-red-200")} aria-label={t("billing.delete")}>🗑 {t("billing.delete")}</button>
         )}
       </div>
 
@@ -126,14 +126,14 @@ export function DocumentView({
         {/* header */}
         <div className="relative px-4 sm:px-7 py-6 text-white" style={{ background: "linear-gradient(120deg,#0F172A,#1E293B)" }}>
           <div className="flex flex-wrap items-center gap-3">
-            <DocumentIssuer issuer={doc.issuer} fallbackName={t("public.garage")} accent={isEstimate ? "#2563eb" : "#059669"} />
+            <DocumentIssuer issuer={doc.issuer} fallbackName={t("public.garage")} accent={isEstimate ? "#111315" : "#0B7E55"} />
             <div className="ml-auto min-w-0 text-right [overflow-wrap:anywhere]">
-              <p className={cn("text-2xl font-extrabold tracking-wide", isEstimate ? "text-blue-300" : "text-emerald-300")}>
+              <p className={cn("text-2xl font-extrabold tracking-wide", isEstimate ? "text-primary-300" : "text-emerald-300")}>
                 {t(isEstimate ? "public.estimate" : "public.invoice")}
               </p>
               <p className="font-mono text-[13px] text-slate-300 mt-0.5">{doc.code}</p>
               <span className={cn("inline-flex items-center gap-1.5 mt-1.5 text-[11px] font-extrabold uppercase tracking-wide px-2.5 py-1 rounded-full",
-                isEstimate ? "bg-blue-500/20 text-blue-200" : doc.status === "paid" ? "bg-emerald-500/20 text-emerald-200" : doc.is_overdue ? "bg-red-500/20 text-red-200" : "bg-amber-500/20 text-amber-200")}>
+                isEstimate ? "bg-primary-500/20 text-primary-200" : doc.status === "paid" ? "bg-emerald-500/20 text-emerald-200" : doc.is_overdue ? "bg-red-500/20 text-red-200" : "bg-amber-500/20 text-amber-200")}>
                 ● {t(`public.status_${doc.status}`)}
               </span>
             </div>
@@ -145,11 +145,11 @@ export function DocumentView({
           <Meta label={t("public.billed_to")}>
             <p className="text-sm font-bold">{doc.customer?.name ?? doc.customer_name}</p>
             <p className="text-xs text-muted-foreground mt-0.5">{doc.customer?.phone ?? ""} {doc.customer?.email ? "· " + doc.customer.email : ""}</p>
-            {doc.customer && <Link href={`/customers/${doc.customer_id}`} className="text-[11px] text-primary dark:text-blue-300 hover:underline">{t("billing.customer_360")} →</Link>}
+            {doc.customer && <Link href={`/customers/${doc.customer_id}`} className="text-[11px] text-primary dark:text-primary-300 hover:underline">{t("billing.customer_360")} →</Link>}
           </Meta>
           <Meta label={t("work.vehicle")}>
             <p className="text-sm font-bold">{doc.vehicle_label ?? "—"}</p>
-            {doc.vehicle_id && <Link href={`/vehicles/${doc.vehicle_id}`} className="text-[11px] text-primary dark:text-blue-300 hover:underline">{t("work.vehicle")} →</Link>}
+            {doc.vehicle_id && <Link href={`/vehicles/${doc.vehicle_id}`} className="text-[11px] text-primary dark:text-primary-300 hover:underline">{t("work.vehicle")} →</Link>}
           </Meta>
           <div className="min-w-[180px]">
             <Row k={isEstimate ? t("public.created") : t("billing.issued")} v={fmtDate(doc.issued_at ?? doc.created_at)} />
@@ -177,13 +177,13 @@ export function DocumentView({
                 if (!rows.length) return null;
                 return (
                   <Fragment key={g.kind}>
-                    <tr><td colSpan={4} className="pt-3 pb-1 text-[10px] font-extrabold uppercase tracking-wide text-slate-600 dark:text-slate-300">{LINE_ICON[g.kind]} {t(g.labelKey)}</td></tr>
+                    <tr><td colSpan={4} className="pt-3 pb-1 text-[10px] font-extrabold uppercase tracking-wide text-muted-foreground dark:text-slate-300">{LINE_ICON[g.kind]} {t(g.labelKey)}</td></tr>
                     {rows.map((l) => (
                       <tr key={l.id} className="text-[13px] border-b border-slate-100">
                         <td className="py-2 font-semibold">{l.description}</td>
                         <td className="py-2 text-right font-mono">{g.kind === "labor" ? `${fmt.number(l.quantity)} ${t("billing.hours")}` : fmt.number(l.quantity)}</td>
                         <td className="py-2 text-right font-mono text-muted-foreground">{money(l.unit_price)}</td>
-                        <td className={cn("py-2 text-right font-mono", g.kind === "discount" && "text-emerald-600")}>{g.kind === "discount" ? "−" : ""}{money(l.line_total)}</td>
+                        <td className={cn("py-2 text-right font-mono", g.kind === "discount" && "text-status-success")}>{g.kind === "discount" ? "−" : ""}{money(l.line_total)}</td>
                       </tr>
                     ))}
                   </Fragment>
@@ -205,7 +205,7 @@ export function DocumentView({
             {!isEstimate && (
               <>
                 <TRow k={t("public.paid")} v={"−" + money(doc.amount_paid)} />
-                <div className={cn("flex justify-between text-base font-extrabold", doc.balance > 0 ? "text-red-600" : "text-emerald-600")}>
+                <div className={cn("flex justify-between text-base font-extrabold", doc.balance > 0 ? "text-status-danger" : "text-status-success")}>
                   <span>{doc.balance > 0 ? t("public.balance") : t("billing.paid_full")}</span><span className="font-mono">{money(doc.balance)}</span>
                 </div>
               </>
@@ -226,7 +226,7 @@ export function DocumentView({
                     <span className="font-bold">{t(`billing.kind_${p.kind}`)}</span> · {t(`billing.method_${p.method === "bank_transfer" ? "bank" : p.method}`)} <span className="text-muted-foreground">· {t(`billing.source_${p.source}`)}</span>
                     <div className="text-[11px] text-muted-foreground">{fmtDate(p.received_at)}{p.reference ? ` · ${p.reference}` : ""}</div>
                   </div>
-                  <span className={cn("ml-auto shrink-0 font-mono font-bold", p.kind === "refund" && "text-red-600")}>{p.kind === "refund" ? "−" : ""}{money(p.amount)}</span>
+                  <span className={cn("ml-auto shrink-0 font-mono font-bold", p.kind === "refund" && "text-status-danger")}>{p.kind === "refund" ? "−" : ""}{money(p.amount)}</span>
                 </div>
               ))}
             </div>
@@ -243,7 +243,7 @@ export function DocumentView({
               <span className="absolute left-1.5 top-1 bottom-1 w-px bg-border" />
               {doc.timeline.map((e, i) => (
                 <div key={i} className="relative pb-3 last:pb-0">
-                  <span className={cn("absolute left-[-15px] top-0.5 size-2.5 rounded-full ring-2 ring-card", isEstimate ? "bg-blue-500" : "bg-emerald-500")} />
+                  <span className={cn("absolute left-[-15px] top-0.5 size-2.5 rounded-full ring-2 ring-card", isEstimate ? "bg-primary-500" : "bg-emerald-500")} />
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-[13px] font-medium">{timelineTitle(e.title)}</p>
                     <p className="text-[11px] text-muted-foreground whitespace-nowrap">{fmtDate(e.date)}</p>
@@ -271,10 +271,10 @@ function Meta({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 function Row({ k, v, danger }: { k: string; v: string; danger?: boolean }) {
-  return <div className="flex justify-between text-xs py-0.5"><span className="text-muted-foreground">{k}</span><span className={cn(danger && "text-red-600 font-semibold")}>{v}</span></div>;
+  return <div className="flex justify-between text-xs py-0.5"><span className="text-muted-foreground">{k}</span><span className={cn(danger && "text-status-danger font-semibold")}>{v}</span></div>;
 }
 function TRow({ k, v, green }: { k: string; v: string; green?: boolean }) {
-  return <div className={cn("flex justify-between text-[13px] py-1", green ? "text-emerald-600" : "text-slate-600")}><span>{k}</span><span className="font-mono">{v}</span></div>;
+  return <div className={cn("flex justify-between text-[13px] py-1", green ? "text-status-success" : "text-muted-foreground")}><span>{k}</span><span className="font-mono">{v}</span></div>;
 }
 
 function PayModal({ balance, currency, onClose, onSubmit }: { balance: number; currency: string; onClose: () => void; onSubmit: (amount: number, method: string, idempotencyKey: string) => Promise<void> }) {
@@ -325,10 +325,10 @@ function PayModal({ balance, currency, onClose, onSubmit }: { balance: number; c
           <option value="card">{t("billing.method_card")}</option><option value="cash">{t("billing.method_cash")}</option>
           <option value="bank_transfer">{t("billing.method_bank")}</option><option value="online">{t("billing.method_online")}</option>
         </select>
-        {error && <p id="payment-error" role="alert" className="mb-3 text-sm text-red-600">{error}</p>}
+        {error && <p id="payment-error" role="alert" className="mb-3 text-sm text-status-danger">{error}</p>}
         <div className="flex gap-2 items-center justify-between">
           <button type="button" disabled={busy} onClick={onClose} className="px-3 py-2 text-sm font-semibold text-muted-foreground disabled:opacity-50">{t("common.cancel")}</button>
-          <button type="submit" disabled={busy || !valid} className="px-4 py-2 text-sm font-bold rounded-lg bg-emerald-600 text-white disabled:opacity-50">{busy ? t("billing.saving") : t("billing.record_payment")}</button>
+          <button type="submit" disabled={busy || !valid} className="px-4 py-2 text-sm font-bold rounded-lg bg-conversion text-white disabled:opacity-50">{busy ? t("billing.saving") : t("billing.record_payment")}</button>
         </div>
         </form>
       </DialogContent>

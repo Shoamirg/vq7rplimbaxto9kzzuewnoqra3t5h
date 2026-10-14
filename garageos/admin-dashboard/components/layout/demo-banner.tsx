@@ -23,7 +23,7 @@ export function DemoBanner() {
       style={{
         display: "flex", alignItems: "center", justifyContent: "center", gap: 12, flexWrap: "wrap",
         padding: "8px 16px", fontSize: 13.5, fontWeight: 500,
-        color: "#0b1220", background: "linear-gradient(90deg,#2563eb,#d9a322)",
+        color: "var(--color-foreground)", background: "var(--color-muted)", borderRadius: 18,
       }}
     >
       <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
@@ -31,7 +31,7 @@ export function DemoBanner() {
       </span>
       <a
         href="mailto:hello@garageos.app?subject=GarageOS%20demo%20request"
-        style={{ color: "#0b1220", fontWeight: 700, textDecoration: "underline", textUnderlineOffset: 2 }}
+        style={{ color: "inherit", fontWeight: 700, textDecoration: "underline", textUnderlineOffset: 2 }}
       >
         Book a real demo
       </a>

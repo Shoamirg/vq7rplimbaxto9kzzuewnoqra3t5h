@@ -25,7 +25,7 @@ export default function DemoEntryPage() {
       <div className="mkt-hero__glow" aria-hidden style={{ height: 520 }} />
       <div style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 560, textAlign: "center" }}>
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 26 }}>
-          <Logo theme="dark" size={26} />
+          <Logo theme="auto" size={26} />
         </div>
         <span className="mkt-eyebrow"><Eye size={14} /> Live demo · no signup</span>
         <h1 className="mkt-display" style={{ fontSize: "clamp(30px,5vw,46px)", margin: "20px 0 0" }}>
@@ -38,7 +38,7 @@ export default function DemoEntryPage() {
 
         <ul style={{ listStyle: "none", padding: 0, margin: "28px auto 0", display: "grid", gap: 12, maxWidth: 340, textAlign: "left" }}>
           {HIGHLIGHTS.map((h) => (
-            <li key={h} style={{ display: "flex", gap: 10, alignItems: "center", color: "#cbd5e6", fontSize: 15 }}>
+            <li key={h} style={{ display: "flex", gap: 10, alignItems: "center", color: "var(--mkt-ink)", fontSize: 15 }}>
               <Check size={17} style={{ color: "var(--mkt-gold)", flex: "none" }} /> {h}
             </li>
           ))}

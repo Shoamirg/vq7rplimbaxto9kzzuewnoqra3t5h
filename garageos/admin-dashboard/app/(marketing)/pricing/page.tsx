@@ -89,7 +89,7 @@ export default function PricingPage() {
           <div className="mkt-section__head" style={{ margin: "80px auto 0", textAlign: "center", maxWidth: 640 }}>
             <h2 className="mkt-display mkt-h2" style={{ margin: "0 auto" }}>Compare plans</h2>
           </div>
-          <div className="mkt-table-wrap">
+          <div className="mkt-table-wrap" tabIndex={0} role="region" aria-label="Plan comparison">
             <table className="mkt-table">
               <thead>
                 <tr><th>Feature</th><th>Starter</th><th>Professional</th><th>Enterprise</th></tr>

@@ -61,7 +61,7 @@ export default async function PassportPage({ params }: { params: Promise<{ id: s
   });
 
   return (
-    <div lang={locale} className="min-h-screen bg-[#4c5462] py-8 print:bg-white print:py-0">
+    <div lang={locale} className="min-h-screen bg-background py-8 print:bg-white print:py-0">
       <div className="mx-auto w-[820px] max-w-full">
         <PassportActions locale={locale} />
         <PassportVerified passport={passport} locale={locale} />

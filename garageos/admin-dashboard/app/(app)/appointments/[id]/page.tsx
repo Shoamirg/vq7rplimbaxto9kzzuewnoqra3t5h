@@ -1,3 +1,4 @@
+import { VehicleTelemetryBlueprint } from "@/components/vehicles/vehicle-telemetry-blueprint";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
@@ -32,12 +33,13 @@ export default async function AppointmentDetailPage({ params }: { params: Promis
       <Link href="/appointments" className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-sm font-medium text-foreground hover:bg-muted focus-visible:outline-2 focus-visible:outline-primary">
         {t("work.back_list")}
       </Link>
-      <header className="rounded-xl border border-border bg-card p-5">
+      <header className="rounded-bento border border-border bg-card p-5">
         <p className="break-all text-sm text-muted-foreground">{appointment.id}</p>
         <h1 className="mt-1 text-2xl font-bold text-foreground">{t("work.detail_title")}</h1>
         <p className="mt-2 inline-flex rounded-full bg-muted px-3 py-1 text-sm font-semibold text-foreground">{t(`status.${appointment.status}`)}</p>
       </header>
-      <dl className="grid min-w-0 gap-3 rounded-xl border border-border bg-card p-5 sm:grid-cols-2">
+      <VehicleTelemetryBlueprint title={`${t("work.vehicle")} // ${appointment.vehicle_summary}`} />
+      <dl className="grid min-w-0 gap-3 rounded-bento border border-border bg-card p-5 sm:grid-cols-2">
         <div className="min-w-0"><dt className="text-xs font-semibold text-muted-foreground">{t("work.customer")}</dt><dd className="mt-1 break-words [overflow-wrap:anywhere] font-medium text-foreground">{appointment.customer_name}</dd><dd><Link className="inline-flex min-h-11 items-center break-words text-sm text-primary underline" href={`/customers/${appointment.customer_id}`}>{t("work.open_customer")}</Link></dd></div>
         <div className="min-w-0"><dt className="text-xs font-semibold text-muted-foreground">{t("work.vehicle")}</dt><dd className="mt-1 break-words [overflow-wrap:anywhere] font-medium text-foreground">{appointment.vehicle_summary}</dd><dd><Link className="inline-flex min-h-11 items-center break-words text-sm text-primary underline" href={`/vehicles/${appointment.vehicle_id}`}>{t("work.open_vehicle")}</Link></dd></div>
         <div className="min-w-0"><dt className="text-xs font-semibold text-muted-foreground">{t("work.when")}</dt><dd className="mt-1 break-words text-foreground">{fmt.date(appointment.appointment_date)} · {appointment.appointment_time}</dd></div>

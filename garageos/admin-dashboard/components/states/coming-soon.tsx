@@ -37,6 +37,7 @@ export function ComingSoon({
         </div>
         <div className="rounded-2xl border border-border bg-card">
           <EmptyState
+            titleAs="h1"
             icon={Icon}
             title={t(titleKey)}
             description={t(descKey)}

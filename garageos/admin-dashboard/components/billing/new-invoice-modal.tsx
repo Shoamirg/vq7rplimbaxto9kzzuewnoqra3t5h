@@ -218,7 +218,7 @@ export function NewInvoiceModal({
       <DialogContent size="lg" hideClose noPadding aria-describedby={undefined} className="max-h-[92vh] overflow-y-auto [&_button]:min-h-11 [&_button]:min-w-11 [&_input]:min-h-11 [&_select]:min-h-11">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <DialogTitle className="flex items-center gap-2 text-base font-bold">
-            <Receipt className={`size-4 ${isEstimate ? "text-blue-600" : "text-emerald-600"}`} /> {t(isEdit ? "invoice.edit" : isEstimate ? "invoice.new_estimate" : "invoice.new")}{isEdit && edit ? ` · ${edit.code}` : ""}
+            <Receipt className={`size-4 ${isEstimate ? "text-primary-600" : "text-emerald-600"}`} /> {t(isEdit ? "invoice.edit" : isEstimate ? "invoice.new_estimate" : "invoice.new")}{isEdit && edit ? ` · ${edit.code}` : ""}
           </DialogTitle>
           <button onClick={onClose} disabled={saving} className="p-1.5 rounded-lg hover:bg-muted transition-colors" aria-label={t("common.close")}><X className="size-4" /></button>
         </div>

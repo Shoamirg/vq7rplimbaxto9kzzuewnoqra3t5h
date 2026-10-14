@@ -24,31 +24,31 @@ export default function MePage() {
 
       <Card className="p-5!">
         <div className="flex items-center gap-4">
-          <div className="grid size-16 place-items-center rounded-full bg-linear-to-br from-blue-500 to-indigo-600 text-xl font-bold text-white">
+          <div className="grid size-16 place-items-center rounded-full bg-linear-to-br from-primary-500 to-primary-600 text-xl font-bold text-white">
             {initials}
           </div>
           <div>
-            <p className="text-lg font-bold text-slate-900">{me.full_name}</p>
-            <p className="text-sm text-slate-500">
+            <p className="text-lg font-bold text-foreground">{me.full_name}</p>
+            <p className="text-sm text-muted-foreground">
               {t("mini.me.member_since", { date: fmt.date(me.member_since, MONTH_YEAR) || "—" })}
             </p>
           </div>
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-3">
-          <div className="rounded-2xl bg-amber-50 p-3">
-            <div className="flex items-center gap-1.5 text-amber-700">
+          <div className="rounded-2xl bg-muted p-3">
+            <div className="flex items-center gap-1.5 text-status-warning">
               <Award className="size-4" aria-hidden />
               <span className="text-xs font-semibold uppercase tracking-wide">{t("mini.me.loyalty")}</span>
             </div>
-            <p className="mt-1 text-xl font-bold text-slate-900">{fmt.number(me.loyalty_points)}</p>
+            <p className="mt-1 text-xl font-bold text-foreground">{fmt.number(me.loyalty_points)}</p>
           </div>
-          <div className="rounded-2xl bg-blue-50 p-3">
-            <div className="flex items-center gap-1.5 text-blue-700">
+          <div className="rounded-2xl bg-muted p-3">
+            <div className="flex items-center gap-1.5 text-muted-foreground">
               <Car className="size-4" aria-hidden />
               <span className="text-xs font-semibold uppercase tracking-wide">{t("mini.me.vehicles")}</span>
             </div>
-            <p className="mt-1 text-xl font-bold text-slate-900">{fmt.number(me.vehicle_count)}</p>
+            <p className="mt-1 text-xl font-bold text-foreground">{fmt.number(me.vehicle_count)}</p>
           </div>
         </div>
       </Card>
@@ -69,10 +69,10 @@ export default function MePage() {
 function Row({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <li className="flex items-center gap-3 px-2 py-3">
-      <div className="grid size-8 place-items-center rounded-full bg-slate-100 text-slate-400">{icon}</div>
+      <div className="grid size-8 place-items-center rounded-full bg-muted text-muted-foreground">{icon}</div>
       <div className="flex-1">
-        <p className="text-xs text-slate-400">{label}</p>
-        <p className="text-sm font-medium text-slate-800">{value}</p>
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="text-sm font-medium text-foreground">{value}</p>
       </div>
     </li>
   );

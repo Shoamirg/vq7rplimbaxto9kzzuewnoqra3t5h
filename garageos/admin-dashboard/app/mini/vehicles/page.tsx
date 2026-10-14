@@ -1,4 +1,5 @@
 "use client";
+import { VehicleSchematic } from "@/components/vehicles/vehicle-telemetry-blueprint";
 
 import { ChevronRight, Gauge } from "lucide-react";
 
@@ -27,12 +28,12 @@ export default function VehiclesPage() {
       ) : (
         <div className="space-y-3">
           {data.vehicles.map((v) => (
-            <Card key={v.id} href={`/mini/vehicles/${v.id}`}>
+            <Card key={v.id} href={`/mini/vehicles/${v.id}`}><div className="rounded-tile mb-3" style={{ background: "var(--hero-stage)" }}><VehicleSchematic /></div>
               <div className="flex items-center gap-4">
                 <HealthRing score={v.health_score} band={v.band} size={56} />
                 <div className="flex-1">
-                  <p className="font-semibold text-slate-900">{v.label}</p>
-                  <p className="text-sm text-slate-500">
+                  <p className="font-semibold text-foreground">{v.label}</p>
+                  <p className="text-sm text-muted-foreground">
                     {[v.year, v.plate, v.mileage ? `${fmt.number(v.mileage)} ${t("mini.unit.km")}` : null]
                       .filter(Boolean)
                       .join(" · ")}

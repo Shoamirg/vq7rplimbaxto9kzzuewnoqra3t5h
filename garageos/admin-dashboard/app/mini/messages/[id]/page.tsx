@@ -18,7 +18,7 @@ type ReadState = {
   loading: boolean; error: boolean; storageError: boolean; denied: boolean;
 };
 const empty: ReadState = { selection: 0, thread: null, actor: null, loading: true, error: false, storageError: false, denied: false };
-const control = "min-h-11 min-w-11 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-800 focus-visible:outline-2 focus-visible:outline-blue-600 disabled:opacity-50";
+const control = "min-h-11 min-w-11 rounded-xl border border-slate-300 bg-card px-3 py-2 text-sm font-medium text-foreground focus-visible:outline-2 focus-visible:outline-primary-600 disabled:opacity-50";
 
 export default function ThreadPage() {
   const params = useParams<{ id: string }>(), id = params?.id ?? null;
@@ -95,35 +95,35 @@ export default function ThreadPage() {
 
   return <div className="flex min-h-[calc(100dvh-7rem)] min-w-0 flex-col [overflow-wrap:anywhere]">
     <Link href="/mini/messages" onClick={() => haptic("light")}
-      className="mb-2 inline-flex min-h-11 items-center gap-1 rounded-lg text-sm font-medium text-slate-600 focus-visible:outline-2 focus-visible:outline-blue-600">
+      className="mb-2 inline-flex min-h-11 items-center gap-1 rounded-lg text-sm font-medium text-muted-foreground focus-visible:outline-2 focus-visible:outline-primary-600">
       <ArrowLeft className="size-4" aria-hidden />{t("mini.messages.title")}
     </Link>
     {state.denied && <div role="alert" className="space-y-3"><p>{t("message.auth")}</p><button className={control} onClick={() => void load(true)}>{t("message.verify")}</button></div>}
     {!state.denied && state.error && <div role="alert" className="space-y-3"><p>{t(state.storageError ? "message.storage" : composer.saved ? "message.refresh_error" : "message.read_error")}</p><button className={control} onClick={() => void load(state.storageError)}>{t(state.storageError ? "message.storage_retry" : "message.refresh")}</button></div>}
     {!thread && !state.denied && !state.error && <ListSkeleton rows={4} />}
     {thread && <>
-      <h1 className="mb-3 px-1 text-lg font-bold text-slate-900">{thread.subject ?? t("mini.home.conversation")}</h1>
+      <h1 className="mb-3 px-1 text-lg font-bold text-foreground">{thread.subject ?? t("mini.home.conversation")}</h1>
       <div className="min-w-0 flex-1 space-y-2.5" aria-busy={state.loading}>
-        {thread.messages.length === 0 && <p className="text-sm text-slate-700">{t("message.empty")}</p>}
+        {thread.messages.length === 0 && <p className="text-sm text-foreground">{t("message.empty")}</p>}
         {thread.messages.map(message => <div key={message.id} className={`flex min-w-0 ${message.from_me ? "justify-end" : "justify-start"}`}>
-          <article className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm ${message.from_me ? "rounded-br-md bg-blue-600 text-white" : "rounded-bl-md bg-white text-slate-800 ring-1 ring-slate-900/5"}`}>
-            {!message.from_me && message.author_name && <p className="mb-0.5 text-xs font-semibold text-slate-600">{message.author_name}</p>}
+          <article className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm ${message.from_me ? "rounded-br-md bg-primary text-primary-foreground" : "rounded-bl-md bg-card text-foreground ring-1 ring-slate-900/5"}`}>
+            {!message.from_me && message.author_name && <p className="mb-0.5 text-xs font-semibold text-muted-foreground">{message.author_name}</p>}
             {message.attachments.map(attachment => <p key={attachment.id} className="mb-1 flex items-center gap-1.5 text-xs"><ImageIcon className="size-3.5" aria-hidden />{attachment.label}</p>)}
             {message.body && <p className="whitespace-pre-wrap">{message.body}</p>}
-            {message.created_at && <time dateTime={message.created_at} className={`mt-1 block text-xs ${message.from_me ? "text-white" : "text-slate-600"}`}>{fmt.date(message.created_at, { hour: "numeric", minute: "2-digit" })}</time>}
+            {message.created_at && <time dateTime={message.created_at} className={`mt-1 block text-xs ${message.from_me ? "text-primary-foreground" : "text-muted-foreground"}`}>{fmt.date(message.created_at, { hour: "numeric", minute: "2-digit" })}</time>}
           </article>
         </div>)}
         <div ref={bottomRef} />
       </div>
-      <div className="sticky bottom-24 mt-3 min-w-0 space-y-3 rounded-2xl bg-white p-3 shadow-lg ring-1 ring-slate-900/6">
+      <div className="sticky bottom-24 mt-3 min-w-0 space-y-3 rounded-2xl bg-card p-3 shadow-lg ring-1 ring-slate-900/6">
         <MessageSubmissionStatus composer={composer} />
         <div className="flex min-w-0 items-center gap-2">
           <input value={composer.text} onChange={event => composer.edit(event.target.value)} maxLength={65536}
             onKeyDown={event => { if (event.key === "Enter" && !event.nativeEvent.isComposing) { event.preventDefault(); if (!sendDisabled) send(); } }}
             placeholder={t("mini.messages.compose")} aria-label={t("mini.messages.compose")}
-            className="min-h-11 min-w-0 flex-1 rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-blue-600" />
+            className="min-h-11 min-w-0 flex-1 rounded-lg border border-slate-300 bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-primary-600" />
           <button onClick={send} disabled={sendDisabled} aria-label={t("message.send")}
-            className="grid size-11 shrink-0 place-items-center rounded-xl bg-blue-600 text-white focus-visible:outline-2 focus-visible:outline-blue-600 focus-visible:outline-offset-2 disabled:opacity-40"><Send className="size-4" aria-hidden /></button>
+            className="grid size-11 shrink-0 place-items-center rounded-xl bg-conversion text-white focus-visible:outline-2 focus-visible:outline-primary-600 focus-visible:outline-offset-2 disabled:opacity-40"><Send className="size-4" aria-hidden /></button>
         </div>
       </div>
     </>}

@@ -54,9 +54,9 @@ export function MiniShell({ children }: { children: React.ReactNode }) {
           <LogoTile size={84} />
           <div className="text-center">
             <p className="font-brand text-xl font-extrabold tracking-tight text-white">GarageOS</p>
-            <p className="mt-0.5 text-[11px] uppercase tracking-[0.18em] text-slate-500">Vehicle Intelligence</p>
+            <p className="mt-0.5 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Vehicle Intelligence</p>
           </div>
-          <Loader2 className="mt-1 size-5 animate-spin text-slate-600" />
+          <Loader2 className="mt-1 size-5 animate-spin text-muted-foreground" />
         </div>
       </div>
     );
@@ -64,17 +64,17 @@ export function MiniShell({ children }: { children: React.ReactNode }) {
 
   if (state === "error" || state === "storage") {
     return (
-      <div className="grid min-h-dvh place-items-center bg-slate-50 px-8" dir={dir}>
+      <div className="grid min-h-dvh place-items-center bg-background px-8" dir={dir}>
         <div className="max-w-xs text-center">
           <LogoMark size={40} className="mx-auto mb-3" />
           <AlertCircle className="mx-auto size-9 text-slate-300" />
-          {state === "storage" ? <p role="alert" className="mt-3 text-sm text-slate-700">{t("message.storage")}</p> : <>
-            <h1 className="mt-3 text-lg font-semibold text-slate-800">{t("mini.signin_failed")}</h1>
-            <p className="mt-1 text-sm text-slate-500">{t("mini.signin_hint")}</p>
+          {state === "storage" ? <p role="alert" className="mt-3 text-sm text-foreground">{t("message.storage")}</p> : <>
+            <h1 className="mt-3 text-lg font-semibold text-foreground">{t("mini.signin_failed")}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">{t("mini.signin_hint")}</p>
           </>}
           <button
             onClick={() => state === "storage" ? verifySession() : window.location.reload()}
-            className="mt-5 min-h-[44px] rounded-full bg-blue-600 px-6 text-sm font-semibold text-white transition motion-safe:active:scale-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50"
+            className="mt-5 min-h-[44px] rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground transition motion-safe:active:scale-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50"
           >
             {t(state === "storage" ? "message.storage_retry" : "mini.retry")}
           </button>
@@ -84,7 +84,7 @@ export function MiniShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="mx-auto min-h-dvh max-w-md bg-slate-50" dir={dir}>
+    <div className="mx-auto min-h-dvh max-w-md bg-background" dir={dir}>
       {!online ? (
         <div
           className="sticky top-0 z-30 flex items-center justify-center gap-2 bg-slate-900 py-2 text-xs font-medium text-white"
@@ -93,7 +93,7 @@ export function MiniShell({ children }: { children: React.ReactNode }) {
           <WifiOff className="size-3.5" /> {t("mini.offline")}
         </div>
       ) : null}
-      <main className="px-4 pb-28 pt-4">{children}</main>
+      <main className="px-5 pb-28 pt-5">{children}</main>
       <TabBar />
     </div>
   );

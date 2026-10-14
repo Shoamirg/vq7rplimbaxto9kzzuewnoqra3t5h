@@ -16,20 +16,20 @@ export function money(n: number): string {
 }
 
 const BAND_COLOR: Record<string, string> = {
-  excellent: "#16a34a",
-  good: "#2563eb",
-  fair: "#d97706",
-  poor: "#dc2626",
+  excellent: "var(--status-success)",
+  good: "var(--color-foreground)",
+  fair: "var(--status-warning)",
+  poor: "var(--status-danger)",
 };
 
 export function bandColor(band: string): string {
-  return BAND_COLOR[band] ?? "#64748b";
+  return BAND_COLOR[band] ?? "var(--color-muted-foreground)";
 }
 
 const CARD_BASE =
-  "block rounded-3xl bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.06),0_8px_24px_-12px_rgba(15,23,42,0.12)] ring-1 ring-slate-900/4";
+  "block rounded-bento bg-card p-[18px] shadow-bento border border-white/65 dark:border-border";
 const TAPPABLE =
-  " transition motion-safe:active:scale-[0.99] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50";
+  " transition motion-safe:active:scale-[0.99] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50";
 
 export function Card({
   children,
@@ -61,7 +61,7 @@ export function Card({
 
 export function SectionLabel({ children }: { children: ReactNode }) {
   return (
-    <div className="px-1 pb-2 pt-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
+    <div className="px-1 pb-2 pt-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
       {children}
     </div>
   );
@@ -70,8 +70,8 @@ export function SectionLabel({ children }: { children: ReactNode }) {
 export function ScreenHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <header className="px-1 pb-3 pt-1">
-      <h1 className="text-[26px] font-bold leading-tight tracking-tight text-slate-900">{title}</h1>
-      {subtitle ? <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p> : null}
+      <h1 className="text-[26px] font-bold leading-tight tracking-tight text-foreground">{title}</h1>
+      {subtitle ? <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p> : null}
     </header>
   );
 }
@@ -99,15 +99,15 @@ export function HealthRing({ score, band, size = 56 }: { score: number; band: st
           strokeDashoffset={c - (pct / 100) * c}
         />
       </svg>
-      <span className="absolute text-sm font-bold text-slate-900">{Math.round(score)}</span>
+      <span className="absolute text-sm font-bold text-foreground">{Math.round(score)}</span>
     </div>
   );
 }
 
 export function Chip({ children, tone = "slate" }: { children: ReactNode; tone?: string }) {
   const tones: Record<string, string> = {
-    slate: "bg-slate-100 text-slate-600",
-    blue: "bg-blue-50 text-blue-700",
+    slate: "bg-muted text-muted-foreground",
+    blue: "bg-primary-50 text-primary-700",
     green: "bg-green-50 text-green-700",
     amber: "bg-amber-50 text-amber-700",
     red: "bg-red-50 text-red-700",
@@ -129,7 +129,7 @@ export function ListSkeleton({ rows = 3 }: { rows?: number }) {
   return (
     <div className="space-y-3" role="status" aria-label="Loading">
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="flex items-center gap-4 rounded-3xl bg-white p-4 ring-1 ring-slate-900/4">
+        <div key={i} className="flex items-center gap-4 rounded-3xl bg-card p-4 ring-1 ring-slate-900/4">
           <Skeleton className="size-12 shrink-0 rounded-full" />
           <div className="flex-1 space-y-2">
             <Skeleton className="h-4 w-2/3" />
@@ -162,10 +162,10 @@ export function Loading() {
 
 export function EmptyState({ icon, title, note }: { icon?: ReactNode; title: string; note?: string }) {
   return (
-    <div className="grid place-items-center rounded-3xl bg-white/60 px-6 py-10 text-center ring-1 ring-slate-900/4">
+    <div className="grid place-items-center rounded-3xl bg-card/80 px-6 py-10 text-center ring-1 ring-slate-900/4">
       {icon ? <div className="mb-2 text-slate-300">{icon}</div> : null}
-      <p className="font-medium text-slate-700">{title}</p>
-      {note ? <p className="mt-1 text-sm text-slate-600">{note}</p> : null}
+      <p className="font-medium text-foreground">{title}</p>
+      {note ? <p className="mt-1 text-sm text-muted-foreground">{note}</p> : null}
     </div>
   );
 }
@@ -182,17 +182,17 @@ export function ScreenError({
 }) {
   const { t } = useI18n();
   return (
-    <div className="grid place-items-center rounded-3xl bg-white/60 px-6 py-12 text-center ring-1 ring-slate-900/4" role="alert">
+    <div className="grid place-items-center rounded-3xl bg-card/80 px-6 py-12 text-center ring-1 ring-slate-900/4" role="alert">
       {offline ? <WifiOff className="mb-2 size-8 text-slate-300" /> : null}
-      <p className="font-medium text-slate-700">{offline ? t("mini.offline") : (message ?? t("mini.error_generic"))}</p>
-      <p className="mt-1 text-sm text-slate-600">{offline ? t("mini.offline_hint") : t("mini.error_hint")}</p>
+      <p className="font-medium text-foreground">{offline ? t("mini.offline") : (message ?? t("mini.error_generic"))}</p>
+      <p className="mt-1 text-sm text-muted-foreground">{offline ? t("mini.offline_hint") : t("mini.error_hint")}</p>
       {onRetry ? (
         <button
           onClick={() => {
             haptic("medium");
             onRetry();
           }}
-          className="mt-5 min-h-[44px] rounded-full bg-blue-600 px-6 text-sm font-semibold text-white transition motion-safe:active:scale-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50"
+          className="mt-5 min-h-[44px] rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground transition motion-safe:active:scale-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50"
         >
           {t("mini.retry")}
         </button>

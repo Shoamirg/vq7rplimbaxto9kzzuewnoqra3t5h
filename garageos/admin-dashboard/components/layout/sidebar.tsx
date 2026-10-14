@@ -102,8 +102,9 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
   const brandTagline = branding?.tagline ?? t("brand.tagline");
   const pathname = usePathname();
   const router = useRouter();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const compact = collapsed && !mobileOpen;
   const [apptOpen, setApptOpen] = useState(false);
   const menuTrigger = useRef<HTMLButtonElement>(null);
   const menuClose = useRef<HTMLButtonElement>(null);
@@ -154,21 +155,21 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
       <aside
         id="staff-sidebar"
         className={cn(
-          "fixed lg:static inset-y-0 left-0 z-50 flex flex-col border-r border-border bg-sidebar text-sidebar-foreground transition-all duration-300 motion-reduce:transition-none motion-reduce:duration-0",
-          collapsed ? "w-16" : "w-64",
+          "garage-dock fixed lg:static inset-y-0 left-0 z-50 flex flex-col border-r border-border bg-sidebar text-sidebar-foreground transition-all duration-300 motion-reduce:transition-none motion-reduce:duration-0",
+          compact ? "w-64 lg:w-16" : "w-64",
           mobileOpen ? "translate-x-0" : "invisible lg:visible -translate-x-full lg:translate-x-0"
         )}
       >
         {/* Logo */}
         <div className={cn(
           "h-16 flex items-center border-b border-sidebar-muted shrink-0",
-          collapsed ? "justify-center px-0" : "px-4 gap-3"
+          compact ? "justify-center px-0" : "px-4 gap-3"
         )}>
           <button ref={menuClose} onClick={() => setMobileOpen(false)} aria-label={t("action.close_menu")} className="lg:hidden grid size-11 shrink-0 place-items-center ml-auto"><X className="size-4" /></button>
           <div className="size-9 rounded-xl bg-primary flex items-center justify-center shrink-0 shadow-xs">
             <span className="text-primary-foreground font-bold text-sm">{brandMono}</span>
           </div>
-          {!collapsed && (
+          {!compact && (
             <div className="flex flex-col min-w-0">
               <span className="font-semibold text-sidebar-foreground text-sm leading-tight truncate">{brandName}</span>
               <span className="text-[10px] text-sidebar-foreground/80 leading-tight truncate">{brandTagline}</span>
@@ -177,12 +178,12 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
         </div>
 
         {/* Quick Action */}
-        <div className={cn("p-3", collapsed && "px-2")}>
+        <div className={cn("p-3", compact && "px-2")}>
           <button
             className={cn(
               "flex items-center gap-2 w-full rounded-lg font-medium transition-all duration-150",
               "bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 shadow-xs",
-              collapsed
+              compact
                 ? "justify-center h-11 w-11 mx-auto"
                 : "min-h-11 px-4 py-2.5 text-sm"
             )}
@@ -190,7 +191,7 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
             onClick={() => { setMobileOpen(false); setApptOpen(true); }}
           >
             <Plus className="size-4 shrink-0" />
-            {!collapsed && <span>{t("action.new_appointment")}</span>}
+            {!compact && <span>{t("action.new_appointment")}</span>}
           </button>
         </div>
         {apptOpen && (
@@ -204,12 +205,12 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
         <nav className="flex-1 overflow-y-auto px-3 py-1 space-y-1">
           {NAV_SECTIONS.map((section) => (
             <div key={section.key} className="space-y-0.5">
-              {!collapsed && (
+              {!compact && (
                 <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/80">
                   {t(section.key)}
                 </p>
               )}
-              {collapsed && <div className="my-2 mx-2 border-t border-sidebar-muted/60" />}
+              {compact && <div className="my-2 mx-2 border-t border-sidebar-muted/60" />}
               {section.items.map((item) => {
                 const active = isActive(item.href);
                 return (
@@ -219,10 +220,10 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
                     onClick={() => setMobileOpen(false)}
                     aria-current={active ? "page" : undefined}
                     aria-label={t(item.key) + (item.unfinished ? " · " + t("soon.badge") : "")}
-                    title={collapsed ? t(item.key) + (item.unfinished ? " · " + t("soon.badge") : "") : undefined}
+                    title={compact ? t(item.key) + (item.unfinished ? " · " + t("soon.badge") : "") : undefined}
                     className={cn(
                       "flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-150 group",
-                      collapsed ? "justify-center h-11 w-11 mx-auto" : "min-h-11 px-3 py-2.5",
+                      compact ? "justify-center h-11 w-11 mx-auto" : "min-h-11 px-3 py-2.5",
                       active
                         ? "bg-sidebar-active/15 text-sidebar-foreground"
                         : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-muted/50"
@@ -234,7 +235,7 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
                     )}>
                       {item.icon}
                     </span>
-                    {!collapsed && (
+                    {!compact && (
                       <>
                         <span className="flex-1 truncate">{t(item.key)}</span>
                         {item.unfinished && <span className="text-[9px] text-sidebar-foreground/80">{t("soon.badge")}</span>}
@@ -263,10 +264,10 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
                 onClick={() => setMobileOpen(false)}
                 aria-current={active ? "page" : undefined}
                 aria-label={t(item.key) + (item.unfinished ? " · " + t("soon.badge") : "")}
-                title={collapsed ? t(item.key) + (item.unfinished ? " · " + t("soon.badge") : "") : undefined}
+                title={compact ? t(item.key) + (item.unfinished ? " · " + t("soon.badge") : "") : undefined}
                 className={cn(
                   "flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-150 group",
-                  collapsed ? "justify-center h-11 w-11 mx-auto" : "min-h-11 px-3 py-2.5",
+                  compact ? "justify-center h-11 w-11 mx-auto" : "min-h-11 px-3 py-2.5",
                   active
                     ? "bg-sidebar-active/15 text-sidebar-foreground"
                     : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-muted/50"
@@ -278,8 +279,8 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
                 )}>
                   {item.icon}
                 </span>
-                {!collapsed && <span className="flex-1 truncate">{t(item.key)}</span>}
-                {!collapsed && item.unfinished && <span className="text-[9px] text-sidebar-foreground/80">{t("soon.badge")}</span>}
+                {!compact && <span className="flex-1 truncate">{t(item.key)}</span>}
+                {!compact && item.unfinished && <span className="text-[9px] text-sidebar-foreground/80">{t("soon.badge")}</span>}
               </Link>
             );
           })}
@@ -288,22 +289,22 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
           <button
             onClick={toggle}
             className={cn(
-              "flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-150 w-full group",
-              collapsed ? "justify-center h-11 w-11 mx-auto" : "min-h-11 px-3 py-2.5",
+              "hidden lg:flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-150 w-full group",
+              compact ? "justify-center h-11 w-11 mx-auto" : "min-h-11 px-3 py-2.5",
               "text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-muted/50"
             )}
-            aria-label={collapsed ? t("action.expand") : t("action.collapse")}
+            aria-label={compact ? t("action.expand") : t("action.collapse")}
           >
             <ChevronLeft className={cn(
               "size-4 shrink-0 transition-transform duration-300",
-              collapsed && "rotate-180"
+              compact && "rotate-180"
             )} />
-            {!collapsed && <span>{t("action.collapse")}</span>}
+            {!compact && <span>{t("action.collapse")}</span>}
           </button>
         </div>
 
         {/* User Mini-Profile */}
-        {!collapsed && (
+        {!compact && (
           <div className="border-t border-sidebar-muted p-3 flex items-center gap-3">
             <div className="size-9 rounded-full bg-sidebar-muted flex items-center justify-center text-sm font-medium text-sidebar-foreground shrink-0">
               {initials(user?.name)}
