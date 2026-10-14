@@ -2,8 +2,8 @@
 
 Completed ASGITransport requests wait for dependency teardown, so they alone
 cannot prove this boundary. Auth/transaction dependencies are not overridden.
-Only commit faults, event delivery, and the explicitly isolated Redis seam are
-controlled; all mutations and independent observations use migrated PostgreSQL.
+Only commit faults and event delivery are controlled; all mutations and
+independent observations use migrated PostgreSQL.
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from app.core.database import async_session_factory
 from app.core.events import event_bus
 from tests.support.auth_sessions import persisted_access
 from app.main import app
-from app.models import Appointment, Customer, User
+from app.models import Appointment, Customer, IdempotencyRecord, User
 from app.models.appointment_slot import AppointmentSlot
 from app.models.audit_log import AuditLog
 from app.models.conversation import Conversation, Message, Participant
@@ -243,30 +243,6 @@ async def test_customer_auth_session_finishes_before_token_success(route, fail, 
         assert observations == [(telegram_id, "tg")] and await read() == (telegram_id, "tg")
 
 
-class IsolatedBookingStore:
-    """Controlled cache seam; deliberately observes durability in real PG."""
-    def __init__(self):
-        self.values = {}
-        self.durable_at_store = []
-
-    async def reserve(self, key):
-        if key not in self.values:
-            self.values[key] = "pending"
-            return "new", None
-        if self.values[key] == "pending":
-            return "in_progress", None
-        return "done", self.values[key]
-
-    async def store(self, key, value):
-        async with async_session_factory() as session:
-            self.durable_at_store.append(await session.get(Appointment, uuid.UUID(value)) is not None)
-        self.values[key] = value
-
-    async def release(self, key):
-        if self.values.get(key) == "pending":
-            del self.values[key]
-
-
 async def slot_booking(client, workshop, identity):
     job = await create_job(client, workshop)
     existing = (await client.get(f"/api/v1/appointments/{job}", headers=workshop["admin"])).json()
@@ -280,17 +256,15 @@ async def slot_booking(client, workshop, identity):
     return {"customer_id": existing["customer_id"], "vehicle_id": existing["vehicle_id"], "slot_id": str(slot_id)}, slot_id
 
 
-async def test_booking_cache_publication_follows_durable_commit_once(client, workshop, identity, monkeypatch):
-    from app.api.v1.endpoints import appointments
+async def test_booking_persists_replay_response_with_the_business_transaction(client, workshop, identity, monkeypatch):
     body, slot_id = await slot_booking(client, workshop, identity)
     key = str(uuid.uuid4())
-    store, events, commits = IsolatedBookingStore(), [], []
+    events, commits = [], []
     original_commit = UnitOfWork.commit
     async def record_commit(uow):
         commits.append(uow)
         await original_commit(uow)
     with monkeypatch.context() as patch:
-        patch.setattr(appointments, "idempotency_store", store)
         patch.setattr(UnitOfWork, "commit", record_commit)
         patch.setattr(event_bus, "dispatch", events.append)
         headers = {**workshop["admin"], "Idempotency-Key": key}
@@ -300,63 +274,69 @@ async def test_booking_cache_publication_follows_durable_commit_once(client, wor
         replay = await client.post("/api/v1/appointments", headers=headers, json=body)
     assert first.status_code == replay.status_code == 201
     assert first.json()["id"] == replay.json()["id"]
-    assert store.durable_at_store == [True]
-    assert store.values == {f"idem:appt:{identity['center']}:{key}": first.json()["id"]}
     assert initial_commits == 1 and initial_events == len(events) == 1
     async with async_session_factory() as session:
         slot = await session.get(AppointmentSlot, slot_id)
         assert slot.status == "booked" and str(slot.appointment_id) == first.json()["id"]
+        record = await session.scalar(select(IdempotencyRecord).where(
+            IdempotencyRecord.service_center_id == identity["center"],
+            IdempotencyRecord.key == key,
+        ))
+        assert record is not None and record.response_payload["id"] == first.json()["id"]
 
 
-async def test_booking_failed_commit_releases_key_and_same_key_retry_recovers(client, workshop, identity, monkeypatch):
-    from app.api.v1.endpoints import appointments
+async def test_booking_failed_commit_rolls_back_key_and_same_key_retry_recovers(client, workshop, identity, monkeypatch):
     body, slot_id = await slot_booking(client, workshop, identity)
     key = str(uuid.uuid4())
-    namespaced = f"idem:appt:{identity['center']}:{key}"
-    store, events = IsolatedBookingStore(), []
-    async def failed_commit(uow):
-        raise RuntimeError("Controlled booking precommit failure")
+    events, should_fail = [], True
+    original_commit = UnitOfWork.commit
+    async def sometimes_fail(uow):
+        nonlocal should_fail
+        if should_fail:
+            should_fail = False
+            raise RuntimeError("Controlled booking precommit failure")
+        await original_commit(uow)
     with monkeypatch.context() as patch:
-        patch.setattr(appointments, "idempotency_store", store)
+        patch.setattr(UnitOfWork, "commit", sometimes_fail)
         patch.setattr(event_bus, "dispatch", events.append)
         headers = {**workshop["admin"], "Idempotency-Key": key}
-        with monkeypatch.context() as fault:
-            fault.setattr(UnitOfWork, "commit", failed_commit)
-            failed = await client.post("/api/v1/appointments", headers=headers, json=body)
-        reservation_released = namespaced not in store.values
         failed_events = len(events)
         async with async_session_factory() as session:
             slot = await session.get(AppointmentSlot, slot_id)
             rollback_state = slot.status, slot.appointment_id, slot.reserved_until
+            record = await session.scalar(select(IdempotencyRecord).where(
+                IdempotencyRecord.service_center_id == identity["center"],
+                IdempotencyRecord.key == key,
+            ))
         recovered = await client.post("/api/v1/appointments", headers=headers, json=body)
         replay = await client.post("/api/v1/appointments", headers=headers, json=body)
-    assert (failed.status_code, reservation_released, failed_events, rollback_state,
-            recovered.status_code, replay.status_code) == (500, True, 0, ("available", None, None), 201, 201)
+    assert (failed.status_code, record, failed_events, rollback_state,
+            recovered.status_code, replay.status_code) == (500, None, 0, ("available", None, None), 201, 201)
     assert recovered.json()["id"] == replay.json()["id"]
-    assert store.durable_at_store == [True] and len(events) == 1
 
 
-@pytest.mark.parametrize("mode", ["in_progress", "unavailable"])
-async def test_booking_preserves_cache_in_progress_and_unavailable_behavior(mode, client, workshop, identity, monkeypatch):
-    from app.api.v1.endpoints import appointments
-    body, slot_id = await slot_booking(client, workshop, identity)
-    store = IsolatedBookingStore()
-    async def reserve(key):
-        return mode, None
-    with monkeypatch.context() as patch:
-        patch.setattr(store, "reserve", reserve)
-        patch.setattr(appointments, "idempotency_store", store)
-        result = await client.post("/api/v1/appointments", headers={
-            **workshop["admin"], "Idempotency-Key": str(uuid.uuid4()),
-        }, json=body)
-    assert result.status_code == (409 if mode == "in_progress" else 201)
-    async with async_session_factory() as session:
-        slot = await session.get(AppointmentSlot, slot_id)
-        assert slot.status == ("available" if mode == "in_progress" else "booked")
+async def test_direct_booking_replays_same_key_but_rejects_changed_payload(client, workshop, identity):
+    body, _ = await slot_booking(client, workshop, identity)
+    direct = {
+        "customer_id": body["customer_id"],
+        "vehicle_id": body["vehicle_id"],
+        "appointment_date": "2038-04-10",
+        "appointment_time": "09:00",
+        "estimated_duration_minutes": 60,
+        "customer_notes": "Oil change",
+    }
+    headers = {**workshop["admin"], "Idempotency-Key": str(uuid.uuid4())}
+    first = await client.post("/api/v1/appointments/direct", headers=headers, json=direct)
+    replay = await client.post("/api/v1/appointments/direct", headers=headers, json=direct)
+    conflict = await client.post("/api/v1/appointments/direct", headers=headers, json={
+        **direct, "customer_notes": "Different work",
+    })
+    assert first.status_code == replay.status_code == 201
+    assert first.json()["id"] == replay.json()["id"]
+    assert conflict.status_code == 409
 
 
-async def test_same_booking_key_is_independent_between_real_tenants(client, workshop, identity, monkeypatch):
-    from app.api.v1.endpoints import appointments
+async def test_same_booking_key_is_independent_between_real_tenants(client, workshop, identity):
     async with async_session_factory() as session:
         owner = await session.get(User, identity["user"])
         foreign = await session.get(User, uuid.UUID(workshop["ids"][2]))
@@ -368,20 +348,15 @@ async def test_same_booking_key_is_independent_between_real_tenants(client, work
     foreign_workshop = {**workshop, "admin": workshop["mechanics"][2]}
     own_body, _ = await slot_booking(client, workshop, identity)
     foreign_body, _ = await slot_booking(client, foreign_workshop, {"center": foreign_center})
-    key, store = str(uuid.uuid4()), IsolatedBookingStore()
-    with monkeypatch.context() as patch:
-        patch.setattr(appointments, "idempotency_store", store)
-        own = await client.post("/api/v1/appointments", headers={
-            **workshop["admin"], "Idempotency-Key": key,
-        }, json=own_body)
-        other = await client.post("/api/v1/appointments", headers={
-            **foreign_workshop["admin"], "Idempotency-Key": key,
-        }, json=foreign_body)
+    key = str(uuid.uuid4())
+    own = await client.post("/api/v1/appointments", headers={
+        **workshop["admin"], "Idempotency-Key": key,
+    }, json=own_body)
+    other = await client.post("/api/v1/appointments", headers={
+        **foreign_workshop["admin"], "Idempotency-Key": key,
+    }, json=foreign_body)
     assert own.status_code == other.status_code == 201
     assert own.json()["id"] != other.json()["id"]
-    assert store.values == {f"idem:appt:{identity['center']}:{key}": own.json()["id"],
-                            f"idem:appt:{foreign_center}:{key}": other.json()["id"]}
-    assert store.durable_at_store == [True, True]
     assert (await client.get(f"/api/v1/appointments/{other.json()['id']}", headers=workshop["admin"])).status_code == 404
 
 

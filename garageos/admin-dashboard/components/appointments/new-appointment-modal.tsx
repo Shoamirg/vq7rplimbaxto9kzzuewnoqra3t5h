@@ -101,6 +101,7 @@ export function NewAppointmentModal({
   const [loadingVehicles, setLoadingVehicles] = useState(false);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
+  const pendingBookingRequest = useRef<{ fingerprint: string; key: string } | null>(null);
   const [vehicleError, setVehicleError] = useState(false);
   const [mechanicError, setMechanicError] = useState(false);
   const [loadingMechanics, setLoadingMechanics] = useState(true);
@@ -217,18 +218,26 @@ export function NewAppointmentModal({
       return;
     }
     try {
+      const payload = {
+        customer_id: customer.id,
+        vehicle_id: vehicleId,
+        appointment_date: date,
+        appointment_time: time,
+        estimated_duration_minutes: duration,
+        mechanic_user_id: mechanic || null,
+        customer_notes: notes.trim() || null,
+      };
+      const fingerprint = JSON.stringify(payload);
+      const idempotencyKey = pendingBookingRequest.current?.fingerprint === fingerprint
+        ? pendingBookingRequest.current.key
+        : crypto.randomUUID();
+      pendingBookingRequest.current = { fingerprint, key: idempotencyKey };
       await clientFetch("/appointments/direct", {
         method: "POST",
-        body: JSON.stringify({
-          customer_id: customer.id,
-          vehicle_id: vehicleId,
-          appointment_date: date,
-          appointment_time: time,
-          estimated_duration_minutes: duration,
-          mechanic_user_id: mechanic || null,
-          customer_notes: notes.trim() || null,
-        }),
+        headers: { "Idempotency-Key": idempotencyKey },
+        body: JSON.stringify(payload),
       });
+      pendingBookingRequest.current = null;
       toast({ title: t("appointment.booked"), description: `${customer.full_name} · ${fmt.date(date)} ${time}`, variant: "success" });
       clearUncertainAppointment();
       onCreated?.();

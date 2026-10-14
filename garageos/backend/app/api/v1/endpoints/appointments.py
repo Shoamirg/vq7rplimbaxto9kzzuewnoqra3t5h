@@ -13,8 +13,7 @@ from math import ceil
 from fastapi import APIRouter, Body, Depends, Header, Query, status
 
 from app.api.deps import get_tenant_uow
-from app.core.idempotency import idempotency_store
-from app.exceptions import AppointmentStateError
+from app.core.idempotency import execute_idempotent
 from app.repositories.unit_of_work import UnitOfWork
 from app.schemas.appointment import (
     AppointmentBookRequest,
@@ -103,7 +102,7 @@ async def get_appointment_invoice(
 async def book_appointment(
     body: AppointmentBookRequest,
     uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
-    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key", max_length=128),
 ) -> dict:
     service = AppointmentService(uow)
 
@@ -116,44 +115,40 @@ async def book_appointment(
             customer_notes=body.customer_notes,
         )
 
-    if not idempotency_key:
-        return await _create()
-
-    # Namespace the key by tenant so keys can't collide across service centers.
-    key = f"idem:appt:{uow.service_center_id}:{idempotency_key}"
-    state, existing = await idempotency_store.reserve(key)
-    if state == "done":
-        return await service.get_appointment(uuid.UUID(existing))
-    if state == "in_progress":
-        raise AppointmentStateError("A booking with this Idempotency-Key is already in progress")
-    try:
-        result = await _create()
-        # Publish a replayable ID only after the whole booking is durable.
-        # A commit failure must release the pending key just like creation
-        # failure, so retry cannot point at a rolled-back appointment.
-        await uow.commit()
-    except Exception:
-        await idempotency_store.release(key)
-        raise
-    await idempotency_store.store(key, result["id"])
-    return result
+    return await execute_idempotent(
+        uow,
+        key=idempotency_key,
+        operation="staff.slot-appointment.create.v1",
+        request=body.model_dump(mode="json"),
+        execute=_create,
+    )
 
 
 @router.post("/direct", status_code=status.HTTP_201_CREATED, summary="Create an appointment at a date/time (no slot)")
 async def create_appointment_direct(
     body: AppointmentDirectCreateRequest,
     uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key", max_length=128),
 ) -> dict:
-    return await AppointmentService(uow).create_appointment_direct(
-        customer_id=body.customer_id,
-        vehicle_id=body.vehicle_id,
-        appointment_date=body.appointment_date,
-        appointment_time=body.appointment_time,
-        estimated_duration_minutes=body.estimated_duration_minutes,
-        mechanic_name=body.mechanic_name,
-        mechanic_user_id=body.mechanic_user_id,
-        maintenance_rule_id=body.maintenance_rule_id,
-        customer_notes=body.customer_notes,
+    async def _create() -> dict:
+        return await AppointmentService(uow).create_appointment_direct(
+            customer_id=body.customer_id,
+            vehicle_id=body.vehicle_id,
+            appointment_date=body.appointment_date,
+            appointment_time=body.appointment_time,
+            estimated_duration_minutes=body.estimated_duration_minutes,
+            mechanic_name=body.mechanic_name,
+            mechanic_user_id=body.mechanic_user_id,
+            maintenance_rule_id=body.maintenance_rule_id,
+            customer_notes=body.customer_notes,
+        )
+
+    return await execute_idempotent(
+        uow,
+        key=idempotency_key,
+        operation="staff.direct-appointment.create.v1",
+        request=body.model_dump(mode="json"),
+        execute=_create,
     )
 
 

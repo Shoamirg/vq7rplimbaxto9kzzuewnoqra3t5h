@@ -45,6 +45,24 @@ class RateLimitUnavailable(GarageException):
     detail = "Request throttling is temporarily unavailable"
 
 
+class IdempotencyKeyRequired(ValidationError):
+    code = "IDEMPOTENCY_KEY_REQUIRED"
+    detail = "Idempotency-Key header is required for this operation"
+
+    def __init__(self, detail: str | None = None):
+        if detail:
+            self.detail = detail
+
+
+class IdempotencyKeyReuse(ConflictError):
+    code = "IDEMPOTENCY_KEY_REUSED"
+    detail = "This Idempotency-Key was already used for a different request"
+
+    def __init__(self, detail: str | None = None):
+        if detail:
+            self.detail = detail
+
+
 # Domain-specific exceptions
 
 class VehicleNotFound(NotFoundError):

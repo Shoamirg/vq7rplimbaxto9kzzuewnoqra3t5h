@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft, BatteryCharging, CalendarCheck, Check, ChevronRight,
@@ -48,6 +48,7 @@ export default function BookPage() {
   const [date, setDate] = useState<{ iso: string; label: string } | null>(null);
   const [time, setTime] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const bookingKey = useRef<string | null>(null);
   const [result, setResult] = useState<BookingResult | null>(null);
 
   const days = useMemo(() => nextDays(5), []);
@@ -60,10 +61,14 @@ export default function BookPage() {
     if (!vehicle || !service || !date || !time || saving) return;
     setSaving(true);
     try {
+      const idempotencyKey = bookingKey.current ?? crypto.randomUUID();
+      bookingKey.current = idempotencyKey;
       const res = await miniFetch<BookingResult>("/appointments", {
         method: "POST",
+        headers: { "Idempotency-Key": idempotencyKey },
         body: JSON.stringify({ vehicle_id: vehicle.id, service: service.key, date: date.iso, time, duration_minutes: service.duration }),
       });
+      bookingKey.current = null;
       haptic("success");
       setResult(res);
       setStep("done");

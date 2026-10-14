@@ -6,9 +6,10 @@ notifications, and reports — one event stream, no special-casing.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header
 
 from app.api.customer_deps import get_current_customer, get_customer_uow
+from app.core.idempotency import execute_idempotent
 from app.core.rate_limit import write_rate_limit
 from app.models.customer import Customer
 from app.repositories.unit_of_work import UnitOfWork
@@ -28,5 +29,15 @@ async def book_appointment(
     body: BookingRequest,
     customer: Customer = Depends(get_current_customer),
     uow: UnitOfWork = Depends(get_customer_uow, scope="function"),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key", max_length=128),
 ) -> BookingResult:
-    return await CustomerPortalService(uow, customer).create_appointment(body)
+    async def _create() -> BookingResult:
+        return await CustomerPortalService(uow, customer).create_appointment(body)
+
+    return await execute_idempotent(
+        uow,
+        key=idempotency_key,
+        operation="customer.appointment.create.v1",
+        request={"customer_id": str(customer.id), "body": body.model_dump(mode="json")},
+        execute=_create,
+    )

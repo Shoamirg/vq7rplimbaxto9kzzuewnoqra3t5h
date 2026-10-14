@@ -1,81 +1,112 @@
-"""Lightweight Redis-backed idempotency for booking-style write operations.
+"""PostgreSQL-backed idempotency for business writes.
 
-A client sends an ``Idempotency-Key`` header; if the same key is replayed (double
-click, Telegram retry, network glitch) we return the original result instead of
-creating a duplicate. Degrades gracefully: if Redis is unavailable the operation
-proceeds without idempotency rather than failing the booking.
+The idempotency row, domain changes, and replay response share one transaction.
+If the transaction rolls back, retrying the same key can safely execute again;
+if it commits but the HTTP response is lost, retry returns the stored response.
 """
 from __future__ import annotations
 
-import logging
-from typing import Optional, Tuple
+import hashlib
+import json
+from collections.abc import Awaitable, Callable
+from typing import Any, TypeVar
 
-import redis.asyncio as redis
+from fastapi.encoders import jsonable_encoder
+from sqlalchemy import select, update
+from sqlalchemy.dialects.postgresql import insert
 
 from app.core.config import settings
+from app.exceptions import IdempotencyKeyRequired, IdempotencyKeyReuse
+from app.models.idempotency_record import IdempotencyRecord
+from app.repositories.unit_of_work import UnitOfWork
 
-logger = logging.getLogger(__name__)
-
-_PENDING = "pending"
-_TTL_SECONDS = 24 * 3600
-
-
-class IdempotencyStore:
-    def __init__(self, url: Optional[str] = None):
-        self._url = url or settings.REDIS_URL
-
-    def _client(self):
-        return redis.from_url(self._url, socket_connect_timeout=2)
-
-    async def reserve(self, key: str) -> Tuple[str, Optional[str]]:
-        """Attempt to claim ``key``.
-
-        Returns (state, value):
-          - ("new", None)          -> caller should proceed, then call store()
-          - ("done", result_id)    -> a prior request finished; replay result_id
-          - ("in_progress", None)  -> a concurrent request holds the key
-          - ("unavailable", None)  -> Redis down; proceed without idempotency
-        """
-        try:
-            client = self._client()
-            try:
-                acquired = await client.set(key, _PENDING, nx=True, ex=_TTL_SECONDS)
-                if acquired:
-                    return "new", None
-                existing = await client.get(key)
-                existing = existing.decode() if isinstance(existing, bytes) else existing
-                if existing and existing != _PENDING:
-                    return "done", existing
-                return "in_progress", None
-            finally:
-                await client.aclose()
-        except Exception as exc:  # noqa: BLE001 — never block a booking on Redis
-            logger.warning("Idempotency unavailable (%s); proceeding without it", exc)
-            return "unavailable", None
-
-    async def store(self, key: str, value: str) -> None:
-        try:
-            client = self._client()
-            try:
-                await client.set(key, value, ex=_TTL_SECONDS)
-            finally:
-                await client.aclose()
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("Idempotency write failed (%s)", exc)
-
-    async def release(self, key: str) -> None:
-        """Release a still-pending reservation so the client can retry (on error)."""
-        try:
-            client = self._client()
-            try:
-                current = await client.get(key)
-                current = current.decode() if isinstance(current, bytes) else current
-                if current == _PENDING:
-                    await client.delete(key)
-            finally:
-                await client.aclose()
-        except Exception:  # noqa: BLE001
-            pass
+T = TypeVar("T")
 
 
-idempotency_store = IdempotencyStore()
+def request_fingerprint(operation: str, request: Any) -> str:
+    """Hash a canonical JSON representation without retaining request data."""
+    encoded = jsonable_encoder(request)
+    canonical = json.dumps(
+        {"operation": operation, "request": encoded},
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+async def execute_idempotent(
+    uow: UnitOfWork,
+    *,
+    key: str | None,
+    operation: str,
+    request: Any,
+    execute: Callable[[], Awaitable[T]],
+) -> T | dict | list:
+    """Run once per tenant/key and replay the exact successful response.
+
+    Keys remain optional in local development for compatibility with internal
+    scripts. Staging and production reject missing keys, so released clients
+    cannot accidentally bypass the guarantee.
+    """
+    if key is not None:
+        key = key.strip()
+    if not key:
+        if settings.ENVIRONMENT in {"staging", "production"}:
+            raise IdempotencyKeyRequired()
+        return await execute()
+    if len(key) > 128:
+        raise IdempotencyKeyRequired("Idempotency-Key must be at most 128 characters")
+    if uow.service_center_id is None or uow.session is None:
+        raise RuntimeError("Idempotent business writes require a tenant-scoped UnitOfWork")
+
+    request_hash = request_fingerprint(operation, request)
+    stmt = (
+        insert(IdempotencyRecord)
+        .values(
+            service_center_id=uow.service_center_id,
+            key=key,
+            request_hash=request_hash,
+            response_payload=None,
+        )
+        .on_conflict_do_nothing(index_elements=[
+            IdempotencyRecord.service_center_id,
+            IdempotencyRecord.key,
+        ])
+        .returning(IdempotencyRecord.id)
+    )
+    inserted_id = (await uow.session.execute(stmt)).scalar_one_or_none()
+
+    if inserted_id is None:
+        existing = await uow.session.scalar(
+            select(IdempotencyRecord).where(
+                IdempotencyRecord.service_center_id == uow.service_center_id,
+                IdempotencyRecord.key == key,
+            )
+        )
+        if existing is None:
+            # The conflicting transaction could have rolled back while this
+            # request was waiting. Retry the claim once before rejecting it.
+            inserted_id = (await uow.session.execute(stmt)).scalar_one_or_none()
+        else:
+            if existing.request_hash != request_hash:
+                raise IdempotencyKeyReuse()
+            if existing.response_payload is None:
+                # Successful rows are finalized in the same transaction, so a
+                # committed empty response indicates corrupted/incomplete data.
+                raise IdempotencyKeyReuse(
+                    "This Idempotency-Key has no completed result; use a new key"
+                )
+            return existing.response_payload
+
+    if inserted_id is None:
+        raise IdempotencyKeyReuse("The request is still being processed; retry with the same key")
+
+    response = await execute()
+    response_payload = jsonable_encoder(response)
+    await uow.session.execute(
+        update(IdempotencyRecord)
+        .where(IdempotencyRecord.id == inserted_id)
+        .values(response_payload=response_payload)
+    )
+    return response
