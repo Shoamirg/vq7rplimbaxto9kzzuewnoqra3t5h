@@ -4,7 +4,6 @@ import '../data/api_client.dart';
 import '../data/customer_repository.dart';
 import '../design/theme.dart';
 import '../design/widgets.dart';
-import '../domain/models.dart';
 import '../l10n/l10n.dart';
 
 class CustomerBookingScreen extends StatefulWidget {

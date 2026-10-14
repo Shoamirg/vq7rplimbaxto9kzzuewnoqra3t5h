@@ -124,7 +124,7 @@ class _CustomerHistoryState extends State<CustomerHistory> {
                   context,
                   CustomerBookingScreen(repository: widget.repository),
                 );
-                if (submitted == true && mounted) {
+                if (submitted == true && mounted && context.mounted) {
                   load();
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text(context.l10n.bookingWaitingConfirmation)),

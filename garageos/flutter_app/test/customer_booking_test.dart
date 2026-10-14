@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:garageos_staff/data/api_client.dart';
 import 'package:garageos_staff/data/customer_repository.dart';
 import 'package:garageos_staff/design/theme.dart';
+import 'package:garageos_staff/domain/models.dart';
 import 'package:garageos_staff/l10n/generated/app_localizations.dart';
 import 'package:garageos_staff/ui/customer_booking.dart';
 

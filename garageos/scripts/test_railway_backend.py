@@ -110,7 +110,10 @@ class RailwayBackendTest(unittest.TestCase):
                     qa.secrets.append(encoded)
                     values['DATABASE_URL'] = values['DATABASE_URL'].replace(
                         'postgresql+asyncpg://', 'postgresql://').replace(password, encoded)
-                    values['RATE_LIMIT_ENABLED'] = 'false'
+                    # This fixture represents the production image. Keep the
+                    # auth limiter enabled so startup validates the same
+                    # secure configuration used by Railway.
+                    values['RATE_LIMIT_ENABLED'] = 'true'
                 super().write_private(path, values)
 
         recovery.OUTPUT = OUTPUT

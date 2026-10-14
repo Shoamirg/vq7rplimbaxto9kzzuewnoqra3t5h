@@ -10,7 +10,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from app.api.deps import get_tenant_uow
+from app.api.deps import get_staff_permissions, get_tenant_uow
 from app.main import app
 from app.models import Brand, Customer, ServiceCenter, Vehicle, VehicleModel
 from app.models.invoice import Invoice, InvoiceKind, InvoiceStatus
@@ -49,6 +49,15 @@ async def _api_for(session, center_id):
         yield uow
 
     app.dependency_overrides[get_tenant_uow] = tenant_uow
+
+    async def staff_permissions():
+        return [
+            "staff.read", "staff.write", "billing.read", "billing.create",
+            "billing.write", "billing.payment.record", "financial.refund",
+            "financial.invoice.void", "financial.reports.read",
+        ]
+
+    app.dependency_overrides[get_staff_permissions] = staff_permissions
     try:
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"
@@ -56,6 +65,7 @@ async def _api_for(session, center_id):
             yield client
     finally:
         app.dependency_overrides.pop(get_tenant_uow, None)
+        app.dependency_overrides.pop(get_staff_permissions, None)
 
 
 async def test_assigned_service_work_starts_and_completes_once(session):
