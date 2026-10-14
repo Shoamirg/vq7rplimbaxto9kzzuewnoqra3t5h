@@ -63,6 +63,13 @@ SPA deployment or add a catch-all redirect to `index.html`. Anonymous Drop
 deploys support static files only and cannot serve this dashboard's login/API;
 use an authenticated deployment for the completed frontend.
 
+For a local Windows CLI build, run
+`python scripts/prepare_netlify_windows.py` from `garageos` after `netlify build`
+and before `netlify deploy --prod --no-build`. OpenNext 5.16.2 generates Windows
+paths for the Lambda loader in this monorepo; the helper normalizes the generated
+loader and ZIP to the Linux paths used by Netlify and verifies the imported
+modules exist in the archive. Linux cloud builds do not need this step.
+
 Sources: [Next.js support](https://docs.netlify.com/build/frameworks/framework-setup-guides/nextjs/overview/),
 [monorepo settings](https://docs.netlify.com/build/configure-builds/monorepos/),
 [Free plan](https://www.netlify.com/blog/introducing-netlify-free-plan/).
