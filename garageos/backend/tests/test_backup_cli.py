@@ -121,6 +121,39 @@ def test_empty_dump_is_not_published(backup_cli):
     assert not list(backups.iterdir())
 
 
+def test_offhost_coordinator_can_defer_pruning_until_copy_is_verified(backup_cli):
+    run, backups, _, _ = backup_cli
+    old = backups / "garageos-20000101-000000.sql.gz"
+    old.write_bytes(gzip.compress(b"old good copy\n"))
+    os.utime(old, (time.time() - 30 * 86400,) * 2)
+    result = run(BACKUP_DEFER_PRUNE="1")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert gzip.decompress(old.read_bytes()) == b"old good copy\n"
+
+
+def test_backup_can_publish_the_exact_owned_operations_filename(backup_cli):
+    run, backups, _, _ = backup_cli
+    name = "garageos-20261014-030000-a1b2c3.sql.gz"
+    result = run(BACKUP_OUTPUT_NAME=name)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert [file.name for file in backups.iterdir()] == [name]
+    assert gzip.decompress((backups / name).read_bytes()) == b"CREATE TABLE backup_test (id integer);\n"
+    previous = (backups / name).read_bytes()
+    repeated = run(BACKUP_OUTPUT_NAME=name)
+    assert repeated.returncode != 0
+    assert (backups / name).read_bytes() == previous
+
+
+@pytest.mark.parametrize("name", ["../outside.sql.gz", "/outside.sql.gz", "other.sql.gz", "garageos-$(id).sql.gz"])
+def test_backup_rejects_unsafe_requested_filename_before_export(backup_cli, name):
+    run, backups, log, _ = backup_cli
+    result = run(BACKUP_OUTPUT_NAME=name)
+    assert result.returncode != 0
+    assert "BACKUP_OUTPUT_NAME" in result.stderr
+    assert not log.exists()
+    assert not list(backups.iterdir())
+
+
 @pytest.mark.parametrize("retention", ["0", "-1", "oops", "1.5"])
 def test_invalid_retention_fails_before_export_or_deletion(backup_cli, retention):
     run, backups, log, _ = backup_cli

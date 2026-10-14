@@ -16,6 +16,10 @@ if [[ ! "${RETENTION_DAYS}" =~ ^[1-9][0-9]*$ ]]; then
   echo "[backup] FAIL: RETENTION_DAYS must be a positive integer" >&2
   exit 1
 fi
+if [[ -n "${BACKUP_OUTPUT_NAME:-}" && ! "${BACKUP_OUTPUT_NAME}" =~ ^garageos-[[:alnum:]_-]+\.sql\.gz$ ]]; then
+  echo "[backup] FAIL: BACKUP_OUTPUT_NAME must be a GarageOS archive basename" >&2
+  exit 1
+fi
 : "${POSTGRES_USER:?Set POSTGRES_USER in ENV_FILE}"
 : "${POSTGRES_DB:?Set POSTGRES_DB in ENV_FILE}"
 COMPOSE=(docker compose -f docker-compose.prod.yml --env-file "${ENV_FILE}")
@@ -26,6 +30,13 @@ TEMP_FILE="$(mktemp "${BACKUP_DIR}/.garageos-backup.XXXXXX")"
 trap 'rm -f -- "${TEMP_FILE}"' EXIT
 # A random suffix permits multiple backups within the same second.
 OUT="${BACKUP_DIR}/garageos-${STAMP}-${TEMP_FILE##*.}.sql.gz"
+if [[ -n "${BACKUP_OUTPUT_NAME:-}" ]]; then
+  OUT="${BACKUP_DIR}/${BACKUP_OUTPUT_NAME}"
+fi
+if [[ -e "${OUT}" || -L "${OUT}" ]]; then
+  echo "[backup] FAIL: requested backup already exists; preserving it" >&2
+  exit 1
+fi
 
 echo "[backup] dumping ${POSTGRES_DB} -> ${OUT}"
 if ! "${COMPOSE[@]}" exec -T postgres pg_dump -U "${POSTGRES_USER}" "${POSTGRES_DB}" | gzip > "${TEMP_FILE}"; then
@@ -36,12 +47,15 @@ if ! gzip -t "${TEMP_FILE}" || ! gzip -cd "${TEMP_FILE}" | awk 'END { exit (NR =
   echo "[backup] FAIL: dump is empty or gzip validation failed" >&2
   exit 1
 fi
-# Same-directory rename publishes the complete archive atomically.
-mv -- "${TEMP_FILE}" "${OUT}"
+# Same-directory hard link publishes atomically and cannot overwrite a backup
+# if another run wins the name between the existence check and publication.
+ln -- "${TEMP_FILE}" "${OUT}"
+rm -f -- "${TEMP_FILE}"
 
-# Prune old backups.
-find "${BACKUP_DIR}" -maxdepth 1 -type f -name 'garageos-*.sql.gz' -mtime "+${RETENTION_DAYS}" -delete
+# A coordinated off-host run prunes only after its verified remote copy.
+if [[ "${BACKUP_DEFER_PRUNE:-0}" != 1 ]]; then
+  find "${BACKUP_DIR}" -maxdepth 1 -type f -name 'garageos-*.sql.gz' -mtime "+${RETENTION_DAYS}" -delete
+fi
 echo "[backup] done ($(du -h "${OUT}" | cut -f1)). Kept last ${RETENTION_DAYS} days."
 
-# TODO (recommended): sync ${BACKUP_DIR} to off-host object storage (S3/R2)
-#   e.g. aws s3 sync "${BACKUP_DIR}" "s3://${S3_BUCKET}/backups/"
+# production_ops.py backup adds verified off-host copying and a status receipt.
