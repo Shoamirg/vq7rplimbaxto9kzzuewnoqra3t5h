@@ -1,5 +1,5 @@
 import type { ReactNode, HTMLAttributes } from "react";
-import type { DialogProps as RadixDialogProps } from "@radix-ui/react-dialog";
+import type { DialogProps as RadixDialogProps, DialogContentProps as RadixContentProps } from "@radix-ui/react-dialog";
 
 export type DialogSize = "sm" | "md" | "lg" | "xl" | "full";
 
@@ -8,7 +8,7 @@ export interface DialogRootProps extends RadixDialogProps {
   size?: DialogSize;
 }
 
-export interface DialogContentProps extends HTMLAttributes<HTMLDivElement> {
+export interface DialogContentProps extends RadixContentProps {
   /** Hide default close X button */
   hideClose?: boolean;
   /** Size override */

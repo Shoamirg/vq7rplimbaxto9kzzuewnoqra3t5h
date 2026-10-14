@@ -15,6 +15,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from sqlalchemy import func, select
 
 from app.models import Appointment, Invoice, InvoiceLineItem, LedgerEntry, Notification, Payment, ServiceCenter
+from app.models.appointment import AppointmentStatus
 from app.models.ledger import LedgerDirection, LedgerEntryType
 from app.models.invoice import (
     InvoiceKind,
@@ -27,6 +28,7 @@ from app.models.invoice import (
 
 _NOW = datetime.now(timezone.utc)
 _CENTS = Decimal("0.01")
+_UZS_SCALE = Decimal("10000")
 
 
 def _m(v) -> Decimal:
@@ -86,6 +88,7 @@ async def generate_invoices(session, center: ServiceCenter, vehicles) -> int:
     # every seeded invoice links to a vehicle that appears on the schedule —
     # making the appointment ↔ billing loop visible on the Appointments page.
     appt_by_vehicle: dict = {}
+    completed_by_vehicle: dict = {}
     pairs: list = []
     for a in (await session.execute(
         select(Appointment).where(Appointment.service_center_id == center.id)
@@ -93,6 +96,8 @@ async def generate_invoices(session, center: ServiceCenter, vehicles) -> int:
         if a.vehicle_id not in appt_by_vehicle:
             appt_by_vehicle[a.vehicle_id] = a.id  # latest appointment per vehicle
             pairs.append((a.customer_id, a.vehicle_id))
+        if a.status == AppointmentStatus.COMPLETED and a.vehicle_id not in completed_by_vehicle:
+            completed_by_vehicle[a.vehicle_id] = a.id
     pairs = pairs[: len(_DOCS)]
     if not pairs:  # fallback if a tenant has no appointments
         pairs = [(v.customer_id, v.id) for v in (vehicles or []) if v.customer_id][: len(_DOCS)]
@@ -102,12 +107,13 @@ async def generate_invoices(session, center: ServiceCenter, vehicles) -> int:
     est_n = inv_n = 0
     created = 0
     notifs: list = []
+    linked_appointments: set = set()
 
     for i, (kind, status, title, raw_items, pays, mins, due_off) in enumerate(_DOCS):
         cust_id, veh_id = pairs[i % len(pairs)]
         base_dt = _NOW - timedelta(minutes=mins)
         tax_rate = _m(12)
-        items = [{"kind": k, "description": d, "quantity": q, "unit_price": p,
+        items = [{"kind": k, "description": d, "quantity": q, "unit_price": _m(p * _UZS_SCALE),
                   "taxable": k != LineKind.DISCOUNT} for (k, d, q, p) in raw_items]
         subtotal, discount, tax, total = _calc(items, tax_rate)
 
@@ -118,14 +124,22 @@ async def generate_invoices(session, center: ServiceCenter, vehicles) -> int:
 
         amount_paid = Decimal("0")
         for (_m2, _s, pkind, amt) in pays:
-            amount_paid += _m(amt) if amt is not None else total
+            amount_paid += _m(amt * _UZS_SCALE) if amt is not None else total
         amount_paid = min(amount_paid, total)
         balance = _m(total - amount_paid)
 
+        completed_id = completed_by_vehicle.get(veh_id) if kind == InvoiceKind.INVOICE else None
+        if completed_id in linked_appointments:
+            completed_id = None
+        if completed_id is not None:
+            linked_appointments.add(completed_id)
+
         inv = Invoice(
             service_center_id=center.id, code=code, kind=kind, status=status,
-            customer_id=cust_id, vehicle_id=veh_id, appointment_id=appt_by_vehicle.get(veh_id),
-            currency="USD", tax_rate=tax_rate,
+            customer_id=cust_id, vehicle_id=veh_id,
+            appointment_id=(completed_id if kind == InvoiceKind.INVOICE
+                            else appt_by_vehicle.get(veh_id)),
+            currency="UZS", tax_rate=tax_rate,
             subtotal=subtotal, discount_total=discount, tax_total=tax, total=total,
             amount_paid=amount_paid, balance=balance,
             issued_at=(base_dt if kind == InvoiceKind.INVOICE else None),
@@ -150,7 +164,7 @@ async def generate_invoices(session, center: ServiceCenter, vehicles) -> int:
                 entry_type=LedgerEntryType.INVOICE_ISSUED, direction=LedgerDirection.DEBIT,
                 amount=total, description=f"Invoice issued · {code}", occurred_at=base_dt))
         for order, (method, src, pkind, amt) in enumerate(pays):
-            pay_amt = _m(amt) if amt is not None else total
+            pay_amt = _m(amt * _UZS_SCALE) if amt is not None else total
             session.add(Payment(
                 service_center_id=center.id, invoice_id=inv.id, kind=pkind, method=method,
                 source=src, amount=pay_amt,
@@ -174,10 +188,10 @@ async def generate_invoices(session, center: ServiceCenter, vehicles) -> int:
             if status == InvoiceStatus.APPROVED:
                 notifs.append(_n(f"Estimate approved · {code}", None, base_dt + timedelta(minutes=30), "medium"))
         else:
-            notifs.append(_n(f"Invoice issued · {code}", f"${total}", base_dt, "medium"))
+            notifs.append(_n(f"Invoice issued · {code}", f"{total} UZS", base_dt, "medium"))
             for (method, src, pkind, amt) in pays:
-                a = _m(amt) if amt is not None else total
-                notifs.append(_n(f"Payment received · {code}", f"${a} · {method}", base_dt + timedelta(minutes=5), "medium"))
+                a = _m(amt * _UZS_SCALE) if amt is not None else total
+                notifs.append(_n(f"Payment received · {code}", f"{a} UZS · {method}", base_dt + timedelta(minutes=5), "medium"))
             if status == InvoiceStatus.PAID:
                 notifs.append(_n(f"Invoice paid · {code}", None, base_dt + timedelta(minutes=6)))
             if status == InvoiceStatus.OVERDUE:
@@ -239,7 +253,7 @@ async def generate_invoice_history(session, center: ServiceCenter, vehicles) -> 
             created_dt = ms.replace(day=rng.randint(1, monthrange(ms.year, ms.month)[1]))
             if created_dt > _NOW:
                 continue
-            labor, part_c = _m(hrs) * _m(80), _m(part)
+            labor, part_c = _m(hrs) * _m(80 * _UZS_SCALE), _m(part * _UZS_SCALE)
             subtotal = labor + part_c
             taxv = _m(subtotal * tax / 100)
             total = _m(subtotal + taxv)
@@ -258,14 +272,14 @@ async def generate_invoice_history(session, center: ServiceCenter, vehicles) -> 
                 paid_dt = min(_NOW, created_dt + timedelta(days=rng.randint(lo, hi)))
             inv = Invoice(
                 service_center_id=center.id, code=code, kind=InvoiceKind.INVOICE,
-                status=status, customer_id=cust, vehicle_id=veh, currency="USD",
+                status=status, customer_id=cust, vehicle_id=veh, currency="UZS",
                 tax_rate=tax, subtotal=subtotal, discount_total=_m(0), tax_total=taxv,
                 total=total, amount_paid=amount_paid, balance=balance, issued_at=created_dt,
                 due_date=due_date, paid_at=paid_dt, created_at=created_dt)
             session.add(inv)
             await session.flush()
             li.append(InvoiceLineItem(service_center_id=center.id, invoice_id=inv.id, kind=LineKind.LABOR,
-                                      description=name, quantity=_m(hrs), unit_price=_m(80), line_total=labor, sort_order=0))
+                                      description=name, quantity=_m(hrs), unit_price=_m(80 * _UZS_SCALE), line_total=labor, sort_order=0))
             if part > 0:
                 li.append(InvoiceLineItem(service_center_id=center.id, invoice_id=inv.id, kind=LineKind.PART,
                                           description=f"{cat} parts", quantity=_m(1), unit_price=part_c, line_total=part_c, sort_order=1))

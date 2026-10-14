@@ -15,6 +15,8 @@ import uuid
 from urllib.parse import urlencode
 
 import pytest
+import pytest_asyncio
+from sqlalchemy import delete
 
 from app.core.config import settings
 from app.core.security import create_access_token
@@ -26,6 +28,24 @@ from app.services.customer_auth_service import CustomerAuthService, TelegramNotL
 from app.services.customer_portal_service import CustomerPortalService
 
 BOT = "test-bot:portal"
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _cleanup_committed_auth_fixtures(session):
+    # Session issuance deliberately commits before success. Remove ONLY this
+    # module's owned identities, including when a test fails after issuance.
+    try:
+        yield
+    finally:
+        await session.rollback()
+        centers = session.info.get("portal_fixture_centers", [])
+        brands = session.info.get("portal_fixture_brands", [])
+        if centers:
+            await session.execute(delete(ServiceCenter).where(ServiceCenter.id.in_(centers)))
+        if brands:
+            await session.execute(delete(VehicleModel).where(VehicleModel.brand_id.in_(brands)))
+            await session.execute(delete(Brand).where(Brand.id.in_(brands)))
+        await session.commit()
 
 
 @pytest.fixture(autouse=True)
@@ -49,6 +69,7 @@ async def _tenant(session, telegram_id: int | None, *, vehicles: int = 0) -> tup
                            tagline="We fix things", email=f"pg-{uuid.uuid4().hex}@t.local")
     session.add(center)
     await session.flush()
+    session.info.setdefault("portal_fixture_centers", []).append(center.id)
     customer = Customer(service_center_id=center.id, full_name="Ahmed Khan",
                         phone=f"+1555{uuid.uuid4().int % 10_000_000:07d}",
                         telegram_id=telegram_id)
@@ -58,6 +79,7 @@ async def _tenant(session, telegram_id: int | None, *, vehicles: int = 0) -> tup
         brand = Brand(name=f"B-{uuid.uuid4().hex[:8]}")
         session.add(brand)
         await session.flush()
+        session.info.setdefault("portal_fixture_brands", []).append(brand.id)
         model = VehicleModel(brand_id=brand.id, name="M", year_start=2015)
         session.add(model)
         await session.flush()
@@ -144,6 +166,7 @@ async def _add_vehicle(session, center, customer) -> Vehicle:
     brand = Brand(name=f"B-{uuid.uuid4().hex[:8]}")
     session.add(brand)
     await session.flush()
+    session.info.setdefault("portal_fixture_brands", []).append(brand.id)
     model = VehicleModel(brand_id=brand.id, name="Land Cruiser", year_start=2015)
     session.add(model)
     await session.flush()

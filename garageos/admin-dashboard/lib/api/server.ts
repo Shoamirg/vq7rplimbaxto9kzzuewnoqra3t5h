@@ -2,6 +2,7 @@
 // token to the FastAPI backend. Importing `next/headers` keeps this server-only
 // (it throws if pulled into a Client Component).
 import { cookies } from "next/headers";
+import { createHash } from 'node:crypto';
 
 import { AUTH_COOKIE } from "./constants";
 import type {
@@ -21,6 +22,17 @@ import type {
 } from "./types";
 
 export { AUTH_COOKIE };
+
+export function accessFingerprint(token: string | null | undefined): string | null {
+  return token ? createHash('sha256').update(token).digest('hex') : null;
+}
+
+/** The cookie on this authenticated render request is immutable. Its public
+ * fingerprint binds logout to the session that actually produced these props.
+ */
+export async function renderedAuthFingerprint(): Promise<string | null> {
+  return accessFingerprint((await cookies()).get(AUTH_COOKIE)?.value);
+}
 
 export function apiBaseUrl(): string {
   // 127.0.0.1 not localhost: Node may resolve localhost to IPv6 ::1 while the
@@ -56,7 +68,8 @@ export const getStats = () => apiFetch<AppointmentStats>("/appointments/stats");
 export const getTodayAppointments = () => apiFetch<Appointment[]>("/appointments/today");
 export const getCurrentUser = () => apiFetch<CurrentUser>("/auth/me");
 
-export const getVehicles = () => apiFetch<VehicleList>("/vehicles");
+export const getVehicles = (q = "", offset = 0) =>
+  apiFetch<VehicleList>(`/vehicles?q=${encodeURIComponent(q)}&offset=${offset}&limit=50`);
 // Bounded for dashboard responsiveness (fleet health is O(N) over vehicles).
 // 120 keeps the sample large enough to be representative of a big fleet while
 // staying comfortably under the <1s dashboard budget (~0.7s at this size).
@@ -68,8 +81,8 @@ export const getVehicleIntelligence = (id: string) => apiFetch<VehicleIntelligen
 export const getCalendar = (start: string, end: string) =>
   apiFetch<CalendarPayload>(`/calendar?start=${start}&end=${end}`);
 
-export const getCustomers = (q = "") =>
-  apiFetch<CustomerList>(`/customers?q=${encodeURIComponent(q)}`);
+export const getCustomers = (q = "", offset = 0) =>
+  apiFetch<CustomerList>(`/customers?q=${encodeURIComponent(q)}&offset=${offset}&limit=50`);
 export const getCustomer360 = (id: string) => apiFetch<Customer360>(`/customers/${id}`);
 
 /** Public passport fetch — no auth cookie (the document is shareable). Returns

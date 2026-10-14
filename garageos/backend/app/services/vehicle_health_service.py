@@ -1,4 +1,4 @@
-"""Vehicle Health API service (Sprint 3 / signature feature).
+"""Vehicle maintenance and service-history API, tenant-scoped via the UnitOfWork.
 
 Composes the maintenance engine into the payloads the Vehicle Health screen and
 Fleet Health widget need — health score, category breakdown, per-service status,
@@ -15,6 +15,7 @@ from sqlalchemy import select
 
 from app.exceptions import VehicleNotFound
 from app.models.service_center import ServiceCenter
+from app.models.invoice import Invoice, InvoiceKind
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.service_record_repository import ServiceRecordRepository
 from app.repositories.unit_of_work import UnitOfWork
@@ -45,6 +46,17 @@ def _band(score: float) -> str:
     if score >= 40:
         return "fair"
     return "poor"
+
+
+def _passport_highlights(garage_name: str, services_completed: int,
+                         has_recorded_mileage: bool, urgent_count: int) -> list[dict]:
+    """Describe only maintenance facts that the stored service data supports."""
+    return [
+        {"label": "Service records available", "ok": services_completed > 0},
+        {"label": "No tracked high-priority services overdue", "ok": urgent_count == 0},
+        {"label": "Mileage recorded in service history", "ok": has_recorded_mileage},
+        {"label": f"Service records from {garage_name}", "ok": True},
+    ]
 
 
 def _category_for(service_type: str) -> str:
@@ -85,7 +97,12 @@ def _vehicle_label(vehicle) -> str:
     brand = vm.brand.name if vm and getattr(vm, "brand", None) else ""
     model = vm.name if vm else ""
     plate = vehicle.license_plate or ""
-    label = f"{brand} {model}".strip()
+    return format_vehicle_label(brand, model, plate)
+
+
+def format_vehicle_label(brand: str | None, model: str | None, plate: str | None) -> str:
+    """The same catalog label for scalar list projections and full vehicle reads."""
+    label = f"{brand or ''} {model or ''}".strip()
     return f"{label} ({plate})" if plate else label
 
 
@@ -125,9 +142,9 @@ class VehicleHealthService:
             raise VehicleNotFound(vehicle_id)
         await self.uow.flush()
 
-    async def list_vehicles(self, limit: int = 200) -> dict:
+    async def list_vehicles(self, limit: int = 200, query: str = "", offset: int = 0) -> dict:
         """Lightweight vehicle list for navigation (no per-vehicle health calc)."""
-        vehicles = await self.vehicle_repo.list_active(limit=limit)
+        vehicles, total = await self.vehicle_repo.page_active(query.strip(), limit, offset)
         return {
             "items": [
                 {
@@ -142,6 +159,8 @@ class VehicleHealthService:
                 for v in vehicles
             ],
             "count": len(vehicles),
+            "total": total, "limit": limit, "offset": offset,
+            "has_more": offset + len(vehicles) < total,
         }
 
     async def _vehicle_or_404(self, vehicle_id: uuid.UUID):
@@ -191,16 +210,19 @@ class VehicleHealthService:
         await self._vehicle_or_404(vehicle_id)
         records = await self.service_record_repo.find_by_vehicle(vehicle_id)
         appointments = await self.appointment_repo.find_by_vehicle(vehicle_id)
+        invoices = await self._record_invoices(vehicle_id)
 
         events: List[dict] = []
         for r in records:
+            invoice = invoices.get(r.appointment_id)
             events.append({
                 "type": "service",
                 "title": r.service_type,
                 "date": r.performed_date.isoformat(),
                 "detail": r.description,
                 "km": r.performed_km,
-                "cost": r.cost,
+                "cost": invoice["total"] if invoice else r.cost,
+                "currency": invoice["currency"] if invoice else "USD",
                 "id": str(r.id),
             })
         for a in appointments:
@@ -212,7 +234,7 @@ class VehicleHealthService:
                 "id": str(a.id),
             })
         # Project the event stream onto this vehicle's timeline (one stream,
-        # another view) — e.g. passport certified, maintenance-due events.
+        # another view) — e.g. service-record availability, maintenance-due events.
         from app.services.notification_service import NotificationService
         events += await NotificationService(self.uow).timeline_for(vehicle_id=vehicle_id)
         events.sort(key=lambda e: e["date"], reverse=True)
@@ -274,19 +296,39 @@ class VehicleHealthService:
         )
         return result.scalar_one_or_none()
 
+    async def _record_invoices(self, vehicle_id: uuid.UUID) -> dict:
+        """A linked final invoice supplies both service charge and currency.
+
+        Unlinked history follows the original USD contract. Never revalue an
+        old record into UZS just because the local demo now uses UZS.
+        """
+        return {appointment_id: {"currency": currency, "total": float(total)} for appointment_id, currency, total in (await self.uow.session.execute(
+            select(Invoice.appointment_id, Invoice.currency, Invoice.total).where(
+                Invoice.service_center_id == self.uow.service_center_id,
+                Invoice.vehicle_id == vehicle_id, Invoice.kind == InvoiceKind.INVOICE,
+                Invoice.is_active.is_(True), Invoice.appointment_id.isnot(None),
+            ))).all()}
+
     async def get_passport(self, vehicle_id: uuid.UUID) -> dict:
-        """Compose the full Certified Vehicle Passport payload (the signature
-        shareable document). Reuses the health report + timeline and adds
+        """Compose a shareable vehicle service record. Reuses the health report
+        and adds
         vitals, maintenance compliance, highlights, and garage branding.
         """
         vehicle = await self._vehicle_or_404(vehicle_id)
         report = await self.maintenance.calculate_due_services(vehicle_id)
         records = await self.service_record_repo.find_by_vehicle(vehicle_id)
         center = await self._service_center()
+        invoices = await self._record_invoices(vehicle_id)
 
         # Vitals from the service-record history.
         services_completed = len(records)
-        total_spent = round(sum(r.cost or 0 for r in records), 2)
+        total_spent_by_currency: dict[str, float] = {}
+        for record in records:
+            invoice = invoices.get(record.appointment_id)
+            currency = invoice["currency"] if invoice else "USD"
+            amount = invoice["total"] if invoice else (record.cost or 0)
+            total_spent_by_currency[currency] = round(total_spent_by_currency.get(currency, 0) + amount, 2)
+        total_spent = total_spent_by_currency.get("USD", 0)
         last_service = max((r.performed_date for r in records), default=None)
 
         # Maintenance compliance: share of scheduled items currently on-track.
@@ -323,7 +365,8 @@ class VehicleHealthService:
                 "service_type": r.service_type,
                 "date": r.performed_date.isoformat(),
                 "km": r.performed_km,
-                "cost": r.cost,
+                "cost": invoices[r.appointment_id]["total"] if r.appointment_id in invoices else r.cost,
+                "currency": invoices[r.appointment_id]["currency"] if r.appointment_id in invoices else "USD",
             }
             for r in sorted(records, key=lambda r: r.performed_date, reverse=True)[:4]
         ]
@@ -332,13 +375,10 @@ class VehicleHealthService:
         ownership_years = max(0, _CURRENT_YEAR - (vehicle.year or _CURRENT_YEAR))
         garage_name = center.name if center else "GarageOS"
 
-        # Honest, data-derived highlights.
-        highlights = [
-            {"label": "Full service history", "ok": compliance >= 80 or services_completed >= 4},
-            {"label": "No critical maintenance overdue", "ok": report.urgent_count == 0},
-            {"label": "Consistent, verified mileage", "ok": True},
-            {"label": f"Certified by {garage_name}", "ok": True},
-        ]
+        highlights = _passport_highlights(
+            garage_name, services_completed,
+            any(r.performed_km is not None for r in records), report.urgent_count,
+        )
 
         return {
             "code": _passport_code(garage_name, vehicle.id),
@@ -358,6 +398,7 @@ class VehicleHealthService:
                 "services_completed": services_completed,
                 "overdue_items": report.urgent_count,
                 "total_spent": total_spent,
+                "total_spent_by_currency": total_spent_by_currency,
                 "ownership_years": ownership_years,
                 "last_service": last_service.isoformat() if last_service else None,
             },

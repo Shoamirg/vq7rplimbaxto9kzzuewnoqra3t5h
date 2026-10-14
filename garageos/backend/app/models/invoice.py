@@ -15,7 +15,7 @@ events via the existing notification engine — no separate timeline table.
 import uuid
 from decimal import Decimal
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Integer, Numeric, String, Text, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -84,6 +84,13 @@ class PaymentSource:
 
 class Invoice(BaseModelMixin, ServiceCenterMixin, Base):
     __tablename__ = "invoices"
+    __table_args__ = (
+        Index(
+            "uq_invoices_final_appointment", "service_center_id", "appointment_id",
+            unique=True,
+            postgresql_where=text("kind = 'invoice' AND appointment_id IS NOT NULL AND is_active = true"),
+        ),
+    )
 
     code: Mapped[str] = mapped_column(String(24), nullable=False, index=True)  # EST-/INV-YYYY-NNNNNN
     kind: Mapped[str] = mapped_column(String(16), nullable=False, default=InvoiceKind.INVOICE, index=True)
@@ -160,6 +167,10 @@ class InvoiceLineItem(BaseModelMixin, ServiceCenterMixin, Base):
 
 class Payment(BaseModelMixin, ServiceCenterMixin, Base):
     __tablename__ = "invoice_payments"
+    __table_args__ = (
+        Index("uq_invoice_payments_idempotency", "service_center_id", "invoice_id",
+              "idempotency_key", unique=True),
+    )
 
     invoice_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -168,6 +179,7 @@ class Payment(BaseModelMixin, ServiceCenterMixin, Base):
     source: Mapped[str] = mapped_column(String(16), nullable=False, default=PaymentSource.MANUAL)
     amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=Decimal("0"))
     reference: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    idempotency_key: Mapped[str | None] = mapped_column(String(36), nullable=True)
     received_at: Mapped["DateTime"] = mapped_column(DateTime(timezone=True), nullable=False)
     note: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(

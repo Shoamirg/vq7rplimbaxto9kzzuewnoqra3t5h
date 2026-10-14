@@ -24,13 +24,13 @@ async def list_notifications(
 @router.post("/{notification_id}/read", summary="Mark a notification read")
 async def mark_read(
     notification_id: uuid.UUID,
-    uow: UnitOfWork = Depends(get_tenant_uow),
+    uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
 ) -> dict:
     await NotificationService(uow).mark_read(notification_id)
     return {"ok": True}
 
 
 @router.post("/read-all", summary="Mark all notifications read")
-async def mark_all_read(uow: UnitOfWork = Depends(get_tenant_uow)) -> dict:
+async def mark_all_read(uow: UnitOfWork = Depends(get_tenant_uow, scope="function")) -> dict:
     await NotificationService(uow).mark_all_read()
     return {"ok": True}

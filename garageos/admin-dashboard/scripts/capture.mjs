@@ -62,7 +62,7 @@ async function main() {
     }
     if (best) {
       shots.push({ name: "vehicle-health", path: `/vehicles/${best.id}` });
-      // The Certified Vehicle Passport for the same hero (public route).
+      // The shareable vehicle service record for the same hero (public route).
       shots.push({ name: "passport", path: `/passport/${best.id}` });
     }
   } catch {

@@ -1,0 +1,10 @@
+[Unit]
+Description=GarageOS periodic private readiness check
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=5min
+Unit=garageos-monitor.service
+
+[Install]
+WantedBy=timers.target

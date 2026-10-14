@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Check, Eye } from "lucide-react";
+import { Check, Eye } from "lucide-react";
 
 import { Logo } from "@/components/brand/logo";
+import { DemoEntryButton } from '@/components/auth/demo-entry-button';
 import "@/components/marketing/marketing.css";
 
 export const metadata: Metadata = {
@@ -17,8 +18,7 @@ const HIGHLIGHTS = [
   "The Telegram customer app",
 ];
 
-// Public interstitial before entering the read-only demo. The button links to the
-// /api/demo route handler, which logs into the demo tenant and redirects to the app.
+// The client button coordinates demo identity with login/logout in other tabs.
 export default function DemoEntryPage() {
   return (
     <div className="mkt" style={{ minHeight: "100dvh", display: "grid", placeItems: "center", padding: "40px 20px" }}>
@@ -45,9 +45,7 @@ export default function DemoEntryPage() {
         </ul>
 
         <div className="mkt-hero__cta" style={{ marginTop: 32 }}>
-          <a href="/api/demo" className="mkt-btn mkt-btn--primary mkt-btn--lg">
-            Enter the live demo <ArrowRight size={17} />
-          </a>
+          <DemoEntryButton />
         </div>
         <p className="mkt-hero__trust" style={{ marginTop: 18 }}>
           Read-only · the data stays pristine for the next visitor ·{" "}

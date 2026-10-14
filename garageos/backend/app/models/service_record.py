@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import DateTime, Integer, String, ForeignKey, Text
+from sqlalchemy import DateTime, Integer, String, ForeignKey, Index, Text, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
@@ -8,6 +8,12 @@ from app.models.base import BaseModelMixin, ServiceCenterMixin
 
 class ServiceRecord(BaseModelMixin, ServiceCenterMixin, Base):
     __tablename__ = "service_records"
+    __table_args__ = (
+        Index(
+            "uq_service_records_appointment", "appointment_id", unique=True,
+            postgresql_where=text("appointment_id IS NOT NULL"),
+        ),
+    )
 
     vehicle_id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True),

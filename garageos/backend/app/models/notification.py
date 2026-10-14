@@ -7,7 +7,7 @@ and later for Telegram / email / push / audit — one event stream, many views.
 """
 import uuid
 
-from sqlalchemy import Boolean, ForeignKey, String, Text
+from sqlalchemy import Boolean, ForeignKey, String, Text, false, true
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -17,11 +17,14 @@ from app.models.base import BaseModelMixin, ServiceCenterMixin
 
 class Notification(BaseModelMixin, ServiceCenterMixin, Base):
     __tablename__ = "notifications"
+    # Existing migrations use the primary-key index and these server defaults.
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=true())
 
     # e.g. appointment | vehicle | customer | passport | emergency | finance | system
     category: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     # critical | high | medium | low | info
-    severity: Mapped[str] = mapped_column(String(16), nullable=False, default="info")
+    severity: Mapped[str] = mapped_column(String(16), nullable=False, default="info", server_default="info")
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     body: Mapped[str | None] = mapped_column(Text, nullable=True)
 
@@ -35,4 +38,4 @@ class Notification(BaseModelMixin, ServiceCenterMixin, Base):
     vehicle_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
     customer_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
 
-    is_read: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
+    is_read: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=false(), index=True)

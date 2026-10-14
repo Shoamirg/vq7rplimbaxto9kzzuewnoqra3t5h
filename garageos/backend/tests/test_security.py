@@ -20,7 +20,7 @@ from app.core.database import async_session_factory, engine
 from app.main import app
 from app.models.audit_log import AuditLog
 
-PRIMARY_ADMIN = ("admin@demo.garageos.app", "demo1234")
+PRIMARY_ADMIN = ("admin@demo.garageos.app", "parol12345")
 BOGUS_EMAIL = "attacker-test@example.com"
 
 

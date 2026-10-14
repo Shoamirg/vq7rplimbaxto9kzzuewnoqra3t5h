@@ -14,7 +14,7 @@ billing question — all the same model. The Inbox is the home of work.
 """
 import uuid
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, DateTime, ForeignKey, Integer, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -80,6 +80,14 @@ class AttachmentKind:
 
 class Conversation(BaseModelMixin, ServiceCenterMixin, Base):
     __tablename__ = "conversations"
+    __table_args__ = (
+        CheckConstraint("message_generation >= acknowledged_message_generation AND acknowledged_message_generation >= 0 "
+                        "AND unread_messages = message_generation - acknowledged_message_generation",
+                        name="ck_conversation_message_generation"),
+        CheckConstraint("activity_generation >= acknowledged_activity_generation AND acknowledged_activity_generation >= 0 "
+                        "AND unread_activity = activity_generation - acknowledged_activity_generation",
+                        name="ck_conversation_activity_generation"),
+    )
 
     subject: Mapped[str | None] = mapped_column(String(200), nullable=True)
     conv_type: Mapped[str] = mapped_column(String(24), nullable=False, default=ConvType.GENERAL, index=True)
@@ -100,6 +108,11 @@ class Conversation(BaseModelMixin, ServiceCenterMixin, Base):
     # mechanic being assigned — so they're counted separately.
     unread_messages: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     unread_activity: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Shared observed-read boundaries; these are not individual read receipts.
+    message_generation: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0, server_default=text("0"))
+    activity_generation: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0, server_default=text("0"))
+    acknowledged_message_generation: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0, server_default=text("0"))
+    acknowledged_activity_generation: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0, server_default=text("0"))
 
     # AI summary chip. Stored with version + timestamp so it can be regenerated
     # when the thread materially changes rather than lingering stale forever.

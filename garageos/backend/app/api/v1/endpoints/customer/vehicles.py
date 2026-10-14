@@ -1,4 +1,4 @@
-"""Customer vehicles — cards, plus the Certified Passport / health / timeline.
+"""Customer vehicles — cards, service records, health summaries, and timeline.
 
 Every detail route is ownership-guarded in the service: a vehicle id belonging
 to another customer returns 404, never leaking its existence.
@@ -30,7 +30,7 @@ async def list_vehicles(
     return await _portal(customer, uow).vehicles()
 
 
-@router.get("/{vehicle_id}/passport", summary="Certified Vehicle Passport")
+@router.get("/{vehicle_id}/passport", summary="Vehicle service record")
 async def passport(
     vehicle_id: uuid.UUID,
     customer: Customer = Depends(get_current_customer),

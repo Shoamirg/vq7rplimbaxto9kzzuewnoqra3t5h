@@ -1,6 +1,6 @@
 """Public, unauthenticated endpoints.
 
-The Certified Vehicle Passport is designed to be shared — scanned from a QR on
+The vehicle service record is designed to be shared — scanned from a QR on
 a printed document, forwarded to a buyer, etc. So this endpoint is deliberately
 public: it looks the vehicle up globally (cross-tenant) by its unguessable UUID,
 then composes the passport within that vehicle's own tenant scope.
@@ -25,7 +25,7 @@ from app.services.vehicle_health_service import VehicleHealthService
 router = APIRouter()
 
 
-@router.get("/passport/{vehicle_id}", summary="Certified Vehicle Passport (public, no auth)")
+@router.get("/passport/{vehicle_id}", summary="Vehicle service record (public, no auth)")
 async def public_passport(
     vehicle_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),

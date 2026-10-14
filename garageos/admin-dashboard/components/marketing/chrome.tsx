@@ -24,13 +24,16 @@ export function MarketingNav() {
   return (
     <header className="mkt-nav">
       <div className="mkt-shell mkt-nav__row">
-        <Link href="/" aria-label="GarageOS home"><Logo theme="dark" size={24} /></Link>
+        <Link href="/" aria-label="GarageOS home" className="mkt-nav__brand"><Logo theme="dark" size={24} className="mkt-nav__logo" /></Link>
         <nav className="mkt-nav__links" aria-label="Primary">
           {NAV_LINKS.map((l) => (<a key={l.href} href={l.href}>{l.label}</a>))}
         </nav>
         <div className="mkt-nav__cta">
           <a href={SIGN_IN_HREF} className="mkt-nav__signin">Sign in</a>
-          <a href={DEMO_HREF} className="mkt-btn mkt-btn--primary">Book a demo</a>
+          <a href={DEMO_HREF} className="mkt-btn mkt-btn--primary" aria-label="Book a demo">
+            <span className="mkt-nav__cta-label">Book a demo</span>
+            <span className="mkt-nav__cta-label--compact" aria-hidden="true">Demo</span>
+          </a>
         </div>
       </div>
     </header>

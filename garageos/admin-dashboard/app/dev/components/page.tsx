@@ -13,7 +13,7 @@ export default function ComponentsPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation tabs */}
-      <div className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-sm">
+      <div className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xs">
         <div className="flex items-center gap-1 p-2 max-w-6xl mx-auto overflow-x-auto">
           {sections.map((section) => (
             <a

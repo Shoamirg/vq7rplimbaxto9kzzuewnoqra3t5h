@@ -35,7 +35,7 @@ router = APIRouter()
 async def request_roadside(
     body: RoadsideRequest,
     customer: Customer = Depends(get_current_customer),
-    uow: UnitOfWork = Depends(get_customer_uow),
+    uow: UnitOfWork = Depends(get_customer_uow, scope="function"),
 ) -> RoadsideCase:
     return await CustomerPortalService(uow, customer).create_roadside(body)
 
@@ -45,7 +45,7 @@ async def add_attachment(
     case_id: uuid.UUID,
     body: RoadsideAttachmentRequest,
     customer: Customer = Depends(get_current_customer),
-    uow: UnitOfWork = Depends(get_customer_uow),
+    uow: UnitOfWork = Depends(get_customer_uow, scope="function"),
 ) -> RoadsideCase:
     return await CustomerPortalService(uow, customer).add_roadside_attachment(case_id, body)
 

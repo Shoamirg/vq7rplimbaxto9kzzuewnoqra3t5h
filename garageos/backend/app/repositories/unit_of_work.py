@@ -1,7 +1,7 @@
 from __future__ import annotations
 import logging
 import uuid
-from typing import List, Optional
+from typing import Awaitable, Callable, List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import async_session_factory
@@ -29,6 +29,7 @@ class UnitOfWork:
         self.session: AsyncSession | None = None
         self.service_center_id = service_center_id
         self._events: List[DomainEvent] = []
+        self._before_commit: list[Callable[[], Awaitable[None]]] = []
         # Repositories will be lazy-initialized once session is available
         self._repos = {}
 
@@ -37,11 +38,14 @@ class UnitOfWork:
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
-        if exc_type is not None:
-            await self.rollback()
-            return
         try:
-            await self.commit()
+            if exc_type is not None:
+                await self.rollback()
+            elif self.session and self.session.in_transaction():
+                # A completed booking can commit before publishing its cache
+                # result. Avoid another empty commit on exit; a later query or
+                # write starts a new transaction and is still finalized here.
+                await self.commit()
         except Exception:
             await self.rollback()
             raise
@@ -56,7 +60,10 @@ class UnitOfWork:
 
     async def commit(self) -> None:
         if self.session:
+            for guard in self._before_commit:
+                await guard()
             await self.session.commit()
+            self._before_commit.clear()
             # Publish all collected events after successful commit
             for event in self._events:
                 try:
@@ -69,6 +76,11 @@ class UnitOfWork:
         if self.session:
             await self.session.rollback()
         self._events.clear()
+        self._before_commit.clear()
+
+    def before_commit(self, guard: Callable[[], Awaitable[None]]) -> None:
+        """Pin current policy in this transaction before any success/event."""
+        self._before_commit.append(guard)
 
     def add_event(self, event: DomainEvent) -> None:
         """Register a domain event to be published after commit."""

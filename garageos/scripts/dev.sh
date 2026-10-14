@@ -5,7 +5,7 @@
 #   BACKEND_PORT=8001 bash scripts/dev.sh  # if :8000 is taken by another project
 #
 # Then open http://localhost:3000 and sign in:
-#   admin@demo.garageos.app / demo1234
+#   admin@demo.garageos.app / parol12345
 #
 set -euo pipefail
 
@@ -39,6 +39,6 @@ FE=$!
 trap 'kill $BE $FE 2>/dev/null || true' INT TERM EXIT
 
 echo ""
-echo ">> Open  http://localhost:${FRONTEND_PORT}   (admin@demo.garageos.app / demo1234)"
+echo ">> Open  http://localhost:${FRONTEND_PORT}   (admin@demo.garageos.app / parol12345)"
 echo ">> Ctrl+C to stop both."
 wait

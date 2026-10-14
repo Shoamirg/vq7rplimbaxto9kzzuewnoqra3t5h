@@ -32,7 +32,7 @@ export const DropdownMenuContent = forwardRef<
       align={align}
       sideOffset={sideOffset}
       className={cn(
-        "z-50 min-w-[--min-width] overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-lg",
+        "z-50 min-w-(--min-width) overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-lg",
         "data-[state=open]:animate-in data-[state=closed]:animate-out",
         "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
         "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
@@ -61,8 +61,8 @@ export const DropdownMenuItem = forwardRef<
     ref={ref}
     disabled={disabled}
     className={cn(
-      "relative flex cursor-default select-none items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none transition-colors",
-      "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      "relative flex cursor-default select-none items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-hidden transition-colors",
+      "data-disabled:pointer-events-none data-disabled:opacity-50",
       destructive
         ? "text-danger focus:bg-danger/10 focus:text-danger"
         : "text-foreground focus:bg-muted focus:text-foreground",
@@ -87,8 +87,8 @@ export const DropdownMenuCheckboxItem = forwardRef<
   <DropdownMenuPrimitive.CheckboxItem
     ref={ref}
     className={cn(
-      "relative flex cursor-default select-none items-center gap-2 rounded-md py-1.5 pl-8 pr-2 text-sm outline-none transition-colors",
-      "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      "relative flex cursor-default select-none items-center gap-2 rounded-md py-1.5 pl-8 pr-2 text-sm outline-hidden transition-colors",
+      "data-disabled:pointer-events-none data-disabled:opacity-50",
       "text-foreground focus:bg-muted focus:text-foreground",
       className
     )}
@@ -113,8 +113,8 @@ export const DropdownMenuRadioItem = forwardRef<
   <DropdownMenuPrimitive.RadioItem
     ref={ref}
     className={cn(
-      "relative flex cursor-default select-none items-center gap-2 rounded-md py-1.5 pl-8 pr-2 text-sm outline-none transition-colors",
-      "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      "relative flex cursor-default select-none items-center gap-2 rounded-md py-1.5 pl-8 pr-2 text-sm outline-hidden transition-colors",
+      "data-disabled:pointer-events-none data-disabled:opacity-50",
       "text-foreground focus:bg-muted focus:text-foreground",
       className
     )}

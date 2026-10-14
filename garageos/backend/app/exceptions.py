@@ -69,11 +69,22 @@ class UserNotFound(NotFoundError):
     detail = "User not found"
 
 
+class StaffEmailUnavailable(ConflictError):
+    code = "STAFF_EMAIL_UNAVAILABLE"
+    detail = "Login email is unavailable"
+
+
+class StaffRoleUnavailable(ValidationError):
+    code = "STAFF_ROLE_UNAVAILABLE"
+    detail = "Selected employee role is unavailable"
+
+
 class BrandNotFound(NotFoundError):
     detail = "Brand not found"
 
 
 class AppointmentConflict(ConflictError):
+    code = "APPOINTMENT_CONFLICT"
     detail = "Time slot is already booked"
 
 

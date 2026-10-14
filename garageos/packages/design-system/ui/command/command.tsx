@@ -158,7 +158,7 @@ export function CommandPalette({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={placeholder}
-                className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/60"
+                className="flex-1 bg-transparent text-sm text-foreground outline-hidden placeholder:text-muted-foreground/60"
                 aria-label="Search commands"
               />
               <kbd className="hidden sm:inline-flex items-center gap-1 rounded-md border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
@@ -218,9 +218,9 @@ export const CommandItem = forwardRef<HTMLDivElement, CommandItemProps>(
       <div
         ref={ref}
         className={cn(
-          "relative flex cursor-default select-none items-center gap-2 rounded-md px-2 py-2 text-sm outline-none transition-colors",
+          "relative flex cursor-default select-none items-center gap-2 rounded-md px-2 py-2 text-sm outline-hidden transition-colors",
           "aria-selected:bg-muted aria-selected:text-foreground",
-          "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+          "data-disabled:pointer-events-none data-disabled:opacity-50",
           disabled && "pointer-events-none opacity-50",
           isSelected ? "bg-muted text-foreground" : "text-muted-foreground",
           className

@@ -24,7 +24,7 @@ export function LanguageSwitcher() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          className="flex items-center gap-1.5 px-2 py-2 rounded-lg hover:bg-muted transition-colors"
+          className="flex items-center gap-1.5 min-h-11 min-w-11 justify-center px-2 py-2 rounded-lg hover:bg-muted transition-colors"
           aria-label={t("menu.language")}
         >
           <Languages className="size-4 text-muted-foreground" />

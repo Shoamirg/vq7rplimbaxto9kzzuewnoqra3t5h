@@ -3,10 +3,11 @@ import uuid
 from datetime import datetime, timezone
 from typing import List, Optional, Sequence
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select, text
 from sqlalchemy.orm import selectinload
 
 from app.models.appointment import Appointment
+from app.models.invoice import Invoice, InvoiceKind
 from app.models.service_record import ServiceRecord
 from app.models.vehicle import Vehicle
 from app.models.vehicle_model import VehicleModel
@@ -15,7 +16,7 @@ from app.repositories.vehicle_repository import VehicleRepository
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.service_record_repository import ServiceRecordRepository
 from app.repositories.unit_of_work import UnitOfWork
-from app.exceptions import CustomerNotFound
+from app.exceptions import CustomerNotFound, ConflictError
 from app.services.maintenance_service import MaintenanceService
 from app.services.vehicle_health_service import _band, _passport_code, _vehicle_label
 
@@ -32,6 +33,11 @@ def _tier(lifetime_value: float) -> dict:
 
 def _as_utc(dt: datetime) -> datetime:
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+class CustomerPhoneConflict(ConflictError):
+    code = "DUPLICATE_CUSTOMER_PHONE"
+    detail = "A customer with this phone already exists"
 
 
 class CustomerService:
@@ -54,7 +60,22 @@ class CustomerService:
         ok = await self.customer_repo.delete(customer_id)
         if not ok:
             raise CustomerNotFound()
+        from app.services.auth_session_service import AuthSessionService
+        await AuthSessionService(self.session).revoke_principal("customer", customer_id)
         await self.uow.flush()
+
+    async def register_customer(self, data) -> dict:
+        digits = "".join(c for c in data.phone if c.isdigit())
+        # Serialize identical phone registrations within this tenant, including
+        # simultaneous button clicks, without blocking other service centers.
+        await self.session.execute(text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
+                                   {"key": f"customer:{self.sc}:{digits}"})
+        if await self.customer_repo.find_by_normalized_phone(digits):
+            raise CustomerPhoneConflict()
+        customer = await self.customer_repo.create(**data.model_dump(), loyalty_points=0)
+        return {"id": str(customer.id), "full_name": customer.full_name,
+                "phone": customer.phone, "email": customer.email, "vehicle_count": 0,
+                "lifetime_value": 0, "tier": "Standard", "last_visit": None}
 
     async def create_customer(
         self,
@@ -235,9 +256,9 @@ class CustomerService:
         }
 
     # ── Customer 360 ──────────────────────────────────────────
-    async def list_360(self, query: str = "", limit: int = 50) -> dict:
-        """List customers with the summary the CRM list needs (value-sorted)."""
-        customers = await self.customer_repo.search(query or "", limit=limit)
+    async def list_360(self, query: str = "", limit: int = 50, offset: int = 0) -> dict:
+        """List searchable customer summaries in stable alphabetical pages."""
+        customers, total = await self.customer_repo.search_page(query.strip(), limit, offset)
         ids = [c.id for c in customers]
         spend = await self._spend_by_customer(ids)
         counts = await self._vehicle_counts(ids)
@@ -249,14 +270,15 @@ class CustomerService:
                 "phone": c.phone,
                 "email": c.email,
                 "vehicle_count": counts.get(c.id, 0),
-                "lifetime_value": round(spend.get(c.id, 0.0), 2),
-                "tier": _tier(spend.get(c.id, 0.0))["label"],
+                "lifetime_value": round(spend.get(c.id, {}).get("USD", 0.0), 2),
+                "lifetime_value_by_currency": spend.get(c.id, {}),
+                "tier": _tier(spend.get(c.id, {}).get("USD", 0.0))["label"],
                 "last_visit": last.get(c.id).isoformat() if last.get(c.id) else None,
             }
             for c in customers
         ]
-        items.sort(key=lambda x: x["lifetime_value"], reverse=True)
-        return {"items": items, "count": len(items)}
+        return {"items": items, "count": len(items), "total": total,
+                "offset": offset, "limit": limit, "has_more": offset + len(items) < total}
 
     async def get_360(self, customer_id: uuid.UUID) -> dict:
         """The command center for one customer."""
@@ -286,7 +308,14 @@ class CustomerService:
 
         appointments = await self.appointment_repo.find_by_customer(customer_id)
         records = await self.service_record_repo.find_by_customer(customer_id)
-        lifetime_value = round(sum(r.cost or 0 for r in records), 2)
+        spend = await self._spend_by_customer([customer_id])
+        lifetime_by_currency = spend.get(customer_id, {})
+        lifetime_value = lifetime_by_currency.get("USD", 0.0)
+        invoice_data = {appointment_id: {"currency": currency, "total": float(total)} for appointment_id, currency, total in (await self.session.execute(
+            select(Invoice.appointment_id, Invoice.currency, Invoice.total).where(
+                Invoice.service_center_id == self.sc, Invoice.customer_id == customer_id,
+                Invoice.kind == InvoiceKind.INVOICE, Invoice.is_active.is_(True),
+                Invoice.appointment_id.isnot(None)))).all()}
 
         now = datetime.now(timezone.utc)
         future = [a for a in appointments
@@ -303,7 +332,7 @@ class CustomerService:
         # Merge the event stream (bell notifications) into this customer's
         # timeline — one stream, another view.
         from app.services.notification_service import NotificationService
-        timeline = self._build_timeline(records, appointments)
+        timeline = self._build_timeline(records, appointments, invoice_data)
         timeline += await NotificationService(self.uow).timeline_for(customer_id=customer_id)
         timeline.sort(key=lambda e: e["date"], reverse=True)
         timeline = timeline[:40]
@@ -320,21 +349,24 @@ class CustomerService:
             "address": customer.address,
             "since": customer.created_at.isoformat() if customer.created_at else None,
             "has_telegram": customer.telegram_id is not None,
+            "telegram_username": customer.telegram_username,
             "loyalty_points": customer.loyalty_points or 0,
             "tier": _tier(lifetime_value),
             "stats": {
                 "vehicle_count": len(vehicles),
                 "lifetime_value": lifetime_value,
+                "lifetime_value_by_currency": lifetime_by_currency,
                 "health_avg": health_avg,
                 "health_band": _band(health_avg),
                 "outstanding": financial["outstanding"],
+                "outstanding_by_currency": {currency: totals["outstanding"] for currency, totals in financial["by_currency"].items()},
                 "emergency_count": 0,       # emergency module not built yet
                 "last_visit": last_visit.isoformat() if last_visit else None,
                 "next_booking": next_booking.appointment_date.isoformat() if next_booking else None,
             },
             "financial": financial,
             "vehicles": vehicle_out,
-            "appointments": [self._serialize_appt(a) for a in
+            "appointments": [self._serialize_appt(a, invoice_data.get(a.id)) for a in
                              sorted(appointments, key=lambda a: a.appointment_date, reverse=True)[:12]],
             "timeline": timeline,
             "ai_summary": self._ai_summary(customer, vehicle_out, records, lifetime_value, next_booking),
@@ -359,13 +391,22 @@ class CustomerService:
     async def _spend_by_customer(self, ids: Sequence[uuid.UUID]) -> dict:
         if not ids:
             return {}
+        currency = func.coalesce(Invoice.currency, "USD")
+        # A linked invoice's amount and currency travel together. Applying its
+        # currency to an older bare service cost would silently relabel money.
+        amount = case((Invoice.id.isnot(None), Invoice.total), else_=ServiceRecord.cost)
         stmt = (
-            select(Vehicle.customer_id, func.coalesce(func.sum(ServiceRecord.cost), 0))
+            select(Vehicle.customer_id, currency, func.coalesce(func.sum(amount), 0))
             .join(ServiceRecord, ServiceRecord.vehicle_id == Vehicle.id)
+            .outerjoin(Invoice, (Invoice.appointment_id == ServiceRecord.appointment_id)
+                       & (Invoice.kind == InvoiceKind.INVOICE) & Invoice.is_active.is_(True))
             .where(Vehicle.customer_id.in_(ids), Vehicle.service_center_id == self.sc)
-            .group_by(Vehicle.customer_id)
+            .group_by(Vehicle.customer_id, currency)
         )
-        return {cid: float(total) for cid, total in (await self.session.execute(stmt)).all()}
+        out: dict = {}
+        for cid, currency, total in (await self.session.execute(stmt)).all():
+            out.setdefault(cid, {})[currency] = round(float(total), 2)
+        return out
 
     async def _vehicle_counts(self, ids: Sequence[uuid.UUID]) -> dict:
         if not ids:
@@ -390,7 +431,7 @@ class CustomerService:
         )
         return {cid: dt for cid, dt in (await self.session.execute(stmt)).all()}
 
-    def _serialize_appt(self, a: Appointment) -> dict:
+    def _serialize_appt(self, a: Appointment, invoice: dict | None = None) -> dict:
         return {
             "id": str(a.id),
             "date": a.appointment_date.isoformat(),
@@ -399,15 +440,19 @@ class CustomerService:
             "mechanic_name": a.mechanic_name,
             "duration": a.estimated_duration_minutes,
             "vehicle_id": str(a.vehicle_id),
-            "total_cost": a.total_cost,
+            "total_cost": invoice["total"] if invoice else a.total_cost,
+            "currency": invoice["currency"] if invoice else "USD",
         }
 
-    def _build_timeline(self, records: Sequence[ServiceRecord], appointments: Sequence[Appointment]) -> list:
+    def _build_timeline(self, records: Sequence[ServiceRecord], appointments: Sequence[Appointment], invoices: dict | None = None) -> list:
         events: List[dict] = []
         for r in records:
+            invoice = (invoices or {}).get(r.appointment_id)
             events.append({
                 "type": "service", "title": r.service_type,
-                "date": r.performed_date.isoformat(), "detail": r.description, "cost": r.cost,
+                "date": r.performed_date.isoformat(), "detail": r.description,
+                "cost": invoice["total"] if invoice else r.cost,
+                "currency": invoice["currency"] if invoice else "USD",
             })
         for a in appointments:
             events.append({

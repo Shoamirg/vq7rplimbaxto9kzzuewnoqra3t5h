@@ -1,13 +1,13 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { ToastProvider } from "@garageos/design-system";
+import { LocalizedToastProvider } from "@/components/providers/localized-toast-provider";
 
 import { CommandMenu } from "@/components/layout/command-menu";
 import { DemoBanner } from "@/components/layout/demo-banner";
 import { Sidebar } from "@/components/layout/sidebar";
 import { TopBar } from "@/components/layout/top-bar";
 import { DEMO_COOKIE } from "@/lib/api/constants";
-import { ApiError, getCurrentUser } from "@/lib/api/server";
+import { ApiError, getCurrentUser, renderedAuthFingerprint } from "@/lib/api/server";
 import { brandCssVars } from "@/lib/branding";
 import { I18nProvider } from "@/lib/i18n/context";
 import { LOCALE_COOKIE, isLocale } from "@/lib/i18n/dictionaries";
@@ -21,29 +21,31 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   try {
     user = await getCurrentUser();
   } catch (err) {
-    if (err instanceof ApiError && err.status === 401) redirect("/login");
+    if (err instanceof ApiError && err.status === 401) redirect("/login?reauth=1");
     throw err;
   }
+
+  if (user.platform_permissions?.includes("platform.read")) redirect("/platform");
 
   const shellUser = { name: user.full_name, email: user.email, role: user.role };
   const cookieStore = await cookies();
   const cookieLocale = cookieStore.get(LOCALE_COOKIE)?.value;
-  const initialLocale = isLocale(cookieLocale) ? cookieLocale : "en";
+  const initialLocale = isLocale(cookieLocale) ? cookieLocale : "uz";
   const isDemo = Boolean(cookieStore.get(DEMO_COOKIE)?.value);
 
   return (
     <I18nProvider initialLocale={initialLocale}>
-      <ToastProvider position="bottom-right">
+      <LocalizedToastProvider>
         <div className="flex h-screen overflow-hidden" style={brandCssVars(user.branding)}>
           <Sidebar user={shellUser} branding={user.branding} />
           <div className="flex-1 flex flex-col overflow-hidden">
             {isDemo ? <DemoBanner /> : null}
-            <TopBar user={shellUser} />
+            <TopBar user={shellUser} authFingerprint={await renderedAuthFingerprint()} />
             <main className="flex-1 overflow-y-auto bg-muted/30">{children}</main>
           </div>
           <CommandMenu />
         </div>
-      </ToastProvider>
+      </LocalizedToastProvider>
     </I18nProvider>
   );
 }

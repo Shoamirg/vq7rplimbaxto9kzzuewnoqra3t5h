@@ -1,7 +1,7 @@
 # Production frontend image (Next.js standalone). Build context: repo ROOT
 # (the monorepo), because admin-dashboard depends on the @garageos/design-system
 # workspace package.
-FROM node:20-alpine AS deps
+FROM node:22-alpine AS deps
 WORKDIR /repo
 # Install workspace deps with the root lockfile for reproducible builds.
 COPY package.json package-lock.json ./
@@ -9,7 +9,7 @@ COPY admin-dashboard/package.json ./admin-dashboard/
 COPY packages/design-system/package.json ./packages/design-system/
 RUN npm ci
 
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /repo
 COPY --from=deps /repo/node_modules ./node_modules
 COPY package.json package-lock.json ./
@@ -19,7 +19,7 @@ WORKDIR /repo/admin-dashboard
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000
 RUN addgroup -S nodejs && adduser -S nextjs -G nodejs

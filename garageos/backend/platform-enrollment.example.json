@@ -1,0 +1,6 @@
+{
+  "service_center_id": "00000000-0000-0000-0000-000000000000",
+  "full_name": "Replace with the authorized platform operator",
+  "email": "platform-operator@example.com",
+  "password_env": "GARAGEOS_PLATFORM_PASSWORD"
+}

@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { makeFormatters } from "./formatters";
 
 import {
   LOCALE_COOKIE,
@@ -29,22 +30,6 @@ type I18nValue = {
 
 const I18nContext = createContext<I18nValue | null>(null);
 
-// BCP-47 tags for Intl formatting (our short codes -> real locales).
-const INTL_LOCALE: Record<Locale, string> = { en: "en-US", ru: "ru-RU", uz: "uz-Latn-UZ" };
-
-function makeFormatters(locale: Locale) {
-  const tag = INTL_LOCALE[locale] ?? "en-US";
-  return {
-    date: (iso?: string | null, opts?: Intl.DateTimeFormatOptions) => {
-      if (!iso) return "";
-      return new Date(iso).toLocaleDateString(tag, opts ?? { month: "short", day: "numeric", year: "numeric" });
-    },
-    money: (n: number, currency = "USD") =>
-      new Intl.NumberFormat(tag, { style: "currency", currency }).format(n || 0),
-    number: (n: number) => new Intl.NumberFormat(tag).format(n || 0),
-  };
-}
-
 // Client provider. The initial locale is resolved server-side (from the cookie)
 // and passed in, so there's no flash of the wrong language on first paint.
 export function I18nProvider({
@@ -55,6 +40,10 @@ export function I18nProvider({
   children: React.ReactNode;
 }) {
   const [locale, setLocaleState] = useState<Locale>(initialLocale);
+  useEffect(() => {
+    document.documentElement.lang = locale;
+    document.documentElement.dir = textDirection(locale);
+  }, [locale]);
 
   const setLocale = useCallback((l: Locale) => {
     setLocaleState(l);

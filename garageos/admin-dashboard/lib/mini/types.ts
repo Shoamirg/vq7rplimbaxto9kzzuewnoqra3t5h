@@ -36,6 +36,7 @@ export interface HomeAppointment {
 }
 
 export interface HomeInvoice {
+  currency: string;
   id: string;
   code: string;
   balance: number;
@@ -58,6 +59,8 @@ export interface HomeVehicle {
 }
 
 export interface HomeResponse {
+  balance_currency: string;
+  balances_by_currency: Record<string, number>;
   greeting: string;
   garage: GarageIdentity;
   sos_available: boolean;
@@ -86,6 +89,7 @@ export interface VehiclesResponse {
 }
 
 export interface BillingDoc {
+  currency: string;
   id: string;
   code: string;
   kind: string;
@@ -97,6 +101,7 @@ export interface BillingDoc {
 }
 
 export interface BillingReceipt {
+  currency: string;
   id: string;
   amount: number;
   method?: string | null;
@@ -104,6 +109,8 @@ export interface BillingReceipt {
 }
 
 export interface BillingResponse {
+  balance_currency: string;
+  balances_by_currency: Record<string, number>;
   has_balance: boolean;
   balance_due: number;
   primary_invoice?: BillingDoc | null;
@@ -174,6 +181,7 @@ export interface PassportResponse {
     services_completed: number;
     overdue_items: number;
     total_spent: number;
+    total_spent_by_currency?: Record<string, number>;
     ownership_years: number;
     last_service?: string | null;
   };
@@ -183,7 +191,7 @@ export interface PassportResponse {
     remaining_km?: number | null;
     remaining_days?: number | null;
   }[];
-  history: { service_type: string; date: string; km?: number | null; cost?: number | null }[];
+  history: { service_type: string; date: string; km?: number | null; cost?: number | null; currency?: string }[];
   highlights: { label: string; ok: boolean }[];
   garage: { name: string; monogram?: string | null; primary_color?: string | null } & Record<string, unknown>;
 }

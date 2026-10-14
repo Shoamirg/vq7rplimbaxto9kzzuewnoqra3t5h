@@ -30,7 +30,7 @@ export default function ShowcasePage() {
       </header>
 
       {/* Sticky in-page nav */}
-      <nav className="sticky top-0 z-10 -mx-4 mb-8 flex flex-wrap gap-2 border-b border-border bg-background/90 px-4 py-3 backdrop-blur lg:-mx-6 lg:px-6">
+      <nav className="sticky top-0 z-10 -mx-4 mb-8 flex flex-wrap gap-2 border-b border-border bg-background/90 px-4 py-3 backdrop-blur-sm lg:-mx-6 lg:px-6">
         {NAV.map((n) => (
           <a
             key={n.id}

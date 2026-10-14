@@ -1,0 +1,29 @@
+{
+  "service_center": {
+    "name": "Avtoservis nomini kiriting",
+    "email": "workshop@example.com",
+    "phone": "+998901234567",
+    "address": "Avtoservis manzilini kiriting",
+    "timezone": "Asia/Tashkent"
+  },
+  "staff": [
+    {
+      "email": "admin@example.com",
+      "full_name": "Admin ismi",
+      "role": "admin",
+      "password_env": "GARAGEOS_STAFF_ADMIN_PASSWORD"
+    },
+    {
+      "email": "reception@example.com",
+      "full_name": "Qabul xodimi ismi",
+      "role": "receptionist",
+      "password_env": "GARAGEOS_STAFF_RECEPTION_PASSWORD"
+    },
+    {
+      "email": "mechanic@example.com",
+      "full_name": "Usta ismi",
+      "role": "mechanic",
+      "password_env": "GARAGEOS_STAFF_MECHANIC_PASSWORD"
+    }
+  ]
+}

@@ -16,7 +16,7 @@ import {
 import { DEMO_HREF, LIVE_DEMO_HREF, SIGN_IN_HREF } from "@/components/marketing/chrome";
 
 const PILLARS = [
-  { icon: Gauge, gold: true, title: "Vehicle Intelligence", body: "A living digital twin of every vehicle — health, predicted failures, service history, and a certified passport, composed from real data." },
+  { icon: Gauge, gold: true, title: "Vehicle Intelligence", body: "A maintenance overview for every vehicle — tracked service status, upcoming work, service history, and a shareable service record." },
   { icon: CalendarClock, title: "Scheduling board", body: "A drag-and-drop day board across mechanic lanes with live occupancy, collision detection, and one-click lifecycle actions." },
   { icon: Siren, title: "Operations & dispatch", body: "Emergencies, tows, and roadside calls become tracked cases with SLA timers, assignment, and live customer status." },
   { icon: Inbox, title: "Unified inbox", body: "Every conversation — Telegram, walk-in, internal note — in one thread, linked to the vehicle, case, and invoice." },
@@ -31,7 +31,7 @@ const SPOTS = [
     body: "The Vehicle Intelligence Center reads health, maintenance, and history into one cinematic view — with deterministic predictions, not guesswork. Your advisors walk in already knowing what to recommend.",
     img: "/marketing/vehicle-health.png",
     alt: "Vehicle Intelligence Center showing health score, subsystems, and predictions",
-    points: ["Per-subsystem health with clickable hotspots", "Next-service and breakdown-risk predictions", "A shareable Certified Vehicle Passport with QR"],
+    points: ["Per-subsystem maintenance scores with clickable details", "Upcoming service reminders based on recorded mileage and intervals", "A shareable service record with QR"],
     reverse: false,
   },
   {

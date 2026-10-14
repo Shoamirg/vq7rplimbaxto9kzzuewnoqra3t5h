@@ -10,9 +10,10 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime, timedelta, timezone
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, text
+from sqlalchemy.orm import joinedload, raiseload
 
 from app.core.events import (
     EstimateApproved,
@@ -23,12 +24,18 @@ from app.core.events import (
     InvoicePaid,
     PaymentReceived,
 )
-from app.exceptions import ConflictError, NotFoundError
+from app.exceptions import (AppointmentNotFound, AppointmentStateError, ConflictError,
+                            CustomerNotFound, NotFoundError, VehicleNotFound)
 import httpx
 
 from app.core.config import settings
 from app.exceptions import ValidationError
 from app.models.customer import Customer
+from app.models.service_center import ServiceCenter
+from app.schemas.branding import branding_dict
+from app.models.brand import Brand
+from app.models.vehicle_model import VehicleModel
+from app.models.appointment import Appointment, AppointmentStatus
 from app.models.invoice import (
     Invoice,
     InvoiceKind,
@@ -42,15 +49,24 @@ from app.models.invoice import (
 )
 from app.models.ledger import LedgerEntry
 from app.models.notification import Notification
+from app.models.operational_case import OperationalCase
+from app.models.vehicle import Vehicle
 from app.repositories.unit_of_work import UnitOfWork
 from app.services.vehicle_health_service import _vehicle_label
 
 _CENTS = Decimal("0.01")
 _DEFAULT_TAX = Decimal("12.00")  # % — single document VAT rate for v1
+_MAX_MONEY = Decimal("99999999.99")  # matches Numeric(10, 2)
 
 
 def _money(d: Decimal | float | int | None) -> Decimal:
-    return (Decimal(str(d or 0))).quantize(_CENTS, rounding=ROUND_HALF_UP)
+    try:
+        value = Decimal(str(d if d is not None else 0))
+        if not value.is_finite() or abs(value) > _MAX_MONEY:
+            raise InvalidOperation
+        return value.quantize(_CENTS, rounding=ROUND_HALF_UP)
+    except (InvalidOperation, ValueError, TypeError):
+        raise FinancialAmountInvalid() from None
 
 
 def _f(d: Decimal | None) -> float:
@@ -63,8 +79,57 @@ class InvoiceNotFound(NotFoundError):
 
 
 class InvoiceHasPayments(ConflictError):
-    detail = "This document has recorded payments and can't be changed. Void or refund it first."
+    detail = "This document has recorded payments and can't be edited or archived."
     code = "INVOICE_HAS_PAYMENTS"
+
+
+class LinkedInvoiceCannotDelete(ConflictError):
+    detail = "A completed service work invoice must remain linked to its appointment"
+    code = "LINKED_INVOICE_CANNOT_DELETE"
+
+
+class InvoiceLinkMismatch(ValidationError):
+    detail = "Invoice customer and vehicle must match the appointment"
+    code = "INVOICE_LINK_MISMATCH"
+
+
+class InvoiceVehicleMismatch(ValidationError):
+    detail = "The invoice vehicle must belong to the selected customer"
+    code = "INVOICE_VEHICLE_MISMATCH"
+
+
+class InvoiceCaseNotFound(NotFoundError):
+    detail = "Invoice case not found"
+
+
+class InvoiceNeedsLineItems(ValidationError):
+    detail = "Add at least one priced line item to the service work invoice"
+    code = "INVOICE_NEEDS_LINE_ITEMS"
+
+
+class FinancialAmountInvalid(ValidationError):
+    detail = "Enter a finite, valid financial amount"
+    code = "INVALID_FINANCIAL_AMOUNT"
+
+
+class PaymentExceedsBalance(ConflictError):
+    detail = "Payment exceeds the invoice's remaining balance"
+    code = "PAYMENT_EXCEEDS_BALANCE"
+
+
+class RefundExceedsPayment(ConflictError):
+    detail = "Refund exceeds the amount already received"
+    code = "REFUND_EXCEEDS_PAYMENT"
+
+
+class InvoiceFinancialStateError(ConflictError):
+    detail = "The document is not in a valid state for this financial action"
+    code = "INVALID_INVOICE_FINANCIAL_STATE"
+
+
+class PaymentRequestMismatch(ConflictError):
+    detail = "This payment request was already used with different payment details"
+    code = "PAYMENT_REQUEST_MISMATCH"
 
 
 class InvoiceService:
@@ -75,6 +140,12 @@ class InvoiceService:
 
     # ── code ──────────────────────────────────────────────────
     async def _next_code(self, kind: str) -> str:
+        # Different appointments may be invoiced in parallel. Hold allocation
+        # until commit so both transactions cannot print the same document code.
+        await self.session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtextextended(:code_key, 0))"),
+            {"code_key": f"garageos:billing-code:{self.sc}:{kind}"},
+        )
         year = datetime.now(timezone.utc).year
         n = await self.session.scalar(
             select(func.count()).select_from(Invoice).where(
@@ -82,11 +153,15 @@ class InvoiceService:
         prefix = "EST" if kind == InvoiceKind.ESTIMATE else "INV"
         return f"{prefix}-{year}-{int(n or 0) + 1:06d}"
 
-    async def _get(self, invoice_id: uuid.UUID) -> Invoice:
-        row = await self.session.execute(
-            select(Invoice).where(
-                Invoice.id == invoice_id, Invoice.service_center_id == self.sc,
-                Invoice.is_active.is_(True)))
+    async def _get(self, invoice_id: uuid.UUID, *, for_update: bool = False) -> Invoice:
+        stmt = select(Invoice).where(
+            Invoice.id == invoice_id, Invoice.service_center_id == self.sc,
+            Invoice.is_active.is_(True))
+        if for_update:
+            # Serialize payments, edits and deletion on the same invoice. Refresh
+            # identity-mapped rows after waiting so balance checks use committed data.
+            stmt = stmt.with_for_update().execution_options(populate_existing=True)
+        row = await self.session.execute(stmt)
         inv = row.scalar_one_or_none()
         if not inv:
             raise InvoiceNotFound()
@@ -95,7 +170,9 @@ class InvoiceService:
     async def send_telegram(self, invoice_id: uuid.UUID, link: str) -> dict:
         """Send the invoice/estimate link to the customer via the Telegram bot."""
         inv = await self._get(invoice_id)
-        cust = await self.session.get(Customer, inv.customer_id)
+        cust = (await self.session.execute(select(Customer).where(
+            Customer.id == inv.customer_id, Customer.service_center_id == self.sc,
+        ))).scalar_one_or_none()
         if not cust or not cust.telegram_id:
             raise ValidationError("This customer hasn't linked Telegram yet.")
         token = settings.TELEGRAM_BOT_TOKEN
@@ -123,8 +200,10 @@ class InvoiceService:
     async def delete(self, invoice_id: uuid.UUID) -> None:
         """Soft-delete an estimate or invoice. A document with recorded payments
         cannot be deleted (protects the ledger) — void it instead."""
-        inv = await self._get(invoice_id)
-        if _money(inv.amount_paid) > 0:
+        inv = await self._get(invoice_id, for_update=True)
+        if inv.kind == InvoiceKind.INVOICE and inv.appointment_id is not None:
+            raise LinkedInvoiceCannotDelete()
+        if _money(inv.amount_paid) > 0 or await self._has_payment_history(inv.id):
             raise InvoiceHasPayments()
         inv.is_active = False
         await self.uow.flush()
@@ -140,13 +219,18 @@ class InvoiceService:
         is refused (protects the ledger). For issued invoices the ledger debit is
         kept in sync with the new total, so reports/reconciliation stay correct.
         """
-        inv = await self._get(invoice_id)
-        if _money(inv.amount_paid) > 0:
+        inv = await self._get(invoice_id, for_update=True)
+        if _money(inv.amount_paid) > 0 or await self._has_payment_history(inv.id):
             raise InvoiceHasPayments()
 
         if vehicle_id is not None:
+            await self._validate_vehicle_owner(vehicle_id, inv.customer_id)
+            if inv.kind == InvoiceKind.INVOICE and inv.appointment_id is not None and vehicle_id != inv.vehicle_id:
+                raise InvoiceLinkMismatch()
             inv.vehicle_id = vehicle_id
         if tax_rate is not None:
+            if not Decimal("0") <= _money(tax_rate) <= Decimal("100"):
+                raise FinancialAmountInvalid()
             inv.tax_rate = _money(tax_rate)
         if due_date is not None:
             inv.due_date = due_date
@@ -200,22 +284,82 @@ class InvoiceService:
         inv.discount_total = _money(discount)
         inv.tax_total = tax
         inv.total = _money(subtotal - discount + tax)
+        if inv.total < 0:
+            raise FinancialAmountInvalid()
         inv.balance = _money(inv.total - _money(inv.amount_paid))
 
     # ── create ────────────────────────────────────────────────
+    async def _validate_vehicle_owner(self, vehicle_id: uuid.UUID, customer_id: uuid.UUID) -> None:
+        owner = await self.session.scalar(select(Vehicle.customer_id).where(
+            Vehicle.id == vehicle_id, Vehicle.service_center_id == self.sc,
+            Vehicle.is_active.is_(True),
+        ))
+        if owner is None:
+            raise VehicleNotFound()
+        if owner != customer_id:
+            raise InvoiceVehicleMismatch()
+
     async def create(
         self, *, kind: str, customer_id: uuid.UUID, vehicle_id: uuid.UUID | None = None,
         appointment_id: uuid.UUID | None = None, case_id: uuid.UUID | None = None,
         line_items: list[dict] | None = None, tax_rate: float | None = None,
         due_date: date | None = None, notes: str | None = None,
         source_estimate_id: uuid.UUID | None = None,
+        currency: str = "UZS",
     ) -> dict:
+        customer = await self.session.scalar(select(Customer.id).where(
+            Customer.id == customer_id, Customer.service_center_id == self.sc,
+            Customer.is_active.is_(True),
+        ))
+        if customer is None:
+            raise CustomerNotFound()
+        if vehicle_id is not None:
+            await self._validate_vehicle_owner(vehicle_id, customer_id)
+        if case_id is not None:
+            case = await self.session.scalar(select(OperationalCase.id).where(
+                OperationalCase.id == case_id, OperationalCase.service_center_id == self.sc,
+                OperationalCase.is_active.is_(True),
+            ))
+            if case is None:
+                raise InvoiceCaseNotFound()
+        if appointment_id is not None:
+            # Lock the parent row so two staff clicks cannot both pass the
+            # existence check before either invoice is committed.
+            appointment = (await self.session.execute(
+                select(Appointment).where(
+                    Appointment.id == appointment_id,
+                    Appointment.service_center_id == self.sc,
+                    Appointment.is_active.is_(True),
+                ).with_for_update()
+            )).scalar_one_or_none()
+            if appointment is None:
+                raise AppointmentNotFound()
+            if kind == InvoiceKind.INVOICE:
+                if appointment.status != AppointmentStatus.COMPLETED:
+                    raise AppointmentStateError("Complete service work before creating its invoice")
+                if customer_id != appointment.customer_id or vehicle_id != appointment.vehicle_id:
+                    raise InvoiceLinkMismatch()
+                existing = (await self.session.execute(
+                    select(Invoice).where(
+                        Invoice.service_center_id == self.sc,
+                        Invoice.appointment_id == appointment_id,
+                        Invoice.kind == InvoiceKind.INVOICE,
+                        Invoice.is_active.is_(True),
+                    ).limit(1)
+                )).scalar_one_or_none()
+                if existing is not None:
+                    return await self.get_document(existing.id)
+                if not line_items:
+                    raise InvoiceNeedsLineItems()
+        if tax_rate is not None and not Decimal("0") <= _money(tax_rate) <= Decimal("100"):
+            raise FinancialAmountInvalid()
         code = await self._next_code(kind)
         inv = Invoice(
             service_center_id=self.sc, code=code, kind=kind,
             status=InvoiceStatus.DRAFT if kind == InvoiceKind.ESTIMATE else InvoiceStatus.ISSUED,
             customer_id=customer_id, vehicle_id=vehicle_id, appointment_id=appointment_id,
             case_id=case_id, source_estimate_id=source_estimate_id,
+            currency=currency,
             tax_rate=_money(tax_rate) if tax_rate is not None else _DEFAULT_TAX,
             due_date=due_date, notes=notes,
         )
@@ -249,15 +393,19 @@ class InvoiceService:
         from app.services.financial_service import FinancialService
         FinancialService(self.uow).add_ledger(
             customer_id=inv.customer_id, invoice_id=inv.id, entry_type=entry_type,
-            direction=direction, amount=amount, description=desc)
+            direction=direction, amount=amount, description=desc, currency=inv.currency)
 
     def _build_item(self, invoice_id: uuid.UUID, data: dict, order: int) -> InvoiceLineItem:
         qty = _money(data.get("quantity", 1))
         price = _money(data.get("unit_price", 0))
+        if qty <= 0 or price < 0:
+            raise FinancialAmountInvalid()
         # NB: the API schema always includes line_total (default None), so .get()
         # can't fall back — compute qty*price whenever it's not explicitly given.
         given_total = data.get("line_total")
         line_total = _money(given_total) if given_total is not None else _money(qty * price)
+        if line_total < 0:
+            raise FinancialAmountInvalid()
         return InvoiceLineItem(
             service_center_id=self.sc, invoice_id=invoice_id,
             kind=data.get("kind", LineKind.PART), description=data["description"],
@@ -269,16 +417,36 @@ class InvoiceService:
 
     # ── estimate lifecycle ────────────────────────────────────
     async def send(self, invoice_id: uuid.UUID) -> dict:
-        inv = await self._get(invoice_id)
-        inv.status = InvoiceStatus.SENT
-        await self.session.flush()
-        self.uow.add_event(EstimateSent(
-            service_center_id=self.sc, invoice_id=inv.id, code=inv.code,
-            customer_id=inv.customer_id, vehicle_id=inv.vehicle_id))
+        inv = await self._get(invoice_id, for_update=True)
+        # Sending/sharing an invoice does not change whether money is owed.
+        # SENT belongs to the estimate lifecycle only.
+        if inv.is_estimate() and inv.status in {
+            InvoiceStatus.DRAFT, InvoiceStatus.SENT, InvoiceStatus.VIEWED,
+            InvoiceStatus.CHANGES_REQUESTED,
+        }:
+            inv.status = InvoiceStatus.SENT
+            await self.session.flush()
+            self.uow.add_event(EstimateSent(
+                service_center_id=self.sc, invoice_id=inv.id, code=inv.code,
+                customer_id=inv.customer_id, vehicle_id=inv.vehicle_id))
         return await self.get_document(inv.id)
 
     async def set_status(self, invoice_id: uuid.UUID, status: str) -> dict:
-        inv = await self._get(invoice_id)
+        inv = await self._get(invoice_id, for_update=True)
+        if inv.is_estimate():
+            if status not in {InvoiceStatus.APPROVED, InvoiceStatus.REJECTED,
+                              InvoiceStatus.CHANGES_REQUESTED, InvoiceStatus.VOID}:
+                raise InvoiceFinancialStateError()
+        elif status == InvoiceStatus.VOID:
+            if _money(inv.amount_paid) > 0:
+                raise InvoiceHasPayments()
+        elif status == InvoiceStatus.OVERDUE:
+            if inv.status == InvoiceStatus.VOID or _money(inv.balance) <= 0:
+                raise InvoiceFinancialStateError()
+        else:
+            # PAID/PARTIAL/ISSUED are computed by financial mutations, never
+            # assigned by a free-form status request.
+            raise InvoiceFinancialStateError()
         inv.status = status
         if status == InvoiceStatus.APPROVED:
             inv.approved_at = datetime.now(timezone.utc)
@@ -294,28 +462,78 @@ class InvoiceService:
 
     async def convert_to_invoice(self, estimate_id: uuid.UUID) -> dict:
         """Approved estimate → a NEW invoice referencing it (estimate stays immutable)."""
-        est = await self._get(estimate_id)
+        est = await self._get(estimate_id, for_update=True)
         if not est.is_estimate():
             raise InvoiceNotFound()
+        if est.status != InvoiceStatus.APPROVED:
+            raise InvoiceFinancialStateError()
+        existing = await self.session.scalar(select(Invoice.id).where(
+            Invoice.service_center_id == self.sc, Invoice.kind == InvoiceKind.INVOICE,
+            Invoice.source_estimate_id == est.id, Invoice.is_active.is_(True),
+        ).order_by(Invoice.created_at).limit(1))
+        if existing is not None:
+            return await self.get_document(existing)
         items = [{"kind": it.kind, "description": it.description, "quantity": _f(it.quantity),
                   "unit_price": _f(it.unit_price), "line_total": _f(it.line_total),
                   "taxable": it.taxable} for it in est.line_items]
         return await self.create(
             kind=InvoiceKind.INVOICE, customer_id=est.customer_id, vehicle_id=est.vehicle_id,
             appointment_id=est.appointment_id, case_id=est.case_id, line_items=items,
-            tax_rate=_f(est.tax_rate), notes=est.notes, source_estimate_id=est.id)
+            tax_rate=_f(est.tax_rate), notes=est.notes, source_estimate_id=est.id,
+            currency=est.currency)
 
     # ── payments ──────────────────────────────────────────────
+    async def _has_payment_history(self, invoice_id: uuid.UUID) -> bool:
+        return await self.session.scalar(select(Payment.id).where(
+            Payment.service_center_id == self.sc, Payment.invoice_id == invoice_id,
+        ).limit(1)) is not None
+
     async def record_payment(
         self, invoice_id: uuid.UUID, *, amount: float, method: str = PaymentMethod.CARD,
         kind: str = PaymentKind.PAYMENT, source: str = PaymentSource.MANUAL,
         reference: str | None = None, note: str | None = None,
+        idempotency_key: str | None = None,
     ) -> dict:
-        inv = await self._get(invoice_id)
         amt = _money(amount)
+        if amt <= 0:
+            raise FinancialAmountInvalid()
+        if kind not in {PaymentKind.PAYMENT, PaymentKind.DEPOSIT, PaymentKind.REFUND}:
+            raise FinancialAmountInvalid()
+        if method not in {PaymentMethod.CARD, PaymentMethod.CASH,
+                          PaymentMethod.BANK_TRANSFER, PaymentMethod.ONLINE}:
+            raise FinancialAmountInvalid()
+        if source not in {PaymentSource.MANUAL, PaymentSource.TERMINAL, PaymentSource.TELEGRAM,
+                          PaymentSource.STRIPE, PaymentSource.BANK, PaymentSource.CASH}:
+            raise FinancialAmountInvalid()
+        inv = await self._get(invoice_id, for_update=True)
+        if idempotency_key is not None:
+            try:
+                idempotency_key = str(uuid.UUID(idempotency_key))
+            except (ValueError, AttributeError, TypeError):
+                raise FinancialAmountInvalid() from None
+            existing = (await self.session.execute(select(Payment).where(
+                Payment.service_center_id == self.sc, Payment.invoice_id == inv.id,
+                Payment.idempotency_key == idempotency_key,
+            ))).scalar_one_or_none()
+            if existing is not None:
+                if (existing.amount != amt or existing.method != method or existing.kind != kind
+                        or existing.source != source or existing.reference != reference or existing.note != note):
+                    raise PaymentRequestMismatch()
+                return await self.get_document(inv.id)
+        if inv.is_estimate():
+            raise InvoiceFinancialStateError()
+        if kind == PaymentKind.REFUND:
+            if amt > _money(inv.amount_paid):
+                raise RefundExceedsPayment()
+        else:
+            if inv.status in {InvoiceStatus.VOID, InvoiceStatus.REFUNDED}:
+                raise InvoiceFinancialStateError()
+            if amt > _money(inv.balance):
+                raise PaymentExceedsBalance()
         pay = Payment(
             service_center_id=self.sc, invoice_id=inv.id, kind=kind, method=method,
             source=source, amount=amt, reference=reference, note=note,
+            idempotency_key=idempotency_key,
             received_at=datetime.now(timezone.utc))
         self.session.add(pay)
         # Refunds subtract; payments/deposits add.
@@ -327,15 +545,20 @@ class InvoiceService:
             inv.paid_at = datetime.now(timezone.utc)
         elif inv.amount_paid > Decimal("0"):
             inv.status = InvoiceStatus.PARTIAL
+            inv.paid_at = None
+        else:
+            inv.status = InvoiceStatus.ISSUED
+            inv.paid_at = None
         await self.session.flush()
 
         self.uow.add_event(PaymentReceived(
             service_center_id=self.sc, invoice_id=inv.id, code=inv.code,
             customer_id=inv.customer_id, vehicle_id=inv.vehicle_id,
-            amount=_f(amt), method=method))
+            amount=_f(amt), method=method, currency=inv.currency, kind=kind))
         self._ledger(
             inv, "refund_issued" if kind == PaymentKind.REFUND else "payment_received",
-            "credit", _f(amt), f"{kind.title()} · {method} · {inv.code}")
+            "debit" if kind == PaymentKind.REFUND else "credit",
+            _f(amt), f"{kind.title()} · {method} · {inv.code}")
         if inv.status == InvoiceStatus.PAID:
             self.uow.add_event(InvoicePaid(
                 service_center_id=self.sc, invoice_id=inv.id, code=inv.code,
@@ -352,6 +575,7 @@ class InvoiceService:
         if view == "overdue":
             return stmt.where(
                 Invoice.kind == InvoiceKind.INVOICE, Invoice.balance > 0,
+                Invoice.status.in_([InvoiceStatus.ISSUED, InvoiceStatus.PARTIAL, InvoiceStatus.OVERDUE]),
                 or_(Invoice.status == InvoiceStatus.OVERDUE, Invoice.due_date < today))
         if view == "awaiting":
             return stmt.where(
@@ -365,13 +589,54 @@ class InvoiceService:
             return stmt.where(Invoice.id == None)  # noqa: E711 — placeholder (none yet)
         return stmt
 
-    async def list_documents(self, *, view: str = "invoices") -> dict:
+    async def list_documents(self, *, view: str = "invoices", q: str = "", customer_id: uuid.UUID | None = None, page: int = 1, page_size: int = 80) -> dict:
         base = select(Invoice).where(
             Invoice.service_center_id == self.sc, Invoice.is_active.is_(True))
-        stmt = self._view_where(base, view).order_by(Invoice.created_at.desc()).limit(80)
+        if customer_id is not None:
+            base = base.where(Invoice.customer_id == customer_id)
+        filtered = self._view_where(base, view)
+        if query := q.strip():
+            # Search is literal: SQL LIKE wildcards in a plate/name must not match everything.
+            pattern = "%" + query.replace("/", "//").replace("%", "/%").replace("_", "/_") + "%"
+            customer_match = select(Customer.id).where(
+                Customer.id == Invoice.customer_id, Customer.service_center_id == self.sc,
+                Customer.full_name.ilike(pattern, escape="/")).exists()
+            vehicle_match = select(Vehicle.id).join(
+                VehicleModel, Vehicle.vehicle_model_id == VehicleModel.id).join(
+                Brand, VehicleModel.brand_id == Brand.id).where(
+                    Vehicle.id == Invoice.vehicle_id, Vehicle.service_center_id == self.sc,
+                    or_(Vehicle.license_plate.ilike(pattern, escape="/"),
+                        Vehicle.vin.ilike(pattern, escape="/"),
+                        (Brand.name + " " + VehicleModel.name).ilike(pattern, escape="/"))).exists()
+            filtered = filtered.where(or_(Invoice.code.ilike(pattern, escape="/"), customer_match, vehicle_match))
+        total = int(await self.session.scalar(select(func.count()).select_from(filtered.subquery())) or 0)
+        stmt = filtered.options(raiseload("*")).order_by(Invoice.created_at.desc(), Invoice.id.desc()).offset(
+            (page - 1) * page_size).limit(page_size)
         rows = list((await self.session.execute(stmt)).scalars().all())
-        items = [await self.serialize_row(inv) for inv in rows]
-        return {"items": items, "counts": await self.counts(), "kpis": await self.kpis(), "view": view}
+        # History needs names/labels, not each customer's appointments/vehicles
+        # or every vehicle's service records. Fetch only this page's projections.
+        customer_ids = {inv.customer_id for inv in rows}
+        names = dict((await self.session.execute(select(Customer.id, Customer.full_name).where(
+            Customer.service_center_id == self.sc, Customer.id.in_(customer_ids),
+        ))).all()) if customer_ids else {}
+        vehicle_ids = {inv.vehicle_id for inv in rows if inv.vehicle_id}
+        labels = {}
+        if vehicle_ids:
+            vehicles = (await self.session.execute(select(Vehicle).where(
+                Vehicle.service_center_id == self.sc, Vehicle.id.in_(vehicle_ids),
+                Vehicle.is_active.is_(True),
+            ).options(raiseload("*"), joinedload(Vehicle.vehicle_model).joinedload(VehicleModel.brand)))).scalars().all()
+            labels = {vehicle.id: _vehicle_label(vehicle) for vehicle in vehicles}
+        items = []
+        for inv in rows:
+            item = self._serialize_fields(inv)
+            item["customer_name"] = names.get(inv.customer_id)
+            if inv.vehicle_id:
+                item["vehicle_label"] = labels.get(inv.vehicle_id)
+            items.append(item)
+        return {"items": items, "counts": await self.counts(), "kpis": await self.kpis(), "view": view,
+                "total": total, "page": page, "page_size": page_size,
+                "total_pages": (total + page_size - 1) // page_size}
 
     async def counts(self) -> dict:
         base = select(func.count()).select_from(Invoice).where(
@@ -384,22 +649,31 @@ class InvoiceService:
 
     async def kpis(self) -> dict:
         sc = self.sc
+        # Demo KPIs are UZS-only: legacy USD invoices remain readable as USD,
+        # but their amounts must not be summed into the UZS headline.
+        currency = "UZS"
         outstanding = await self.session.scalar(
             select(func.coalesce(func.sum(Invoice.balance), 0)).where(
                 Invoice.service_center_id == sc, Invoice.is_active.is_(True),
+                Invoice.currency == currency,
                 Invoice.kind == InvoiceKind.INVOICE,
                 Invoice.status.in_([InvoiceStatus.ISSUED, InvoiceStatus.PARTIAL, InvoiceStatus.OVERDUE])))
         overdue = await self.session.scalar(
             select(func.coalesce(func.sum(Invoice.balance), 0)).where(
                 Invoice.service_center_id == sc, Invoice.is_active.is_(True),
+                Invoice.currency == currency,
                 Invoice.kind == InvoiceKind.INVOICE, Invoice.balance > 0,
+                Invoice.status.in_([InvoiceStatus.ISSUED, InvoiceStatus.PARTIAL, InvoiceStatus.OVERDUE]),
                 or_(Invoice.status == InvoiceStatus.OVERDUE, Invoice.due_date < date.today())))
         month_start = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         paid_month = await self.session.scalar(
-            select(func.coalesce(func.sum(Payment.amount), 0)).where(
+            select(func.coalesce(func.sum(Payment.amount), 0)).join(
+                Invoice, Payment.invoice_id == Invoice.id).where(
                 Payment.service_center_id == sc, Payment.received_at >= month_start,
+                Invoice.service_center_id == sc, Invoice.currency == currency,
                 Payment.kind != PaymentKind.REFUND))
         return {
+            "currency": currency,
             "outstanding": _f(outstanding), "overdue": _f(overdue),
             "paid_this_month": _f(paid_month),
         }
@@ -408,6 +682,22 @@ class InvoiceService:
     async def get_document(self, invoice_id: uuid.UUID) -> dict:
         inv = await self._get(invoice_id)
         data = await self.serialize_row(inv, full=True)
+        # The document's owner supplies current business presentation. Select
+        # only these columns: loading the center ORM would fan out its selectin
+        # relationships and expose unrelated private data to this read path.
+        center = (await self.session.execute(select(
+            ServiceCenter.name, ServiceCenter.brand_name, ServiceCenter.tagline,
+            ServiceCenter.monogram, ServiceCenter.phone, ServiceCenter.address,
+        ).where(ServiceCenter.id == inv.service_center_id))).first()
+        if center is None:
+            data["issuer"] = None
+        else:
+            brand = branding_dict(center)
+            data["issuer"] = {
+                "name": brand["name"], "tagline": brand["tagline"],
+                "monogram": brand["monogram"], "phone": center.phone,
+                "address": center.address,
+            }
         # Query children explicitly — the identity-mapped `inv` may carry a stale
         # selectin collection after an in-session mutation (e.g. record_payment).
         items = list((await self.session.execute(
@@ -429,6 +719,27 @@ class InvoiceService:
         data["timeline"] = await self._timeline(inv.id)
         return data
 
+    async def get_for_appointment(self, appointment_id: uuid.UUID) -> dict:
+        appointment = (await self.session.execute(
+            select(Appointment.id).where(
+                Appointment.id == appointment_id,
+                Appointment.service_center_id == self.sc,
+            )
+        )).scalar_one_or_none()
+        if appointment is None:
+            raise AppointmentNotFound()
+        invoice = (await self.session.execute(
+            select(Invoice).where(
+                Invoice.service_center_id == self.sc,
+                Invoice.appointment_id == appointment_id,
+                Invoice.kind == InvoiceKind.INVOICE,
+                Invoice.is_active.is_(True),
+            ).limit(1)
+        )).scalar_one_or_none()
+        if invoice is None:
+            raise InvoiceNotFound()
+        return await self.get_document(invoice.id)
+
     async def _timeline(self, invoice_id: uuid.UUID) -> list:
         rows = (await self.session.execute(
             select(Notification).where(
@@ -438,7 +749,8 @@ class InvoiceService:
         return [{"title": n.title, "detail": n.body, "date": n.created_at.isoformat(),
                  "severity": n.severity} for n in rows]
 
-    async def serialize_row(self, inv: Invoice, full: bool = False) -> dict:
+    @staticmethod
+    def _serialize_fields(inv: Invoice) -> dict:
         out = {
             "id": str(inv.id), "code": inv.code, "kind": inv.kind, "status": inv.status,
             "currency": inv.currency, "tax_rate": _f(inv.tax_rate),
@@ -457,9 +769,16 @@ class InvoiceService:
             "paid_at": inv.paid_at.isoformat() if inv.paid_at else None,
             "created_at": inv.created_at.isoformat() if inv.created_at else None,
             "is_overdue": (inv.kind == InvoiceKind.INVOICE and inv.balance > 0
+                           and inv.status in {InvoiceStatus.ISSUED, InvoiceStatus.PARTIAL, InvoiceStatus.OVERDUE}
                            and inv.due_date is not None and inv.due_date < date.today()),
         }
-        cust = await self.session.get(Customer, inv.customer_id)
+        return out
+
+    async def serialize_row(self, inv: Invoice, full: bool = False) -> dict:
+        out = self._serialize_fields(inv)
+        cust = (await self.session.execute(select(Customer).where(
+            Customer.id == inv.customer_id, Customer.service_center_id == self.sc,
+        ))).scalar_one_or_none()
         out["customer_name"] = cust.full_name if cust else None
         if full and cust:
             out["customer"] = {"id": str(cust.id), "name": cust.full_name,

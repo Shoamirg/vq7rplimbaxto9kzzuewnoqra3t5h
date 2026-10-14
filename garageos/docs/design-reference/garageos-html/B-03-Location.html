@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="uz"><head><style>
+    .sc-placeholder{background:color-mix(in srgb,currentColor 8%,transparent);
+      border:1px solid color-mix(in srgb,currentColor 50%,transparent);
+      border-radius:2px;box-sizing:border-box;overflow:hidden}
+    @keyframes sc-shine{0%{background-position:100% 50%}100%{background-position:0% 50%}}
+    html.sc-dc-streaming .sc-placeholder,
+    html.sc-dc-streaming .sc-interp.sc-missing{position:relative;
+      background:color-mix(in srgb,currentColor 5%,transparent);
+      border-color:transparent}
+    html.sc-dc-streaming .sc-placeholder::before,
+    html.sc-dc-streaming .sc-interp.sc-missing::before{content:'';
+      position:absolute;inset:0;pointer-events:none;
+      background:linear-gradient(90deg,rgba(217,119,87,0) 25%,rgba(247,225,211,.95) 37%,rgba(217,119,87,0) 63%);
+      background-size:400% 100%;animation:sc-shine 1.4s ease infinite}
+    html.sc-dc-streaming .sc-placeholder:nth-child(n+9 of .sc-placeholder)::before,
+    html.sc-dc-streaming .sc-interp.sc-missing:nth-child(n+9 of .sc-interp.sc-missing)::before{animation:none;
+      background:color-mix(in srgb,currentColor 8%,transparent)}
+    .sc-placeholder-error{padding:4px 8px;font:11px/1.4 ui-monospace,monospace;
+      color:color-mix(in srgb,currentColor 70%,transparent);word-break:break-word}
+    .sc-interp.sc-missing{display:inline-block;width:2em;height:1em;overflow:hidden;
+      vertical-align:text-bottom;background:rgba(255,255,255,.3);border:1px solid rgba(0,0,0,.5);
+      border-radius:2px;box-sizing:border-box;color:transparent;
+      user-select:none}
+    .sc-interp.sc-unresolved{font-family:ui-monospace,monospace;font-size:.85em;
+      color:color-mix(in srgb,currentColor 50%,transparent);
+      background:color-mix(in srgb,currentColor 10%,transparent);border-radius:3px;
+      padding:0 3px}
+    .sc-host.sc-has-error{position:relative}
+    .sc-logic-error{position:absolute;top:8px;left:8px;z-index:2147483647;max-width:60ch;
+      padding:6px 10px;background:#b00020;color:#fff;font:12px/1.4 ui-monospace,monospace;
+      border-radius:4px;white-space:pre-wrap;pointer-events:none}
+    /* Mirrors PRINT_BASELINE_CSS in apps/web deck-stage-export.ts — keep both
+       in sync until dc-runtime regains a build step. */
+    @media print {
+      @page { margin: 0.5cm; }
+      figure, table { break-inside: avoid; }
+      #dc-root, #dc-root > .sc-host { height: auto; }
+      *, *::before, *::after {
+        print-color-adjust: exact; -webkit-print-color-adjust: exact;
+        backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+        animation-delay: -99s !important; animation-duration: .001s !important;
+        animation-iteration-count: 1 !important; animation-fill-mode: both !important;
+        animation-play-state: running !important; transition-duration: 0s !important;
+      }
+    }
+  </style>
+<meta charset="utf-8">
+<title>B-03 Choose location</title>
+<style>x-dc{display:none!important}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com" data-dc-tpl="1"><link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&amp;display=swap" rel="stylesheet" data-dc-tpl="2"><style data-dc-tpl="3">
+body{margin:0}
+.gx{font-family:'Golos Text',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.lt{--bg:#F2F4F6;--sf:#FFFFFF;--sf3:#ECEFF2;--line:#E2E5E9;--line2:#C9CFD6;--tx:#1B2025;--tx2:#4A535E;--tx3:#646D78;--br:#C94A04;--onbr:#FFFFFF;--sh2:0 -1px 0 rgba(20,25,30,.04),0 -8px 24px rgba(20,25,30,.10);background:var(--bg);color:var(--tx)}
+.dk{--bg:#0F1214;--sf:#171B1F;--sf3:#252B31;--line:#2A3036;--line2:#3B434B;--tx:#E9ECEF;--tx2:#AEB5BD;--tx3:#8C949D;--br:#DB7A47;--onbr:#1A120D;--sh2:0 -1px 0 rgba(255,255,255,.05),0 -8px 24px rgba(0,0,0,.5);background:var(--bg);color:var(--tx)}
+.tn{font-variant-numeric:tabular-nums}
+.t-t{font-size:22px;line-height:28px;font-weight:600}
+.t-b{font-size:16px;line-height:24px;font-weight:400}
+.t-s{font-size:14px;line-height:20px;font-weight:400}
+.t-c{font-size:12px;line-height:16px;font-weight:500}
+.c2{color:var(--tx2)}.c3{color:var(--tx3)}
+.phone{width:360px;height:800px;position:relative;overflow:hidden;border-radius:16px;box-shadow:0 0 0 1px rgba(0,0,0,.08);display:flex;flex-direction:column;box-sizing:border-box}
+.btn{height:48px;padding:0 20px;border:0;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;font-size:16px;line-height:24px;font-weight:600;cursor:pointer;box-sizing:border-box;white-space:nowrap}
+.b-pri{background:var(--br);color:var(--onbr)}
+.opt{display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px;border:0;border-radius:12px;background:var(--sf);box-shadow:inset 0 0 0 1px var(--line);font-family:inherit;color:var(--tx);text-align:left;cursor:pointer;box-sizing:border-box}
+.opt.on{box-shadow:inset 0 0 0 2px var(--br)}
+.radio{width:20px;height:20px;border-radius:50%;box-shadow:inset 0 0 0 2px var(--line2);flex:none}
+.opt.on .radio{box-shadow:inset 0 0 0 6px var(--br)}
+.logo{width:44px;height:44px;border-radius:8px;background:var(--tx);color:var(--bg);display:grid;place-items:center;font-size:14px;font-weight:600;flex:none}
+.ck{width:24px;height:24px;border-radius:6px;background:var(--br);display:grid;place-items:center;color:var(--onbr);flex:none}
+</style></head>
+<body>
+<div id="dc-root"><div class="sc-host" data-sc-name="B-03-Location"><div data-dc-tpl="4" class="gx" style="width: 440px; height: 1776px; box-sizing: border-box; padding: 40px; display: flex; flex-direction: column; gap: 40px; background: rgb(228, 231, 234);"><div data-dc-tpl="6" style="display: flex; flex-direction: column; gap: 12px;"><span data-dc-tpl="7" class="t-c" style="color: rgb(74, 83, 94);"><span class="sc-interp">B-03 Choose location · Light</span></span><div data-dc-tpl="8" class="gx lt phone"><div data-dc-tpl="9" style="padding: 56px 16px 0px;"><h1 data-dc-tpl="10" class="t-t" style="margin: 0px;">Filialni tanlang</h1><p data-dc-tpl="11" class="t-b c2" style="margin: 4px 0px 0px;">Nodira Xasanova</p><div data-dc-tpl="12" role="radiogroup" aria-label="Filial" style="display: flex; flex-direction: column; gap: 8px; margin-top: 24px;"><button data-dc-tpl="14" class="opt on" role="radio" aria-checked="true"><span data-dc-tpl="15" class="logo"><span class="sc-interp">AT</span></span><span data-dc-tpl="16" style="flex: 1 1 0%; min-width: 0px;"><span data-dc-tpl="17" class="t-b" style="display: block; font-weight: 600;"><span class="sc-interp">Turon · Chilonzor</span></span><span data-dc-tpl="18" class="t-s c2 tn" style="display: block;"><span class="sc-interp">Qabulchi</span> · <span class="sc-interp">14 ta ish bugun</span></span></span><span data-dc-tpl="19" class="radio"></span></button><button data-dc-tpl="14" class="opt " role="radio" aria-checked="false"><span data-dc-tpl="15" class="logo"><span class="sc-interp">AT</span></span><span data-dc-tpl="16" style="flex: 1 1 0%; min-width: 0px;"><span data-dc-tpl="17" class="t-b" style="display: block; font-weight: 600;"><span class="sc-interp">Motor Pro · Yunusobod</span></span><span data-dc-tpl="18" class="t-s c2 tn" style="display: block;"><span class="sc-interp">Qabulchi</span> · <span class="sc-interp">9 ta ish bugun</span></span></span><span data-dc-tpl="19" class="radio"></span></button><button data-dc-tpl="14" class="opt " role="radio" aria-checked="false"><span data-dc-tpl="15" class="logo"><span class="sc-interp">AC</span></span><span data-dc-tpl="16" style="flex: 1 1 0%; min-width: 0px;"><span data-dc-tpl="17" class="t-b" style="display: block; font-weight: 600;"><span class="sc-interp">Avtoservis Chilonzor</span></span><span data-dc-tpl="18" class="t-s c2 tn" style="display: block;"><span class="sc-interp">Menejer</span> · <span class="sc-interp">6 ta ish bugun</span></span></span><span data-dc-tpl="19" class="radio"></span></button></div><label data-dc-tpl="20" style="display: flex; align-items: center; gap: 12px; min-height: 48px; margin-top: 12px; cursor: pointer;"><span data-dc-tpl="21" class="ck"><svg data-dc-tpl="22" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path data-dc-tpl="23" d="M20 6 9 17l-5-5"></path></svg></span><span data-dc-tpl="24" class="t-b">Keyingi safar soʻramaslik</span></label></div><div data-dc-tpl="25" style="margin-top: auto; background: var(--sf); box-shadow: var(--sh2); padding: 12px 16px 16px;"><button data-dc-tpl="26" class="btn b-pri" style="width: 100%;">Kirish</button></div></div></div><div data-dc-tpl="6" style="display: flex; flex-direction: column; gap: 12px;"><span data-dc-tpl="7" class="t-c" style="color: rgb(74, 83, 94);"><span class="sc-interp">B-03 Choose location · Dark</span></span><div data-dc-tpl="8" class="gx dk phone"><div data-dc-tpl="9" style="padding: 56px 16px 0px;"><h1 data-dc-tpl="10" class="t-t" style="margin: 0px;">Filialni tanlang</h1><p data-dc-tpl="11" class="t-b c2" style="margin: 4px 0px 0px;">Nodira Xasanova</p><div data-dc-tpl="12" role="radiogroup" aria-label="Filial" style="display: flex; flex-direction: column; gap: 8px; margin-top: 24px;"><button data-dc-tpl="14" class="opt on" role="radio" aria-checked="true"><span data-dc-tpl="15" class="logo"><span class="sc-interp">AT</span></span><span data-dc-tpl="16" style="flex: 1 1 0%; min-width: 0px;"><span data-dc-tpl="17" class="t-b" style="display: block; font-weight: 600;"><span class="sc-interp">Turon · Chilonzor</span></span><span data-dc-tpl="18" class="t-s c2 tn" style="display: block;"><span class="sc-interp">Qabulchi</span> · <span class="sc-interp">14 ta ish bugun</span></span></span><span data-dc-tpl="19" class="radio"></span></button><button data-dc-tpl="14" class="opt " role="radio" aria-checked="false"><span data-dc-tpl="15" class="logo"><span class="sc-interp">AT</span></span><span data-dc-tpl="16" style="flex: 1 1 0%; min-width: 0px;"><span data-dc-tpl="17" class="t-b" style="display: block; font-weight: 600;"><span class="sc-interp">Motor Pro · Yunusobod</span></span><span data-dc-tpl="18" class="t-s c2 tn" style="display: block;"><span class="sc-interp">Qabulchi</span> · <span class="sc-interp">9 ta ish bugun</span></span></span><span data-dc-tpl="19" class="radio"></span></button><button data-dc-tpl="14" class="opt " role="radio" aria-checked="false"><span data-dc-tpl="15" class="logo"><span class="sc-interp">AC</span></span><span data-dc-tpl="16" style="flex: 1 1 0%; min-width: 0px;"><span data-dc-tpl="17" class="t-b" style="display: block; font-weight: 600;"><span class="sc-interp">Avtoservis Chilonzor</span></span><span data-dc-tpl="18" class="t-s c2 tn" style="display: block;"><span class="sc-interp">Menejer</span> · <span class="sc-interp">6 ta ish bugun</span></span></span><span data-dc-tpl="19" class="radio"></span></button></div><label data-dc-tpl="20" style="display: flex; align-items: center; gap: 12px; min-height: 48px; margin-top: 12px; cursor: pointer;"><span data-dc-tpl="21" class="ck"><svg data-dc-tpl="22" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path data-dc-tpl="23" d="M20 6 9 17l-5-5"></path></svg></span><span data-dc-tpl="24" class="t-b">Keyingi safar soʻramaslik</span></label></div><div data-dc-tpl="25" style="margin-top: auto; background: var(--sf); box-shadow: var(--sh2); padding: 12px 16px 16px;"><button data-dc-tpl="26" class="btn b-pri" style="width: 100%;">Kirish</button></div></div></div></div></div></div>
+
+
+
+</body></html>

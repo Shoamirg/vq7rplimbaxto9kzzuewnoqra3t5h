@@ -18,6 +18,14 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
 
+class LogoutRequest(BaseModel):
+    refresh_token: str = Field(min_length=1, max_length=8192)
+
+
+class LogoutResponse(BaseModel):
+    ok: bool = True
+
+
 class RegisterAdminRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6)
@@ -41,4 +49,6 @@ class CurrentUserResponse(BaseModel):
     role: str | None = None
     service_center_id: str
     is_super_admin: bool
+    permissions: list[str] = Field(default_factory=list)
+    platform_permissions: list[str] = Field(default_factory=list)
     branding: Branding | None = None

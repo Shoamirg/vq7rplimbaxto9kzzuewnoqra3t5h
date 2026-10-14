@@ -39,7 +39,7 @@ async def billing(
 async def approve_estimate(
     estimate_id: uuid.UUID,
     customer: Customer = Depends(get_current_customer),
-    uow: UnitOfWork = Depends(get_customer_uow),
+    uow: UnitOfWork = Depends(get_customer_uow, scope="function"),
 ) -> BillingDoc:
     return await _portal(customer, uow).approve_estimate(estimate_id)
 
@@ -48,7 +48,7 @@ async def approve_estimate(
 async def decline_estimate(
     estimate_id: uuid.UUID,
     customer: Customer = Depends(get_current_customer),
-    uow: UnitOfWork = Depends(get_customer_uow),
+    uow: UnitOfWork = Depends(get_customer_uow, scope="function"),
 ) -> BillingDoc:
     return await _portal(customer, uow).decline_estimate(estimate_id)
 
@@ -58,6 +58,6 @@ async def ask_estimate(
     estimate_id: uuid.UUID,
     body: AskQuestionRequest,
     customer: Customer = Depends(get_current_customer),
-    uow: UnitOfWork = Depends(get_customer_uow),
+    uow: UnitOfWork = Depends(get_customer_uow, scope="function"),
 ) -> AskResponse:
     return await _portal(customer, uow).ask_estimate_question(estimate_id, body.body)

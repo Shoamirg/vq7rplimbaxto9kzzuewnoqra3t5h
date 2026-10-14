@@ -1,11 +1,14 @@
 """Authentication endpoints: login, token refresh, current user."""
 from __future__ import annotations
 
+from app.api.platform_deps import get_platform_permissions
+
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_auth_service, get_current_user
+from app.api.deps import get_auth_service, get_current_user, get_staff_permissions
+from app.api.logout_proof import logout_proof
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.rate_limit import auth_rate_limit
@@ -17,12 +20,21 @@ from app.schemas.auth import (
     LoginRequest,
     RefreshTokenRequest,
     TokenResponse,
+    LogoutRequest,
+    LogoutResponse,
 )
 from app.schemas.branding import Branding, branding_dict
 from app.services.audit_service import record_audit
 from app.services.auth_service import AuthService
 
 router = APIRouter()
+
+
+@router.post("/logout", response_model=LogoutResponse, summary="Revoke this staff session")
+async def logout(request: Request, body: LogoutRequest | None = None,
+                 auth: AuthService = Depends(get_auth_service)) -> LogoutResponse:
+    await auth.logout(logout_proof(request, body))
+    return LogoutResponse()
 
 
 @router.post(
@@ -94,6 +106,8 @@ async def demo(auth: AuthService = Depends(get_auth_service)) -> TokenResponse:
 @router.get("/me", response_model=CurrentUserResponse, summary="Current authenticated user")
 async def me(
     current_user: User = Depends(get_current_user),
+    permissions: list[str] = Depends(get_staff_permissions),
+    platform_permissions: list[str] = Depends(get_platform_permissions),
     db: AsyncSession = Depends(get_db),
 ) -> CurrentUserResponse:
     result = await db.execute(
@@ -107,5 +121,7 @@ async def me(
         role=current_user.role.name if current_user.role else None,
         service_center_id=str(current_user.service_center_id),
         is_super_admin=current_user.is_super_admin,
+        permissions=permissions,
+        platform_permissions=platform_permissions,
         branding=Branding(**branding_dict(center)) if center else None,
     )

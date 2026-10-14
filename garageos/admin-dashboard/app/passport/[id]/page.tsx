@@ -1,4 +1,4 @@
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import type { Metadata } from "next";
 import QRCode from "qrcode";
 import { FileWarning } from "lucide-react";
@@ -7,16 +7,19 @@ import { getPublicPassport } from "@/lib/api/server";
 import { PassportDocument } from "@/components/passport/passport-document";
 import { PassportActions } from "@/components/passport/passport-actions";
 import { PassportVerified } from "@/components/passport/passport-verified";
+import { isLocale, LOCALE_COOKIE, type Locale, translate } from "@/lib/i18n/dictionaries";
 
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
+  const savedLocale = (await cookies()).get(LOCALE_COOKIE)?.value;
+  const locale: Locale = isLocale(savedLocale) ? savedLocale : "en";
   const p = await getPublicPassport(id).catch(() => null);
-  if (!p) return { title: "Vehicle Passport", robots: { index: false } };
+  if (!p) return { title: translate(locale, "passport.title"), robots: { index: false } };
   return {
-    title: `${p.vehicle.brand} ${p.vehicle.model} · Certified Vehicle Passport`,
-    description: `Health ${Math.round(p.health.score)}/100 · verified by ${p.garage.name}.`,
+    title: `${p.vehicle.brand} ${p.vehicle.model} · ${translate(locale, "passport.title")}`,
+    description: translate(locale, "passport.description", { score: Math.round(p.health.score), garage: p.garage.name }),
     robots: { index: false },
   };
 }
@@ -30,18 +33,20 @@ async function verifyUrl(id: string): Promise<string> {
 
 export default async function PassportPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const savedLocale = (await cookies()).get(LOCALE_COOKIE)?.value;
+  const locale: Locale = isLocale(savedLocale) ? savedLocale : "en";
   const passport = await getPublicPassport(id).catch(() => null);
 
   if (!passport) {
     return (
-      <div className="min-h-screen grid place-items-center bg-muted/30 p-6">
+      <div lang={locale} className="min-h-screen grid place-items-center bg-muted/30 p-6">
         <div className="max-w-sm text-center space-y-3">
           <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-muted text-muted-foreground">
             <FileWarning className="size-7" />
           </div>
-          <h1 className="text-lg font-semibold text-foreground">Passport not found</h1>
+          <h1 className="text-lg font-semibold text-foreground">{translate(locale, "passport.not_found")}</h1>
           <p className="text-sm text-muted-foreground">
-            This passport link is invalid or has been revoked. Ask the garage for a current link.
+            {translate(locale, "passport.invalid_link")}
           </p>
         </div>
       </div>
@@ -56,11 +61,11 @@ export default async function PassportPage({ params }: { params: Promise<{ id: s
   });
 
   return (
-    <div className="min-h-screen bg-[#4c5462] py-8 print:bg-white print:py-0">
+    <div lang={locale} className="min-h-screen bg-[#4c5462] py-8 print:bg-white print:py-0">
       <div className="mx-auto w-[820px] max-w-full">
-        <PassportActions />
-        <PassportVerified passport={passport} />
-        <PassportDocument passport={passport} qrSvg={qrSvg} verifyUrl={url} />
+        <PassportActions locale={locale} />
+        <PassportVerified passport={passport} locale={locale} />
+        <PassportDocument passport={passport} qrSvg={qrSvg} verifyUrl={url} locale={locale} />
       </div>
     </div>
   );

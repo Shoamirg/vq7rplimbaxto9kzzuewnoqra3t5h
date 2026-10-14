@@ -1,7 +1,9 @@
-import { ComingSoon } from "@/components/states/coming-soon";
+import { StaffAccounts } from "@/components/settings/staff-accounts";
+import { getCurrentUser } from "@/lib/api/server";
 
 export const dynamic = "force-dynamic";
 
-export default function SettingsPage() {
-  return <ComingSoon icon="settings" titleKey="settings.title" descKey="settings.desc" />;
+export default async function SettingsPage() {
+  const user = await getCurrentUser();
+  return <StaffAccounts allowed={user.role === 'admin' && !!user.permissions?.includes('staff.write')} />;
 }

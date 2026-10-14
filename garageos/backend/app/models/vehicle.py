@@ -1,4 +1,4 @@
-from sqlalchemy import Index, Integer, String, ForeignKey, Text
+from sqlalchemy import Index, Integer, String, ForeignKey, Text, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
@@ -12,6 +12,12 @@ class Vehicle(BaseModelMixin, ServiceCenterMixin, Base):
         Index("ix_vehicles_vin", "vin", postgresql_using="hash"),
         Index("ix_vehicles_customer_active", "customer_id", "is_active"),
         Index("ix_vehicles_center_km", "service_center_id", "current_km"),
+        Index("uq_vehicles_center_plate_active", "service_center_id",
+              text(r"upper(regexp_replace(license_plate, '[\s-]', '', 'g'))"), unique=True,
+              postgresql_where=text(r"is_active = true AND upper(regexp_replace(license_plate, '[\s-]', '', 'g')) <> ''")),
+        Index("uq_vehicles_center_vin_active", "service_center_id",
+              text(r"upper(regexp_replace(vin, '[\s-]', '', 'g'))"), unique=True,
+              postgresql_where=text(r"is_active = true AND upper(regexp_replace(vin, '[\s-]', '', 'g')) <> ''")),
     )
 
     customer_id: Mapped[UUID] = mapped_column(

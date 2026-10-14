@@ -16,10 +16,10 @@ const variantIcons: Record<ToastVariant, React.ReactNode> = {
 
 const variantClasses: Record<ToastVariant, string> = {
   default: "border-border bg-card",
-  success: "border-success/30 bg-success/5",
-  warning: "border-warning/30 bg-warning/5",
-  danger: "border-danger/30 bg-danger/5",
-  info: "border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30",
+  success: "border-success/30 bg-card",
+  warning: "border-warning/30 bg-card",
+  danger: "border-danger/30 bg-card",
+  info: "border-blue-200 bg-card dark:border-blue-800",
 };
 
 const positionClasses: Record<string, string> = {
@@ -46,6 +46,8 @@ export function ToastProvider({
   maxVisible = 5,
   position = "bottom-right",
   duration = 5000,
+  label = "Notifications",
+  dismissLabel = "Dismiss",
 }: ToastProviderProps) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const counterRef = useRef(0);
@@ -80,11 +82,11 @@ export function ToastProvider({
       {/* Toast Container */}
       <div
         className={cn(
-          "z-[100] flex flex-col gap-2 pointer-events-none",
+          "z-100 flex flex-col gap-2 pointer-events-none w-[calc(100vw-2rem)] max-w-sm",
           positionClasses[position]
         )}
         aria-live="polite"
-        aria-label="Notifications"
+        role="region" aria-label={label}
       >
         {toasts.map((t) => (
           <ToastItem
@@ -92,6 +94,7 @@ export function ToastProvider({
             toast={t}
             onDismiss={dismiss}
             duration={t.persistent ? undefined : t.duration ?? duration}
+            dismissLabel={dismissLabel}
           />
         ))}
       </div>
@@ -104,10 +107,12 @@ function ToastItem({
   toast,
   onDismiss,
   duration,
+  dismissLabel,
 }: {
   toast: Toast;
   onDismiss: (id: string) => void;
   duration?: number;
+  dismissLabel: string;
 }) {
   const [exiting, setExiting] = useState(false);
 
@@ -132,6 +137,8 @@ function ToastItem({
         variantClasses[toast.variant || "default"]
       )}
       role="alert"
+      aria-hidden={exiting || undefined}
+      inert={exiting || undefined}
     >
       <span className="shrink-0 mt-0.5">{icon}</span>
       <div className="flex-1 min-w-0">
@@ -144,7 +151,7 @@ function ToastItem({
         {toast.action && (
           <button
             onClick={toast.action.onClick}
-            className="mt-2 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+            className="mt-2 min-h-11 min-w-11 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
           >
             {toast.action.label}
           </button>
@@ -155,8 +162,8 @@ function ToastItem({
           setExiting(true);
           setTimeout(() => onDismiss(toast.id), 200);
         }}
-        className="shrink-0 rounded-md p-1 opacity-60 hover:opacity-100 transition-opacity"
-        aria-label="Dismiss"
+        className="shrink-0 min-h-11 min-w-11 flex items-center justify-center rounded-md hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary"
+        aria-label={dismissLabel}
       >
         <X className="size-4" />
       </button>

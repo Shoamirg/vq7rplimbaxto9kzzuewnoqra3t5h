@@ -25,6 +25,7 @@ export interface Appointment {
   appointment_date: string; // ISO
   appointment_time: string; // HH:MM
   mechanic_name: string | null;
+  mechanic_user_id?: string | null;
   status: AppointmentStatus;
   maintenance_rule_id: string | null;
   service_type: string | null;
@@ -36,11 +37,18 @@ export interface Appointment {
   billing?: AppointmentBilling | null;
 }
 
+export interface MechanicAccount {
+  id: string;
+  full_name: string;
+  email: string;
+}
+
 export interface AppointmentBilling {
   id: string;
   code: string;
   kind: InvoiceKind;
   status: InvoiceStatus;
+  currency: string;
   total: number;
   balance: number;
 }
@@ -61,6 +69,8 @@ export interface CurrentUser {
   role: string | null;
   service_center_id: string;
   is_super_admin: boolean;
+  platform_permissions?: string[];
+  permissions?: string[];
   branding: Branding | null;
 }
 
@@ -115,6 +125,7 @@ export interface VehicleHealth {
 }
 
 export interface TimelineEvent {
+  currency?: string;
   type: string;
   title: string;
   date: string;
@@ -143,6 +154,10 @@ export interface VehicleListItem {
 export interface VehicleList {
   items: VehicleListItem[];
   count: number;
+  total: number;
+  offset: number;
+  limit: number;
+  has_more: boolean;
 }
 
 export interface CertifiedVehicle {
@@ -236,6 +251,9 @@ export interface CaseDetail extends Omit<CaseListItem, "customer_name" | "vehicl
 export interface CaseList {
   items: CaseListItem[];
   active_count: number;
+  total: number;
+  limit: number;
+  offset: number;
 }
 
 export interface CaseMechanic {
@@ -274,6 +292,7 @@ export interface SearchResults {
 
 // ─── Customer 360 ────────────────────────────────────────────
 export interface CustomerListItem {
+  lifetime_value_by_currency?: Record<string, number>;
   id: string;
   full_name: string;
   phone: string | null;
@@ -287,6 +306,19 @@ export interface CustomerListItem {
 export interface CustomerList {
   items: CustomerListItem[];
   count: number;
+  total: number;
+  offset: number;
+  limit: number;
+  has_more: boolean;
+}
+
+export interface VehicleCatalog {
+  brands: { id: string; name: string; models: { id: string; name: string }[] }[];
+}
+
+export interface RegisteredVehicle extends VehicleListItem {
+  customer_id: string;
+  label: string;
 }
 
 export interface Customer360Vehicle {
@@ -303,6 +335,7 @@ export interface Customer360Vehicle {
 }
 
 export interface Customer360Appointment {
+  currency?: string;
   id: string;
   date: string;
   time: string;
@@ -321,14 +354,17 @@ export interface Customer360 {
   address: string | null;
   since: string | null;
   has_telegram: boolean;
+  telegram_username?: string | null;
   loyalty_points: number;
   tier: { label: string; stars: number };
   stats: {
     vehicle_count: number;
     lifetime_value: number;
+    lifetime_value_by_currency?: Record<string, number>;
     health_avg: number;
     health_band: HealthBand;
     outstanding: number;
+    outstanding_by_currency?: Record<string, number>;
     emergency_count: number;
     last_visit: string | null;
     next_booking: string | null;
@@ -349,11 +385,14 @@ export interface CommercialHealth {
 }
 
 export interface CustomerFinancialDoc {
+  currency: string;
   id: string; code: string; kind: InvoiceKind; status: InvoiceStatus;
   total: number; balance: number; due_date: string | null; created_at: string | null;
 }
 
 export interface CustomerFinancial {
+  currency: string;
+  by_currency: Record<string, { lifetime_spend: number; refunds: number; outstanding: number; overdue_amount: number }>;
   lifetime_spend: number;
   refunds: number;
   outstanding: number;
@@ -366,14 +405,14 @@ export interface CustomerFinancial {
   payment_count: number;
   preferred_method: PaymentMethodT | null;
   approval_rate: number | null;
-  last_payment: { amount: number; method: string; date: string } | null;
+  last_payment: { amount: number; currency: string; method: string; date: string } | null;
   commercial_health: CommercialHealth;
   invoices: CustomerFinancialDoc[];
   estimates: CustomerFinancialDoc[];
   payments: PaymentRow[];
 }
 
-// ─── Certified Vehicle Passport ──────────────────────────────
+// ─── Vehicle service record ──────────────────────────────────
 export type PassportStatus = "on_track" | "due_soon" | "overdue";
 
 export interface PassportUpcoming {
@@ -384,6 +423,7 @@ export interface PassportUpcoming {
 }
 
 export interface PassportHistory {
+  currency?: string;
   service_type: string;
   date: string;
   km: number | null;
@@ -406,6 +446,7 @@ export interface Passport {
     services_completed: number;
     overdue_items: number;
     total_spent: number;
+    total_spent_by_currency?: Record<string, number>;
     ownership_years: number;
     last_service: string | null;
   };
@@ -450,32 +491,43 @@ export interface InboxItem {
   assigned_user_id: string | null;
   customer_id: string | null;
   vehicle_id: string | null;
+  appointment_id: string | null;
   case_id: string | null;
+  invoice_id: string | null;
   created_at: string | null;
   customer_name?: string | null;
   customer_phone?: string | null;
   vehicle_label?: string | null;
   assigned_name?: string | null;
   case_code?: string | null;
+  case_status?: string | null;
+  sla_tracking_active?: boolean;
   sla_elapsed_seconds?: number;
   sla_response_minutes?: number;
   sla_breached?: boolean;
 }
 
 export interface InboxCounts {
+  all: number;
   needs_reply: number;
   assigned_me: number;
+  mentions: number;
+  sla_breached: number;
   waiting_customer: number;
   waiting_technician: number;
   waiting_approval: number;
   unread: number;
   resolved: number;
+  snoozed: number;
 }
 
 export interface InboxResponse {
   items: InboxItem[];
   counts: InboxCounts;
   view: string;
+  total: number;
+  limit: number;
+  offset: number;
 }
 
 export interface ConvAttachment {
@@ -511,16 +563,20 @@ export interface ConvParticipant {
 }
 
 export interface LinkedCard {
-  kind: "case" | "vehicle" | "customer" | "passport";
-  title: string;
-  subtitle: string;
-  link: string;
-  score?: number;
-  band?: HealthBand;
+  kind: "case" | "vehicle" | "customer" | "passport" | "appointment" | "invoice";
+  title: string | null;
+  subtitle: string | null;
+  link: string | null;
+  case_type?: string;
+  appointment_date?: string;
+  appointment_time?: string;
+  invoice_kind?: "estimate" | "invoice";
+  available?: boolean;
   phone?: string;
 }
 
 export interface ActivityItem {
+  id: string;
   type: "event" | "message";
   title: string;
   detail: string | null;
@@ -532,6 +588,7 @@ export interface ActivityItem {
 }
 
 export interface ThreadDetail extends InboxItem {
+  read_observation: string;
   messages: ConvMessage[];
   participants: ConvParticipant[];
   activity: ActivityItem[];
@@ -599,6 +656,7 @@ export interface InvoiceLineItemRow {
 }
 
 export interface PaymentRow {
+  currency?: string;
   id: string;
   kind: PaymentKindT;
   method: PaymentMethodT;
@@ -609,11 +667,32 @@ export interface PaymentRow {
   received_at: string | null;
 }
 
+/** Current owning garage presentation, not a historical legal identity snapshot. */
+export interface InvoiceIssuer {
+  name: string;
+  tagline: string | null;
+  monogram: string;
+  phone: string | null;
+  address: string | null;
+}
+
 export interface InvoiceDoc extends InvoiceListItem {
+  issuer?: InvoiceIssuer | null;
   customer?: { id: string; name: string; phone: string | null; email: string | null } | null;
   line_items: InvoiceLineItemRow[];
   payments: PaymentRow[];
   timeline: { title: string; detail: string | null; date: string; severity: string }[];
+}
+
+export interface InvoiceListResponse {
+  items: InvoiceListItem[];
+  counts: Record<string, number>;
+  kpis: Record<string, unknown>;
+  view: string;
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
 }
 
 export interface BillingCounts {
@@ -622,6 +701,7 @@ export interface BillingCounts {
 }
 
 export interface BillingKpis {
+  currency: string;
   outstanding: number; overdue: number; paid_this_month: number;
 }
 
@@ -630,6 +710,10 @@ export interface BillingResponse {
   counts: BillingCounts;
   kpis: BillingKpis;
   view: string;
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
 }
 
 // ─── Reports & Analytics ──────────────────────────────────────
@@ -644,7 +728,7 @@ export interface ReportKpi {
   series: number[] | null;
   tone: "danger" | "success" | "warning" | null;
 }
-export interface ReportInsight { tone: string; label: string; text: string; drill?: string; }
+export interface ReportInsight { tone: string; label: string; text: string; text_key?: string; params?: Record<string, string | number>; drill?: string; }
 export interface ReportQuestion { q: string; drill: string; }
 export interface ReportGroup { title: string; kpis: ReportKpi[]; }
 export interface ReportSection {
@@ -663,6 +747,8 @@ export interface ReportReconciliation {
   outstanding: number;
 }
 export interface ReportResponse {
+  currency: string;
+  available_currencies: string[];
   report: string;
   title: string;
   period: { key: string; start: string; end: string };
@@ -691,11 +777,17 @@ export interface VehicleIntelligence {
     highlights: { label: string; ok: boolean }[];
   };
   commercial: {
+    currency?: string;
+    outstanding_by_currency?: Record<string, number>;
+    lifetime_value_by_currency?: Record<string, number>;
     score: number; stars: number; band: string; label: string;
     outstanding: number; lifetime_value: number; avg_days_to_pay: number | null;
     preferred_method: string | null; spend_tier: string | null;
   } | null;
-  predictions: { tone: string; icon: string; title: string; detail: string }[];
+  predictions: { tone: string; icon: string; title: string; detail: string;
+    code?: "next" | "attention" | "overdue" | "risk";
+    params?: Record<string, string | number | null>;
+  }[];
   maintenance: { service_type: string; status: string | null; priority: string | null; remaining_days: number | null; remaining_km: number | null }[];
   timeline: { type: string; title: string; date: string; detail?: string | null; cost?: number | null; km?: number | null; severity?: string }[];
   owner_context: { id: string | null; name: string | null; vehicle_count: number; spend_tier: string | null } | null;

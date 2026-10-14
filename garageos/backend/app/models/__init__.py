@@ -3,6 +3,8 @@ from app.models.service_center import ServiceCenter
 from app.models.role import Role
 from app.models.user import User
 from app.models.customer import Customer
+from app.models.customer_account import CustomerAccount
+from app.models.auth_session import AuthSession
 from app.models.brand import Brand
 from app.models.vehicle_model import VehicleModel
 from app.models.vehicle import Vehicle
@@ -25,6 +27,8 @@ from app.models.invoice import (
 )
 from app.models.ledger import LedgerEntry
 from app.models.audit_log import AuditLog
+from app.models.message_intent import MessageIntent
+from app.models.conversation_read_observation import ConversationReadObservation
 
 __all__ = [
     "BaseModelMixin",
@@ -33,6 +37,8 @@ __all__ = [
     "Role",
     "User",
     "Customer",
+    "CustomerAccount",
+    "AuthSession",
     "Brand",
     "VehicleModel",
     "Vehicle",
@@ -52,4 +58,6 @@ __all__ = [
     "Payment",
     "LedgerEntry",
     "AuditLog",
+    "MessageIntent",
+    "ConversationReadObservation",
 ]

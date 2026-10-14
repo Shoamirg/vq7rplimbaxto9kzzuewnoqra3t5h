@@ -27,6 +27,6 @@ router = APIRouter()
 async def book_appointment(
     body: BookingRequest,
     customer: Customer = Depends(get_current_customer),
-    uow: UnitOfWork = Depends(get_customer_uow),
+    uow: UnitOfWork = Depends(get_customer_uow, scope="function"),
 ) -> BookingResult:
     return await CustomerPortalService(uow, customer).create_appointment(body)

@@ -1,0 +1,75 @@
+name: Flutter iOS
+
+on:
+  # This Windows Jenkins installation has no Mac/Xcode agent.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flutter-ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    name: iPhone release compile and native simulator workflow
+    runs-on: macos-26
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: garageos/flutter_app
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned Flutter SDK
+        run: |
+          git clone --depth 1 --branch 3.47.6 https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+      - name: Inspect Apple toolchain
+        run: |
+          xcodebuild -version
+          xcrun simctl list devices available
+      - run: flutter pub get
+      - name: Verify complete Uzbek, English and Russian catalogs
+        run: |
+          dart run tool/check_l10n.dart
+          flutter gen-l10n
+      - run: flutter analyze
+      - name: Compile iPhone release app without signing
+        run: flutter build ios --release --no-codesign
+      - name: Select and boot an available iPhone simulator
+        run: |
+          xcrun simctl list devices available --json > "$RUNNER_TEMP/ios-devices.json"
+          python3 - "$RUNNER_TEMP/ios-devices.json" "$GITHUB_ENV" <<'PY'
+          import json, re, sys
+          with open(sys.argv[1]) as source:
+              devices = json.load(source)['devices']
+          candidates = [
+              (tuple(map(int, re.findall(r'\d+', runtime))), device)
+              for runtime, items in devices.items() if '.iOS-' in runtime
+              for device in items
+              if device.get('isAvailable') and device['name'].startswith('iPhone')
+          ]
+          if not candidates:
+              raise SystemExit('No available iPhone simulator runtime; inspect Xcode runtime installation.')
+          _, device = max(candidates, key=lambda item: item[0])
+          with open(sys.argv[2], 'a') as environment:
+              environment.write(f"IOS_SIMULATOR_UDID={device['udid']}\n")
+              environment.write(f"IOS_SIMULATOR_BOOTED={str(device['state'] == 'Booted').lower()}\n")
+          print(f"Selected {device['name']} ({device['udid']})")
+          PY
+      - name: Run native iOS integration tests
+        run: |
+          if [ "$IOS_SIMULATOR_BOOTED" != "true" ]; then xcrun simctl boot "$IOS_SIMULATOR_UDID"; fi
+          xcrun simctl bootstatus "$IOS_SIMULATOR_UDID" -b
+          flutter test integration_test/ios_smoke_test.dart -d "$IOS_SIMULATOR_UDID" --reporter expanded
+      - name: Package unsigned compilation evidence
+        run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/Runner.app "$RUNNER_TEMP/garageos-ios-unsigned.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: garageos-ios-unsigned
+          path: ${{ runner.temp }}/garageos-ios-unsigned.zip
+          retention-days: 7
+      - name: Stop the test simulator
+        if: always() && env.IOS_SIMULATOR_UDID != ''
+        run: xcrun simctl shutdown "$IOS_SIMULATOR_UDID" || true

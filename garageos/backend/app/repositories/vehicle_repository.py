@@ -1,7 +1,8 @@
 from __future__ import annotations
 import uuid
+import re
 from typing import Optional, Sequence
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, func
 from sqlalchemy.orm import selectinload
 from app.models.vehicle import Vehicle
 from app.models.vehicle_model import VehicleModel
@@ -36,6 +37,33 @@ class VehicleRepository(TenantScopedRepository[Vehicle]):
         ).limit(limit)
         result = await self.session.execute(stmt)
         return result.scalars().all()
+
+    async def page_active(self, query: str, limit: int, offset: int):
+        from app.models.brand import Brand
+        from app.models.customer import Customer
+
+        stmt = (self._scope(select(Vehicle).join(VehicleModel, Vehicle.vehicle_model_id == VehicleModel.id)
+                            .join(Brand, VehicleModel.brand_id == Brand.id)
+                            .join(Customer, Vehicle.customer_id == Customer.id))
+                .where(Vehicle.is_active.is_(True), Customer.is_active.is_(True),
+                       Customer.service_center_id == self.service_center_id))
+        if query:
+            identifier = re.sub(r"[\s-]", "", query).upper()
+            stmt = stmt.where(or_(func.upper(func.regexp_replace(Vehicle.license_plate, r"[\s-]", "", "g")).ilike(f"%{identifier}%"),
+                                  func.upper(func.regexp_replace(Vehicle.vin, r"[\s-]", "", "g")).ilike(f"%{identifier}%"), Brand.name.ilike(f"%{query}%"),
+                                  VehicleModel.name.ilike(f"%{query}%"),
+                                  Customer.full_name.ilike(f"%{query}%")))
+        total = await self.session.scalar(select(func.count()).select_from(stmt.subquery()))
+        stmt = stmt.options(selectinload(Vehicle.vehicle_model).selectinload(VehicleModel.brand),
+                            selectinload(Vehicle.customer)).order_by(Vehicle.created_at.desc(), Vehicle.id)
+        vehicles = (await self.session.execute(stmt.offset(offset).limit(limit))).scalars().all()
+        return vehicles, total or 0
+
+    async def find_by_identifier(self, field: str, value: str) -> Optional[Vehicle]:
+        column = Vehicle.vin if field == "vin" else Vehicle.license_plate
+        normalized = func.upper(func.regexp_replace(column, r"[\s-]", "", "g"))
+        stmt = self._scope(select(Vehicle).where(Vehicle.is_active.is_(True), normalized == value)).limit(1)
+        return (await self.session.execute(stmt)).scalars().first()
 
     async def find_by_vin(self, vin: str) -> Optional[Vehicle]:
         stmt = self._scope(

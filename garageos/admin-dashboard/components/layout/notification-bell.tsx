@@ -9,6 +9,7 @@ import {
 
 import { clientFetch } from "@/lib/api/client";
 import type { NotificationFeed, NotificationItem, NotificationSeverity } from "@/lib/api/types";
+import { useI18n } from "@/lib/i18n/context";
 
 const SEVERITY_DOT: Record<NotificationSeverity, string> = {
   critical: "bg-red-600", high: "bg-red-500", medium: "bg-amber-500", low: "bg-blue-500", info: "bg-slate-400",
@@ -19,20 +20,22 @@ const CATEGORY_ICON: Record<string, React.ElementType> = {
   finance: DollarSign, emergency: ShieldAlert, system: Cog,
 };
 
-function relTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const m = Math.round(diff / 60000);
-  if (m < 1) return "just now";
-  if (m < 60) return `${m}m ago`;
-  const h = Math.round(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.round(h / 24);
-  return d === 1 ? "yesterday" : `${d}d ago`;
-}
-
 const FILTERS = ["all", "appointment", "vehicle", "passport", "customer"] as const;
 
 export function NotificationBell() {
+  const { t, tp, fmt } = useI18n();
+  function relTime(iso: string): string {
+    const timestamp = new Date(iso).getTime();
+    if (!Number.isFinite(timestamp)) return "—";
+    const minutes = Math.round((Date.now() - timestamp) / 60000);
+    if (minutes < 1) return t("feedback.just_now");
+    if (minutes < 60) return tp("feedback.minutes", minutes, { count: fmt.number(minutes) });
+    const hours = Math.round(minutes / 60);
+    if (hours < 24) return tp("feedback.hours", hours, { count: fmt.number(hours) });
+    const days = Math.round(hours / 24);
+    return days === 1 ? t("feedback.yesterday") : tp("feedback.days", days, { count: fmt.number(days) });
+  }
+
   const router = useRouter();
   const [feed, setFeed] = useState<NotificationFeed>({ items: [], unread_count: 0 });
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("all");
@@ -75,23 +78,23 @@ export function NotificationBell() {
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <button className="relative p-2 rounded-lg hover:bg-muted transition-colors" aria-label="Notifications">
+        <button className="relative grid size-11 place-items-center rounded-lg hover:bg-muted transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring" aria-label={t("menu.notifications")}>
           <Bell className="size-4 text-muted-foreground" />
           {feed.unread_count > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 grid min-w-[16px] h-4 place-items-center rounded-full bg-danger px-1 text-[9px] font-bold text-white">
+            <span className="absolute -top-0.5 -right-0.5 grid min-w-[16px] h-4 place-items-center rounded-full bg-red-700 px-1 text-[9px] font-bold text-white">
               {feed.unread_count > 9 ? "9+" : feed.unread_count}
             </span>
           )}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-[380px] p-0" maxHeight="480px">
+      <DropdownMenuContent align="end" className="w-[380px] max-w-[calc(100vw-1rem)] p-0" maxHeight="480px">
         {/* Header */}
-        <div className="flex items-center justify-between px-3 py-2.5 border-b border-border">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 py-2.5 border-b border-border">
           <p className="text-sm font-semibold text-foreground">
-            Notifications {feed.unread_count > 0 && <span className="text-muted-foreground font-normal">· {feed.unread_count} new</span>}
+            {t("menu.notifications")} {feed.unread_count > 0 && <span className="text-muted-foreground font-normal">· {tp("feedback.new", feed.unread_count, { count: fmt.number(feed.unread_count) })}</span>}
           </p>
-          <button onClick={markAllRead} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
-            <Check className="size-3" /> Mark all read
+          <button onClick={markAllRead} className="flex min-h-11 items-center gap-1 text-left text-xs text-muted-foreground hover:text-foreground">
+            <Check className="size-3 shrink-0" /> {t("feedback.mark_all_read")}
           </button>
         </div>
 
@@ -101,12 +104,13 @@ export function NotificationBell() {
             <button
               key={f}
               onClick={() => setFilter(f)}
+              aria-pressed={filter === f}
               className={cn(
-                "px-2.5 py-1 rounded-full text-xs capitalize whitespace-nowrap transition-colors",
+                "min-h-11 min-w-11 px-2.5 py-1 rounded-full text-xs whitespace-nowrap transition-colors",
                 filter === f ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
               )}
             >
-              {f}
+              {t(`feedback.filter.${f}`)}
             </button>
           ))}
         </div>
@@ -116,7 +120,7 @@ export function NotificationBell() {
           {feed.items.length === 0 ? (
             <div className="py-10 text-center text-sm text-muted-foreground">
               <Bell className="size-7 mx-auto mb-2 opacity-40" />
-              You&apos;re all caught up.
+              {t("feedback.empty_notifications")}
             </div>
           ) : (
             feed.items.map((n) => {
@@ -127,7 +131,7 @@ export function NotificationBell() {
                   onClick={() => openItem(n)}
                   className={cn(
                     "flex w-full items-start gap-3 px-3 py-2.5 text-left border-b border-border/60 last:border-0 hover:bg-muted/50 transition-colors",
-                    !n.is_read && "bg-primary/[0.03]"
+                    !n.is_read && "bg-primary/3"
                   )}
                 >
                   <span className="relative mt-0.5 grid size-8 place-items-center rounded-lg bg-muted text-muted-foreground shrink-0">

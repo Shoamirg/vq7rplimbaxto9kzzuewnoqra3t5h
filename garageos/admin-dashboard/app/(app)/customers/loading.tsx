@@ -1,8 +1,12 @@
+"use client";
+
+import { useI18n } from "@/lib/i18n/context";
 import { Bar, CardShell } from "@/components/skeletons/skel";
 
 export default function CustomersLoading() {
+  const { t } = useI18n();
   return (
-    <div className="p-4 lg:p-6 space-y-6" aria-busy="true" aria-label="Loading customers">
+    <div className="p-4 lg:p-6 space-y-6" aria-busy="true" aria-label={t("common.loading")}>
       <div className="flex items-center justify-between">
         <div className="space-y-2"><Bar className="h-7 w-40" /><Bar className="h-4 w-64" /></div>
         <Bar className="h-10 w-64 rounded-lg" />

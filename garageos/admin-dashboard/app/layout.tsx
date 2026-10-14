@@ -4,7 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 
 // Body font — Cyrillic subset added so RU/UZ render in Inter, not a fallback.
-const inter = Inter({ subsets: ["latin", "cyrillic"], variable: "--font-sans" });
+const inter = Inter({ subsets: ["latin", "cyrillic"], variable: "--font-inter" });
 // Brand / display font — the wordmark and headings.
 const manrope = Manrope({ subsets: ["latin", "cyrillic"], weight: ["600", "700", "800"], variable: "--font-brand" });
 

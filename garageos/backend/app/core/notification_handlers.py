@@ -151,7 +151,9 @@ def _spec_for(event) -> Optional[dict]:
         }[type(event).__name__]
         body = None
         if isinstance(event, PaymentReceived) and event.amount is not None:
-            body = f"${event.amount:,.2f}" + (f" · {event.method}" if event.method else "")
+            if event.kind == "refund":
+                title = "Refund issued"
+            body = f"{event.currency} {event.amount:,.2f}" + (f" · {event.method}" if event.method else "")
         return dict(
             service_center_id=sc, category="finance", severity=sev,
             title=f"{title} · {event.code}", body=body,

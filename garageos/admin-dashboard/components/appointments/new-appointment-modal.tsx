@@ -1,16 +1,38 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
-import { CalendarPlus, Loader2, Search, X } from "lucide-react";
-import { Button, useToast } from "@garageos/design-system";
+import { useEffect, useRef, useState } from "react";
+import { CalendarPlus, Loader2, Plus, X } from "lucide-react";
+import { Button, Dialog, DialogContent, DialogTitle, useToast } from "@garageos/design-system";
 
 import { clientFetch, ClientApiError } from "@/lib/api/client";
-import type { CaseMechanic, Customer360, CustomerList, CustomerListItem } from "@/lib/api/types";
+import { useI18n } from "@/lib/i18n/context";
+import type { MechanicAccount, AppointmentListResponse, Customer360, CustomerListItem } from "@/lib/api/types";
+import { CustomerPicker } from "@/components/intake/customer-picker";
+import { NewCustomerModal, NewVehicleModal } from "@/components/intake/intake-modals";
 
-const FIELD = "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
+const FIELD = "min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40";
 const LABEL = "block text-xs font-semibold text-muted-foreground mb-1.5";
 const DURATIONS = [30, 60, 90, 120, 180];
+const UNCERTAIN_APPOINTMENT_KEY = "garageos:appointment:uncertain:v1";
+
+type AppointmentTarget = { customerId: string; vehicleId: string; date: string; time: string };
+
+function loadUncertainAppointment(): AppointmentTarget | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const parsed = JSON.parse(window.sessionStorage.getItem(UNCERTAIN_APPOINTMENT_KEY) ?? "null") as Partial<AppointmentTarget> | null;
+    if (parsed && typeof parsed.customerId === "string" && typeof parsed.vehicleId === "string"
+      && typeof parsed.date === "string" && typeof parsed.time === "string") {
+      return { customerId: parsed.customerId, vehicleId: parsed.vehicleId, date: parsed.date, time: parsed.time };
+    }
+  } catch { /* Malformed or unavailable tab storage cannot authorize a replay. */ }
+  return null;
+}
+
+function clearUncertainAppointment() {
+  try { window.sessionStorage.removeItem(UNCERTAIN_APPOINTMENT_KEY); return true; }
+  catch { return false; }
+}
 
 type Vehicle = { id: string; label: string };
 
@@ -24,7 +46,7 @@ function todayIso(): string {
 export function NewAppointmentButton({
   onCreated,
   presetDate,
-  label = "New appointment",
+  label,
   size = "sm",
   variant,
   leftIcon,
@@ -37,10 +59,11 @@ export function NewAppointmentButton({
   leftIcon?: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const { t } = useI18n();
   return (
     <>
       <Button size={size} variant={variant} leftIcon={leftIcon ?? <CalendarPlus className="size-4" />} onClick={() => setOpen(true)}>
-        {label}
+        {label ?? t("appointment.new")}
       </Button>
       {open ? <NewAppointmentModal onClose={() => setOpen(false)} onCreated={onCreated} presetDate={presetDate} /> : null}
     </>
@@ -59,15 +82,14 @@ export function NewAppointmentModal({
   preset?: { id: string; name: string; vehicleId?: string };
 }) {
   const { toast } = useToast();
+  const { t, fmt } = useI18n();
 
   // When opened from a customer/vehicle context, the customer is pre-selected.
   const presetCustomer: CustomerListItem | null = preset
     ? { id: preset.id, full_name: preset.name, phone: null, email: null, vehicle_count: 0, lifetime_value: 0, tier: "", last_visit: null }
     : null;
 
-  const [customers, setCustomers] = useState<CustomerListItem[]>([]);
-  const [mechanics, setMechanics] = useState<CaseMechanic[]>([]);
-  const [query, setQuery] = useState("");
+  const [mechanics, setMechanics] = useState<MechanicAccount[]>([]);
   const [customer, setCustomer] = useState<CustomerListItem | null>(presetCustomer);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [vehicleId, setVehicleId] = useState("");
@@ -78,42 +100,122 @@ export function NewAppointmentModal({
   const [notes, setNotes] = useState("");
   const [loadingVehicles, setLoadingVehicles] = useState(false);
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const [vehicleError, setVehicleError] = useState(false);
+  const [mechanicError, setMechanicError] = useState(false);
+  const [loadingMechanics, setLoadingMechanics] = useState(true);
+  const [retryVehicles, setRetryVehicles] = useState(0);
+  const [retryMechanics, setRetryMechanics] = useState(0);
+  const [intake, setIntake] = useState<"customer" | "vehicle" | null>(null);
+  const [uncertain, setUncertain] = useState<AppointmentTarget | null>(loadUncertainAppointment);
+  const [uncertainResult, setUncertainResult] = useState<"found" | "not_found" | null>(null);
+  const [checkingOutcome, setCheckingOutcome] = useState(false);
+  const checkingOutcomeRef = useRef(false);
+  const [outcomeCheckFailed, setOutcomeCheckFailed] = useState(false);
 
-  // Load pickers once.
   useEffect(() => {
-    clientFetch<CustomerList>("/customers?limit=200").then((r) => setCustomers(r.items)).catch(() => {});
-    clientFetch<CaseMechanic[]>("/cases/mechanics").then(setMechanics).catch(() => {});
-  }, []);
+    let active = true;
+    setMechanicError(false);
+    setLoadingMechanics(true);
+    clientFetch<{ items: MechanicAccount[] }>("/mechanics").then((data) => { if (active) setMechanics(data.items); })
+      .catch(() => { if (active) setMechanicError(true); })
+      .finally(() => { if (active) setLoadingMechanics(false); });
+    return () => { active = false; };
+  }, [retryMechanics]);
 
   // Load the chosen customer's vehicles.
   useEffect(() => {
     if (!customer) { setVehicles([]); setVehicleId(""); return; }
+    let active = true;
     setLoadingVehicles(true);
+    setVehicleId(""); setVehicles([]); setVehicleError(false);
     clientFetch<Customer360>(`/customers/${customer.id}`)
       .then((c) => {
+        if (!active) return;
         const vs = c.vehicles.map((v) => ({ id: v.id, label: v.label }));
         setVehicles(vs);
         const wanted = preset?.vehicleId && vs.some((v) => v.id === preset.vehicleId) ? preset.vehicleId : "";
         setVehicleId(wanted || (vs.length === 1 ? vs[0].id : ""));
       })
-      .catch(() => setVehicles([]))
-      .finally(() => setLoadingVehicles(false));
+      .catch(() => { if (active) setVehicleError(true); })
+      .finally(() => { if (active) setLoadingVehicles(false); });
+    return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customer]);
+  }, [customer, retryVehicles]);
 
-  const matches = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return customers.slice(0, 8);
-    return customers.filter((c) =>
-      c.full_name.toLowerCase().includes(q) || (c.phone ?? "").includes(q) || (c.email ?? "").toLowerCase().includes(q),
-    ).slice(0, 8);
-  }, [query, customers]);
+  const canSave = Boolean(customer && vehicleId && date && time) && !saving && !uncertain;
 
-  const canSave = Boolean(customer && vehicleId && date && time) && !saving;
+  async function findMatchingAppointment(target: AppointmentTarget) {
+    const params = new URLSearchParams({ date_from: target.date, date_to: target.date, page_size: "100" });
+    let page = 1;
+    while (true) {
+      params.set("page", String(page));
+      const result = await clientFetch<AppointmentListResponse>(`/appointments?${params.toString()}`);
+      const match = result.items.find((item) => item.status !== "cancelled"
+        && item.customer_id === target.customerId && item.vehicle_id === target.vehicleId
+        && item.appointment_date.slice(0, 10) === target.date
+        && item.appointment_time.slice(0, 5) === target.time);
+      if (match) return match;
+      if (page >= result.total_pages) return null;
+      page += 1;
+    }
+  }
+
+  async function reconcileOutcome() {
+    if (!uncertain || checkingOutcomeRef.current) return;
+    checkingOutcomeRef.current = true;
+    setCheckingOutcome(true); setOutcomeCheckFailed(false); setUncertainResult(null);
+    try {
+      const match = await findMatchingAppointment(uncertain);
+      setUncertainResult(match ? "found" : "not_found");
+      if (match) {
+        clearUncertainAppointment();
+        onCreated?.();
+      }
+    } catch {
+      setOutcomeCheckFailed(true);
+    } finally {
+      checkingOutcomeRef.current = false;
+      setCheckingOutcome(false);
+    }
+  }
+
+  function allowSeparateBooking() {
+    if (uncertainResult !== "not_found" || !clearUncertainAppointment()) {
+      setOutcomeCheckFailed(true);
+      return;
+    }
+    setUncertain(null); setUncertainResult(null); setOutcomeCheckFailed(false);
+  }
 
   async function save() {
-    if (!customer || !vehicleId) return;
+    if (!customer || !vehicleId || uncertain || savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
+    const target = { customerId: customer.id, vehicleId, date, time };
+    let existing: Awaited<ReturnType<typeof findMatchingAppointment>>;
+    try {
+      existing = await findMatchingAppointment(target);
+    } catch {
+      toast({ title: t("appointment.schedule_check_failed"), variant: "danger" });
+      savingRef.current = false;
+      setSaving(false);
+      return;
+    }
+    if (existing) {
+      toast({ title: t("appointment.match_exists"), description: `${customer.full_name} · ${fmt.date(date)} ${time}`, variant: "danger" });
+      savingRef.current = false;
+      setSaving(false);
+      return;
+    }
+    try {
+      window.sessionStorage.setItem(UNCERTAIN_APPOINTMENT_KEY, JSON.stringify(target));
+    } catch {
+      toast({ title: t("appointment.outcome_store_failed"), variant: "danger" });
+      savingRef.current = false;
+      setSaving(false);
+      return;
+    }
     try {
       await clientFetch("/appointments/direct", {
         method: "POST",
@@ -123,81 +225,88 @@ export function NewAppointmentModal({
           appointment_date: date,
           appointment_time: time,
           estimated_duration_minutes: duration,
-          mechanic_name: mechanic || null,
+          mechanic_user_id: mechanic || null,
           customer_notes: notes.trim() || null,
         }),
       });
-      toast({ title: "Appointment booked", description: `${customer.full_name} · ${date} ${time}`, variant: "success" });
+      toast({ title: t("appointment.booked"), description: `${customer.full_name} · ${fmt.date(date)} ${time}`, variant: "success" });
+      clearUncertainAppointment();
       onCreated?.();
       onClose();
     } catch (err) {
       // A read-only demo session already shows its own toast; avoid a duplicate.
-      if (!(err instanceof ClientApiError && err.status === 403)) {
-        toast({ title: "Could not book appointment", description: "Please check the details and try again.", variant: "danger" });
+      if ((err instanceof ClientApiError && err.status >= 500) || !(err instanceof ClientApiError)) {
+        setUncertain(target);
+        setUncertainResult(null);
+      } else if (!(err instanceof ClientApiError && err.status === 403)) {
+        clearUncertainAppointment();
+        toast({ title: t("appointment.book_failed"), description: err instanceof ClientApiError && err.code === "APPOINTMENT_CONFLICT" ? t("appointment.conflict") : undefined, variant: "danger" });
+      } else {
+        clearUncertainAppointment();
       }
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
 
-  if (typeof document === "undefined") return null;
-
-  return createPortal(
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div role="dialog" aria-modal="true" aria-label="New appointment"
-        className="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl">
+  return <>
+    <Dialog open onOpenChange={(open) => { if (!open && !saving) onClose(); }}>
+      <DialogContent size="md" noPadding hideClose aria-describedby={undefined}
+        className="max-h-[90vh] overflow-y-auto [&_button]:min-h-11 [&_button]:min-w-11 [&_input]:min-h-11 [&_select]:min-h-11">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <h2 className="flex items-center gap-2 text-base font-bold"><CalendarPlus className="size-4 text-primary" /> New appointment</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors" aria-label="Close"><X className="size-4" /></button>
+          <DialogTitle className="flex items-center gap-2 text-base font-bold"><CalendarPlus className="size-4 text-primary" /> {t("appointment.new")}</DialogTitle>
+          <button onClick={onClose} disabled={saving} className="min-h-11 min-w-11 flex items-center justify-center rounded-lg hover:bg-muted transition-colors" aria-label={t("common.close")}><X className="size-4" /></button>
         </div>
 
         <div className="p-5 space-y-4">
+          {uncertain && <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950" role="alert">
+            <p>{uncertainResult === "found" ? t("appointment.outcome_found") : uncertainResult === "not_found" ? t("appointment.outcome_not_found") : t("appointment.outcome_uncertain")}</p>
+            <p>{t("appointment.outcome_target", { date: fmt.date(uncertain.date), time: uncertain.time })}</p>
+            {outcomeCheckFailed && <p className="mt-1">{t("appointment.outcome_check_failed")}</p>}
+            {uncertainResult !== "found" && <Button variant="outline" size="sm" className="mt-2 min-h-11 min-w-11" disabled={checkingOutcome}
+              onClick={() => void reconcileOutcome()}>
+              {checkingOutcome ? t("appointment.outcome_checking") : t("appointment.check_schedule")}
+            </Button>}
+            {uncertainResult === "not_found" && <Button variant="ghost" size="sm" className="mt-2 min-h-11 min-w-11"
+              onClick={allowSeparateBooking}>{t("appointment.allow_separate_booking")}</Button>}
+          </div>}
+          {!uncertain && <fieldset disabled={saving} className="m-0 min-w-0 space-y-4 border-0 p-0">
           {/* Customer */}
           <div>
-            <label className={LABEL} htmlFor="appt-customer">Customer</label>
+            <label className={LABEL} htmlFor="appt-customer">{t("work.customer")}</label>
             {customer ? (
               <div className="flex items-center justify-between rounded-lg border border-primary/40 bg-primary/5 px-3 py-2">
                 <span className="text-sm font-medium">{customer.full_name}</span>
-                <button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => { setCustomer(null); setQuery(""); }}>Change</button>
+                <button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setCustomer(null)}>{t("invoice.change")}</button>
               </div>
             ) : (
               <>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                  <input id="appt-customer" className={`${FIELD} pl-9`} placeholder="Search customers…" value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
-                </div>
-                {matches.length > 0 && (
-                  <div className="mt-1.5 max-h-44 overflow-y-auto rounded-lg border border-border divide-y divide-border">
-                    {matches.map((c) => (
-                      <button key={c.id} onClick={() => setCustomer(c)} className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors">
-                        <span className="font-medium">{c.full_name}</span>
-                        {c.phone ? <span className="text-muted-foreground"> · {c.phone}</span> : null}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <CustomerPicker id="appt-customer" onSelect={setCustomer} />
               </>
             )}
+            <button onClick={() => setIntake("customer")} className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline"><Plus className="size-3" />{t("intake.new_customer")}</button>
           </div>
 
           {/* Vehicle */}
           <div>
-            <label className={LABEL} htmlFor="appt-vehicle">Vehicle</label>
+            <label className={LABEL} htmlFor="appt-vehicle">{t("work.vehicle")}</label>
             <select id="appt-vehicle" className={FIELD} value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} disabled={!customer || loadingVehicles}>
-              <option value="">{!customer ? "Pick a customer first" : loadingVehicles ? "Loading…" : vehicles.length ? "Select a vehicle" : "No vehicles on file"}</option>
+              <option value="">{!customer ? t("appointment.pick_customer") : loadingVehicles ? t("appointment.loading") : vehicles.length ? t("appointment.select_vehicle") : t("appointment.no_vehicles")}</option>
               {vehicles.map((v) => (<option key={v.id} value={v.id}>{v.label}</option>))}
             </select>
+            {vehicleError ? <p role="alert" className="mt-2 text-xs text-red-600">{t("intake.load_failed")} <button className="underline" onClick={() => setRetryVehicles((n) => n + 1)}>{t("intake.retry")}</button></p> : null}
+            {customer ? <button onClick={() => setIntake("vehicle")} disabled={loadingVehicles} className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline disabled:opacity-50"><Plus className="size-3" />{t("intake.new_vehicle")}</button> : null}
           </div>
 
           {/* Date / time */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={LABEL} htmlFor="appt-date">Date</label>
+              <label className={LABEL} htmlFor="appt-date">{t("appointment.date")}</label>
               <input id="appt-date" type="date" className={FIELD} value={date} onChange={(e) => setDate(e.target.value)} />
             </div>
             <div>
-              <label className={LABEL} htmlFor="appt-time">Time</label>
+              <label className={LABEL} htmlFor="appt-time">{t("appointment.time")}</label>
               <input id="appt-time" type="time" className={FIELD} value={time} onChange={(e) => setTime(e.target.value)} />
             </div>
           </div>
@@ -205,35 +314,39 @@ export function NewAppointmentModal({
           {/* Duration / mechanic */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={LABEL} htmlFor="appt-duration">Duration</label>
+              <label className={LABEL} htmlFor="appt-duration">{t("appointment.duration")}</label>
               <select id="appt-duration" className={FIELD} value={duration} onChange={(e) => setDuration(Number(e.target.value))}>
-                {DURATIONS.map((d) => (<option key={d} value={d}>{d} min</option>))}
+                {DURATIONS.map((d) => (<option key={d} value={d}>{t("appointment.minutes", { n: d })}</option>))}
               </select>
             </div>
             <div>
-              <label className={LABEL} htmlFor="appt-mechanic">Mechanic</label>
-              <select id="appt-mechanic" className={FIELD} value={mechanic} onChange={(e) => setMechanic(e.target.value)}>
-                <option value="">Unassigned</option>
-                {mechanics.map((m) => (<option key={m.id} value={m.name}>{m.name}</option>))}
+              <label className={LABEL} htmlFor="appt-mechanic">{t("work.mechanic")}</label>
+              <select id="appt-mechanic" className={FIELD} value={mechanic} onChange={(e) => setMechanic(e.target.value)} disabled={saving || loadingMechanics || mechanicError}>
+                <option value="">{loadingMechanics ? t("appointment.loading") : t("work.unassigned")}</option>
+                {mechanics.map((m) => (<option key={m.id} value={m.id}>{m.full_name} · {m.email}</option>))}
               </select>
+              {!loadingMechanics && !mechanicError && !mechanics.length ? <p className="mt-2 text-xs text-muted-foreground">{t("work.no_mechanics")}</p> : null}
+              {mechanicError ? <p role="alert" className="mt-2 text-xs text-red-600">{t("intake.load_failed")} <button className="underline" onClick={() => setRetryMechanics((n) => n + 1)}>{t("intake.retry")}</button></p> : null}
             </div>
           </div>
 
           {/* Notes */}
           <div>
-            <label className={LABEL} htmlFor="appt-notes">Service / notes <span className="font-normal text-muted-foreground">(optional)</span></label>
-            <textarea id="appt-notes" className={`${FIELD} resize-none`} rows={2} placeholder="e.g. Oil change and brake inspection" value={notes} onChange={(e) => setNotes(e.target.value)} />
+            <label className={LABEL} htmlFor="appt-notes">{t("appointment.notes")} <span className="font-normal text-muted-foreground">({t("invoice.vehicle_optional")})</span></label>
+            <textarea id="appt-notes" className={`${FIELD} resize-none`} rows={2} placeholder={t("appointment.notes_hint")} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
+          </fieldset>}
         </div>
 
         <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
-          <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
+          <Button variant="ghost" size="sm" onClick={onClose} disabled={saving}>{t("common.cancel")}</Button>
           <Button size="sm" disabled={!canSave} onClick={save} leftIcon={saving ? <Loader2 className="size-4 animate-spin" /> : <CalendarPlus className="size-4" />}>
-            {saving ? "Booking…" : "Book appointment"}
+            {saving ? t("appointment.booking") : t("appointment.book")}
           </Button>
         </div>
-      </div>
-    </div>,
-    document.body,
-  );
+      </DialogContent>
+    </Dialog>
+    {intake === "customer" ? <NewCustomerModal onClose={() => setIntake(null)} onCreated={setCustomer} /> : null}
+    {intake === "vehicle" && customer ? <NewVehicleModal presetCustomer={customer} onClose={() => setIntake(null)} onCreated={(vehicle) => { setVehicles((current) => [...current, { id: vehicle.id, label: vehicle.label }]); setVehicleId(vehicle.id); }} /> : null}
+  </>;
 }

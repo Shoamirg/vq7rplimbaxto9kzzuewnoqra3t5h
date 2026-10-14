@@ -27,3 +27,6 @@ router.include_router(appointments.router, prefix="/appointments", tags=["custom
 router.include_router(billing.router, prefix="/billing", tags=["customer"])
 router.include_router(messages.router, prefix="/messages", tags=["customer"])
 router.include_router(roadside.router, prefix="/roadside", tags=["customer"])
+
+from app.api.v1.endpoints.customer import history
+router.include_router(history.router, prefix="/history", tags=["customer-history"])

@@ -25,7 +25,7 @@ async def available_slots(
 @router.post("/generate", status_code=status.HTTP_201_CREATED, summary="Generate slots ahead")
 async def generate_slots(
     body: SlotGenerateRequest,
-    uow: UnitOfWork = Depends(get_tenant_uow),
+    uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
 ) -> dict:
     return await AppointmentService(uow).generate_slots_range(
         start_date=body.start_date,

@@ -30,16 +30,16 @@ export default function MessagesPage() {
           note={t("mini.messages.empty_hint")}
         />
       ) : (
-        <div className="overflow-hidden rounded-3xl bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06),0_8px_24px_-12px_rgba(15,23,42,0.12)] ring-1 ring-slate-900/[0.04]">
+        <div className="overflow-hidden rounded-3xl bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06),0_8px_24px_-12px_rgba(15,23,42,0.12)] ring-1 ring-slate-900/4">
           <ul>
             {data.conversations.map((c, i) => (
               <li key={c.id} className={i > 0 ? "border-t border-slate-100" : ""}>
                 <Link
                   href={`/mini/messages/${c.id}`}
                   onClick={() => haptic("light")}
-                  className="flex items-center gap-3 px-4 py-3.5 transition active:bg-slate-50 focus-visible:outline-none focus-visible:bg-slate-50"
+                  className="flex items-center gap-3 px-4 py-3.5 transition active:bg-slate-50 focus-visible:outline-hidden focus-visible:bg-slate-50"
                 >
-                  <div className="grid size-12 shrink-0 place-items-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+                  <div className="grid size-12 shrink-0 place-items-center rounded-full bg-linear-to-br from-blue-500 to-indigo-600 text-white">
                     <Headphones className="size-5" aria-hidden />
                   </div>
                   <div className="min-w-0 flex-1">

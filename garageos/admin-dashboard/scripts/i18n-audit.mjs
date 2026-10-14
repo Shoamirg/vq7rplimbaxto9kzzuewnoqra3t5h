@@ -24,51 +24,9 @@ const SKIP = [
   "components/mini", "components/marketing", "components/brand",
   "app/(marketing)", "showcase", "/dev/", "components/ui/showcase",
 ];
-// Files known to still need translation (the backlog). The ratchet fails only
-// for staff files NOT listed here. Remove entries as they're localized.
-const BASELINE = new Set([
-  "components/calendar/calendar-client.tsx",
-  "components/appointments/appointments-list.tsx",
-  "components/appointments/new-appointment-modal.tsx",
-  "components/appointments/edit-appointment-modal.tsx",
-  "components/operations/operations-console.tsx",
-  "components/operations/case-detail.tsx",
-  "components/operations/conversation-pane.tsx",
-  "components/customers/customer-screen.tsx",
-  "components/customers/customers-list.tsx",
-  "components/vehicles/vehicle-intelligence-center.tsx",
-  "components/vehicles/vehicle-health-screen.tsx",
-  "components/billing/billing-workspace.tsx",
-  "components/billing/document-view.tsx",
-  "components/billing/new-invoice-modal.tsx",
-  "components/billing/public-invoice.tsx",
-  "components/reports/reports-workspace.tsx",
-  "components/inbox/inbox-workspace.tsx",
-  "components/inbox/thread-view.tsx",
-  "components/inbox/conversation-list.tsx",
-  "components/inbox/queue-rail.tsx",
-  "components/inbox/context-panel.tsx",
-  // Leaf/layout files with residual strings (small; translate in the sweep).
-  "app/(app)/calendar/error.tsx",
-  "app/(app)/customers/error.tsx",
-  "app/(app)/customers/loading.tsx",
-  "app/(app)/dashboard/error.tsx",
-  "app/(app)/vehicles/[id]/error.tsx",
-  "app/(app)/vehicles/error.tsx",
-  "app/(app)/vehicles/page.tsx",
-  "components/layout/command-menu.tsx",
-  "components/layout/notification-bell.tsx",
-  "components/layout/sidebar.tsx",
-  "components/layout/top-bar.tsx",
-  "components/passport/passport-actions.tsx",
-  "components/passport/passport-document.tsx",
-  "components/passport/passport-verified.tsx",
-  "components/reports/charts.tsx",
-  "components/skeletons/calendar-skeleton.tsx",
-  "components/skeletons/dashboard-skeleton.tsx",
-  "components/skeletons/vehicle-health-skeleton.tsx",
-  "components/skeletons/vehicles-skeleton.tsx",
-]);
+// No untranslated staff UI strings remain in the current audit. New strings
+// must use localization helpers instead of entering a baseline.
+const BASELINE = new Set();
 
 function walk(dir, out = []) {
   let entries;
@@ -116,8 +74,11 @@ for (const f of files) {
   const hits = violations(readFileSync(f, "utf8"));
   if (!hits.length) continue;
   const inBaseline = BASELINE.has(rel);
-  if (inBaseline && !all) { baselineCount += hits.length; continue; }
-  offenders.push({ rel, hits });
+  if (inBaseline) {
+    baselineCount += hits.length;
+    if (!all) continue;
+  }
+  offenders.push({ rel, hits, inBaseline });
 }
 
 if (offenders.length) {
@@ -130,12 +91,14 @@ if (offenders.length) {
 }
 
 const total = offenders.reduce((s, o) => s + o.hits.length, 0);
+const newOffenders = offenders.filter((o) => !o.inBaseline);
+const newTotal = newOffenders.reduce((s, o) => s + o.hits.length, 0);
 
 // Localization progress — measured against the sweep's starting point so the
 // number visibly falls toward zero, one commit at a time.
 const START = { files: 41, strings: 297 };
 const doneFiles = Math.max(0, START.files - BASELINE.size);
-const doneStrings = Math.max(0, START.strings - baselineCount);
+const doneStrings = Math.max(0, START.strings - baselineCount - newTotal);
 const pct = START.strings ? (doneStrings / START.strings) * 100 : 100;
 const BAR = 28;
 const filled = Math.round((pct / 100) * BAR);
@@ -144,8 +107,9 @@ console.log(`  ${"█".repeat(filled)}${"░".repeat(BAR - filled)}  ${pct.toFix
 console.log(`  Files:   ${doneFiles} / ${START.files} done  (${BASELINE.size} remaining)`);
 console.log(`  Strings: ${doneStrings} / ${START.strings} done  (${baselineCount} in backlog)`);
 
-console.log(`\n${offenders.length ? "✗" : "✓"} i18n audit: ${total} new violation(s) in ${offenders.length} file(s); ${baselineCount} in the baseline backlog (${BASELINE.size} files).`);
-if (offenders.length && !all) {
+if (all) console.log(`\nAll detected strings: ${total} in ${offenders.length} files (includes the baseline).`);
+console.log(`\n${newOffenders.length ? "✗" : "✓"} i18n audit: ${newTotal} new violation(s) in ${newOffenders.length} file(s); ${baselineCount} in the baseline backlog (${BASELINE.size} files).`);
+if (newOffenders.length && !all) {
   console.log("Wrap visible strings in t()/tp(), or (if a staff screen is next in the localization queue) add it to BASELINE in scripts/i18n-audit.mjs.");
   process.exit(1);
 }

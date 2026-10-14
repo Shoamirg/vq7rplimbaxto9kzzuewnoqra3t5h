@@ -164,14 +164,16 @@ class CustomerPortalService:
         balance = summary["outstanding"]
         open_docs = [
             d for d in summary["invoices"]
-            if d["kind"] == InvoiceKind.INVOICE and d["balance"] > 0.005
+            if d["kind"] == InvoiceKind.INVOICE and d["status"] in (InvoiceStatus.ISSUED, InvoiceStatus.PARTIAL, InvoiceStatus.OVERDUE) and d["balance"] > 0.005
         ]
         open_docs.sort(key=lambda d: (d["due_date"] or "9999"))
         card = open_docs[0] if open_docs else None
         return {
             "outstanding_balance": balance,
+            "balance_currency": summary["currency"],
+            "balances_by_currency": {currency: values["outstanding"] for currency, values in summary["by_currency"].items()},
             "outstanding_invoice": (
-                HomeInvoice(id=card["id"], code=card["code"], balance=card["balance"])
+                HomeInvoice(id=card["id"], code=card["code"], balance=card["balance"], currency=card["currency"])
                 if card else None
             ),
         }
@@ -263,15 +265,17 @@ class CustomerPortalService:
         ]
         receipts = [
             BillingReceipt(id=p["id"], amount=p["amount"], method=p["method"],
-                           date=p["received_at"])
+                           date=p["received_at"], currency=p["currency"])
             for p in summary["payments"] if p["kind"] != "refund"
         ]
-        open_docs = [d for d in invoices if d.balance > 0.005]
+        open_docs = [d for d in invoices if d.status in (InvoiceStatus.ISSUED, InvoiceStatus.PARTIAL, InvoiceStatus.OVERDUE) and d.balance > 0.005]
         open_docs.sort(key=lambda d: (d.due_date or "9999"))
         balance = round(summary["outstanding"], 2)
         return BillingResponse(
-            has_balance=balance > 0.005,
+            has_balance=any(values["outstanding"] > 0.005 for values in summary["by_currency"].values()),
             balance_due=balance,
+            balance_currency=summary["currency"],
+            balances_by_currency={currency: values["outstanding"] for currency, values in summary["by_currency"].items()},
             primary_invoice=open_docs[0] if open_docs else None,
             invoices=invoices,
             estimates=estimates,
@@ -323,6 +327,7 @@ class CustomerPortalService:
         created = await ConversationService(self.uow).create_conversation(
             subject=f"Estimate {inv.code}",
             customer_id=self.customer.id, vehicle_id=inv.vehicle_id, invoice_id=inv.id,
+            _recorded_context=True,
             participants=[{"role": ParticipantRole.CUSTOMER,
                            "display_name": self.customer.full_name,
                            "customer_id": self.customer.id}],
@@ -368,7 +373,9 @@ class CustomerPortalService:
             messages=[self._thread_msg(m, atts.get(m.id, [])) for m in msgs],
         )
 
-    async def post_message(self, conversation_id: uuid.UUID, body: str) -> ThreadMessage:
+    async def post_message(self, conversation_id: uuid.UUID, body: str, *, idempotency_key: uuid.UUID | None = None) -> ThreadMessage:
+        from app.services.message_intent import MessageSubmission
+
         conv = await self._own_conversation(conversation_id)
         msg = await ConversationService(self.uow).post_message(
             conv.id,
@@ -377,6 +384,8 @@ class CustomerPortalService:
             author_role=ParticipantRole.CUSTOMER,
             author_name=self.customer.full_name,
             kind=MessageKind.TEXT,
+            customer_actor_id=self.customer.id,
+            submission=MessageSubmission(idempotency_key, "customer", self.customer.id) if idempotency_key is not None else None,
         )
         return ThreadMessage(
             id=msg["id"], from_me=True, author_name=msg["author_name"],
@@ -559,6 +568,7 @@ class CustomerPortalService:
     def _doc(d: dict) -> BillingDoc:
         return BillingDoc(
             id=d["id"], code=d["code"], kind=d["kind"], status=d["status"],
+            currency=d.get("currency", "USD"),
             total=d["total"], balance=d["balance"],
             due_date=d["due_date"], created_at=d["created_at"],
         )

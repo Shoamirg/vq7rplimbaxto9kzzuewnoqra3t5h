@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AlertTriangle, RefreshCw, Wifi, LifeBuoy, Check } from "lucide-react";
 import { Button } from "@garageos/design-system";
+import { useI18n } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 
 // A contextual error state — never a bare "Something went wrong." It names what
@@ -19,6 +20,7 @@ export function ErrorState({
   onRetry?: () => void;
   className?: string;
 }) {
+  const { t } = useI18n();
   const [checking, setChecking] = useState(false);
   const [online, setOnline] = useState<boolean | null>(null);
 
@@ -50,7 +52,7 @@ export function ErrorState({
         <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
           {onRetry && (
             <Button size="sm" leftIcon={<RefreshCw className="size-4" />} onClick={onRetry}>
-              Retry
+              {t("common.retry")}
             </Button>
           )}
           <Button
@@ -62,7 +64,7 @@ export function ErrorState({
             loading={checking}
             onClick={checkConnection}
           >
-            {online === null ? "Check connection" : online ? "Connection OK" : "Offline"}
+            {t(online === null ? "common.check_connection" : online ? "common.connection_ok" : "common.offline")}
           </Button>
           <Button
             size="sm"
@@ -70,13 +72,13 @@ export function ErrorState({
             leftIcon={<LifeBuoy className="size-4" />}
             onClick={() => window.open("mailto:support@garageos.app?subject=GarageOS%20issue", "_blank")}
           >
-            Report issue
+            {t("common.report_issue")}
           </Button>
         </div>
 
         {online === false && (
           <p className="text-xs text-danger">
-            You appear to be offline. Reconnect, then retry.
+            {t("common.offline_hint")}
           </p>
         )}
       </div>
