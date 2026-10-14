@@ -1,0 +1,12 @@
+[Unit]
+Description=GarageOS private readiness and backup monitor
+After=docker.service
+Requires=docker.service
+OnFailure=garageos-alert@%n.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/garageos/garageos
+UMask=0077
+ExecStart=/usr/bin/python3 /opt/garageos/garageos/scripts/production_ops.py check --env-file /etc/garageos/.env.prod --backup-dir /var/lib/garageos/backups --receipt /var/lib/garageos/backup-status.json
+TimeoutStartSec=2min

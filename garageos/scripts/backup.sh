@@ -9,8 +9,13 @@ ENV_FILE="${ENV_FILE:-.env.prod}"
 BACKUP_DIR="${BACKUP_DIR:-./backups}"
 RETENTION_DAYS="${RETENTION_DAYS:-14}"
 
-# shellcheck disable=SC1090
-set -a; source "${ENV_FILE}"; set +a
+# Environment files are Compose data, not shell programs. Read only identifiers;
+# dotenv cannot replace coordinator paths/names or re-enable premature pruning.
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+DB_IDENTIFIERS="$("${GARAGEOS_PYTHON:-python3}" "${SCRIPT_DIR}/deployment_db_env.py" "${ENV_FILE}")"
+read -r POSTGRES_USER POSTGRES_DB <<< "${DB_IDENTIFIERS}"
+export POSTGRES_USER POSTGRES_DB
+export GARAGEOS_ENV_FILE="${ENV_FILE}"
 
 if [[ ! "${RETENTION_DAYS}" =~ ^[1-9][0-9]*$ ]]; then
   echo "[backup] FAIL: RETENTION_DAYS must be a positive integer" >&2

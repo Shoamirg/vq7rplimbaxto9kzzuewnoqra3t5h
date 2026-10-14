@@ -25,8 +25,9 @@ TEST_PASS="verify"
 # role, which the throwaway container creates as its superuser.
 ENV_FILE="${ENV_FILE:-.env.prod}"
 if [[ -f "${ENV_FILE}" ]]; then
-  # shellcheck disable=SC1090
-  set -a; source "${ENV_FILE}"; set +a
+  SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+  DB_IDENTIFIERS="$("${GARAGEOS_PYTHON:-python3}" "${SCRIPT_DIR}/deployment_db_env.py" "${ENV_FILE}")"
+  read -r POSTGRES_USER _SOURCE_DATABASE <<< "${DB_IDENTIFIERS}"
 fi
 TEST_USER="${POSTGRES_USER:-}"
 if [[ -z "${TEST_USER}" ]]; then

@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import time
 
 import pytest
@@ -69,6 +70,7 @@ exit 0
 
     def run(script="backup.sh", args=(), **overrides):
         env = {**os.environ, "ENV_FILE": _bash_path(env_file), "BACKUP_DIR": _bash_path(backups),
+               "GARAGEOS_PYTHON": _bash_path(sys.executable),
                "TEST_BIN": _bash_path(bin_dir), "TEST_SCRIPT": _bash_path(ROOT / "scripts" / script),
                "TEST_DOCKER_LOG": _bash_path(log), **overrides}
         env["TEST_VOLUME_FILE"] = _bash_path(backups / ".test-docker-volume")
@@ -129,6 +131,24 @@ def test_offhost_coordinator_can_defer_pruning_until_copy_is_verified(backup_cli
     result = run(BACKUP_DEFER_PRUNE="1")
     assert result.returncode == 0, result.stdout + result.stderr
     assert gzip.decompress(old.read_bytes()) == b"old good copy\n"
+
+
+def test_dotenv_is_data_and_cannot_override_owned_backup_controls(backup_cli):
+    run, backups, _, env_file = backup_cli
+    sentinel = backups / "shell-command-executed"
+    old = backups / "garageos-20000101-000000.sql.gz"
+    old.write_bytes(gzip.compress(b"old good copy\n"))
+    os.utime(old, (time.time() - 30 * 86400,) * 2)
+    env_file.write_text("POSTGRES_USER=test_role\nPOSTGRES_DB=test_database\n"
+        "BACKUP_DEFER_PRUNE=0\nBACKUP_OUTPUT_NAME=garageos-unowned.sql.gz\n"
+        + "UNRELATED=$(touch '" + _bash_path(sentinel) + "')\n", encoding="utf-8")
+    name = "garageos-owned-coordinator.sql.gz"
+    result = run(BACKUP_DEFER_PRUNE="1", BACKUP_OUTPUT_NAME=name)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert not sentinel.exists()
+    assert old.exists()
+    assert (backups / name).is_file()
+    assert not (backups / "garageos-unowned.sql.gz").exists()
 
 
 def test_backup_can_publish_the_exact_owned_operations_filename(backup_cli):
