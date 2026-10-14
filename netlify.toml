@@ -9,7 +9,10 @@
   NEXT_TELEMETRY_DISABLED = "1"
 
 # NEXT_PUBLIC_API_URL belongs in the Netlify UI (build + runtime scopes).
-# Netlify automatically installs its Next.js adapter for this project.
+# Explicitly include the adapter for CLI deployments as well as Git builds.
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
 [[headers]]
   for = "/*"
   [headers.values]

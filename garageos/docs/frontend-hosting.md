@@ -57,8 +57,11 @@ package directory and environment variables in the Netlify dashboard.
 | Publish directory (relative to base) | `admin-dashboard/.next` |
 | Node version | `22` |
 
-Use Netlify's automatically detected Next.js adapter; do not select a plain
-static SPA deployment or add a catch-all redirect to `index.html`.
+The config explicitly enables Netlify's Next.js adapter so manual CLI builds
+also package route handlers and server rendering. Do not select a plain static
+SPA deployment or add a catch-all redirect to `index.html`. Anonymous Drop
+deploys support static files only and cannot serve this dashboard's login/API;
+use an authenticated deployment for the completed frontend.
 
 Sources: [Next.js support](https://docs.netlify.com/build/frameworks/framework-setup-guides/nextjs/overview/),
 [monorepo settings](https://docs.netlify.com/build/configure-builds/monorepos/),
