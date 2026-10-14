@@ -19,3 +19,5 @@ platform.local.json
 *.sql.gz
 *.log
 ci-evidence/
+.git/
+tests/

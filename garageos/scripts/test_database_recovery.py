@@ -199,6 +199,8 @@ class ProbeEffectsContractTest(unittest.TestCase):
 
 class DatabaseRecoveryTest(unittest.TestCase):
     dockerfile = ROOT/'docker/Dockerfile.backend.prod'
+    backend_path = ROOT/'backend'
+    source_root = ROOT
     @classmethod
     def save_log(cls, name, text):
         for value in cls.secrets:
@@ -249,7 +251,7 @@ class DatabaseRecoveryTest(unittest.TestCase):
         cls.fixture = cls.private/'recovery_fixture.py'
         cls.fixture.write_bytes((ROOT/'scripts/recovery_fixture.py').read_bytes())
         cls.fixture.chmod(0o644)  # Nonsecret code must be readable by the image's app user.
-        cls.source_sha = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
+        cls.source_sha = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=cls.source_root, text=True).strip()
         production = (ROOT / 'docker-compose.prod.yml').read_text()
         cls.pg_image = re.search(r'  postgres:\n    image: ([^\n]+)', production)[1].strip()
         cls.redis_image = re.search(r'  redis:\n    image: ([^\n]+)', production)[1].strip()
@@ -290,7 +292,7 @@ class DatabaseRecoveryTest(unittest.TestCase):
         cls.docker('build', '--label', OWNER + '=' + cls.tag,
                    '--label', 'org.opencontainers.image.revision=' + cls.source_sha,
                    '-f', cls.dockerfile, '-t', cls.image,
-                   ROOT/'backend', log='backend-build', timeout=600)
+                   cls.backend_path, log='backend-build', timeout=600)
         cls.volumes.append(cls.source_volume)
         cls.networks.append(cls.network)
         cls.run_command(['docker', 'compose', '-f', 'docker-compose.prod.yml', '--env-file',

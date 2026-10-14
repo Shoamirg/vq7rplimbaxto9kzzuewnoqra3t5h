@@ -11,6 +11,7 @@ import unittest
 import test_database_recovery as recovery
 
 OUTPUT = None
+APP = recovery.ROOT/'backend'
 PORT = 8087
 PROBE = r"""import json, os, sys
 from pathlib import Path
@@ -35,7 +36,7 @@ with httpx.Client(base_url=base, timeout=10) as client:
                   'private_files_absent':all(not Path('/app', x).exists() for x in ('.env','tests','requirements-dev.txt')),
                   'reference_catalog_present':Path('/app/data/brands.json').is_file(),
                   'nonroot':os.getuid() != 0,
-                  'pid1_uvicorn':Path('/proc/1/cmdline').read_bytes().split(b'\0')[0].endswith(b'uvicorn')}
+                  'pid1_uvicorn':any(Path(arg.decode()).name == 'uvicorn' for arg in Path('/proc/1/cmdline').read_bytes().split(b'\0')[:2])}
     elif action == 'quota':
         replies = [client.post('/api/v1/auth/login', headers={'X-Real-IP':'198.51.100.17',
                     'X-Forwarded-For':'203.0.113.' + str(i)}, json={
@@ -96,7 +97,9 @@ class RailwayBackendTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         class Fixture(recovery.DatabaseRecoveryTest):
-            dockerfile = recovery.ROOT/'backend/Dockerfile'
+            dockerfile = APP/'Dockerfile'
+            backend_path = APP
+            source_root = APP
 
             @classmethod
             def write_private(qa, path, values):
@@ -194,7 +197,10 @@ class RailwayBackendTest(unittest.TestCase):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, default=Path.cwd()/'ci-evidence/railway-backend')
-    OUTPUT = parser.parse_args().output.resolve()
+    parser.add_argument('--app', type=Path, default=APP)
+    args = parser.parse_args()
+    OUTPUT = args.output.resolve()
+    APP = args.app.resolve()
     OUTPUT.mkdir(parents=True, exist_ok=True)
     program = unittest.main(argv=[__file__], verbosity=2, exit=False)
     result = program.result
