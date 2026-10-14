@@ -198,6 +198,7 @@ class ProbeEffectsContractTest(unittest.TestCase):
 
 
 class DatabaseRecoveryTest(unittest.TestCase):
+    dockerfile = ROOT/'docker/Dockerfile.backend.prod'
     @classmethod
     def save_log(cls, name, text):
         for value in cls.secrets:
@@ -288,7 +289,7 @@ class DatabaseRecoveryTest(unittest.TestCase):
         cls.image_created = True
         cls.docker('build', '--label', OWNER + '=' + cls.tag,
                    '--label', 'org.opencontainers.image.revision=' + cls.source_sha,
-                   '-f', ROOT/'docker/Dockerfile.backend.prod', '-t', cls.image,
+                   '-f', cls.dockerfile, '-t', cls.image,
                    ROOT/'backend', log='backend-build', timeout=600)
         cls.volumes.append(cls.source_volume)
         cls.networks.append(cls.network)

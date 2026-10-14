@@ -319,7 +319,7 @@ def main(allow_missing_docker):
     if missing and not allow_missing_docker:
         raise RuntimeError("Docker Linux engine is required for production transport/recovery gates")
     if missing:
-        (EVIDENCE / "unavailable-gates.txt").write_text("NOT RUN: Docker production routing, production Compose, real BFF quota, dashboard build-context, database recovery and invoice volume gates.\n", encoding="utf-8")
+        (EVIDENCE / "unavailable-gates.txt").write_text("NOT RUN: Docker production routing, production Compose, Railway backend, real BFF quota, dashboard build-context, database recovery and invoice volume gates.\n", encoding="utf-8")
         print("LIMIT: Docker transport/recovery gates unavailable; result cannot be SUCCESS.", flush=True)
     else:
         if docker_prefix:
@@ -328,6 +328,7 @@ def main(allow_missing_docker):
         docker_gate(docker_prefix, "test_dashboard_build_context.py", "build-context")
         docker_gate(docker_prefix, "test_public_routing.py", "public-routing")
         docker_gate(docker_prefix, "test_production_compose.py", "production-compose")
+        docker_gate(docker_prefix, "test_railway_backend.py", "railway-backend", EVIDENCE / 'railway-backend')
         docker_gate(docker_prefix, "test_bff_public_routing.py", "production-bff-routing", EVIDENCE / 'production-bff-routing')
         docker_gate(docker_prefix, "test_database_recovery.py", "database-recovery", EVIDENCE / 'database-recovery')
         docker_gate(docker_prefix, "test_invoice_volume.py", "invoice-volume", EVIDENCE / 'invoice-volume')
@@ -423,6 +424,7 @@ def main(allow_missing_docker):
             "operator_tool_gates": "passed",
             "production_proxy_gates": "unavailable" if missing else "passed",
             "production_compose_gates": "unavailable" if missing else "passed",
+            "railway_backend_gates": "unavailable" if missing else "passed",
             "docker_environment": "WSL " + os.environ["GARAGEOS_DOCKER_WSL_DISTRO"] if docker_prefix else "Windows Docker context"}, indent=2), encoding="utf-8")
         return 3 if missing else 0
     finally:

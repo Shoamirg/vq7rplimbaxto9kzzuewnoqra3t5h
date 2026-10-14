@@ -28,6 +28,8 @@ jobs:
           python garageos/scripts/test_production_compose.py
       - name: Verify Caddy and dashboard share the real backend auth quota
         run: python garageos/scripts/test_bff_public_routing.py --output ci-evidence/production-bff-routing
+      - name: Verify the Railway backend image and private dependencies
+        run: python garageos/scripts/test_railway_backend.py --output ci-evidence/railway-backend
       - name: Verify actual PostgreSQL backup and recovery
         run: python garageos/scripts/test_database_recovery.py --output ci-evidence/database-recovery
       - name: Verify bounded invoice queries and production volume reads
@@ -40,6 +42,7 @@ jobs:
             ci-evidence/database-recovery
             ci-evidence/invoice-volume
             ci-evidence/production-bff-routing
+            ci-evidence/railway-backend
           retention-days: 7
 
   backend:
