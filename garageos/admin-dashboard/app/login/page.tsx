@@ -8,6 +8,7 @@ import { Logo } from "@/components/brand/logo";
 import { useI18n } from '@/lib/i18n/context';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
 import { staffAuthTransition, AuthTransitionUnavailable, authTransitionMarkerCurrent } from '@/lib/auth-transition';
+import { loginFailureKey, retryAfterSeconds } from '@/lib/login-feedback';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -24,11 +25,23 @@ export default function LoginPage() {
   }, []);
   const [email, setEmail] = useState("admin@demo.garageos.app");
   const [password, setPassword] = useState("parol12345");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ key: string; retryUntil?: number } | null>(null);
+  const [clock, setClock] = useState(Date.now);
   const [isLoading, setIsLoading] = useState(false);
+  const wait = error?.retryUntil ? Math.max(0, Math.ceil((error.retryUntil - clock) / 1000)) : 0;
+  useEffect(() => {
+    if (!error?.retryUntil) return;
+    const until = error.retryUntil;
+    const timer = window.setInterval(() => {
+      const now = Date.now(); setClock(now);
+      if (now >= until) window.clearInterval(timer);
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [error?.retryUntil]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (isLoading || wait > 0) return;
     setIsLoading(true);
     setError(null);
     setRevocationUnconfirmed(false);
@@ -40,18 +53,25 @@ export default function LoginPage() {
           body: JSON.stringify({ email, password }),
         });
         if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          if (current()) setError(data.error ?? "Login failed");
+          const data = await res.json().catch(() => null);
+          const delay = res.status === 429 ? retryAfterSeconds(res.headers.get('retry-after')) : null;
+          if (current()) {
+            const now = Date.now(); setClock(now);
+            setError({ key: loginFailureKey(res.status, data?.code), ...(delay && delay > 0 ? { retryUntil: now + delay * 1000 } : {}) });
+          }
           return;
         }
-        const result = await res.json();
+        const result = await res.json().catch(() => null);
         if (!current()) return;
+        if (result?.ok !== true || !['/dashboard', '/platform'].includes(result.redirectTo)) {
+          setError({ key: 'platform.login_invalid_response' }); return;
+        }
         complete();
         router.replace(result.redirectTo === "/platform" ? "/platform" : "/dashboard");
         router.refresh();
       });
     } catch (error) {
-      setError(error instanceof AuthTransitionUnavailable ? t('platform.auth_coordination_unavailable') : "Could not reach the server. Is the backend running?");
+      setError({ key: error instanceof AuthTransitionUnavailable ? 'platform.auth_coordination_unavailable' : 'platform.login_connection' });
     } finally {
       setIsLoading(false);
     }
@@ -100,10 +120,10 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <p className="text-sm text-danger" role="alert">{error}</p>
+              <p className="text-sm text-danger-dark dark:text-danger-light" role="alert">{wait > 0 ? t('platform.login_rate_limited_wait', { seconds: wait }) : t(error.key)}</p>
             )}
 
-            <Button type="submit" fullWidth loading={isLoading} leftIcon={<LogIn className="size-4" />}>
+            <Button type="submit" fullWidth loading={isLoading} disabled={wait > 0} leftIcon={<LogIn className="size-4" />}>
               Sign in
             </Button>
           </form>

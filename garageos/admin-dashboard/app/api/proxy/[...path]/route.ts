@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 
 import { AUTH_COOKIE } from "@/lib/api/constants";
+import { backendRequest, unavailableResponse, proxyResponseHeaders } from '@/lib/server-bff';
 
 // Same-origin BFF proxy: forwards client requests to the FastAPI backend with
 // the httpOnly cookie's token as a Bearer header. Lets Client Components read
@@ -15,21 +16,23 @@ async function forward(req: Request, segments: string[], method: string): Promis
   const url = `${backendBase()}/${segments.join("/")}${search}`;
   const hasBody = method !== "GET" && method !== "HEAD";
   const idempotencyKey = req.headers.get("Idempotency-Key");
-  const res = await fetch(url, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(idempotencyKey !== null ? { "Idempotency-Key": idempotencyKey } : {}),
-    },
-    body: hasBody ? await req.text() : undefined,
-    cache: "no-store",
-  });
-  const text = await res.text();
-  return new Response(text, {
-    status: res.status,
-    headers: { "Content-Type": res.headers.get("content-type") ?? "application/json" },
-  });
+  try {
+    const res = await backendRequest(req, url, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(idempotencyKey !== null ? { "Idempotency-Key": idempotencyKey } : {}),
+      },
+      body: hasBody ? await req.text() : undefined,
+      cache: "no-store",
+    });
+    const text = await res.text();
+    return new Response([204, 205, 304].includes(res.status) ? null : text, {
+      status: res.status,
+      headers: proxyResponseHeaders(res),
+    });
+  } catch (error) { return unavailableResponse(error); }
 }
 
 type Ctx = { params: Promise<{ path: string[] }> };
