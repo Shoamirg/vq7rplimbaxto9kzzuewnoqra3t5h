@@ -63,14 +63,30 @@ SPA deployment or add a catch-all redirect to `index.html`. Anonymous Drop
 deploys support static files only and cannot serve this dashboard's login/API;
 use an authenticated deployment for the completed frontend.
 
-For a local Windows CLI build, run
-`python scripts/prepare_netlify_windows.py` from `garageos` after `netlify build`
-and before `netlify deploy --prod --no-build`. OpenNext 5.16.2 generates Windows
+For a local Windows CLI build, run these commands from `garageos`, with the
+project linked and the required build environment already configured:
+
+```powershell
+netlify build --filter garageos-admin
+python scripts/prepare_netlify_windows.py
+netlify deploy --prod --no-build --filter garageos-admin --dir admin-dashboard/.netlify/static
+```
+
+The explicit `--dir` is required for a separate `--no-build` deployment.
+The adapter restores `.next` after the build ends, while the files intended
+for public hosting remain in `.netlify/static`. Uploading `.next` directly
+misses the `/_next/static/*` URL layout and public images. It also includes
+internal build output that should not be served as public files. Keep the
+configured build publish directory as `.next`; the adapter manages it during
+an integrated cloud build/deploy. Only the separate manual upload needs `--dir`.
+
+OpenNext 5.16.2 generates Windows
 paths for the Lambda loader in this monorepo; the helper normalizes the generated
 loader and ZIP to the Linux paths used by Netlify and verifies the imported
 modules exist in the archive. Linux cloud builds do not need this step.
 
 Sources: [Next.js support](https://docs.netlify.com/build/frameworks/framework-setup-guides/nextjs/overview/),
+[adapter static publish lifecycle](https://github.com/opennextjs/opennextjs-netlify/blob/main/src/build/content/static.ts),
 [monorepo settings](https://docs.netlify.com/build/configure-builds/monorepos/),
 [Free plan](https://www.netlify.com/blog/introducing-netlify-free-plan/).
 
