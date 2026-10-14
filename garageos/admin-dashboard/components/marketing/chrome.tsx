@@ -13,11 +13,10 @@ export const SIGN_IN_HREF = "/login";
 export const LIVE_DEMO_HREF = "/demo";
 
 const NAV_LINKS = [
-  { href: "/#features", label: "Features" },
+  { href: "/#showroom", label: "Showroom" },
+  { href: "/#workflow", label: "Workflow" },
+  { href: "/#vehicle-passport", label: "Vehicle record" },
   { href: "/pricing", label: "Pricing" },
-  { href: "/security", label: "Security" },
-  { href: "/docs", label: "Docs" },
-  { href: LIVE_DEMO_HREF, label: "Live demo" },
 ];
 
 export function MarketingNav() {
