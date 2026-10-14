@@ -52,8 +52,8 @@ async def _check_database() -> tuple[bool, str | None]:
             await conn.execute(text("SELECT 1"))
         return True, None
     except Exception as exc:  # noqa: BLE001 — report any failure as not-ready
-        logger.warning("Readiness: database check failed: %s", exc)
-        return False, str(exc)
+        logger.warning("Readiness: database check failed (%s)", type(exc).__name__)
+        return False, "unavailable"
 
 
 async def _check_redis() -> tuple[bool, str | None]:
@@ -72,15 +72,15 @@ async def _check_redis() -> tuple[bool, str | None]:
             await client.aclose()
         return True, None
     except Exception as exc:  # noqa: BLE001
-        logger.warning("Readiness: redis check failed: %s", exc)
-        return False, str(exc)
+        logger.warning("Readiness: redis check failed (%s)", type(exc).__name__)
+        return False, "unavailable"
 
 
 @router.get("/ready", summary="Readiness probe")
 async def ready() -> JSONResponse:
     """Readiness: every backing dependency the app needs to serve traffic is up.
 
-    Returns 200 only when all checks pass; otherwise 503 with per-check detail.
+    Returns 200 only when all checks pass; otherwise 503 with safe categories.
     """
     db_ok, db_err = await _check_database()
     redis_ok, redis_err = await _check_redis()
