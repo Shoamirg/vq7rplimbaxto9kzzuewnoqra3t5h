@@ -56,6 +56,8 @@ async def link_account(
     body: LinkRequest,
     auth: CustomerAuthService = Depends(get_customer_auth_service),
 ) -> TokenResponse:
+    if not settings.TELEGRAM_PHONE_LINKING_ENABLED:
+        raise NotFoundError("Not found")
     return TokenResponse(**await auth.link_by_phone(body.init_data, body.phone))
 
 
@@ -79,7 +81,7 @@ async def dev_sign_in(
 ) -> TokenResponse:
     # Never expose this outside development — 404 so it's indistinguishable
     # from a route that doesn't exist.
-    if not settings.DEBUG:
+    if settings.ENVIRONMENT != "development" or not settings.DEBUG or not settings.DEV_AUTH_ENABLED:
         raise NotFoundError("Not found")
     return TokenResponse(**await auth.dev_authenticate(body.telegram_id if body else None))
 

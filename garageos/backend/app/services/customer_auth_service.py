@@ -111,6 +111,8 @@ class CustomerAuthService:
         garage already has on file). We only auto-link when the phone maps to a
         single, currently-unlinked customer to avoid hijacking an account.
         """
+        if not settings.TELEGRAM_PHONE_LINKING_ENABLED:
+            raise NotFoundError("Not found")
         tg = verify_init_data(init_data, settings.TELEGRAM_BOT_TOKEN or "")
 
         # Global phone lookup (crosses tenants like the telegram-id lookup does).
@@ -140,6 +142,8 @@ class CustomerAuthService:
         (and Playwright) where no Telegram ``initData`` exists. The calling
         endpoint gates this on ``settings.DEBUG`` so it can never run in prod.
         """
+        if settings.ENVIRONMENT != "development" or not settings.DEBUG or not settings.DEV_AUTH_ENABLED:
+            raise NotFoundError("Not found")
         if telegram_id is not None:
             customer = (await self.uow.session.execute(
                 select(Customer).where(

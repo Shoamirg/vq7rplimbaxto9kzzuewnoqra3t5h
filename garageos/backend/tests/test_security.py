@@ -2,8 +2,8 @@
 
 Covers the two authentication guardrails added for public exposure:
 
-  * Rate limiting — the per-IP auth ceiling returns 429 with Retry-After, and
-    degrades open when the backing store errors (never locks users out).
+  * Rate limiting — the per-IP auth ceiling returns 429 with Retry-After;
+    local development degrades open while deployments fail closed.
   * Audit trail — both successful and failed logins leave an append-only record,
     including provenance, even though a failed login's request ends in a 401.
 """
@@ -96,6 +96,7 @@ async def test_rate_limit_returns_429_with_retry_after(client, monkeypatch):
 
 async def test_rate_limit_degrades_open_on_store_error(client, monkeypatch):
     monkeypatch.setattr(settings, "RATE_LIMIT_ENABLED", True)
+    monkeypatch.setattr(settings, "ENVIRONMENT", "development")
     # Simulate Redis being down: the limiter must ALLOW rather than lock out.
     monkeypatch.setattr(rate_limit, "_client", None)
 

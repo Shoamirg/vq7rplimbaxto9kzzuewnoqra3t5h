@@ -20,7 +20,7 @@ from sqlalchemy import delete
 
 from app.core.config import settings
 from app.core.security import create_access_token
-from app.exceptions import InvalidToken
+from app.exceptions import InvalidToken, NotFoundError
 from app.models import Brand, Customer, ServiceCenter, Vehicle, VehicleModel
 from app.repositories.unit_of_work import UnitOfWork
 from app.schemas.customer_portal import RoadsideRequest
@@ -134,13 +134,13 @@ async def test_refresh_issues_new_pair(session):
 
 
 @pytest.mark.asyncio
-async def test_link_by_phone(session):
+async def test_link_by_phone_is_disabled_without_verified_invitation(session):
     _, customer = await _tenant(session, telegram_id=None)  # unlinked
     svc = _svc(session)
-    tokens = await svc.link_by_phone(_init_data(910004), customer.phone)
-    assert tokens["customer"]["id"] == str(customer.id)
+    with pytest.raises(NotFoundError):
+        await svc.link_by_phone(_init_data(910004), customer.phone)
     await session.refresh(customer)
-    assert customer.telegram_id == 910004
+    assert customer.telegram_id is None
 
 
 @pytest.mark.asyncio

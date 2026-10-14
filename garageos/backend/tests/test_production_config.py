@@ -12,12 +12,49 @@ from app.core.config import Settings
 
 VALID = dict(ENVIRONMENT="production", DEBUG=False,
              SECRET_KEY="c31ab862ba6855e49cf7581a61fe0f736d70a8c835c7ae149a324ced932a82d4",
+             DATABASE_URL="postgresql+asyncpg://garage:secret@postgres.railway.internal:5432/garage",
+             REDIS_URL="redis://redis.railway.internal:6379/0",
              CORS_ORIGINS="https://garage.example.org")
 
 
 def test_production_rejects_debug_mode():
     with pytest.raises(ValidationError, match="DEBUG must be false"):
         Settings(_env_file=None, **{**VALID, "DEBUG": True})
+
+
+@pytest.mark.parametrize(("field", "value"), [
+    ("DATABASE_URL", "postgresql+asyncpg://garage:secret@localhost:5432/garage"),
+    ("DATABASE_URL", "postgresql+asyncpg://garage:secret@127.0.0.1:5432/garage"),
+    ("REDIS_URL", "redis://localhost:6379/0"),
+    ("REDIS_URL", "redis://127.0.0.1:6379/0"),
+    ("DATABASE_URL", ""),
+    ("REDIS_URL", ""),
+])
+def test_deployment_rejects_missing_or_loopback_dependencies(field, value):
+    with pytest.raises(ValidationError, match=field):
+        Settings(_env_file=None, **{**VALID, field: value})
+
+
+def test_deployment_defaults_cannot_point_at_local_dependencies():
+    with pytest.raises(ValidationError, match="DATABASE_URL"):
+        Settings(_env_file=None, ENVIRONMENT="production", DEBUG=False,
+                 SECRET_KEY=VALID["SECRET_KEY"],
+                 CORS_ORIGINS=VALID["CORS_ORIGINS"],
+                 REDIS_URL=VALID["REDIS_URL"])
+    with pytest.raises(ValidationError, match="REDIS_URL"):
+        Settings(_env_file=None, ENVIRONMENT="production", DEBUG=False,
+                 SECRET_KEY=VALID["SECRET_KEY"],
+                 CORS_ORIGINS=VALID["CORS_ORIGINS"],
+                 DATABASE_URL=VALID["DATABASE_URL"])
+
+
+@pytest.mark.parametrize(("field", "enabled"), [
+    ("DEV_AUTH_ENABLED", True),
+    ("TELEGRAM_PHONE_LINKING_ENABLED", True),
+])
+def test_deployment_disables_insecure_customer_authentication(field, enabled):
+    with pytest.raises(ValidationError, match="authentication|linking"):
+        Settings(_env_file=None, **{**VALID, field: enabled})
 
 
 @pytest.mark.parametrize("secret", [

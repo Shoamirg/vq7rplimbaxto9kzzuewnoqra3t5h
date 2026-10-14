@@ -39,6 +39,12 @@ class RateLimitExceeded(GarageException):
         self.retry_after = retry_after
 
 
+class RateLimitUnavailable(GarageException):
+    status_code = 503
+    code = "RATE_LIMIT_UNAVAILABLE"
+    detail = "Request throttling is temporarily unavailable"
+
+
 # Domain-specific exceptions
 
 class VehicleNotFound(NotFoundError):

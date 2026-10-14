@@ -30,7 +30,7 @@ import redis.asyncio as redis
 from fastapi import Request
 
 from app.core.config import settings
-from app.exceptions import RateLimitExceeded
+from app.exceptions import RateLimitExceeded, RateLimitUnavailable
 
 logger = logging.getLogger(__name__)
 
@@ -86,10 +86,11 @@ def client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-async def _hit(key: str, limit: int, window: int) -> tuple[bool, int]:
+async def _hit(key: str, limit: int, window: int, *, fail_closed: bool = False) -> tuple[bool, int]:
     """Register one hit against ``key``. Returns (allowed, retry_after_seconds).
 
-    Degrades open: any Redis error allows the request.
+    Development may continue without Redis. Deployments fail closed so a store
+    outage cannot disable the public authentication/write ceilings.
     """
     global _client
     try:
@@ -98,10 +99,12 @@ async def _hit(key: str, limit: int, window: int) -> tuple[bool, int]:
         if int(count) > limit:
             return False, max(int(ttl), 1)
         return True, 0
-    except Exception as exc:  # noqa: BLE001 — never lock users out on a Redis blip
-        logger.warning("Rate limiter unavailable (%s); allowing request", exc)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Rate limiter unavailable (%s)", type(exc).__name__)
         # Drop the (possibly broken) client so the next call reconnects cleanly.
         _client = None
+        if fail_closed:
+            raise RateLimitUnavailable() from None
         return True, 0
 
 
@@ -114,7 +117,10 @@ def rate_limit(*, limit: int, window: int, scope: str) -> Callable:
         if not settings.RATE_LIMIT_ENABLED:
             return
         ip = client_ip(request)
-        allowed, retry_after = await _hit(f"rl:{scope}:{ip}", limit, window)
+        allowed, retry_after = await _hit(
+            f"rl:{scope}:{ip}", limit, window,
+            fail_closed=settings.ENVIRONMENT in {"staging", "production"},
+        )
         if not allowed:
             logger.info("Rate limit hit: scope=%s ip=%s", scope, ip)
             raise RateLimitExceeded(retry_after=retry_after)
