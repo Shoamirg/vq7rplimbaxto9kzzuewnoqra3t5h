@@ -1,5 +1,4 @@
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:uuid/enums.dart';
 import 'package:uuid/uuid.dart';
 
 /// Persists a per-request UUID so retrying after an app restart replays safely.
@@ -8,7 +7,7 @@ class PendingIdempotency {
   static final _uuid = Uuid();
 
   static String _storageKey(String scope, String fingerprint) {
-    final stableId = _uuid.v5(Namespace.url, 'garageos:$scope:$fingerprint');
+    final stableId = _uuid.v5(Namespace.url.value, 'garageos:$scope:$fingerprint');
     return '$_prefix$scope.$stableId';
   }
 
