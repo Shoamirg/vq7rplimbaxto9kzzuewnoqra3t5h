@@ -5,6 +5,7 @@ import '../data/customer_repository.dart';
 import '../data/api_client.dart';
 import '../domain/models.dart';
 import '../design/theme.dart';
+import '../design/vehicle_stage.dart';
 import '../design/widgets.dart';
 import '../l10n/l10n.dart';
 import 'settings.dart';
@@ -144,10 +145,36 @@ class _CustomerHistoryState extends State<CustomerHistory> {
                         ? Center(child: Text(context.l10n.emptyHistory))
                         : ListView.separated(
                             itemCount: data.items.length,
-                            separatorBuilder: (_, index) => const Divider(),
+                            separatorBuilder: (_, index) =>
+                                const SizedBox(height: 18),
                             itemBuilder: (context, index) {
                               final item = data.items[index];
                               final invoice = widget.kind == 'invoices';
+                              if (widget.kind == 'vehicles') {
+                                return Panel(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const VehicleStage(),
+                                      const SizedBox(height: 18),
+                                      Text(
+                                        item['title'],
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleMedium,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        item['detail'] ?? '',
+                                        style: TextStyle(
+                                          color: context.colors.secondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
                               return ListTile(
                                 contentPadding: EdgeInsets.zero,
                                 title: Text(item['title']),

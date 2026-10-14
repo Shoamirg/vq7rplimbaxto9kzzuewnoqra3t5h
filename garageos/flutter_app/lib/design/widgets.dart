@@ -219,7 +219,8 @@ class Plate extends StatelessWidget {
         ),
         child: Text(
           display.isEmpty ? context.l10n.noPlate : display,
-          style: Theme.of(context).textTheme.labelMedium,
+          style: Theme.of(context).textTheme.labelMedium
+              ?.copyWith(fontFamily: 'IBM Plex Mono'),
         ),
       ),
     );
@@ -276,7 +277,7 @@ class Panel extends StatelessWidget {
   final Widget child;
   @override
   Widget build(BuildContext context) => Card(
-    child: Padding(padding: EdgeInsets.all(16), child: child),
+    child: Padding(padding: EdgeInsets.all(18), child: child),
   );
 }
 

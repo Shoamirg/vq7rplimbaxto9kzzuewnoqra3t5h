@@ -28,6 +28,8 @@ flutter:
     - assets/fonts/OFL.txt
     - assets/fonts/dmsans-OFL.txt
     - assets/fonts/plusjakartasans-OFL.txt
+    - assets/fonts/archivo-OFL.txt
+    - assets/fonts/ibmplexmono-OFL.txt
   fonts:
     - family: Golos Text
       fonts:
@@ -44,5 +46,21 @@ flutter:
           weight: 700
     - family: Plus Jakarta Sans
       fonts:
+        - asset: assets/fonts/PlusJakartaSans-400.ttf
+          weight: 400
+        - asset: assets/fonts/PlusJakartaSans-500.ttf
+          weight: 500
         - asset: assets/fonts/PlusJakartaSans-SemiBold.ttf
           weight: 600
+        - asset: assets/fonts/PlusJakartaSans-700.ttf
+          weight: 700
+    - family: Archivo
+      fonts:
+        - asset: assets/fonts/Archivo-600.ttf
+          weight: 600
+        - asset: assets/fonts/Archivo-700.ttf
+          weight: 700
+    - family: IBM Plex Mono
+      fonts:
+        - asset: assets/fonts/IBMPlexMono-400.ttf
+          weight: 400
