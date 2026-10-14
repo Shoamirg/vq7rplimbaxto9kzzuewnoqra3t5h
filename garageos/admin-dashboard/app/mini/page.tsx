@@ -82,7 +82,7 @@ export default function HomePage() {
                   {home.next_appointment.service_type ?? t("mini.home.appointment_default")}
                 </p>
                 <p className="text-sm text-slate-500">
-                  {fmt.date(home.next_appointment.date, DAY_DATE)}
+                  {fmt.date(home.next_appointment.local_date || home.next_appointment.date, DAY_DATE)}
                   {home.next_appointment.time ? ` · ${home.next_appointment.time}` : ""}
                   {home.next_appointment.vehicle_label ? ` · ${home.next_appointment.vehicle_label}` : ""}
                 </p>

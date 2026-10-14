@@ -328,12 +328,12 @@ async def test_roadside_attachment_lands_in_thread(session):
     thread = await portal.thread(uuid.UUID(case.conversation_id))
     assert any(a.kind == "location" for m in thread.messages for a in m.attachments)
 
-    # A follow-up voice note attaches too.
+    # A follow-up location attachment uses real coordinates.
     await portal.add_roadside_attachment(uuid.UUID(case.id), RoadsideAttachmentRequest(
-        kind="voice", label="Voice note", note="Sending a voice message",
+        kind="location", label="Updated location", lat=40.2, lng=-74.3,
     ))
     thread2 = await portal.thread(uuid.UUID(case.conversation_id))
-    assert any(a.kind == "voice" for m in thread2.messages for a in m.attachments)
+    assert sum(a.kind == "location" for m in thread2.messages for a in m.attachments) == 2
 
 
 @pytest.mark.asyncio

@@ -29,6 +29,7 @@ export interface ActivityItem {
 export interface HomeAppointment {
   id: string;
   date: string;
+  local_date?: string | null;
   time?: string | null;
   service_type?: string | null;
   status: string;

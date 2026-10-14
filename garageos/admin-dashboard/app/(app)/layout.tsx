@@ -27,7 +27,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   if (user.platform_permissions?.includes("platform.read")) redirect("/platform");
 
-  const shellUser = { name: user.full_name, email: user.email, role: user.role };
+  const shellUser = { name: user.full_name, email: user.email, role: user.role, permissions: user.permissions };
   const cookieStore = await cookies();
   const cookieLocale = cookieStore.get(LOCALE_COOKIE)?.value;
   const initialLocale = isLocale(cookieLocale) ? cookieLocale : "uz";

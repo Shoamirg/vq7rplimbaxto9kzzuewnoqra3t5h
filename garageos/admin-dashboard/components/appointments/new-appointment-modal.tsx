@@ -154,7 +154,7 @@ export function NewAppointmentModal({
       const result = await clientFetch<AppointmentListResponse>(`/appointments?${params.toString()}`);
       const match = result.items.find((item) => item.status !== "cancelled"
         && item.customer_id === target.customerId && item.vehicle_id === target.vehicleId
-        && item.appointment_date.slice(0, 10) === target.date
+        && (item.appointment_local_date || item.appointment_date.slice(0, 10)) === target.date
         && item.appointment_time.slice(0, 5) === target.time);
       if (match) return match;
       if (page >= result.total_pages) return null;

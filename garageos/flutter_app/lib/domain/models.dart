@@ -109,7 +109,7 @@ class Work {
     customerName: j['customer_name'] ?? '',
     vehicleId: j['vehicle_id'],
     vehicleLabel: j['vehicle_summary'] ?? '',
-    date: civilDate(j['appointment_date']),
+    date: civilDate(j['appointment_local_date'] ?? j['appointment_date']),
     time: j['appointment_time'],
     duration: j['estimated_duration_minutes'] ?? 60,
     status: WorkStatus.parse(j['status']),

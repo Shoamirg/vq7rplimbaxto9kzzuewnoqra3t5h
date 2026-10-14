@@ -17,13 +17,19 @@ from app.models.invoice import Invoice, InvoiceKind
 from app.models.appointment_slot import AppointmentSlot, AppointmentSlotStatus
 from app.core.events import AppointmentCreated, AppointmentConfirmed, AppointmentStarted, \
     AppointmentCompleted, AppointmentCancelled, MileageUpdated
+from app.core.timezone import (
+    local_date_for_instant,
+    local_day_bounds,
+    local_datetime_to_utc,
+    service_center_timezone,
+)
 from app.exceptions import (
     AppointmentNotFound, SlotUnavailable, AppointmentConflict, AppointmentStateError,
-    VehicleNotFound, CustomerNotFound, UserNotFound,
+    VehicleNotFound, CustomerNotFound, UserNotFound, ValidationError,
 )
 
 
-def serialize_appointment(a) -> dict:
+def serialize_appointment(a, timezone_name: str = "UTC") -> dict:
     """Flatten an Appointment ORM row (with customer + vehicle eagerly loaded)
     into a JSON-friendly dict for API responses."""
     vm = a.vehicle.vehicle_model if a.vehicle else None
@@ -40,6 +46,7 @@ def serialize_appointment(a) -> dict:
         "vehicle_id": str(a.vehicle_id),
         "vehicle_summary": vehicle_summary,
         "appointment_date": a.appointment_date.isoformat(),
+        "appointment_local_date": local_date_for_instant(a.appointment_date, timezone_name).isoformat(),
         "appointment_time": a.appointment_time,
         "mechanic_name": a.mechanic_name,
         "mechanic_user_id": str(a.mechanic_user_id) if a.mechanic_user_id else None,
@@ -75,10 +82,8 @@ class AppointmentService:
         if conflicts:
             raise AppointmentConflict()
 
-    @staticmethod
-    def _at_time(when, time):
-        day = when.date() if isinstance(when, datetime) else when
-        return datetime.combine(day, datetime.strptime(time, "%H:%M").time(), tzinfo=timezone.utc)
+    async def timezone_name(self) -> str:
+        return await service_center_timezone(self.uow.session, self.uow.service_center_id)
 
     async def generate_slots(
         self,
@@ -90,6 +95,7 @@ class AppointmentService:
         mechanic_names: Optional[List[str]] = None,
     ) -> List[dict]:
         """Pre-generate available time slots for a given date."""
+        zone_name = await self.timezone_name()
         mechanics = mechanic_names or [None]
         await self.appointment_repo.lock_schedule()
         created = []
@@ -105,7 +111,7 @@ class AppointmentService:
                 slot = await self.slot_repo.create(
                     service_center_id=service_center_id,
                     mechanic_name=mechanic,
-                    slot_date=current,
+                    slot_date=local_datetime_to_utc(slot_date, start_str, zone_name),
                     start_time=start_str,
                     end_time=end_str,
                     duration_minutes=slot_duration_minutes,
@@ -210,6 +216,7 @@ class AppointmentService:
         mechanic_user_id: Optional[uuid.UUID] = None,
         maintenance_rule_id: Optional[uuid.UUID] = None,
         customer_notes: Optional[str] = None,
+        require_future: bool = False,
     ) -> dict:
         """Create an appointment at a given date/time without a pre-generated slot.
 
@@ -224,11 +231,10 @@ class AppointmentService:
         if not vehicle or vehicle.customer_id != customer_id:
             raise VehicleNotFound(vehicle_id)
 
-        hh, mm = int(appointment_time[:2]), int(appointment_time[3:])
-        appt_dt = datetime(
-            appointment_date.year, appointment_date.month, appointment_date.day,
-            hh, mm, tzinfo=timezone.utc,
-        )
+        zone_name = await self.timezone_name()
+        appt_dt = local_datetime_to_utc(appointment_date, appointment_time, zone_name)
+        if require_future and appt_dt <= datetime.now(timezone.utc):
+            raise ValidationError("Customer bookings must be scheduled in the future")
 
         mechanic_name = mechanic_name.strip() or None if mechanic_name is not None else None
         if mechanic_user_id is not None:
@@ -381,7 +387,7 @@ class AppointmentService:
         ))
         await self.uow.flush()
 
-        result = serialize_appointment(appointment)
+        result = serialize_appointment(appointment, await self.timezone_name())
         result["service_record_id"] = str(record.id)
         result["vehicle_health_score"] = health_score
         return result
@@ -478,11 +484,12 @@ class AppointmentService:
         customer_id: uuid.UUID,
     ) -> Sequence:
         appointments = await self.appointment_repo.find_by_customer(customer_id)
+        zone_name = await self.timezone_name()
         return [
             {
                 "id": str(a.id),
                 "vehicle_id": str(a.vehicle_id),
-                "date": a.appointment_date.isoformat(),
+                "date": local_date_for_instant(a.appointment_date, zone_name).isoformat(),
                 "time": a.appointment_time,
                 "mechanic": a.mechanic_name,
                 "status": a.status,
@@ -499,13 +506,14 @@ class AppointmentService:
         appointments = await self.appointment_repo.find_by_date(
             service_center_id, appointment_date
         )
+        zone_name = await self.timezone_name()
         return [
             {
                 "id": str(a.id),
                 "customer_id": str(a.customer_id),
                 "customer_name": a.customer.full_name if a.customer else "",
                 "vehicle_id": str(a.vehicle_id),
-                "date": a.appointment_date.isoformat(),
+                "date": local_date_for_instant(a.appointment_date, zone_name).isoformat(),
                 "time": a.appointment_time,
                 "mechanic": a.mechanic_name,
                 "service_type": a.service_type,
@@ -525,7 +533,7 @@ class AppointmentService:
         appointment = await self.appointment_repo.get_detailed(appointment_id)
         if not appointment:
             raise AppointmentNotFound()
-        return serialize_appointment(appointment)
+        return serialize_appointment(appointment, await self.timezone_name())
 
     async def list_appointments(
         self,
@@ -545,6 +553,7 @@ class AppointmentService:
             q=q,
             skip=skip, limit=limit,
         )
+        zone_name = await self.timezone_name()
         # Enrich each row with a lightweight health score. Computed per unique
         # vehicle on the page (deduped), so a full-page load is a bounded cost.
         from app.services.financial_service import FinancialService
@@ -565,7 +574,7 @@ class AppointmentService:
             ))
             invoice_links = dict(links.all())
         for a in items:
-            row = serialize_appointment(a)
+            row = serialize_appointment(a, zone_name)
             final_invoice_id = invoice_links.get(a.id)
             row["final_invoice_id"] = str(final_invoice_id) if final_invoice_id else None
             row["awaiting_invoice"] = a.status == AppointmentStatus.COMPLETED and final_invoice_id is None
@@ -583,8 +592,10 @@ class AppointmentService:
         return {"items": serialized, "total": total}
 
     async def get_today(self) -> List[dict]:
-        items, _ = await self.appointment_repo.list_detailed(on_date=date.today(), limit=200)
-        return [serialize_appointment(a) for a in items]
+        zone_name = await self.timezone_name()
+        today = local_date_for_instant(datetime.now(timezone.utc), zone_name)
+        items, _ = await self.appointment_repo.list_detailed(on_date=today, limit=200)
+        return [serialize_appointment(a, zone_name) for a in items]
 
     # --- Slot generation ----------------------------------------------------
     async def generate_slots_range(
@@ -604,14 +615,13 @@ class AppointmentService:
         """
         await self.appointment_repo.lock_schedule()
         sc = self.uow.service_center_id
+        zone_name = await self.timezone_name()
         mechanics = mechanic_names or [None]
-        start_dt = datetime.combine(start_date, datetime.min.time(), tzinfo=timezone.utc)
-        end_dt = datetime.combine(
-            start_date + timedelta(days=days), datetime.min.time(), tzinfo=timezone.utc
-        )
+        start_dt = local_day_bounds(start_date, zone_name)[0]
+        end_dt = local_day_bounds(start_date + timedelta(days=days), zone_name)[0]
 
         existing = await self.slot_repo.list_in_range(start_dt, end_dt)
-        seen = {(s.slot_date.date(), s.start_time, s.mechanic_name) for s in existing}
+        seen = {(local_date_for_instant(s.slot_date, zone_name), s.start_time, s.mechanic_name) for s in existing}
 
         new_slots: List[AppointmentSlot] = []
         created = skipped = 0
@@ -633,7 +643,7 @@ class AppointmentService:
                         new_slots.append(AppointmentSlot(
                             service_center_id=sc,
                             mechanic_name=mechanic,
-                            slot_date=cursor,
+                            slot_date=local_datetime_to_utc(day, start_str, zone_name),
                             start_time=start_str,
                             end_time=(cursor + timedelta(minutes=slot_minutes)).strftime("%H:%M"),
                             duration_minutes=slot_minutes,
@@ -651,8 +661,9 @@ class AppointmentService:
     # --- Calendar aggregation ----------------------------------------------
     async def get_calendar(self, start: date, end: date, *, include_cancelled: bool = False) -> dict:
         """One-request calendar payload: mechanics, slots, appointments, blocked."""
-        start_dt = datetime.combine(start, datetime.min.time(), tzinfo=timezone.utc)
-        end_dt = datetime.combine(end, datetime.min.time(), tzinfo=timezone.utc)
+        zone_name = await self.timezone_name()
+        start_dt = local_day_bounds(start, zone_name)[0]
+        end_dt = local_day_bounds(end, zone_name)[0]
 
         appointments = await self.appointment_repo.list_in_range(start_dt, end_dt, include_cancelled=include_cancelled)
         slots = await self.slot_repo.list_in_range(start_dt, end_dt)
@@ -668,6 +679,7 @@ class AppointmentService:
             return {
                 "id": str(s.id),
                 "date": s.slot_date.isoformat(),
+                "local_date": local_date_for_instant(s.slot_date, zone_name).isoformat(),
                 "start_time": s.start_time,
                 "end_time": s.end_time,
                 "mechanic": s.mechanic_name,
@@ -680,7 +692,7 @@ class AppointmentService:
             "start": start.isoformat(),
             "end": end.isoformat(),
             "mechanics": mechanics,
-            "appointments": [serialize_appointment(a) for a in appointments],
+            "appointments": [serialize_appointment(a, zone_name) for a in appointments],
             "slots": [slot_dict(s) for s in slots if effective_status(s) != AppointmentSlotStatus.BLOCKED],
             "blocked": [slot_dict(s) for s in slots if effective_status(s) == AppointmentSlotStatus.BLOCKED],
         }
@@ -748,7 +760,17 @@ class AppointmentService:
         if appointment.status not in (AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED):
             raise AppointmentStateError("Only pending or confirmed appointments can be edited")
         new_time = appointment_time or appointment.appointment_time
-        new_date = self._at_time(appointment_date or appointment.appointment_date, new_time)
+        zone_name = await self.timezone_name()
+        if appointment_date is None:
+            local_day = local_date_for_instant(appointment.appointment_date, zone_name)
+        elif isinstance(appointment_date, datetime):
+            # AppointmentUpdate carries the selected calendar date in the date
+            # portion. Its time/offset are deliberately ignored; HH:MM is the
+            # separate canonical local wall-time field.
+            local_day = appointment_date.date()
+        else:
+            local_day = appointment_date
+        new_date = local_datetime_to_utc(local_day, new_time, zone_name)
         new_duration = estimated_duration_minutes if estimated_duration_minutes is not None else appointment.estimated_duration_minutes
         new_mechanic = (mechanic_name.strip() or None) if mechanic_name is not None else appointment.mechanic_name
         assigned_id = appointment.mechanic_user_id if mechanic_name is None else None
@@ -762,7 +784,10 @@ class AppointmentService:
         # A freely edited visit no longer occupies its old pre-generated slot.
         # Keep that slot reusable rather than leaving a phantom booking behind.
         placement_changed = (
-            new_date != self._at_time(appointment.appointment_date, appointment.appointment_time)
+            new_date != local_datetime_to_utc(
+                local_date_for_instant(appointment.appointment_date, zone_name),
+                appointment.appointment_time, zone_name,
+            )
             or new_duration != appointment.estimated_duration_minutes
             or new_mechanic != appointment.mechanic_name
             or assigned_id != appointment.mechanic_user_id

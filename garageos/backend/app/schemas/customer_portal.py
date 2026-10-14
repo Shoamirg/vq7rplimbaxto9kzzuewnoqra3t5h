@@ -9,11 +9,9 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime
-from typing import List, Optional
+from typing import List, Literal, Optional
 
-from pydantic import Field
-
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 
 
 class CustomerSummary(BaseModel):
@@ -81,6 +79,7 @@ class ActivityItem(BaseModel):
 class HomeAppointment(BaseModel):
     id: str
     date: str
+    local_date: Optional[str] = None
     time: Optional[str] = None
     service_type: Optional[str] = None
     status: str
@@ -155,6 +154,7 @@ class BookingResult(BaseModel):
     vehicle_label: str
     service: str
     date: datetime
+    local_date: date | None = None
     time: str
     duration_minutes: int
     mechanic_name: Optional[str] = None
@@ -245,22 +245,29 @@ class PostMessageRequest(BaseModel):
 
 # ── Roadside ────────────────────────────────────────────────────────────────
 class RoadsideRequest(BaseModel):
-    description: str
+    model_config = {"str_strip_whitespace": True}
+
+    description: str = Field(min_length=1, max_length=2000)
     vehicle_id: Optional[str] = None
-    location_text: Optional[str] = None
-    location_lat: Optional[float] = None
-    location_lng: Optional[float] = None
+    location_text: Optional[str] = Field(default=None, max_length=200)
+    location_lat: Optional[float] = Field(default=None, ge=-90, le=90)
+    location_lng: Optional[float] = Field(default=None, ge=-180, le=180)
+
+    @model_validator(mode="after")
+    def require_coordinate_pair(self):
+        if (self.location_lat is None) != (self.location_lng is None):
+            raise ValueError("Both location coordinates must be provided together")
+        return self
 
 
 class RoadsideAttachmentRequest(BaseModel):
-    """Add a location/photo/voice attachment to an open roadside case's thread."""
+    """Attach a real location; binary media upload is not implemented yet."""
 
-    kind: str  # location | photo | voice
-    label: str
-    url: Optional[str] = None
-    lat: Optional[float] = None
-    lng: Optional[float] = None
-    note: Optional[str] = None
+    kind: Literal["location"]
+    label: str = Field(min_length=1, max_length=200)
+    lat: float = Field(ge=-90, le=90)
+    lng: float = Field(ge=-180, le=180)
+    note: Optional[str] = Field(default=None, max_length=500)
 
 
 class RoadsideStatusStep(BaseModel):

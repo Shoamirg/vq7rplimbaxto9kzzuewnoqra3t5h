@@ -22,7 +22,6 @@ from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.database import engine
 from app.core.event_handlers import register_event_handlers
-from app.core.notification_handlers import register_notification_handlers
 from app.core.logging import setup_logging
 from app.core.demo_mode import DemoReadOnlyMiddleware
 from app.core.observability import init_sentry
@@ -41,7 +40,6 @@ async def lifespan(app: FastAPI):
     """
     setup_logging()
     register_event_handlers()
-    register_notification_handlers()
     logger.info(
         "Starting %s v%s (env=%s, debug=%s)",
         settings.APP_NAME,

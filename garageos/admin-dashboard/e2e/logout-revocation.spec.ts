@@ -6,7 +6,7 @@ test('logout rejects cross-site browser requests before authentication cleanup',
   expect(logoutRequestAllowed(new Request(url, { headers: { Origin: 'https://evil.example' } }))).toBe(false);
   expect(logoutRequestAllowed(new Request(url, { headers: { 'Sec-Fetch-Site': 'cross-site' } }))).toBe(false);
   expect(logoutRequestAllowed(new Request(url, { headers: { Origin: 'https://garage.example' } }))).toBe(true);
-  expect(logoutRequestAllowed(new Request(url))).toBe(true);
+  expect(logoutRequestAllowed(new Request(url))).toBe(false);
 });
 
 test('logout derives the public origin from the private Caddy hop', () => {

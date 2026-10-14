@@ -35,7 +35,9 @@ export async function POST(req: Request) {
   if (!user || typeof user !== 'object' || !('id' in user) || typeof user.id !== 'string' || !user.id ||
       'platform_permissions' in user && (!Array.isArray(user.platform_permissions) || !user.platform_permissions.every(value => typeof value === 'string'))) return malformedResponse();
   const permissions = 'platform_permissions' in user ? user.platform_permissions as string[] : [];
-  const response = NextResponse.json({ ok: true, redirectTo: permissions.includes('platform.read') ? '/platform' : '/dashboard' });
+  const role = 'role' in user && typeof user.role === 'string' ? user.role : null;
+  const redirectTo = permissions.includes('platform.read') ? '/platform' : role === 'mechanic' ? '/mechanic/work' : '/dashboard';
+  const response = NextResponse.json({ ok: true, redirectTo });
   response.cookies.set(AUTH_COOKIE, tokens.access_token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",

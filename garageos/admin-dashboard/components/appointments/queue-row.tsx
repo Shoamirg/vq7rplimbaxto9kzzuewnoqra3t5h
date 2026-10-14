@@ -67,7 +67,7 @@ export function QueueRow({ appointment: a, selected, busy, onToggle, onAct, onEd
       <span>{vehicle ? vehicle[1] : a.vehicle_summary || t("queue.unknown")}</span>{vehicle && <span className="font-mono text-xs text-muted-foreground">{vehicle[2]}</span>}
     </Link></Field>
     <Field label={t("work.service")}><p className="flex gap-1.5 text-sm text-foreground"><Wrench className="size-4 shrink-0 mt-0.5" />{a.service_type || t("common.general_service")}</p></Field>
-    <Field label={t("work.when")}><p className="flex gap-1.5 text-sm text-foreground"><Clock className="size-4 shrink-0 mt-0.5" /><span>{fmt.date(a.appointment_date)} · {a.appointment_time}</span></p></Field>
+    <Field label={t("work.when")}><p className="flex gap-1.5 text-sm text-foreground"><Clock className="size-4 shrink-0 mt-0.5" /><span>{fmt.date(a.appointment_local_date || a.appointment_date)} · {a.appointment_time}</span></p></Field>
     <Field label={t("work.mechanic")}><p className="flex gap-1.5 text-sm text-foreground"><User className="size-4 shrink-0 mt-0.5" />{a.mechanic_name || t("work.unassigned")}</p></Field>
     <Field label={t("work.health")}>{score ? <Link href={`/vehicles/${a.vehicle_id}`} title={t("queue.health_title", { score, band })} className={cn(LINK, "border px-2 py-1 font-semibold", HEALTH_COLOR[a.health_band || ""] || "text-foreground bg-muted border-border")}>
       {score} · {band}

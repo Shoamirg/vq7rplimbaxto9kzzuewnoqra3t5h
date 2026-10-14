@@ -65,7 +65,7 @@ export function CalendarInspector({ appointment, onClose, onChanged, returnFocus
       <dl className="grid grid-cols-2 gap-3 mt-4 text-sm">
         <Field label={t("work.customer")} value={appointment.customer_name} />
         <Field label={t("work.mechanic")} value={appointment.mechanic_name || t("work.unassigned")} />
-        <Field label={t("work.when")} value={`${fmt.date(appointment.appointment_date)} · ${appointment.appointment_time} · ${t("appointment.minutes", { n: fmt.number(appointment.estimated_duration_minutes) })}`} />
+        <Field label={t("work.when")} value={`${fmt.date(appointment.appointment_local_date || appointment.appointment_date)} · ${appointment.appointment_time} · ${t("appointment.minutes", { n: fmt.number(appointment.estimated_duration_minutes) })}`} />
         <Field label={t("work.billing")} value={appointment.total_cost != null ? fmt.money(appointment.total_cost, "UZS") : "—"} />
       </dl>
       <section className="mt-4 space-y-2">

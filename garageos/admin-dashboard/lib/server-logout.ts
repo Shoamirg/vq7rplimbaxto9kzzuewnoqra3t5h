@@ -21,12 +21,17 @@ export function publicRequestOrigin(request: Request): string | null {
   } catch { return null; }
 }
 
-/** Cookie authentication is never forwarded by a cross-site browser logout. */
+/** Cookie-setting and cookie-authenticated mutations require the exact origin. */
 export function logoutRequestAllowed(request: Request): boolean {
+  return sameOriginMutationAllowed(request);
+}
+
+/** Mutations that set or use browser cookies must name this exact public origin. */
+export function sameOriginMutationAllowed(request: Request): boolean {
   if (request.headers.get('sec-fetch-site') === 'cross-site') return false;
   const origin = request.headers.get('origin');
   const expected = publicRequestOrigin(request);
-  return expected !== null && (!origin || origin === expected);
+  return expected !== null && origin === expected;
 }
 
 export async function revokeServerSession(

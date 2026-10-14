@@ -23,6 +23,7 @@ export interface Appointment {
   vehicle_id: string;
   vehicle_summary: string;
   appointment_date: string; // ISO
+  appointment_local_date?: string | null; // service-center civil date (YYYY-MM-DD)
   appointment_time: string; // HH:MM
   mechanic_name: string | null;
   mechanic_user_id?: string | null;
@@ -35,6 +36,10 @@ export interface Appointment {
   health_score?: number | null;
   health_band?: HealthBand | null;
   billing?: AppointmentBilling | null;
+}
+
+export function appointmentLocalDate(appointment: Pick<Appointment, "appointment_date" | "appointment_local_date">): string {
+  return appointment.appointment_local_date || appointment.appointment_date.slice(0, 10);
 }
 
 export interface MechanicAccount {
@@ -129,6 +134,7 @@ export interface TimelineEvent {
   type: string;
   title: string;
   date: string;
+  local_date?: string | null;
   detail: string | null;
   km?: number;
   cost?: number | null;
@@ -338,6 +344,7 @@ export interface Customer360Appointment {
   currency?: string;
   id: string;
   date: string;
+  local_date?: string | null;
   time: string;
   status: AppointmentStatus;
   mechanic_name: string | null;
@@ -368,6 +375,8 @@ export interface Customer360 {
     emergency_count: number;
     last_visit: string | null;
     next_booking: string | null;
+    last_visit_local_date?: string | null;
+    next_booking_local_date?: string | null;
   };
   financial?: CustomerFinancial;
   vehicles: Customer360Vehicle[];
@@ -569,6 +578,7 @@ export interface LinkedCard {
   link: string | null;
   case_type?: string;
   appointment_date?: string;
+  appointment_local_date?: string;
   appointment_time?: string;
   invoice_kind?: "estimate" | "invoice";
   available?: boolean;

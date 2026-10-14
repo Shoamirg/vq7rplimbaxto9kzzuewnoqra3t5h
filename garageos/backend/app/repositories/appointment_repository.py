@@ -1,6 +1,6 @@
 from __future__ import annotations
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional, Sequence
 from sqlalchemy import literal, select, func, and_, or_, text
 from sqlalchemy.orm import selectinload
@@ -14,6 +14,7 @@ from app.models.vehicle import Vehicle
 from app.models.vehicle_model import VehicleModel
 from app.repositories.base import TenantScopedRepository
 from app.repositories.scheduling import appointment_start
+from app.core.timezone import local_date_for_instant, local_day_bounds, service_center_timezone
 
 
 class AppointmentRepository(TenantScopedRepository[Appointment]):
@@ -28,6 +29,10 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
         .selectinload(Vehicle.vehicle_model)
         .selectinload(VehicleModel.brand),
     )
+
+    async def _day_bounds(self, day: date) -> tuple[datetime, datetime]:
+        zone_name = await service_center_timezone(self.session, self.service_center_id)
+        return local_day_bounds(day, zone_name)
 
     async def get_with_slot(self, appointment_id: uuid.UUID, *, for_update: bool = False) -> Optional[Appointment]:
         """Tenant-scoped fetch with the linked slot loaded (for cancel/reschedule)."""
@@ -89,19 +94,25 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
                 Invoice.is_active.is_(True),
             ).exists()
             base = base.where(Appointment.status == AppointmentStatus.COMPLETED, ~final_invoice)
+        zone_name = None
+        if on_date or date_from or date_to or overdue:
+            zone_name = await service_center_timezone(self.session, self.service_center_id)
         if on_date:
-            base = base.where(
-                Appointment.appointment_date >= datetime.combine(on_date, datetime.min.time()),
-                Appointment.appointment_date < datetime.combine(on_date, datetime.max.time()),
-            )
+            day_start, day_end = local_day_bounds(on_date, zone_name)
+            base = base.where(Appointment.appointment_date >= day_start,
+                              Appointment.appointment_date < day_end)
         if date_from:
-            base = base.where(Appointment.appointment_date >= datetime.combine(date_from, datetime.min.time()))
+            day_start, _ = local_day_bounds(date_from, zone_name)
+            base = base.where(Appointment.appointment_date >= day_start)
         if date_to:
-            base = base.where(Appointment.appointment_date < datetime.combine(date_to, datetime.max.time()))
+            _, day_end = local_day_bounds(date_to, zone_name)
+            base = base.where(Appointment.appointment_date < day_end)
         if overdue:
             # Past its date and still needing work — the operational "chase list".
+            today = local_date_for_instant(datetime.now(timezone.utc), zone_name)
+            today_start, _ = local_day_bounds(today, zone_name)
             base = base.where(
-                Appointment.appointment_date < datetime.combine(date.today(), datetime.min.time()),
+                Appointment.appointment_date < today_start,
                 Appointment.status.in_([AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED]),
             )
         if q and q.strip():
@@ -153,10 +164,12 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
         return result.scalars().all()
 
     async def find_by_date(self, service_center_id: uuid.UUID, appointment_date: date) -> Sequence[Appointment]:
+        zone_name = await service_center_timezone(self.session, service_center_id)
+        day_start, day_end = local_day_bounds(appointment_date, zone_name)
         stmt = select(Appointment).where(
             Appointment.service_center_id == service_center_id,
-            Appointment.appointment_date >= datetime.combine(appointment_date, datetime.min.time()),
-            Appointment.appointment_date < datetime.combine(appointment_date, datetime.max.time()),
+            Appointment.appointment_date >= day_start,
+            Appointment.appointment_date < day_end,
             Appointment.status.notin_([AppointmentStatus.CANCELLED]),
         ).order_by(Appointment.appointment_time)
         result = await self.session.execute(stmt)
@@ -175,11 +188,13 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
         return await self.find_by_status(service_center_id, AppointmentStatus.PENDING)
 
     async def find_today(self, service_center_id: uuid.UUID) -> Sequence[Appointment]:
-        today = date.today()
+        zone_name = await service_center_timezone(self.session, service_center_id)
+        today = local_date_for_instant(datetime.now(timezone.utc), zone_name)
+        day_start, day_end = local_day_bounds(today, zone_name)
         stmt = select(Appointment).where(
             Appointment.service_center_id == service_center_id,
-            Appointment.appointment_date >= datetime.combine(today, datetime.min.time()),
-            Appointment.appointment_date < datetime.combine(today, datetime.max.time()),
+            Appointment.appointment_date >= day_start,
+            Appointment.appointment_date < day_end,
             Appointment.status.in_([AppointmentStatus.CONFIRMED, AppointmentStatus.IN_PROGRESS]),
             Appointment.is_active == True,
         ).order_by(Appointment.appointment_time)
@@ -231,8 +246,10 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
         """Half-open intervals: adjacent jobs and different mechanics may coexist."""
         if not mechanic_name or not mechanic_name.strip():
             return []  # Unassigned visits consume no named mechanic's time yet.
+        zone_name = await service_center_timezone(self.session, service_center_id)
+        requested_day = local_date_for_instant(appointment_date, zone_name)
         requested_start = datetime.combine(
-            appointment_date.date(), datetime.strptime(appointment_time, "%H:%M").time()
+            requested_day, datetime.strptime(appointment_time, "%H:%M").time()
         )
         requested_end = requested_start + timedelta(minutes=duration_minutes)
         # appointment_time is canonical; date-only legacy rows must also work.
@@ -258,7 +275,9 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
 
     async def get_stats(self, service_center_id: uuid.UUID) -> dict:
         """Get appointment counts by status for dashboard."""
-        today = date.today()
+        zone_name = await service_center_timezone(self.session, service_center_id)
+        today = local_date_for_instant(datetime.now(timezone.utc), zone_name)
+        day_start, day_end = local_day_bounds(today, zone_name)
         statuses = [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED,
                     AppointmentStatus.IN_PROGRESS, AppointmentStatus.COMPLETED,
                     AppointmentStatus.CANCELLED]
@@ -270,8 +289,8 @@ class AppointmentRepository(TenantScopedRepository[Appointment]):
         today_stmt = select(func.count()).select_from(Appointment).where(
             Appointment.service_center_id == service_center_id,
             Appointment.is_active.is_(True),
-            Appointment.appointment_date >= datetime.combine(today, datetime.min.time()),
-            Appointment.appointment_date < datetime.combine(today, datetime.max.time()),
+            Appointment.appointment_date >= day_start,
+            Appointment.appointment_date < day_end,
         )
         today_count = await self.session.scalar(today_stmt)
         stats["today"] = today_count or 0

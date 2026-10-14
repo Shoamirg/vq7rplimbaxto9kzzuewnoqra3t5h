@@ -1,4 +1,4 @@
-"""FastAPI dependencies for the customer-facing API (Telegram Mini App et al).
+"""FastAPI dependencies for customer-facing API principals.
 
 Parallel to :mod:`app.api.deps` but for the *customer* principal. The chain is:
 bearer customer-token -> current Customer (global lookup) -> a UnitOfWork bound to
@@ -48,21 +48,33 @@ async def get_current_customer(
     return await _customer_auth(db).get_current_customer(credentials.credentials)
 
 
+def password_customer_route_allowed(method: str, path: str) -> bool:
+    """Keep password customers on read-only portal routes plus self-booking."""
+    normalized_path = path.rstrip("/")
+    if method in {"GET", "HEAD", "OPTIONS"}:
+        return (
+            normalized_path == "/api/v1/customer/me"
+            or normalized_path.startswith("/api/v1/customer/history/")
+            or normalized_path == "/api/v1/customer/vehicles"
+            or normalized_path == "/api/v1/customer/appointments/today"
+        )
+    return method == "POST" and normalized_path == "/api/v1/customer/appointments"
+
+
 async def get_customer_uow(
     request: Request,
     current_customer: Customer = Depends(get_current_customer),
     credentials: HTTPAuthorizationCredentials = Depends(_bearer),
 ) -> AsyncIterator[UnitOfWork]:
-    """Tenant-bound access; password customers use only the approved read portal."""
+    """Tenant-bound access; password customers get reads and owned-vehicle booking only."""
     # Identity/credential validity is checked by get_current_customer first.
     # The signed claim distinguishes owner-created credentials from Telegram.
     payload = decode_token(credentials.credentials)
     if payload is None:
         raise UnauthorizedError()
-    if "account_id" in payload:
-        path = request.url.path.rstrip("/")
-        allowed_read = path == "/api/v1/customer/me" or path.startswith("/api/v1/customer/history/")
-        if request.method not in {"GET", "HEAD", "OPTIONS"} or not allowed_read:
-            raise UnauthorizedAction()
+    if "account_id" in payload and not password_customer_route_allowed(
+        request.method, request.url.path
+    ):
+        raise UnauthorizedAction()
     async with UnitOfWork(service_center_id=current_customer.service_center_id) as uow:
         yield uow

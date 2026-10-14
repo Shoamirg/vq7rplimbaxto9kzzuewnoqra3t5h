@@ -25,7 +25,7 @@ export function CalendarOverview({ view, date, days, appointments, onOpen, onDay
   return <div className="flex-1 min-w-0 overflow-auto p-3" data-calendar-overview={view}>
     <div className={cn("grid gap-2", view === "Month" ? "grid-cols-7 min-w-[840px]" : "grid-cols-1 md:grid-cols-2 xl:grid-cols-7")}>
       {days.map(day => {
-        const rows = appointments.filter(a => a.appointment_date.slice(0, 10) === day);
+        const rows = appointments.filter(a => (a.appointment_local_date || a.appointment_date.slice(0, 10)) === day);
         const label = fmt.date(day, { weekday: "short", day: "numeric", month: "short" });
         const shown = view === "Month" ? rows.slice(0, 3) : rows;
         return <section key={day} data-calendar-day={day} aria-label={label}

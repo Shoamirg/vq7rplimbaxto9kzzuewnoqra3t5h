@@ -40,7 +40,7 @@ async def request_roadside(
     return await CustomerPortalService(uow, customer).create_roadside(body)
 
 
-@router.post("/{case_id}/attachment", response_model=RoadsideCase, summary="Attach location/photo/voice to a case")
+@router.post("/{case_id}/attachment", response_model=RoadsideCase, summary="Attach verified location coordinates to a case")
 async def add_attachment(
     case_id: uuid.UUID,
     body: RoadsideAttachmentRequest,
@@ -50,7 +50,7 @@ async def add_attachment(
     return await CustomerPortalService(uow, customer).add_roadside_attachment(case_id, body)
 
 
-@router.get("/{case_id}", response_model=RoadsideCase, summary="Live status of a roadside case")
+@router.get("/{case_id}", response_model=RoadsideCase, summary="Read roadside case status")
 async def roadside_status(
     case_id: uuid.UUID,
     customer: Customer = Depends(get_current_customer),

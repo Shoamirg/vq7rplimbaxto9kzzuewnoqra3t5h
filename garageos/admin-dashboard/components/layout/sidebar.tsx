@@ -80,7 +80,7 @@ const bottomNav: NavItem[] = [
   { key: "nav.support", href: "/support", icon: <HelpCircle className="size-5" />, unfinished: true },
 ];
 
-type ShellUser = { name: string; email: string; role: string | null };
+type ShellUser = { name: string; email: string; role: string | null; permissions?: string[] };
 type Brand = { name: string; monogram: string; tagline: string | null } | null;
 
 function initials(name?: string): string {
@@ -100,6 +100,18 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
   const brandName = branding?.name ?? "GarageOS";
   const brandMono = branding?.monogram ?? "G";
   const brandTagline = branding?.tagline ?? t("brand.tagline");
+  const isMechanic = user?.role === "mechanic";
+  const visibleSections: NavSection[] = isMechanic
+    ? [{ key: "section.workspace", items: [{ key: "work.my_assignments", href: "/mechanic/work", icon: <Wrench className="size-5" /> }] }]
+    : NAV_SECTIONS.map((section) => ({
+      ...section,
+      items: section.items.filter((item) => {
+        if (item.href === "/billing") return user?.permissions?.includes("billing.read") ?? true;
+        if (item.href === "/reports") return user?.permissions?.includes("financial.reports.read") ?? true;
+        return true;
+      }),
+    })).filter((section) => section.items.length > 0);
+  const visibleBottomNav = isMechanic ? [] : bottomNav;
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
@@ -177,7 +189,7 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
         </div>
 
         {/* Quick Action */}
-        <div className={cn("p-3", collapsed && "px-2")}>
+        {!isMechanic && <div className={cn("p-3", collapsed && "px-2")}>
           <button
             className={cn(
               "flex items-center gap-2 w-full rounded-lg font-medium transition-all duration-150",
@@ -192,7 +204,7 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
             <Plus className="size-4 shrink-0" />
             {!collapsed && <span>{t("action.new_appointment")}</span>}
           </button>
-        </div>
+        </div>}
         {apptOpen && (
           <NewAppointmentModal
             onClose={() => setApptOpen(false)}
@@ -202,7 +214,7 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
 
         {/* Main Navigation — grouped sections */}
         <nav className="flex-1 overflow-y-auto px-3 py-1 space-y-1">
-          {NAV_SECTIONS.map((section) => (
+          {visibleSections.map((section) => (
             <div key={section.key} className="space-y-0.5">
               {!collapsed && (
                 <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/80">
@@ -254,7 +266,7 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
 
         {/* Bottom Navigation */}
         <div className="px-3 py-2 border-t border-sidebar-muted space-y-0.5">
-          {bottomNav.map((item) => {
+          {visibleBottomNav.map((item) => {
             const active = isActive(item.href);
             return (
               <Link

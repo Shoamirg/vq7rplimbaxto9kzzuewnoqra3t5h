@@ -1,7 +1,8 @@
 name: CI
 
 on:
-  # Manual GitHub runs; the isolated local Windows runner provides release evidence.
+  push:
+  pull_request:
   workflow_dispatch:
 
 concurrency:
@@ -45,6 +46,20 @@ jobs:
             ci-evidence/railway-backend
           retention-days: 7
 
+  backend-export-parity:
+    name: Backend · standalone export parity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch the matching public backend branch
+        env:
+          BACKEND_EXPORT_REF: ${{ github.head_ref || github.ref_name }}
+        run: git clone --depth 1 --branch "$BACKEND_EXPORT_REF" https://github.com/Shoamirg/Backend-repo.git backend-export
+      - name: Verify parity checker behavior
+        run: python garageos/scripts/test_backend_export.py
+      - name: Verify monorepo backend matches Backend-repo
+        run: python garageos/scripts/check_backend_export.py --export-root backend-export
+
   backend:
     name: Backend · tests
     runs-on: ubuntu-latest
@@ -73,6 +88,7 @@ jobs:
       REDIS_URL: redis://localhost:6379/0
       SECRET_KEY: ci-test-secret-key-not-for-production
       ENVIRONMENT: test
+      BUILD_SHA: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

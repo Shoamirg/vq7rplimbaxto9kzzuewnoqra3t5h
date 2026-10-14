@@ -1,10 +1,11 @@
 import uuid
+from datetime import date, timedelta
 import pytest
 from sqlalchemy import update
 from app.core.database import async_session_factory
 from app.core.security import create_access_token
 from tests.support.auth_sessions import persisted_access
-from app.models import Customer, ServiceCenter, Invoice
+from app.models import Brand, Customer, ServiceCenter, Vehicle, VehicleModel, Invoice
 from tests.test_staff_access_lifecycle import _as_role
 
 from tests.test_staff_management_api import owner, login
@@ -95,6 +96,83 @@ async def test_customer_histories_are_owned_paginated_and_customer_safe(client,i
         await session.execute(update(ServiceCenter).where(ServiceCenter.id==identity['center']).values(is_active=False));await session.commit()
     assert (await client.get('/api/v1/customer/me',headers=headers)).status_code==401
     assert (await client.post('/api/v1/customer/auth/login',json={'email':email,'password':PASSWORD})).status_code==401
+
+
+async def test_password_customer_can_book_only_an_owned_vehicle_and_replay(client, identity, owner):
+    customer_response = await client.post(
+        "/api/v1/customers",
+        headers=owner,
+        json={"full_name": "Booking customer", "phone": "998" + str(uuid.uuid4().int)[:9]},
+    )
+    customer_id = customer_response.json()["id"]
+    foreign_response = await client.post(
+        "/api/v1/customers",
+        headers=owner,
+        json={"full_name": "Another customer", "phone": "998" + str(uuid.uuid4().int)[:9]},
+    )
+    foreign_customer_id = foreign_response.json()["id"]
+    email = f"booking-{uuid.uuid4().hex}@example.com"
+    assert (await client.post(
+        f"/api/v1/customers/{customer_id}/account",
+        headers=owner,
+        json={"email": email, "password": PASSWORD},
+    )).status_code == 201
+
+    async with async_session_factory() as session:
+        brand = Brand(name=f"Booking-{uuid.uuid4().hex}")
+        session.add(brand)
+        await session.flush()
+        model = VehicleModel(brand_id=brand.id, name="Customer booking", year_start=2015)
+        session.add(model)
+        await session.flush()
+        own_vehicle = Vehicle(
+            service_center_id=identity["center"], customer_id=uuid.UUID(customer_id),
+            vehicle_model_id=model.id, year=2020, current_km=10000,
+        )
+        foreign_vehicle = Vehicle(
+            service_center_id=identity["center"], customer_id=uuid.UUID(foreign_customer_id),
+            vehicle_model_id=model.id, year=2020, current_km=10000,
+        )
+        session.add_all((own_vehicle, foreign_vehicle))
+        await session.commit()
+        own_vehicle_id = str(own_vehicle.id)
+        foreign_vehicle_id = str(foreign_vehicle.id)
+
+    signed = await client.post(
+        "/api/v1/customer/auth/login", json={"email": email, "password": PASSWORD}
+    )
+    headers = {"Authorization": "Bearer " + signed.json()["access_token"]}
+    vehicles = await client.get("/api/v1/customer/vehicles", headers=headers)
+    today = await client.get("/api/v1/customer/appointments/today", headers=headers)
+    assert vehicles.status_code == today.status_code == 200
+    assert {vehicle["id"] for vehicle in vehicles.json()["vehicles"]} == {own_vehicle_id}
+    assert date.fromisoformat(today.json()["today"])
+
+    body = {
+        "vehicle_id": own_vehicle_id,
+        "service": "Brake inspection",
+        "date": (date.today() + timedelta(days=30)).isoformat(),
+        "time": "10:30",
+    }
+    headers["Idempotency-Key"] = str(uuid.uuid4())
+    past = await client.post(
+        "/api/v1/customer/appointments",
+        headers=headers,
+        json={**body, "date": (date.today() - timedelta(days=2)).isoformat()},
+    )
+    assert past.status_code == 422
+
+    headers["Idempotency-Key"] = str(uuid.uuid4())
+    first = await client.post("/api/v1/customer/appointments", headers=headers, json=body)
+    replay = await client.post("/api/v1/customer/appointments", headers=headers, json=body)
+    assert first.status_code == replay.status_code == 200
+    assert first.json() == replay.json()
+    assert first.json()["status"] == "pending"
+
+    headers["Idempotency-Key"] = str(uuid.uuid4())
+    body["vehicle_id"] = foreign_vehicle_id
+    foreign = await client.post("/api/v1/customer/appointments", headers=headers, json=body)
+    assert foreign.status_code == 404
 
 
 async def test_owner_cannot_transfer_identity_or_use_foreign_customer(client,identity,owner):

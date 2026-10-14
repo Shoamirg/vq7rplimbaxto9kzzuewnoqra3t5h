@@ -15,9 +15,10 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   try {
+    const user = await getCurrentUser();
+    if (user.role === "mechanic") redirect("/mechanic/work");
     // Independent reads — fetch in parallel.
-    const [user, stats, today, fleet] = await Promise.all([
-      getCurrentUser(),
+    const [stats, today, fleet] = await Promise.all([
       getStats(),
       getTodayAppointments(),
       getFleetHealth(),

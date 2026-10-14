@@ -11,7 +11,9 @@ import time
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[2]
+MONOREPO_ROOT = Path(__file__).resolve().parents[2]
+EXPORT_ROOT = Path(__file__).resolve().parents[1] / "tests/support/source-operations"
+ROOT = MONOREPO_ROOT if (MONOREPO_ROOT / "scripts/backup.sh").is_file() else EXPORT_ROOT
 
 
 def _bash_path(path):

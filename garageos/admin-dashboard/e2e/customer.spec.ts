@@ -40,12 +40,12 @@ test("billing and messages render", async ({ page }) => {
   await expect(page.locator("body")).not.toContainText(/something went wrong/i);
 });
 
-test("roadside request transforms into live tracking", async ({ page }) => {
+test("roadside request is acknowledged without claiming live tracking or media upload", async ({ page }) => {
   await page.goto("/mini/roadside", { waitUntil: "networkidle" });
   await page.locator("#roadside-problem").fill("[E2E] Flat tyre on the highway");
   await page.getByRole("button", { name: /request assistance/i }).click();
-  // The form transforms in place into the tracking view (a real case is opened).
-  await expect(page.getByText(/help is on the way/i)).toBeVisible({ timeout: 20_000 });
-  // The status stepper is present.
-  await expect(page.getByText(/reported/i).first()).toBeVisible();
+  await expect(page.getByText("Your request was sent to the dispatcher.")).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("link", { name: /message dispatcher/i })).toBeVisible();
+  await expect(page.getByText(/technician is on the way/i)).toHaveCount(0);
+  await expect(page.locator('input[type="file"]')).toHaveCount(0);
 });

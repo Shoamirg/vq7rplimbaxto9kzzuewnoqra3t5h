@@ -65,11 +65,11 @@ export default function LoginPage() {
         }
         const result = await res.json().catch(() => null);
         if (!current()) return;
-        if (result?.ok !== true || !['/dashboard', '/platform'].includes(result.redirectTo)) {
+        if (result?.ok !== true || !['/dashboard', '/platform', '/mechanic/work'].includes(result.redirectTo)) {
           setError({ key: 'platform.login_invalid_response' }); return;
         }
         complete();
-        router.replace(result.redirectTo === "/platform" ? "/platform" : "/dashboard");
+        router.replace(result.redirectTo);
         router.refresh();
       });
     } catch (error) {

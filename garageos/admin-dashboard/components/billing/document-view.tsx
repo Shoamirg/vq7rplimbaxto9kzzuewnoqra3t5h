@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Link2, Mail, Send, Share2 } from "lucide-react";
 import {
@@ -10,6 +10,15 @@ import {
 } from "@garageos/design-system";
 
 import { clientFetch, ClientApiError } from "@/lib/api/client";
+import {
+  clearPendingIdempotencyKey,
+  clearPendingPaymentIntent,
+  pendingIdempotencyKey,
+  readPendingPaymentIntent,
+  savePendingPaymentIntent,
+  type PendingIdempotencyKey,
+  type PendingPaymentIntent,
+} from "@/lib/idempotency";
 import { useI18n } from "@/lib/i18n/context";
 import type { InvoiceDoc, LineKind } from "@/lib/api/types";
 import { LINE_ICON, METHOD_ICON } from "./shared";
@@ -24,7 +33,7 @@ const TIMELINE_LABELS: Record<string, string> = {
 };
 
 export function DocumentView({
-  doc, actionPending, onStatus, onSend, onConvert, onRecordPayment, onDelete, onEdit,
+  doc, actionPending, onStatus, onSend, onConvert, onRecordPayment, onDelete, onEdit, canVoid = false,
 }: {
   doc: InvoiceDoc;
   actionPending: boolean;
@@ -34,6 +43,7 @@ export function DocumentView({
   onRecordPayment: (amount: number, method: string, idempotencyKey: string) => Promise<void>;
   onDelete: () => void;
   onEdit: () => void;
+  canVoid?: boolean;
 }) {
   const hasPayments = doc.amount_paid > 0 || doc.payments.length > 0;
   const canEdit = !hasPayments;
@@ -116,7 +126,7 @@ export function DocumentView({
         </DropdownMenu>
         {canEdit && <button disabled={actionPending} onClick={onEdit} className={ABTN} aria-label={t("billing.edit")}>✎ {t("billing.edit")}</button>}
         <button onClick={() => window.print()} className={ABTN} aria-label={t("public.print")}>🖨 PDF</button>
-        {!hasPayments && !(doc.kind === "invoice" && doc.appointment_id) && (
+        {canVoid && !hasPayments && !(doc.kind === "invoice" && doc.appointment_id) && (
           <button disabled={actionPending} onClick={onDelete} className={cn(ABTN, "hover:text-red-600 hover:border-red-200")} aria-label={t("billing.delete")}>🗑 {t("billing.delete")}</button>
         )}
       </div>
@@ -257,7 +267,7 @@ export function DocumentView({
       </div>
 
       {/* record-payment inline modal */}
-      {payOpen && <PayModal balance={doc.balance} currency={doc.currency} onClose={() => setPayOpen(false)} onSubmit={onRecordPayment} />}
+      {payOpen && <PayModal invoiceId={doc.id} balance={doc.balance} currency={doc.currency} onClose={() => setPayOpen(false)} onSubmit={onRecordPayment} />}
     </div>
   );
 }
@@ -277,18 +287,35 @@ function TRow({ k, v, green }: { k: string; v: string; green?: boolean }) {
   return <div className={cn("flex justify-between text-[13px] py-1", green ? "text-emerald-600" : "text-slate-600")}><span>{k}</span><span className="font-mono">{v}</span></div>;
 }
 
-function PayModal({ balance, currency, onClose, onSubmit }: { balance: number; currency: string; onClose: () => void; onSubmit: (amount: number, method: string, idempotencyKey: string) => Promise<void> }) {
+function PayModal({ invoiceId, balance, currency, onClose, onSubmit }: { invoiceId: string; balance: number; currency: string; onClose: () => void; onSubmit: (amount: number, method: string, idempotencyKey: string) => Promise<void> }) {
   const { t, fmt } = useI18n();
   const { toast } = useToast();
   const [amount, setAmount] = useState(balance.toFixed(2));
   const [method, setMethod] = useState("card");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [idempotencyKey] = useState(() => crypto.randomUUID());
+  const [pendingPayment, setPendingPayment] = useState<PendingPaymentIntent | null>(null);
+  const [restoreReady, setRestoreReady] = useState(false);
+  const [restoreFailed, setRestoreFailed] = useState(false);
   const submitting = useRef(false);
   const parsedAmount = Number(amount);
   const roundedAmount = Math.round(parsedAmount * 100) / 100;
   const valid = amount.trim() !== "" && Number.isFinite(parsedAmount) && roundedAmount > 0 && roundedAmount <= balance;
+
+  useEffect(() => {
+    try {
+      const pending = readPendingPaymentIntent(invoiceId);
+      if (pending) {
+        setPendingPayment(pending);
+        setAmount(pending.amount.toString());
+        setMethod(pending.method);
+      }
+    } catch {
+      setRestoreFailed(true);
+    } finally {
+      setRestoreReady(true);
+    }
+  }, [invoiceId]);
 
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -298,11 +325,41 @@ function PayModal({ balance, currency, onClose, onSubmit }: { balance: number; c
       return;
     }
     submitting.current = true; setBusy(true); setError(null);
+    let pendingKey: PendingIdempotencyKey | null = null;
+    let activeStorageKey: string | null = null;
+    let requestStarted = false;
     try {
-      await onSubmit(parsedAmount, method, idempotencyKey);
+      const amountToSubmit = pendingPayment?.amount ?? parsedAmount;
+      const methodToSubmit = pendingPayment?.method ?? method;
+      if (!pendingPayment) {
+        pendingKey = await pendingIdempotencyKey("invoice-payment", { invoice_id: invoiceId, amount: amountToSubmit, method: methodToSubmit });
+      }
+      const intent: PendingPaymentIntent = {
+        amount: amountToSubmit,
+        method: methodToSubmit,
+        key: pendingPayment?.key ?? pendingKey!.key,
+        storageKey: pendingPayment?.storageKey ?? pendingKey!.storageKey,
+      };
+      activeStorageKey = intent.storageKey;
+      savePendingPaymentIntent(invoiceId, intent);
+      setPendingPayment(intent);
+      requestStarted = true;
+      await onSubmit(intent.amount, intent.method, intent.key);
+      if (activeStorageKey) clearPendingIdempotencyKey(activeStorageKey);
+      clearPendingPaymentIntent(invoiceId);
+      setPendingPayment(null);
       toast({ title: t("billing.saved"), variant: "success" });
       onClose();
     } catch (err) {
+      const keepIntent = requestStarted && (!(err instanceof ClientApiError)
+        || err.status >= 500 || err.code === "PAYMENT_REQUEST_MISMATCH");
+      if (!keepIntent && requestStarted) {
+        if (activeStorageKey) clearPendingIdempotencyKey(activeStorageKey);
+        clearPendingPaymentIntent(invoiceId);
+        setPendingPayment(null);
+      } else if (!requestStarted && !pendingPayment && pendingKey) {
+        clearPendingIdempotencyKey(pendingKey.storageKey);
+      }
       const key = err instanceof ClientApiError && err.code === "PAYMENT_EXCEEDS_BALANCE" ? "billing.payment_exceeds_balance"
         : err instanceof ClientApiError && err.status === 409 ? "billing.payment_state_changed"
         : err instanceof ClientApiError && err.status === 422 ? "billing.payment_invalid" : "billing.payment_failed";
@@ -316,19 +373,21 @@ function PayModal({ balance, currency, onClose, onSubmit }: { balance: number; c
       <DialogContent hideClose aria-label={t("billing.record_payment")} className="w-[calc(100%-2rem)] max-h-[90dvh] overflow-y-auto p-5">
         <DialogTitle className="text-base font-bold mb-2">{t("billing.record_payment")}</DialogTitle>
         <DialogDescription className="mb-3">{t("public.balance")}: {fmt.money(balance, currency)}</DialogDescription>
+        {pendingPayment ? <p role="status" className="mb-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">{t("billing.payment_retry_pending")}</p> : null}
+        {restoreFailed ? <p role="alert" className="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{t("billing.payment_restore_failed")}</p> : null}
         <form onSubmit={save}>
         <label htmlFor="payment-amount" className="text-xs font-semibold text-muted-foreground">{t("public.amount")}</label>
-        <input id="payment-amount" value={amount} disabled={busy} onChange={(e) => { setAmount(e.target.value); setError(null); }} inputMode="decimal" autoComplete="off" aria-invalid={error ? true : undefined} aria-describedby={error ? "payment-error" : undefined}
+        <input id="payment-amount" value={amount} disabled={busy || !restoreReady || restoreFailed || !!pendingPayment} onChange={(e) => { setAmount(e.target.value); setError(null); }} inputMode="decimal" autoComplete="off" aria-invalid={error ? true : undefined} aria-describedby={error ? "payment-error" : undefined}
           className="w-full mt-1 mb-3 rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono outline-hidden focus:ring-1 focus:ring-primary" />
         <label htmlFor="payment-method" className="text-xs font-semibold text-muted-foreground">{t("billing.payment_method")}</label>
-        <select id="payment-method" value={method} disabled={busy} onChange={(e) => { setMethod(e.target.value); setError(null); }} className="w-full mt-1 mb-4 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-hidden">
+        <select id="payment-method" value={method} disabled={busy || !restoreReady || restoreFailed || !!pendingPayment} onChange={(e) => { setMethod(e.target.value); setError(null); }} className="w-full mt-1 mb-4 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-hidden">
           <option value="card">{t("billing.method_card")}</option><option value="cash">{t("billing.method_cash")}</option>
           <option value="bank_transfer">{t("billing.method_bank")}</option><option value="online">{t("billing.method_online")}</option>
         </select>
         {error && <p id="payment-error" role="alert" className="mb-3 text-sm text-red-600">{error}</p>}
         <div className="flex gap-2 items-center justify-between">
           <button type="button" disabled={busy} onClick={onClose} className="px-3 py-2 text-sm font-semibold text-muted-foreground disabled:opacity-50">{t("common.cancel")}</button>
-          <button type="submit" disabled={busy || !valid} className="px-4 py-2 text-sm font-bold rounded-lg bg-emerald-600 text-white disabled:opacity-50">{busy ? t("billing.saving") : t("billing.record_payment")}</button>
+          <button type="submit" disabled={busy || !restoreReady || restoreFailed || (!pendingPayment && !valid)} className="px-4 py-2 text-sm font-bold rounded-lg bg-emerald-600 text-white disabled:opacity-50">{busy ? t("billing.saving") : t("billing.record_payment")}</button>
         </div>
         </form>
       </DialogContent>

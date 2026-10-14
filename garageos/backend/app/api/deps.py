@@ -57,6 +57,14 @@ async def get_staff_permissions(
     return permissions
 
 
+def require_staff_permission(permission: str):
+    """Create an endpoint dependency for one server-enforced capability."""
+    async def check_permission(permissions: list[str] = Depends(get_staff_permissions)) -> None:
+        if permission not in permissions:
+            raise UnauthorizedAction()
+    return check_permission
+
+
 async def get_tenant_uow(
     request: Request,
     current_user: User = Depends(get_current_user),

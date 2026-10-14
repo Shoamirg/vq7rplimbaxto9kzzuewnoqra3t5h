@@ -3,11 +3,11 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
 
-from app.api.deps import get_tenant_uow
+from app.api.deps import get_tenant_uow, require_staff_permission
 from app.repositories.unit_of_work import UnitOfWork
 from app.services.analytics import AnalyticsService
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_staff_permission("financial.reports.read"))])
 
 
 @router.get("/{report}", summary="A report projection (executive, commercial, …) for a period")

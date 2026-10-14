@@ -83,7 +83,7 @@ export function calendarConflict(appointments: Appointment[], lane: Lane, day: s
   if (lane.kind === "unassigned" || !lane.name.trim()) return null;
   const normalized = (name: string | null) => (name || "").trim().toLowerCase();
   return appointments.find(a => {
-    if (a.id === exclude || a.appointment_date.slice(0, 10) !== day || a.status === "cancelled" || a.status === "completed") return false;
+    if (a.id === exclude || (a.appointment_local_date || a.appointment_date.slice(0, 10)) !== day || a.status === "cancelled" || a.status === "completed") return false;
     const matches = lane.userId ? a.mechanic_user_id === lane.userId || !a.mechanic_user_id && normalized(a.mechanic_name) === normalized(lane.name) : normalized(a.mechanic_name) === normalized(lane.name);
     const starts = hmToMin(a.appointment_time);
     return matches && start < starts + a.estimated_duration_minutes && start + duration > starts;

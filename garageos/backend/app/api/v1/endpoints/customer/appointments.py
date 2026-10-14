@@ -6,17 +6,30 @@ notifications, and reports — one event stream, no special-casing.
 """
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, Header
 
 from app.api.customer_deps import get_current_customer, get_customer_uow
 from app.core.idempotency import execute_idempotent
 from app.core.rate_limit import write_rate_limit
+from app.core.timezone import local_date_for_instant, service_center_timezone
 from app.models.customer import Customer
 from app.repositories.unit_of_work import UnitOfWork
 from app.schemas.customer_portal import BookingRequest, BookingResult
 from app.services.customer_portal_service import CustomerPortalService
 
 router = APIRouter()
+
+
+@router.get("/today", summary="Service-center local date for booking")
+async def booking_today(
+    customer: Customer = Depends(get_current_customer),
+    uow: UnitOfWork = Depends(get_customer_uow),
+) -> dict[str, str]:
+    timezone_name = await service_center_timezone(uow.session, customer.service_center_id)
+    today = local_date_for_instant(datetime.now(timezone.utc), timezone_name)
+    return {"today": today.isoformat()}
 
 
 @router.post(

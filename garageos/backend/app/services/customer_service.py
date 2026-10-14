@@ -17,6 +17,7 @@ from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.service_record_repository import ServiceRecordRepository
 from app.repositories.unit_of_work import UnitOfWork
 from app.exceptions import CustomerNotFound, ConflictError
+from app.core.timezone import local_date_for_instant, service_center_timezone
 from app.services.maintenance_service import MaintenanceService
 from app.services.vehicle_health_service import _band, _passport_code, _vehicle_label
 
@@ -202,6 +203,7 @@ class CustomerService:
             })
 
         appointments = await self.appointment_repo.find_by_customer(customer_id)
+        zone_name = await service_center_timezone(self.session, self.sc)
         for a in appointments:
             status_label = a.status.replace("_", " ").title()
             timeline.append({
@@ -332,7 +334,7 @@ class CustomerService:
         # Merge the event stream (bell notifications) into this customer's
         # timeline — one stream, another view.
         from app.services.notification_service import NotificationService
-        timeline = self._build_timeline(records, appointments, invoice_data)
+        timeline = self._build_timeline(records, appointments, invoice_data, zone_name)
         timeline += await NotificationService(self.uow).timeline_for(customer_id=customer_id)
         timeline.sort(key=lambda e: e["date"], reverse=True)
         timeline = timeline[:40]
@@ -363,10 +365,12 @@ class CustomerService:
                 "emergency_count": 0,       # emergency module not built yet
                 "last_visit": last_visit.isoformat() if last_visit else None,
                 "next_booking": next_booking.appointment_date.isoformat() if next_booking else None,
+                "next_booking_local_date": local_date_for_instant(next_booking.appointment_date, zone_name).isoformat() if next_booking else None,
+                "last_visit_local_date": local_date_for_instant(last_visit, zone_name).isoformat() if last_visit else None,
             },
             "financial": financial,
             "vehicles": vehicle_out,
-            "appointments": [self._serialize_appt(a, invoice_data.get(a.id)) for a in
+            "appointments": [self._serialize_appt(a, invoice_data.get(a.id), zone_name) for a in
                              sorted(appointments, key=lambda a: a.appointment_date, reverse=True)[:12]],
             "timeline": timeline,
             "ai_summary": self._ai_summary(customer, vehicle_out, records, lifetime_value, next_booking),
@@ -431,10 +435,11 @@ class CustomerService:
         )
         return {cid: dt for cid, dt in (await self.session.execute(stmt)).all()}
 
-    def _serialize_appt(self, a: Appointment, invoice: dict | None = None) -> dict:
+    def _serialize_appt(self, a: Appointment, invoice: dict | None = None, timezone_name: str = "UTC") -> dict:
         return {
             "id": str(a.id),
             "date": a.appointment_date.isoformat(),
+            "local_date": local_date_for_instant(a.appointment_date, timezone_name).isoformat(),
             "time": a.appointment_time,
             "status": a.status,
             "mechanic_name": a.mechanic_name,
@@ -444,7 +449,7 @@ class CustomerService:
             "currency": invoice["currency"] if invoice else "USD",
         }
 
-    def _build_timeline(self, records: Sequence[ServiceRecord], appointments: Sequence[Appointment], invoices: dict | None = None) -> list:
+    def _build_timeline(self, records: Sequence[ServiceRecord], appointments: Sequence[Appointment], invoices: dict | None = None, timezone_name: str = "UTC") -> list:
         events: List[dict] = []
         for r in records:
             invoice = (invoices or {}).get(r.appointment_id)
@@ -458,7 +463,9 @@ class CustomerService:
             events.append({
                 "type": f"appointment_{a.status}",
                 "title": f"Appointment {a.status.replace('_', ' ').title()}",
-                "date": a.appointment_date.isoformat(), "detail": a.mechanic_name,
+                "date": a.appointment_date.isoformat(),
+                "local_date": local_date_for_instant(a.appointment_date, timezone_name).isoformat(),
+                "detail": a.mechanic_name,
             })
         events.sort(key=lambda e: e["date"], reverse=True)
         return events[:40]

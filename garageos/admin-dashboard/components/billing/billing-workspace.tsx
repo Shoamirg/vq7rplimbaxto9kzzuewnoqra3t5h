@@ -22,7 +22,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const normalizeDocumentId = (id: string | null) => id && UUID.test(id) ? id.toLowerCase() : id;
 
 // List filters and explicit document identity are independent owning reads.
-export function BillingWorkspace() {
+export function BillingWorkspace({ canVoid = false }: { canVoid?: boolean }) {
   const [view, setView] = useState("invoices");
   const [q, setQ] = useState(""), [page, setPage] = useState(1);
   const [automatic, setAutomatic] = useState<{ key: string | null; id: string | null }>({ key: null, id: null });
@@ -313,6 +313,7 @@ export function BillingWorkspace() {
               if (!acknowledged) throw new Error("Billing payment not acknowledged");
             }}
             onDelete={() => setDeleteDoc(doc)}
+            canVoid={canVoid}
             onEdit={() => setEditDoc(doc)}
           />
         ) : (

@@ -1,7 +1,7 @@
 import pytest
 
 from app.core.config import settings
-from app.core.idempotency import execute_idempotent, request_fingerprint
+from app.core.idempotency import execute_idempotent, request_fingerprint, require_idempotency_key
 from app.exceptions import IdempotencyKeyRequired
 from app.repositories.unit_of_work import UnitOfWork
 
@@ -21,6 +21,9 @@ def test_request_fingerprint_is_order_independent_and_operation_scoped():
 @pytest.mark.asyncio
 async def test_production_booking_rejects_missing_idempotency_key(monkeypatch):
     monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    with pytest.raises(IdempotencyKeyRequired):
+        require_idempotency_key(None)
+
     async def should_not_run():
         raise AssertionError("A production booking without a key must not run")
 

@@ -13,6 +13,7 @@ from app.models.customer import Customer
 from app.models.invoice import Invoice
 from app.models.operational_case import OperationalCase
 from app.models.role import Role
+from app.models.service_center import ServiceCenter
 from app.models.user import User
 from app.models.vehicle import Vehicle
 from app.models.vehicle_model import VehicleModel
@@ -42,7 +43,8 @@ def choice_statement(kind: ChoiceKind, center: uuid.UUID):
             (or_(Vehicle.license_plate.is_(None), Vehicle.license_plate == ''), name),
             else_=func.concat(name, ' (', Vehicle.license_plate, ')'))
     elif kind == 'appointment':
-        recorded_label = func.concat(cast(Appointment.appointment_date, String),
+        center_timezone = select(ServiceCenter.timezone).where(ServiceCenter.id == center).scalar_subquery()
+        recorded_label = func.concat(cast(func.timezone(center_timezone, Appointment.appointment_date), String),
                                      ' ', Appointment.appointment_time)
     elif kind == 'case':
         recorded_label = func.concat(OperationalCase.code, ' — ', OperationalCase.title)

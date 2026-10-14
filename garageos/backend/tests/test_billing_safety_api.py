@@ -16,6 +16,7 @@ from app.main import app
 from app.models import Customer, ServiceCenter
 from app.models.invoice import Invoice, Payment
 from app.models.ledger import LedgerEntry
+from app.models.notification import Notification
 from app.repositories.unit_of_work import UnitOfWork
 from app.services.invoice_service import InvoiceService
 
@@ -186,6 +187,59 @@ async def test_estimate_conversion_requires_approval_preserves_currency_and_reus
     assert first["currency"] == "USD" and first["total"] == 50
     assert await session.scalar(select(func.count()).select_from(Invoice).where(
         Invoice.service_center_id == center.id, Invoice.source_estimate_id == estimate_id)) == 1
+
+
+async def test_approved_estimate_must_be_reopened_before_edit_and_conversion_is_immutable(session):
+    from app.exceptions import ConflictError
+
+    _, svc, invoice_id = await _invoice(session)
+    customer_id = uuid.UUID((await svc.get_document(invoice_id))["customer_id"])
+    estimate = await svc.create(kind="estimate", customer_id=customer_id, tax_rate=0,
+                                line_items=[{"description": "Original", "unit_price": 50}])
+    estimate_id = uuid.UUID(estimate["id"])
+
+    await svc.set_status(estimate_id, "approved")
+    with pytest.raises(ConflictError):
+        await svc.update(estimate_id, line_items=[{"description": "Changed", "unit_price": 75}])
+
+    reopened = await svc.set_status(estimate_id, "changes_requested")
+    assert reopened["approved_at"] is None
+    changed = await svc.update(estimate_id, line_items=[{"description": "Changed", "unit_price": 75}])
+    assert changed["total"] == 75
+
+    await svc.set_status(estimate_id, "approved")
+    invoice = await svc.convert_to_invoice(estimate_id)
+    with pytest.raises(ConflictError):
+        await svc.set_status(estimate_id, "changes_requested")
+    with pytest.raises(ConflictError):
+        await svc.update(estimate_id, line_items=[{"description": "Changed", "unit_price": 90}])
+    assert invoice["total"] == 75
+
+
+async def test_void_document_is_final_and_cannot_be_edited_or_refunded(session):
+    from app.exceptions import ConflictError
+
+    _, svc, invoice_id = await _invoice(session)
+    await svc.set_status(invoice_id, "void")
+    with pytest.raises(ConflictError):
+        await svc.update(invoice_id, line_items=[{"description": "Changed", "unit_price": 50}])
+    with pytest.raises(ConflictError):
+        await svc.record_payment(invoice_id, amount=1, kind="refund")
+    with pytest.raises(ConflictError):
+        await svc.set_status(invoice_id, "issued")
+
+
+async def test_business_notification_is_projected_in_the_same_uow(session):
+    center, svc, invoice_id = await _invoice(session)
+    await svc.uow._write_notifications()
+    row = await session.scalar(select(Notification).where(
+        Notification.service_center_id == center.id,
+        Notification.entity_type == "invoice",
+        Notification.entity_id == invoice_id,
+    ))
+    assert row is not None
+    assert row.title.startswith("Invoice issued")
+    await session.rollback()
 
 
 async def test_parallel_invoice_creation_allocates_distinct_codes(session):

@@ -6,15 +6,32 @@ Unknown role names grant no access; the platform flag never bypasses a tenant.
 """
 from app.models.user import User
 
-_OPERATORS = {"admin", "manager", "receptionist", "super_admin"}
+_FINANCE_CAPABILITIES = (
+    "billing.read",
+    "billing.create",
+    "billing.write",
+    "billing.payment.record",
+)
+_MANAGER_FINANCE_CAPABILITIES = (
+    "financial.refund",
+    "financial.invoice.void",
+    "financial.reports.read",
+)
 
 
 def staff_permissions(user: User) -> list[str]:
     role = user.role
     if not role or not role.is_active:
         return []
-    if role.name in _OPERATORS:
-        return ["staff.read", "staff.write"]
+    if role.name in {"admin", "super_admin", "manager"}:
+        return [
+            "staff.read",
+            "staff.write",
+            *_FINANCE_CAPABILITIES,
+            *_MANAGER_FINANCE_CAPABILITIES,
+        ]
+    if role.name == "receptionist":
+        return ["staff.read", "staff.write", *_FINANCE_CAPABILITIES]
     if role.name == "mechanic":
         return ["work.read.assigned", "work.write.assigned"]
     return []

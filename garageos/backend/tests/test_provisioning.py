@@ -336,6 +336,28 @@ async def test_new_garage_can_run_service_work_and_isolate_a_second_garage(manif
         assert invoice.status_code == 201, invoice.text
         assert invoice.json()["currency"] == "UZS"
         invoice_id = invoice.json()["id"]
+        recorded = await client.post(
+            f"/api/v1/invoices/{invoice_id}/payments",
+            headers={**reception, "Idempotency-Key": str(uuid.uuid4())},
+            json={"amount": 1, "method": "cash"},
+        )
+        assert recorded.status_code == 201, recorded.text
+        denied_refund = await client.post(
+            f"/api/v1/invoices/{invoice_id}/payments",
+            headers={**reception, "Idempotency-Key": str(uuid.uuid4())},
+            json={"amount": 1, "method": "cash", "kind": "refund"},
+        )
+        denied_archive = await client.delete(f"/api/v1/invoices/{invoice_id}", headers=reception)
+        denied_reports = await client.get("/api/v1/reports/executive", headers=reception)
+        assert denied_refund.status_code == denied_archive.status_code == denied_reports.status_code == 403
+        admin = await _login(client, config["staff"][0]["email"])
+        refunded = await client.post(
+            f"/api/v1/invoices/{invoice_id}/payments",
+            headers={**admin, "Idempotency-Key": str(uuid.uuid4())},
+            json={"amount": 1, "method": "cash", "kind": "refund"},
+        )
+        assert refunded.status_code == 201, refunded.text
+        assert (await client.get("/api/v1/reports/executive", headers=admin)).status_code == 200
         linked = await client.get(f"/api/v1/appointments/{appointment_id}/invoice", headers=reception)
         assert linked.json()["id"] == invoice_id
         refused = await client.post("/api/v1/customers", headers=mechanic, json={"full_name": "Refused", "phone": "+998901234502"})

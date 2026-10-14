@@ -1,11 +1,14 @@
 # Railway service root: /garageos/backend. Migrations run as a pre-deploy command.
 FROM python:3.12-slim
 
+ARG BUILD_SHA=unknown
+
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     ENVIRONMENT=production \
-    DEBUG=false
+    DEBUG=false \
+    BUILD_SHA=${BUILD_SHA}
 
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl \

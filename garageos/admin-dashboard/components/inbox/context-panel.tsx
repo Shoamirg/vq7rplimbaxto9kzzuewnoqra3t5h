@@ -77,7 +77,7 @@ export function ContextPanel({
                   : c.kind === "case" ? `${inboxEnumLabel(t, "case_type", c.case_type)} · ${c.title ?? ""}` : c.title;
                 const subtitle = c.kind === "customer" && c.subtitle === "Customer 360" ? t("inbox.context.customer_detail")
                   : c.kind === "case" && c.subtitle ? inboxEnumLabel(t, "case_status", c.subtitle)
-                  : c.kind === "appointment" && c.subtitle ? `${fmt.date(c.appointment_date)} · ${c.appointment_time ?? ""} · ${inboxEnumLabel(t, "appointment_status", c.subtitle)}`
+                  : c.kind === "appointment" && c.subtitle ? `${fmt.date(c.appointment_local_date || c.appointment_date)} · ${c.appointment_time ?? ""} · ${inboxEnumLabel(t, "appointment_status", c.subtitle)}`
                   : c.kind === "invoice" && c.subtitle ? `${t(c.invoice_kind === "estimate" ? "inbox.context.estimate" : "inbox.context.invoice")} · ${inboxEnumLabel(t, "invoice_status", c.subtitle)}`
                   : c.subtitle;
                 const card = (

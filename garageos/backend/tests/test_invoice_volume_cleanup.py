@@ -9,7 +9,9 @@ import pytest
 
 @pytest.mark.parametrize('failure', ['captured_cleanup_error', 'previous_run_receipt'])
 def test_volume_runner_rejects_unproven_current_cleanup(tmp_path, monkeypatch, failure):
-    scripts = Path(__file__).resolve().parents[2]/'scripts'
+    monorepo_scripts = Path(__file__).resolve().parents[2] / 'scripts'
+    export_scripts = Path(__file__).resolve().parents[1] / 'tests/support/source-operations/scripts'
+    scripts = monorepo_scripts if (monorepo_scripts / 'test_invoice_volume.py').is_file() else export_scripts
     monkeypatch.syspath_prepend(str(scripts))
     volume = importlib.import_module('test_invoice_volume')
     class OwnedResources(unittest.TestCase):

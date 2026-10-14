@@ -54,10 +54,10 @@ export function CalendarClient({ initial, initialDate }: { initial: CalendarPayl
     catch (cause) { toast({ title: t(cause instanceof ClientApiError && cause.code === "APPOINTMENT_CONFLICT" ? "appointment.conflict" : "calendar.move_failed"), variant: "danger" }); }
     finally { setBusy(false); void loadRef.current(); }
   }
-  function conflictFor(lane: Lane, start: number, appointment: Appointment) { return calendarConflict(data.appointments, lane, appointment.appointment_date.slice(0, 10), start, appointment.estimated_duration_minutes, appointment.id); }
+  function conflictFor(lane: Lane, start: number, appointment: Appointment) { return calendarConflict(data.appointments, lane, appointment.appointment_local_date || appointment.appointment_date.slice(0, 10), start, appointment.estimated_duration_minutes, appointment.id); }
   function moveTo(appointment: Appointment, lane: Lane, start: number) {
     const assignment = assignmentPatch(appointment, lane, data.mechanics); if (!assignment) return;
-    void update(appointment, { appointment_time: minToHm(start), appointment_date: `${appointment.appointment_date.slice(0, 10)}T${minToHm(start)}:00Z`, ...assignment }, t("calendar.moved", { lane: laneLabel(lane), time: minToHm(start) }));
+    void update(appointment, { appointment_time: minToHm(start), appointment_date: `${appointment.appointment_local_date || appointment.appointment_date.slice(0, 10)}T${minToHm(start)}:00Z`, ...assignment }, t("calendar.moved", { lane: laneLabel(lane), time: minToHm(start) }));
   }
   function onDrag(event: ReactPointerEvent, appointment: Appointment) {
     if (event.button !== 0 || !editable(appointment) || busy) return;
@@ -135,7 +135,7 @@ export function CalendarClient({ initial, initialDate }: { initial: CalendarPayl
       <p className="mt-3 text-sm break-words">{t("calendar.collision_detail", { lane: laneLabel(collision.lane), service: collision.conflict.service_type || t("common.general_service"), start: collision.conflict.appointment_time, end: minToHm(hmToMin(collision.conflict.appointment_time) + collision.conflict.estimated_duration_minutes) })}</p>
       <p className="mt-4 text-sm font-semibold">{t("calendar.suggestions")}</p>
       <div className="mt-2 space-y-2">{collision.suggestions.map(start => <button key={start} className={cn(CONTROL, "w-full text-left")} onClick={() => { const current = collision; setCollision(null); moveTo(current.appointment, current.lane, start); }}>{minToHm(start)}</button>)}
-        <button className={cn(CONTROL, "w-full text-left")} onClick={() => { const a = collision.appointment; const assignment = assignmentPatch(a, collision.lane, data.mechanics); setCollision(null); if (assignment) void update(a, { appointment_time: "09:00", appointment_date: `${addDays(a.appointment_date.slice(0, 10), 1)}T09:00:00Z`, ...assignment }, t("calendar.moved_tomorrow")); }}>{t("calendar.tomorrow")}</button>
+        <button className={cn(CONTROL, "w-full text-left")} onClick={() => { const a = collision.appointment; const assignment = assignmentPatch(a, collision.lane, data.mechanics); setCollision(null); if (assignment) void update(a, { appointment_time: "09:00", appointment_date: `${addDays(a.appointment_local_date || a.appointment_date.slice(0, 10), 1)}T09:00:00Z`, ...assignment }, t("calendar.moved_tomorrow")); }}>{t("calendar.tomorrow")}</button>
         <button className={cn(CONTROL, "w-full")} onClick={() => setCollision(null)}>{t("calendar.keep")}</button>
       </div>
     </DialogContent></Dialog>}

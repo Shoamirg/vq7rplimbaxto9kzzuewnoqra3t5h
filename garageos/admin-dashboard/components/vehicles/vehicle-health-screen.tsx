@@ -404,7 +404,7 @@ function TimelineList({ events }: { events: VehicleTimeline["events"] }) {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground truncate">{e.title}</p>
               <p className="text-xs text-muted-foreground">
-                {fmtDate(e.date)}{e.km != null ? ` · ${e.km.toLocaleString("en-US")} km` : ""}{e.cost != null ? ` · $${e.cost.toLocaleString("en-US")}` : ""}
+                {fmtDate(e.local_date || e.date)}{e.km != null ? ` · ${e.km.toLocaleString("en-US")} km` : ""}{e.cost != null ? ` · $${e.cost.toLocaleString("en-US")}` : ""}
               </p>
             </div>
           </div>

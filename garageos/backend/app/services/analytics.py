@@ -111,8 +111,10 @@ class BaseProjection:
     # ── shared computations ──
     async def _ledger_sum(self, direction, entry_type, start, end) -> float:
         return float(await self.session.scalar(
-            select(func.coalesce(func.sum(LedgerEntry.amount), 0)).outerjoin(Invoice, LedgerEntry.invoice_id == Invoice.id).where(
+            select(func.coalesce(func.sum(LedgerEntry.amount), 0)).join(Invoice, LedgerEntry.invoice_id == Invoice.id).where(
                 LedgerEntry.service_center_id == self.sc, func.coalesce(Invoice.currency, LedgerEntry.currency) == self.currency, LedgerEntry.direction == direction,
+                Invoice.service_center_id == self.sc, Invoice.is_active.is_(True),
+                Invoice.kind == InvoiceKind.INVOICE, Invoice.status != InvoiceStatus.VOID,
                 LedgerEntry.entry_type == entry_type,
                 LedgerEntry.occurred_at >= start, LedgerEntry.occurred_at < end)) or 0)
 
@@ -136,8 +138,10 @@ class BaseProjection:
 
     async def _revenue_series(self, months=7) -> list:
         rows = (await self.session.execute(
-            select(LedgerEntry.occurred_at, LedgerEntry.amount).outerjoin(Invoice, LedgerEntry.invoice_id == Invoice.id).where(
+            select(LedgerEntry.occurred_at, LedgerEntry.amount).join(Invoice, LedgerEntry.invoice_id == Invoice.id).where(
                 LedgerEntry.service_center_id == self.sc, func.coalesce(Invoice.currency, LedgerEntry.currency) == self.currency,
+                Invoice.service_center_id == self.sc, Invoice.is_active.is_(True),
+                Invoice.kind == InvoiceKind.INVOICE, Invoice.status != InvoiceStatus.VOID,
                 LedgerEntry.direction == LedgerDirection.DEBIT,
                 LedgerEntry.entry_type == LedgerEntryType.INVOICE_ISSUED))).all()
         by_month: dict = defaultdict(float)

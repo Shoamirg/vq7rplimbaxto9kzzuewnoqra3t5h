@@ -2,9 +2,8 @@ import 'dart:convert';
 
 import '../domain/models.dart';
 import 'api_client.dart';
+import 'pending_idempotency.dart';
 import 'payment_store.dart';
-import 'package:uuid/uuid.dart';
-import 'package:uuid/uuid.dart';
 
 enum WorkAction { confirm, assign, start, complete, createInvoice, openInvoice }
 
@@ -72,7 +71,6 @@ class LiveRepository extends GarageRepository {
     if (paymentStore != null) payments = paymentStore;
   }
   final ApiClient api;
-  final Map<String, String> _pendingWorkCreationKeys = {};
   @override
   final bool canWrite;
   @override
@@ -125,10 +123,8 @@ class LiveRepository extends GarageRepository {
     final entries = data.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
     final fingerprint = jsonEncode(Map.fromEntries(entries));
-    final key = _pendingWorkCreationKeys.putIfAbsent(
-      fingerprint,
-      const Uuid().v4,
-    );
+    const scope = 'staff-work-order';
+    final key = await PendingIdempotency.getOrCreate(scope, fingerprint);
     try {
       final result = await api.request(
         'POST',
@@ -136,7 +132,7 @@ class LiveRepository extends GarageRepository {
         body: data,
         idempotencyKey: key,
       );
-      _pendingWorkCreationKeys.remove(fingerprint);
+      await PendingIdempotency.clear(scope, fingerprint);
       return Work.fromJson(result);
     } catch (_) {
       // A lost response keeps the same key in memory so an explicit retry of

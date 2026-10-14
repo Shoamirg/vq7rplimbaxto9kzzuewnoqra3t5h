@@ -1,9 +1,9 @@
 """Redis-backed fixed-window rate limiting as a FastAPI dependency.
 
 Public-facing endpoints (auth especially) need a brute-force / abuse ceiling once
-the platform is on the open internet. Like the idempotency store, this **degrades
-open** — if Redis is unavailable we allow the request rather than lock everyone
-out. A ceiling that fails closed would be its own outage.
+the platform is on the open internet. Development may continue if Redis is
+unavailable; staging and production fail closed so Redis outages cannot disable
+the ceiling.
 
 Design notes (hardened after security review):
   * One shared, pooled Redis client — never a connection per request. Under the

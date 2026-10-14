@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { BffUnavailable, canonicalClientIpHeaders, backendRequest, proxyResponseHeaders } from '../lib/server-bff';
 import { validatedRetryAfter, retryAfterSeconds, loginFailureKey } from '../lib/login-feedback';
+import { sameOriginMutationAllowed } from '../lib/server-logout';
 
 const trusted = { nodeEnv: 'production' as const, trustCaddyIp: 'true' };
 function request(ip: string, extra: Record<string, string> = {}) {
@@ -15,6 +16,15 @@ test('only explicitly trusted production uses the canonical single client addres
   expect(canonicalClientIpHeaders(request('2001:0DB8:0:0:0:0:0:1'), trusted)).toEqual({ 'X-Real-IP': '2001:db8::1' });
   expect(canonicalClientIpHeaders(request('203.0.113.4'), { nodeEnv: 'development', trustCaddyIp: 'true' })).toEqual({});
   expect(canonicalClientIpHeaders(request('203.0.113.4'), { nodeEnv: 'production', trustCaddyIp: undefined })).toEqual({});
+});
+
+test('cookie-authenticated mutations require the exact public origin', () => {
+  expect(sameOriginMutationAllowed(request('203.0.113.4', { Origin: 'https://garageos.uz' }))).toBe(true);
+  expect(sameOriginMutationAllowed(request('203.0.113.4', { Origin: 'https://attacker.example' }))).toBe(false);
+  expect(sameOriginMutationAllowed(request('203.0.113.4'))).toBe(false);
+  expect(sameOriginMutationAllowed(request('203.0.113.4', {
+    Origin: 'https://garageos.uz', 'Sec-Fetch-Site': 'cross-site',
+  }))).toBe(false);
 });
 
 test('an invalid or absent canonical hop never falls back to spoofed XFF', () => {

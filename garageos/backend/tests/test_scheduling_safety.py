@@ -129,6 +129,31 @@ async def test_slot_booking_and_move_respect_direct_booking(session):
         await svc.move_appointment(UUID(second["id"]), slot.id)
 
 
+async def test_tashkent_wall_time_round_trips_and_local_day_queries(session):
+    from datetime import datetime, timezone
+    from app.models.appointment import Appointment
+
+    tenant = await _tenant(session)
+    tenant.center.timezone = "Asia/Tashkent"
+    await session.flush()
+    svc, _ = _service(session, tenant.center)
+
+    await svc.generate_slots_range(start_date=DAY, days=1, start_hour=9, end_hour=10,
+                                   slot_minutes=30, mechanic_names=["Usta Ali"])
+    slots = await svc.get_available_slots(tenant.center.id, DAY)
+    assert [slot["time"] for slot in slots] == ["09:00", "09:30"]
+
+    early = await svc.create_appointment_direct(
+        customer_id=tenant.customer.id, vehicle_id=tenant.vehicle.id,
+        appointment_date=DAY, appointment_time="00:30", mechanic_name=None,
+    )
+    stored = await session.get(Appointment, UUID(early["id"]))
+    assert stored.appointment_date == datetime(2032, 10, 1, 19, 30, tzinfo=timezone.utc)
+    assert early["appointment_local_date"] == DAY.isoformat()
+    listed = await svc.list_appointments(date_from=DAY, date_to=DAY)
+    assert [item["id"] for item in listed["items"]] == [early["id"]]
+
+
 @pytest.mark.parametrize("operation", ["booking", "slot_generation"])
 async def test_simultaneous_schedule_writes_do_not_duplicate_booking_or_slots(session, operation):
     from sqlalchemy import delete

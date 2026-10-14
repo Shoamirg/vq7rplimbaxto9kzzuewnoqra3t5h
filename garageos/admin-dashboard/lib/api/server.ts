@@ -49,8 +49,10 @@ export class ApiError extends Error {
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = (await cookies()).get(AUTH_COOKIE)?.value;
+  const signal = init?.signal ?? AbortSignal.timeout(8_000);
   const res = await fetch(`${apiBaseUrl()}${path}`, {
     ...init,
+    signal,
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -91,6 +93,7 @@ export async function getPublicPassport(vehicleId: string): Promise<Passport | n
   const res = await fetch(`${apiBaseUrl()}/public/passport/${vehicleId}`, {
     headers: { "Content-Type": "application/json" },
     cache: "no-store",
+    signal: AbortSignal.timeout(8_000),
   });
   if (res.status === 404) return null;
   if (!res.ok) throw new ApiError(`passport responded ${res.status}`, res.status);
@@ -101,6 +104,7 @@ export async function getPublicInvoice(id: string): Promise<InvoiceDoc | null> {
   const res = await fetch(`${apiBaseUrl()}/public/invoice/${id}`, {
     headers: { "Content-Type": "application/json" },
     cache: "no-store",
+    signal: AbortSignal.timeout(8_000),
   });
   if (res.status === 404) return null;
   if (!res.ok) throw new ApiError(`invoice responded ${res.status}`, res.status);

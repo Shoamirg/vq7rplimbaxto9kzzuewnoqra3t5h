@@ -27,7 +27,7 @@ export function CalendarDayBoard({ data, date, lanes, laneLabel, gridRef, onOpen
   resize: { id: string; duration: number } | null;
 }) {
   const { t, fmt } = useI18n();
-  const dayAppointments = data.appointments.filter(a => a.appointment_date.slice(0, 10) === date);
+  const dayAppointments = data.appointments.filter(a => (a.appointment_local_date || a.appointment_date.slice(0, 10)) === date);
   const listed = listOnlyAppointments(dayAppointments, data.mechanics);
   const outside = dayAppointments.filter(a => listed.has(a.id));
   const now = new Date();

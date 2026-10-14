@@ -15,8 +15,8 @@ from app.schemas.appointment import MechanicCompleteRequest
 router = APIRouter()
 
 
-def work_summary(appointment):
-    result = serialize_appointment(appointment)
+def work_summary(appointment, timezone_name="UTC"):
+    result = serialize_appointment(appointment, timezone_name)
     result.pop("total_cost", None)
     return result
 
@@ -34,7 +34,8 @@ async def list_work(
         mechanic_user_id=user.id, status=status, q=q,
         skip=(page - 1) * page_size, limit=page_size,
     )
-    return {"items": [work_summary(row) for row in rows], "total": total,
+    zone_name = await AppointmentService(uow).timezone_name()
+    return {"items": [work_summary(row, zone_name) for row in rows], "total": total,
             "page": page, "page_size": page_size, "total_pages": ceil(total / page_size)}
 
 
@@ -44,7 +45,7 @@ async def get_work(appointment_id: uuid.UUID, user: User = Depends(get_current_u
     row = await AppointmentRepository(uow.session, uow.service_center_id).get_detailed(appointment_id)
     if not row or row.mechanic_user_id != user.id:
         raise AppointmentNotFound()
-    return work_summary(row)
+    return work_summary(row, await AppointmentService(uow).timezone_name())
 
 
 @router.patch("/{appointment_id}/start")

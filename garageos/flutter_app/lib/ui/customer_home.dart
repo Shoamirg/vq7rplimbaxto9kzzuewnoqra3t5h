@@ -7,6 +7,7 @@ import '../domain/models.dart';
 import '../design/theme.dart';
 import '../design/widgets.dart';
 import '../l10n/l10n.dart';
+import 'customer_booking.dart';
 import 'settings.dart';
 
 class CustomerHome extends StatefulWidget {
@@ -114,6 +115,28 @@ class _CustomerHistoryState extends State<CustomerHistory> {
           ],
         ),
         const SizedBox(height: 16),
+        if (widget.kind == 'appointments') ...[
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () async {
+                final submitted = await openPage<bool>(
+                  context,
+                  CustomerBookingScreen(repository: widget.repository),
+                );
+                if (submitted == true && mounted) {
+                  load();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(context.l10n.bookingWaitingConfirmation)),
+                  );
+                }
+              },
+              icon: const Icon(Icons.add),
+              label: Text(context.l10n.bookService),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         TextField(
           decoration: InputDecoration(
             labelText: context.l10n.customerSearch,

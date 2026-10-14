@@ -20,14 +20,14 @@ function caddyLogin(ip?: string) {
   return new Request('http://dashboard:3000/api/auth/login', {
     method: 'POST', headers: {
       Host: 'garageos.uz', 'X-Forwarded-Host': 'garageos.uz', 'X-Forwarded-Proto': 'https',
-      'Content-Type': 'application/json', 'X-Forwarded-For': '198.51.100.88, 198.51.100.99',
+      Origin: 'https://garageos.uz', 'Content-Type': 'application/json', 'X-Forwarded-For': '198.51.100.88, 198.51.100.99',
       ...(ip ? { 'X-Real-IP': ip } : {}),
     }, body: JSON.stringify({ email: 'qa-contract@example.com', password: 'qa-contract-only' }),
   });
 }
 function login() {
   return new Request('http://localhost:3000/api/auth/login', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: { Origin: 'http://localhost:3000', 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: 'qa-contract@example.com', password: 'qa-contract-only' }),
   });
 }

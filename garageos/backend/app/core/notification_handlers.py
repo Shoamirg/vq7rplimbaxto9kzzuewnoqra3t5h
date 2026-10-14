@@ -1,18 +1,12 @@
-"""EventBus -> Notification bridge.
+"""Transactional domain-event -> notification projection.
 
-This is the "notification engine": it subscribes to domain events and turns
-them into persisted notifications. Business modules stay ignorant of channels —
-they only emit events. Adding a new channel (Telegram/email/push) later means
-adding a consumer here, not touching business logic.
-
-Persistence is scheduled as a background task because dispatch runs synchronously
-inside the UoW's post-commit hook; the task opens its own short transaction.
+This is the "notification engine": it maps domain events to persisted
+notifications in the same UnitOfWork transaction. Business modules stay
+ignorant of notification channels — they only emit events. Adding a new
+channel (Telegram/email/push) later means adding a consumer here.
 """
 from __future__ import annotations
 
-import asyncio
-import logging
-import uuid
 from typing import Optional
 
 from app.core.events import (
@@ -33,17 +27,9 @@ from app.core.events import (
     MaintenanceDue,
     MessagePosted,
     PaymentReceived,
-    event_bus,
 )
 from app.repositories.unit_of_work import UnitOfWork
 from app.services.notification_service import NotificationService
-
-logger = logging.getLogger("notifications")
-
-# Hold references to in-flight tasks so they aren't garbage-collected mid-run.
-_tasks: set[asyncio.Task] = set()
-_registered = False
-
 
 def _spec_for(event) -> Optional[dict]:
     """Map a domain event to a notification spec, or None to ignore it."""
@@ -163,38 +149,14 @@ def _spec_for(event) -> Optional[dict]:
     return None
 
 
-async def _persist(spec: dict) -> None:
-    sc: uuid.UUID = spec.pop("service_center_id")
-    try:
-        async with UnitOfWork(service_center_id=sc) as uow:
-            await NotificationService(uow).create(**spec)
-    except Exception:
-        logger.exception("Failed to persist notification for %s", spec.get("title"))
-
-
-def _handle(event) -> None:
-    spec = _spec_for(event)
-    if not spec:
-        return
-    try:
-        task = asyncio.create_task(_persist(spec))
-        _tasks.add(task)
-        task.add_done_callback(_tasks.discard)
-    except RuntimeError:
-        # No running loop (e.g. a sync/script context) — skip gracefully.
-        logger.debug("No event loop; skipping notification for %s", spec.get("title"))
-
-
-def register_notification_handlers() -> None:
-    global _registered
-    if _registered:
-        return
-    for evt in (AppointmentCreated, AppointmentConfirmed, AppointmentCancelled,
-                AppointmentCompleted, MaintenanceDue,
-                CaseOpened, CaseAssigned, CaseStatusChanged, CaseResolved,
-                MessagePosted,
-                EstimateCreated, EstimateSent, EstimateApproved,
-                InvoiceIssued, PaymentReceived, InvoicePaid):
-        event_bus.register(evt, _handle)
-    _registered = True
-    logger.info("Notification handlers registered")
+async def persist_transactional_notifications(uow: UnitOfWork, events: list) -> None:
+    """Write notification rows using the business UoW's session and transaction."""
+    service = NotificationService(uow)
+    for event in events:
+        spec = _spec_for(event)
+        if not spec:
+            continue
+        event_center_id = spec.pop("service_center_id")
+        if event_center_id != uow.service_center_id:
+            raise RuntimeError("Notification event tenant does not match its UnitOfWork")
+        await service.create(**spec)

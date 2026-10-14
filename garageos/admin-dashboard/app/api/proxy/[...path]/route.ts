@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 
 import { AUTH_COOKIE } from "@/lib/api/constants";
 import { backendRequest, unavailableResponse, proxyResponseHeaders } from '@/lib/server-bff';
+import { sameOriginMutationAllowed } from '@/lib/server-logout';
 
 // Same-origin BFF proxy: forwards client requests to the FastAPI backend with
 // the httpOnly cookie's token as a Bearer header. Lets Client Components read
@@ -11,6 +12,9 @@ function backendBase(): string {
 }
 
 async function forward(req: Request, segments: string[], method: string): Promise<Response> {
+  if (method !== "GET" && method !== "HEAD" && !sameOriginMutationAllowed(req)) {
+    return Response.json({ error: "Origin check failed", code: "CSRF_REJECTED" }, { status: 403 });
+  }
   const token = (await cookies()).get(AUTH_COOKIE)?.value;
   const search = new URL(req.url).search;
   const url = `${backendBase()}/${segments.join("/")}${search}`;

@@ -285,8 +285,8 @@ function Overview({ customer: c }: { customer: Customer360 }) {
   const answers = [
     { icon: Car, label: text("Vehicles"), value: t("customer.on_file", { count: c.stats.vehicle_count }) },
     { icon: Gauge, label: text("Fleet health"), value: `${nf(c.stats.health_avg)} · ${t("band." + c.stats.health_band)}` },
-    { icon: CalendarClock, label: text("Next booking"), value: c.stats.next_booking ? fmtDate(c.stats.next_booking) : text("None scheduled") },
-    { icon: Clock, label: text("Last visit"), value: fmtDate(c.stats.last_visit) },
+    { icon: CalendarClock, label: text("Next booking"), value: c.stats.next_booking ? fmtDate(c.stats.next_booking_local_date || c.stats.next_booking) : text("None scheduled") },
+    { icon: Clock, label: text("Last visit"), value: fmtDate(c.stats.last_visit_local_date || c.stats.last_visit) },
     { icon: DollarSign, label: text("Outstanding"), value: Object.values(c.stats.outstanding_by_currency ?? { USD: c.stats.outstanding }).some((n) => n > 0) ? amounts(c.stats.outstanding_by_currency, c.stats.outstanding) : text("None") },
     { icon: ShieldAlert, label: text("Emergencies"), value: c.stats.emergency_count > 0 ? String(c.stats.emergency_count) : text("None") },
   ];
@@ -392,7 +392,7 @@ function Timeline({ customer: c }: { customer: Customer360 }) {
                   {e.detail && <p className="text-xs text-muted-foreground truncate">{e.detail}</p>}
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-xs text-muted-foreground">{fmtDate(e.date)}</p>
+                  <p className="text-xs text-muted-foreground">{fmtDate(e.local_date || e.date)}</p>
                   {e.cost != null && <p className="text-xs font-medium text-foreground">{money(e.cost, e.currency ?? "USD")}</p>}
                 </div>
               </div>
@@ -416,7 +416,7 @@ function Appointments({ customer: c }: { customer: Customer360 }) {
       {c.appointments.map((a) => (
         <div key={a.id} className="flex items-center gap-4 p-4">
           <div className="text-center min-w-[64px]">
-            <p className="text-xs font-medium text-foreground">{fmtDate(a.date)}</p>
+            <p className="text-xs font-medium text-foreground">{fmtDate(a.local_date || a.date)}</p>
             <p className="text-[11px] text-muted-foreground">{a.time}</p>
           </div>
           <div className="flex-1 min-w-0">

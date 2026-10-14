@@ -62,6 +62,7 @@ class UnitOfWork:
         if self.session:
             for guard in self._before_commit:
                 await guard()
+            await self._write_notifications()
             await self.session.commit()
             self._before_commit.clear()
             # Publish all collected events after successful commit
@@ -71,6 +72,14 @@ class UnitOfWork:
                 except Exception:
                     logger.exception("Failed to publish event %s", type(event).__name__)
             self._events.clear()
+
+    async def _write_notifications(self) -> None:
+        """Persist in-app projections atomically with the business changes."""
+        if not self.session or not self._events:
+            return
+        from app.core.notification_handlers import persist_transactional_notifications
+
+        await persist_transactional_notifications(self, self._events)
 
     async def rollback(self) -> None:
         if self.session:

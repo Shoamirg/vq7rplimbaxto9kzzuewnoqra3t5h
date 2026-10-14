@@ -111,3 +111,22 @@ async def test_ledger_invariant(session):
     assert by_type["refund_issued"].direction == LedgerDirection.DEBIT
     # Estimate approval left no ledger type of its own.
     assert "estimate_approved" not in by_type
+
+
+async def test_revenue_projection_excludes_archived_and_void_invoices(session):
+    from app.services.analytics import ExecutiveProjection, Period
+
+    tenant = await _tenant(session)
+    svc = _svc(session, tenant.center)
+    active = await svc.create(kind="invoice", customer_id=tenant.customer.id, currency="UZS",
+                              tax_rate=0, line_items=[{"description": "Active", "unit_price": 100}])
+    voided = await svc.create(kind="invoice", customer_id=tenant.customer.id, currency="UZS",
+                              tax_rate=0, line_items=[{"description": "Voided", "unit_price": 200}])
+    archived = await svc.create(kind="invoice", customer_id=tenant.customer.id, currency="UZS",
+                                tax_rate=0, line_items=[{"description": "Archived", "unit_price": 300}])
+    await svc.set_status(uuid.UUID(voided["id"]), "void")
+    await svc.delete(uuid.UUID(archived["id"]))
+
+    uow = svc.uow
+    revenue = await ExecutiveProjection(uow, currency="UZS")._revenue(Period("30d"))
+    assert revenue == 100

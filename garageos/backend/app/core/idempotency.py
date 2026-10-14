@@ -35,6 +35,12 @@ def request_fingerprint(operation: str, request: Any) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+def require_idempotency_key(key: str | None) -> None:
+    """Refuse mutations without a retry token in staging and production."""
+    if settings.ENVIRONMENT in {"staging", "production"} and not key:
+        raise IdempotencyKeyRequired()
+
+
 async def execute_idempotent(
     uow: UnitOfWork,
     *,
@@ -51,9 +57,8 @@ async def execute_idempotent(
     """
     if key is not None:
         key = key.strip()
+    require_idempotency_key(key)
     if not key:
-        if settings.ENVIRONMENT in {"staging", "production"}:
-            raise IdempotencyKeyRequired()
         return await execute()
     if len(key) > 128:
         raise IdempotencyKeyRequired("Idempotency-Key must be at most 128 characters")

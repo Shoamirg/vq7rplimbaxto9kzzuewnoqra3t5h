@@ -6,6 +6,7 @@ from sqlalchemy import select, func, and_
 from app.models.appointment_slot import AppointmentSlot, AppointmentSlotStatus
 from app.repositories.base import TenantScopedRepository
 from app.repositories.scheduling import slot_has_conflict
+from app.core.timezone import local_day_bounds, service_center_timezone
 
 
 class AppointmentSlotRepository(TenantScopedRepository[AppointmentSlot]):
@@ -17,10 +18,12 @@ class AppointmentSlotRepository(TenantScopedRepository[AppointmentSlot]):
         service_center_id: uuid.UUID,
         slot_date: date,
     ) -> Sequence[AppointmentSlot]:
+        zone_name = await service_center_timezone(self.session, service_center_id)
+        day_start, day_end = local_day_bounds(slot_date, zone_name)
         stmt = select(AppointmentSlot).where(
             AppointmentSlot.service_center_id == service_center_id,
-            AppointmentSlot.slot_date >= datetime.combine(slot_date, datetime.min.time()),
-            AppointmentSlot.slot_date < datetime.combine(slot_date, datetime.max.time()),
+            AppointmentSlot.slot_date >= day_start,
+            AppointmentSlot.slot_date < day_end,
             AppointmentSlot.status == AppointmentSlotStatus.AVAILABLE,
             AppointmentSlot.is_active.is_(True),
             ~slot_has_conflict(),
@@ -55,10 +58,12 @@ class AppointmentSlotRepository(TenantScopedRepository[AppointmentSlot]):
         service_center_id: uuid.UUID,
         slot_date: date,
     ) -> Sequence[AppointmentSlot]:
+        zone_name = await service_center_timezone(self.session, service_center_id)
+        day_start, day_end = local_day_bounds(slot_date, zone_name)
         stmt = select(AppointmentSlot).where(
             AppointmentSlot.service_center_id == service_center_id,
-            AppointmentSlot.slot_date >= datetime.combine(slot_date, datetime.min.time()),
-            AppointmentSlot.slot_date < datetime.combine(slot_date, datetime.max.time()),
+            AppointmentSlot.slot_date >= day_start,
+            AppointmentSlot.slot_date < day_end,
         ).order_by(AppointmentSlot.start_time)
         result = await self.session.execute(stmt)
         return result.scalars().all()
@@ -92,6 +97,8 @@ class AppointmentSlotRepository(TenantScopedRepository[AppointmentSlot]):
         slot_date: date,
     ) -> dict:
         """Get counts of slots by status for a given date."""
+        zone_name = await service_center_timezone(self.session, service_center_id)
+        day_start, day_end = local_day_bounds(slot_date, zone_name)
         statuses = [
             AppointmentSlotStatus.AVAILABLE,
             AppointmentSlotStatus.RESERVED,
@@ -102,8 +109,8 @@ class AppointmentSlotRepository(TenantScopedRepository[AppointmentSlot]):
         for status in statuses:
             stmt = select(func.count()).select_from(AppointmentSlot).where(
                 AppointmentSlot.service_center_id == service_center_id,
-                AppointmentSlot.slot_date >= datetime.combine(slot_date, datetime.min.time()),
-                AppointmentSlot.slot_date < datetime.combine(slot_date, datetime.max.time()),
+                AppointmentSlot.slot_date >= day_start,
+                AppointmentSlot.slot_date < day_end,
                 AppointmentSlot.status == status,
             )
             count = await self.session.scalar(stmt)

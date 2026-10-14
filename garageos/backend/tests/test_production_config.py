@@ -86,6 +86,16 @@ def test_valid_production_and_staging_configs_start_without_demo():
         assert config.DEMO_MODE_ENABLED is False
 
 
+def test_deployment_rejects_public_demo_mode():
+    with pytest.raises(ValidationError, match="DEMO_MODE_ENABLED"):
+        Settings(_env_file=None, **{**VALID, "DEMO_MODE_ENABLED": True})
+
+
+def test_deployment_requires_rate_limiting():
+    with pytest.raises(ValidationError, match="RATE_LIMIT_ENABLED"):
+        Settings(_env_file=None, **{**VALID, "RATE_LIMIT_ENABLED": False})
+
+
 def test_environment_typo_cannot_bypass_deployment_validation():
     with pytest.raises(ValidationError):
         Settings(_env_file=None, **{**VALID, "ENVIRONMENT": "prodution"})

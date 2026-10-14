@@ -411,12 +411,14 @@ class CustomerPortalService:
             estimated_duration_minutes=req.duration_minutes,
             mechanic_name=None,  # the shop assigns an advisor
             customer_notes=req.service,
+            require_future=True,
         )
         return BookingResult(
             id=result["id"],
             vehicle_label=self._vehicle_label(vehicle),
             service=req.service,
             date=result["appointment_date"],
+            local_date=result["appointment_local_date"],
             time=result["appointment_time"],
             duration_minutes=result["estimated_duration_minutes"],
             mechanic_name=result.get("mechanic_name"),
@@ -459,11 +461,13 @@ class CustomerPortalService:
         return self._roadside(case, conversation_id=conv_id)
 
     async def add_roadside_attachment(self, case_id: uuid.UUID, req) -> RoadsideCase:
-        """Attach a location/photo/voice to an open roadside case's thread.
+        """Attach verified location coordinates to an open roadside case's thread.
 
-        Exactly the desktop Inbox attachment path — the item becomes a
-        Conversation attachment, a timeline event, and Operations context.
+        Photo and voice upload are deliberately unsupported until the API
+        stores and verifies the actual media bytes.
         """
+        if req.kind != "location" or req.lat is None or req.lng is None:
+            raise ValueError("Only location attachments with coordinates are supported")
         case = await self._own_case(case_id)
         conv = await ConversationService(self.uow).get_or_create_for_case(case.id)
         meta = None
@@ -607,14 +611,17 @@ class AppointmentReader:
 
     async def upcoming(self) -> list[HomeAppointment]:
         from app.models.appointment import Appointment
+        from app.core.timezone import local_date_for_instant, local_day_bounds, service_center_timezone
 
-        today = date.today()
+        zone_name = await service_center_timezone(self.portal.session, self.portal.uow.service_center_id)
+        today = local_date_for_instant(datetime.now(timezone.utc), zone_name)
+        day_start, _ = local_day_bounds(today, zone_name)
         rows = (await self.portal.session.execute(
             select(Appointment)
             .where(
                 Appointment.customer_id == self.portal.customer.id,
                 Appointment.is_active == True,  # noqa: E712
-                Appointment.appointment_date >= today,
+                Appointment.appointment_date >= day_start,
                 Appointment.status.notin_(["cancelled", "completed"]),
             )
             .options(
@@ -629,6 +636,7 @@ class AppointmentReader:
             HomeAppointment(
                 id=str(a.id),
                 date=a.appointment_date.isoformat(),
+                local_date=local_date_for_instant(a.appointment_date, zone_name).isoformat(),
                 time=a.appointment_time,
                 # service_type is derived from the linked maintenance rule
                 # (canonical source) — Appointment has no column of its own.

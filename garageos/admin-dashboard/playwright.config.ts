@@ -5,6 +5,7 @@ import { defineConfig, devices } from "@playwright/test";
 //   npm run e2e                       # against http://localhost:3000
 //   BASE_URL=https://staging npm run e2e
 const BASE_URL = process.env.BASE_URL ?? "http://localhost:3000";
+const TEST_ORIGIN = new URL(BASE_URL).origin;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -16,6 +17,8 @@ export default defineConfig({
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : [["list"]],
   use: {
     baseURL: BASE_URL,
+    // The BFF rejects cookie-setting/writing requests without an exact Origin.
+    extraHTTPHeaders: { Origin: TEST_ORIGIN },
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     actionTimeout: 15_000,

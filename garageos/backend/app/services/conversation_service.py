@@ -687,8 +687,12 @@ class ConversationService:
         if conv.appointment_id:
             appointment = await local_reference(self.session, Appointment, conv.appointment_id, self.sc, active=True)
             if appointment:
+                from app.core.timezone import local_date_for_instant, service_center_timezone
+
+                zone_name = await service_center_timezone(self.session, self.sc)
                 cards.append({"kind": "appointment", "title": None, "subtitle": appointment.status,
                     "appointment_date": appointment.appointment_date.isoformat(),
+                    "appointment_local_date": local_date_for_instant(appointment.appointment_date, zone_name).isoformat(),
                     "appointment_time": appointment.appointment_time,
                     "link": f"/appointments/{appointment.id}"})
             else:

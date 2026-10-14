@@ -9,6 +9,7 @@ class AppointmentCreate(BaseModel):
     vehicle_id: str
     maintenance_rule_id: str | None = None
     appointment_date: datetime
+    appointment_local_date: date | None = None
     appointment_time: str = Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")  # HH:MM format
     estimated_duration_minutes: int = Field(default=60, ge=15, le=480)
     customer_notes: str | None = None

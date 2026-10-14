@@ -201,6 +201,10 @@ class InvoiceService:
         """Soft-delete an estimate or invoice. A document with recorded payments
         cannot be deleted (protects the ledger) — void it instead."""
         inv = await self._get(invoice_id, for_update=True)
+        if inv.status == InvoiceStatus.VOID:
+            raise InvoiceFinancialStateError()
+        if inv.is_estimate() and await self._has_converted_invoice(inv.id):
+            raise InvoiceFinancialStateError()
         if inv.kind == InvoiceKind.INVOICE and inv.appointment_id is not None:
             raise LinkedInvoiceCannotDelete()
         if _money(inv.amount_paid) > 0 or await self._has_payment_history(inv.id):
@@ -220,6 +224,14 @@ class InvoiceService:
         kept in sync with the new total, so reports/reconciliation stay correct.
         """
         inv = await self._get(invoice_id, for_update=True)
+        if inv.status == InvoiceStatus.VOID:
+            raise InvoiceFinancialStateError()
+        if inv.is_estimate() and (
+            inv.status == InvoiceStatus.APPROVED or await self._has_converted_invoice(inv.id)
+        ):
+            raise InvoiceFinancialStateError(
+                "Reopen the approved estimate before editing it; converted estimates are immutable"
+            )
         if _money(inv.amount_paid) > 0 or await self._has_payment_history(inv.id):
             raise InvoiceHasPayments()
 
@@ -433,10 +445,14 @@ class InvoiceService:
 
     async def set_status(self, invoice_id: uuid.UUID, status: str) -> dict:
         inv = await self._get(invoice_id, for_update=True)
+        if inv.status == InvoiceStatus.VOID:
+            raise InvoiceFinancialStateError()
         if inv.is_estimate():
             if status not in {InvoiceStatus.APPROVED, InvoiceStatus.REJECTED,
                               InvoiceStatus.CHANGES_REQUESTED, InvoiceStatus.VOID}:
                 raise InvoiceFinancialStateError()
+            if await self._has_converted_invoice(inv.id):
+                raise InvoiceFinancialStateError("An estimate linked to an invoice is immutable")
         elif status == InvoiceStatus.VOID:
             if _money(inv.amount_paid) > 0:
                 raise InvoiceHasPayments()
@@ -454,9 +470,15 @@ class InvoiceService:
                 service_center_id=self.sc, invoice_id=inv.id, code=inv.code,
                 customer_id=inv.customer_id, vehicle_id=inv.vehicle_id))
         elif status == InvoiceStatus.REJECTED:
+            if inv.is_estimate():
+                inv.approved_at = None
             self.uow.add_event(EstimateRejected(
                 service_center_id=self.sc, invoice_id=inv.id, code=inv.code,
                 customer_id=inv.customer_id, vehicle_id=inv.vehicle_id))
+        elif inv.is_estimate():
+            # Reopening an approved estimate explicitly revokes the prior
+            # approval timestamp before the estimate can be revised.
+            inv.approved_at = None
         await self.session.flush()
         return await self.get_document(inv.id)
 
@@ -467,12 +489,14 @@ class InvoiceService:
             raise InvoiceNotFound()
         if est.status != InvoiceStatus.APPROVED:
             raise InvoiceFinancialStateError()
-        existing = await self.session.scalar(select(Invoice.id).where(
+        existing = (await self.session.execute(select(Invoice).where(
             Invoice.service_center_id == self.sc, Invoice.kind == InvoiceKind.INVOICE,
-            Invoice.source_estimate_id == est.id, Invoice.is_active.is_(True),
-        ).order_by(Invoice.created_at).limit(1))
+            Invoice.source_estimate_id == est.id,
+        ).order_by(Invoice.created_at).limit(1))).scalar_one_or_none()
         if existing is not None:
-            return await self.get_document(existing)
+            if not existing.is_active:
+                raise InvoiceFinancialStateError("The linked invoice is archived; this estimate cannot be converted again")
+            return await self.get_document(existing.id)
         items = [{"kind": it.kind, "description": it.description, "quantity": _f(it.quantity),
                   "unit_price": _f(it.unit_price), "line_total": _f(it.line_total),
                   "taxable": it.taxable} for it in est.line_items]
@@ -486,6 +510,13 @@ class InvoiceService:
     async def _has_payment_history(self, invoice_id: uuid.UUID) -> bool:
         return await self.session.scalar(select(Payment.id).where(
             Payment.service_center_id == self.sc, Payment.invoice_id == invoice_id,
+        ).limit(1)) is not None
+
+    async def _has_converted_invoice(self, estimate_id: uuid.UUID) -> bool:
+        return await self.session.scalar(select(Invoice.id).where(
+            Invoice.service_center_id == self.sc,
+            Invoice.kind == InvoiceKind.INVOICE,
+            Invoice.source_estimate_id == estimate_id,
         ).limit(1)) is not None
 
     async def record_payment(
@@ -521,6 +552,8 @@ class InvoiceService:
                     raise PaymentRequestMismatch()
                 return await self.get_document(inv.id)
         if inv.is_estimate():
+            raise InvoiceFinancialStateError()
+        if inv.status == InvoiceStatus.VOID:
             raise InvoiceFinancialStateError()
         if kind == PaymentKind.REFUND:
             if amt > _money(inv.amount_paid):

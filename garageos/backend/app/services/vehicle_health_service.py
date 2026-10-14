@@ -208,6 +208,9 @@ class VehicleHealthService:
 
     async def get_timeline(self, vehicle_id: uuid.UUID) -> dict:
         await self._vehicle_or_404(vehicle_id)
+        from app.core.timezone import local_date_for_instant, service_center_timezone
+
+        zone_name = await service_center_timezone(self.uow.session, self.uow.service_center_id)
         records = await self.service_record_repo.find_by_vehicle(vehicle_id)
         appointments = await self.appointment_repo.find_by_vehicle(vehicle_id)
         invoices = await self._record_invoices(vehicle_id)
@@ -230,6 +233,7 @@ class VehicleHealthService:
                 "type": f"appointment_{a.status}",
                 "title": f"Appointment {a.status.replace('_', ' ').title()}",
                 "date": a.appointment_date.isoformat(),
+                "local_date": local_date_for_instant(a.appointment_date, zone_name).isoformat(),
                 "detail": a.mechanic_name,
                 "id": str(a.id),
             })

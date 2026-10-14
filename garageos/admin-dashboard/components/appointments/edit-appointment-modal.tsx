@@ -24,7 +24,7 @@ export function EditAppointmentModal({
   const { toast } = useToast();
   const { t, fmt } = useI18n();
   const [mechanics, setMechanics] = useState<MechanicAccount[]>([]);
-  const [date, setDate] = useState(appointment.appointment_date.slice(0, 10));
+  const [date, setDate] = useState(appointment.appointment_local_date || appointment.appointment_date.slice(0, 10));
   const [time, setTime] = useState(appointment.appointment_time || "09:00");
   const [duration, setDuration] = useState(appointment.estimated_duration_minutes || 60);
   const initialMechanic = appointment.mechanic_user_id || (appointment.mechanic_name ? `legacy:${appointment.mechanic_name}` : "");
