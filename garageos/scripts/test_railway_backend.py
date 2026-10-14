@@ -18,15 +18,22 @@ from pathlib import Path
 import httpx
 base = 'http://127.0.0.1:8087'
 action = sys.argv[1]
+stage = 'client setup'
 with httpx.Client(base_url=base, timeout=10) as client:
     if action == 'runtime':
+        stage = 'readiness request'
         ready = client.get('/ready')
+        stage = 'staff login request'
         login = client.post('/api/v1/auth/login', json={'email':'recovery-staff-a@example.com',
                          'password':os.environ['GARAGEOS_RECOVERY_PASSWORD']})
+        stage = 'login response parsing'
         token = login.json().get('access_token')
+        stage = 'profile request'
         profile = client.get('/api/v1/auth/me', headers={'Authorization':'Bearer ' + (token or '')})
+        stage = 'allowed CORS preflight'
         cors = client.options('/api/v1/auth/login', headers={'Origin':'https://recovery.example.com',
                     'Access-Control-Request-Method':'POST','Access-Control-Request-Headers':'content-type'})
+        stage = 'foreign CORS preflight'
         foreign = client.options('/api/v1/auth/login', headers={'Origin':'https://foreign.example.com',
                     'Access-Control-Request-Method':'POST'})
         result = {'ready':ready.status_code == 200 and ready.json()['status'] == 'ready',
@@ -38,6 +45,7 @@ with httpx.Client(base_url=base, timeout=10) as client:
                   'nonroot':os.getuid() != 0,
                   'pid1_uvicorn':any(Path(arg.decode()).name == 'uvicorn' for arg in Path('/proc/1/cmdline').read_bytes().split(b'\0')[:2])}
     elif action == 'quota':
+        stage = 'auth quota requests'
         replies = [client.post('/api/v1/auth/login', headers={'X-Real-IP':'198.51.100.17',
                     'X-Forwarded-For':'203.0.113.' + str(i)}, json={
                     'email':'recovery-staff-a@example.com','password':'incorrect-qa-password'}) for i in range(6)]
@@ -45,7 +53,9 @@ with httpx.Client(base_url=base, timeout=10) as client:
                   'retry_after':all(r.headers.get('retry-after','').isdecimal() and 0 < int(r.headers['retry-after']) <= 300 for r in replies[4:]),
                   'no_cookies':all('set-cookie' not in r.headers for r in replies)}
     else:
+        stage = 'readiness request'
         response = client.get('/ready')
+        stage = 'readiness response parsing'
         data = response.json()
         checks = data.get('checks', {})
         result = {'status':response.status_code, 'not_ready':data.get('status') == 'not_ready'}
@@ -55,7 +65,7 @@ with httpx.Client(base_url=base, timeout=10) as client:
             result[dependency + '_unavailable'] = check.get('ok') is False and check.get('error') == 'unavailable'
 print(json.dumps(result))
 """
-SAFE_PROBE = "try:\n" + indent(PROBE, '    ') + "\nexcept Exception:\n    print('{\"probe_failed\":true}')\n"
+SAFE_PROBE = "try:\n" + indent(PROBE, '    ') + "\nexcept Exception as exc:\n    print(json.dumps({'probe_failed': True, 'failure_stage': globals().get('stage', 'probe setup'), 'failure_type': type(exc).__name__}))\n"
 
 PRIVACY_HARNESS = r"""import json, sys
 from contextlib import nullcontext
@@ -90,7 +100,8 @@ class RailwayProbePrivacyTest(unittest.TestCase):
                                'database_unavailable':False, 'redis_ok':False, 'redis_unavailable':False})
 
     def test_probe_exception_is_sanitized_before_crossing_container_boundary(self):
-        self.assertEqual(self.check_probe('exception'), {'probe_failed':True})
+        self.assertEqual(self.check_probe('exception'), {'probe_failed':True,
+                         'failure_stage':'readiness request','failure_type':'RuntimeError'})
 
 
 class RailwayBackendTest(unittest.TestCase):
@@ -144,7 +155,8 @@ class RailwayBackendTest(unittest.TestCase):
     def probe(cls, action):
         proof = json.loads(cls.qa.docker('exec', cls.api, 'python', '-c', SAFE_PROBE, action).stdout)
         if proof.get('probe_failed'):
-            raise RuntimeError('Railway QA HTTP probe failed; private response withheld')
+            raise RuntimeError('Railway QA HTTP probe failed during ' + proof.get('failure_stage', 'unknown')
+                               + ' (' + proof.get('failure_type', 'unknown') + '); private response withheld')
         return proof
 
     @classmethod
