@@ -760,3 +760,110 @@
   .mkt-home__button,.mkt-home__switcher-tabs button { transition: none; }
   .mkt-home__button:hover { transform: none; }
 }
+
+/* Compact multilingual landing. Keep the existing alabaster canvas. */
+.mkt-language { min-width: 54px; min-height: 44px; padding: 0 5px; border: 1px solid #59636b; border-radius: 8px; background: #242a2f; color: #fff; font: inherit; font-size: 12px; cursor: pointer; }
+.mkt :is(button, select, a, [tabindex]):focus-visible { outline: 3px solid #15855d; outline-offset: 4px; }
+.mkt-nav :is(a, select):focus-visible { outline-color: #b2efd2; }
+.mkt-home { --home-muted: #505a63; }
+.mkt-home__step-number,.mkt-home__step-copy small { color: #505a63; }
+.mkt:has(.mkt-home) .mkt-footer { --mkt-muted: #505a63; --mkt-faint: #505a63; }
+.mkt-home section[id] { scroll-margin-top: 110px; }
+.mkt-home__hero { padding-bottom: 40px; }
+.mkt-home__intro h1 { max-width: 11ch; }
+.mkt-home__intro h1 em { display: block; }
+.mkt-home__shop-preview { min-width: 0; }
+.mkt-home__shop-types { display: flex; gap: 12px; margin-bottom: 14px; padding: 4px 0 8px; overflow-x: auto; scrollbar-width: thin; scroll-snap-type: x mandatory; }
+.mkt-home__shop-types button { display: inline-flex; min-height: 44px; flex: 0 0 auto; align-items: center; justify-content: center; gap: 8px; padding: 0 16px; border: 1px solid #c4cacf; border-radius: 999px; color: #434d55; background: #f4f6f5; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; scroll-snap-align: start; }
+.mkt-home__shop-types button[aria-pressed="true"] { color: #fff; background: #252d32; border-color: #252d32; }
+.mkt-home__vehicle-meta { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.mkt-home__vehicle-meta small { color: var(--home-muted); }
+.mkt-home__stage-note span { color: var(--home-muted); }
+.mkt-home__stage-note--left { max-width: 260px; }
+.mkt-home__section,.mkt-home__capability-section,.mkt-home__workflow-section { padding-block: clamp(48px,6vw,80px); }
+.mkt-home__section-heading h2,.mkt-home__workflow-heading h2,.mkt-home__passport-copy h2 { font-size: clamp(28px,3.5vw,44px); }
+.mkt-home__capability-grid { grid-template-columns: repeat(3,minmax(0,1fr)); grid-auto-rows: auto; gap: 12px; margin-top: 28px; }
+.mkt-home__capability { min-height: 166px; padding: 24px; border-radius: 18px; }
+.mkt-home__capability h3 { font-size: 22px; line-height: 1.25; }
+.mkt-home__capability p { margin: 8px 0 0; color: var(--home-muted); font-size: 13px; white-space: nowrap; }
+.mkt-home__switcher-tabs { gap: 12px; padding: 12px; scroll-snap-type: x mandatory; }
+.mkt-home__switcher-tabs button { min-width: 140px; min-height: 44px; scroll-snap-align: start; }
+.mkt-home__switcher-tabs button[aria-selected="true"] { color: #fff; background: #181b20; }
+.mkt-home__switcher-tabs button:hover:not([aria-selected="true"]) { background: #e9ecef; }
+.mkt-home__switcher-tabs button[aria-selected="true"]:hover { background: #181b20; color: #fff; }
+.mkt-home__switcher-panel > figure { margin: 0; min-width: 0; }
+.mkt-home__switcher-copy p { color: var(--home-muted); }
+.mkt-home__screenshot-note { margin: 0; padding: 10px 12px; color: var(--home-muted); font-size: 11px; }
+.mkt-home__passport-image { margin: 0; }
+.mkt-home__workflow-list { margin-top: 24px; }
+.mkt-home__estimate { padding: 32px; border: 1px solid #d1d8d5; border-radius: 24px; background: #f4f6f5; box-shadow: 0 20px 36px -30px #6b7870; }
+.mkt-home__estimate-icon { color: #17734f; }
+.mkt-home__estimate h3 { margin: 16px 0 6px; color: #171d20; font-size: 24px; font-weight: 750; letter-spacing: -.035em; }
+.mkt-home__estimate > p { color: var(--home-muted); font-size: 13px; }
+.mkt-home__estimate-item { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin: 28px 0 20px; padding-block: 16px; border-block: 1px solid #d8deda; color: #39474d; font-size: 13px; }
+.mkt-home__estimate .mkt-home__estimate-status { min-height: 22px; margin-bottom: 18px; color: #655329; font-size: 13px; font-weight: 650; }
+.mkt-home__estimate[data-approved="true"] .mkt-home__estimate-status { color: #14613f; }
+.mkt-home__estimate > button { width: 100%; border: 0; cursor: pointer; }
+.mkt-home__estimate > small { display: block; margin-top: 16px; color: var(--home-muted); font-size: 11px; text-align: center; }
+.mkt-home__pricing { padding-block: 20px 80px; background: #f1f2f3; }
+.mkt-home__pricing-heading { display: flex; justify-content: space-between; align-items: end; flex-wrap: wrap; gap: 24px; }
+.mkt-home__currency { display: inline-flex; padding: 4px; gap: 4px; border: 1px solid #c8d0cc; border-radius: 999px; background: #e4e8e5; }
+.mkt-home__currency button { min-width: 64px; min-height: 44px; padding: 0 12px; border: 0; border-radius: 999px; background: transparent; color: #45564c; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.mkt-home__currency button[aria-pressed="true"] { background: #fff; color: #17271f; box-shadow: 0 2px 4px #182b1e14; }
+.mkt-home__pricing-cards { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin-top: 28px; }
+.mkt-home__price-card { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; padding: 28px; border: 1px solid #d1d8d3; border-radius: 20px; background: #f9faf9; color: #1f3027; }
+.mkt-home__price-card > svg { color: #1b7550; }
+.mkt-home__price-card h3 { margin: 16px 0 6px; font-size: 21px; font-weight: 750; }
+.mkt-home__price-card > p { margin: 0; color: var(--home-muted); font-size: 12px; }
+.mkt-home__price { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin-top: 28px; font-size: 25px; font-weight: 750; letter-spacing: -.03em; }
+.mkt-home__price small { color: var(--home-muted); font-size: 12px; font-weight: 500; letter-spacing: 0; }
+.mkt-home__price-card ul { display: grid; gap: 12px; padding: 0; margin: 24px 0 28px; list-style: none; }
+.mkt-home__price-card li { display: flex; align-items: flex-start; gap: 7px; color: #45564b; font-size: 12px; }
+.mkt-home__price-card li svg { flex-shrink: 0; margin-top: 2px; color: #1b7550; }
+.mkt-home__price-card .mkt-home__button { width: 100%; margin-top: auto; }
+.mkt-home__pricing-note { margin-top: 18px; color: var(--home-muted); font-size: 12px; }
+.mkt-home__mobile-cta { display: none; }
+
+@media (max-width: 1100px) {
+  .mkt:has(.mkt-home) .mkt-nav__links { display: none; }
+}
+@media (max-width: 767px) {
+  .mkt:has(.mkt-home) .mkt-shell { padding-inline: 16px; }
+  .mkt:has(.mkt-home) .mkt-nav__row { padding-inline: 12px; }
+  .mkt:has(.mkt-home) .mkt-nav__cta-label { display: none; }
+  .mkt:has(.mkt-home) .mkt-nav__cta-label--compact { display: inline; }
+  .mkt:has(.mkt-home) .mkt-nav__logo > span { font-size: 18px !important; }
+  .mkt:has(.mkt-home) .mkt-nav__logo > svg { width: 28px !important; height: 28px !important; }
+  .mkt-home__hero { padding-top: 44px; }
+  .mkt-home__hero-grid { gap: 24px; }
+  .mkt-home__intro h1 { max-width: 13ch; font-size: clamp(38px,10vw,60px); }
+  .mkt-home__lede { margin-top: 16px; font-size: 15px; }
+  .mkt-home__section-heading h2,.mkt-home__workflow-heading h2,.mkt-home__passport-copy h2 { font-size: clamp(28px,7vw,38px); }
+  .mkt-home__proof-row { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin-top: 28px; }
+  .mkt-home__capability-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+  .mkt-home__capability { min-height: 146px; padding: 14px 12px; border-radius: 16px; }
+  .mkt-home__capability h3 { font-size: clamp(16px,4vw,21px); }
+  .mkt-home__capability p { margin-top: 6px; font-size: 11px; letter-spacing: -.02em; }
+  .mkt-home__shop-types { margin-inline: -16px; padding-inline: 16px; scroll-padding-inline: 16px; }
+  .mkt-home__shop-types button { min-width: 140px; }
+  .mkt-home__switcher { overflow: visible; }
+  .mkt-home__switcher-tabs { margin-inline: -16px; padding: 12px 16px; scroll-padding-inline: 16px; }
+  .mkt-home__switcher-panel { grid-template-columns: 1fr; min-height: 460px; gap: 20px; padding: 20px 16px; }
+  .mkt-home__switcher-image { min-height: 190px; }
+  .mkt-home__pricing-cards { display: flex; overflow-x: auto; gap: 12px; margin-inline: -16px; padding: 4px 16px 12px; scroll-snap-type: x mandatory; scroll-padding-inline: 16px; scrollbar-width: thin; }
+  .mkt-home__price-card { flex: 0 0 86%; padding: 24px; scroll-snap-align: start; }
+  .mkt-home__estimate { padding: 24px; }
+  .mkt-home__vehicle-meta strong { font-size: 10px; }
+  .mkt-home__stage-note { max-width: 180px; }
+  .mkt-home__stage-note--left { top: 18%; }
+  .mkt-home__stage-note strong { font-size: 11px; }
+  .mkt-home__stage-note span { font-size: 9px; }
+  .mkt-home__mobile-cta { position: fixed; z-index: 45; inset: auto 12px 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px)) 16px; border: 1px solid #c8d1cc; border-radius: 28px; background: #f4f6f5f5; color: #26382d; box-shadow: 0 5px 24px #0e1c2526; backdrop-filter: blur(12px); }
+  .mkt-home__mobile-cta > span { max-width: 135px; font-size: 11px; line-height: 1.4; }
+  .mkt-home__mobile-cta .mkt-home__button { flex: 0 0 auto; min-height: 44px; padding-inline: 14px; font-size: 12px; }
+  .mkt:has(.mkt-home) .mkt-footer { padding-bottom: calc(116px + env(safe-area-inset-bottom, 0px)); }
+  .mkt:has(.mkt-home) { scroll-padding-bottom: 100px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mkt-home__shop-types,.mkt-home__switcher-tabs,.mkt-home__pricing-cards { scroll-behavior: auto; }
+}
