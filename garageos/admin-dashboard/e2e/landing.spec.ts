@@ -23,6 +23,33 @@ test("hero uses a loaded local high-resolution vehicle photograph", async ({ pag
   expect(intrinsicWidth).toBeGreaterThanOrEqual(1000);
 });
 
+test("landing images load when scrolled into view and across screenshot roles", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("marketing-language").selectOption("en");
+  const landingImages = page.getByTestId("marketing-landing").locator("img");
+  await expect(landingImages).toHaveCount(3);
+
+  for (const image of await landingImages.all()) {
+    await image.scrollIntoViewIfNeeded();
+    await expect.poll(() => image.evaluate((element) => {
+      const photo = element as HTMLImageElement;
+      return photo.complete && photo.naturalWidth > 0;
+    }), { message: `Landing image should decode: ${await image.getAttribute("alt")}` }).toBe(true);
+  }
+
+  for (const role of ["Owner", "Advisor", "Mechanic"]) {
+    const tab = page.getByRole("tab", { name: role, exact: true });
+    await tab.click();
+    await expect(tab).toHaveAttribute("aria-selected", "true");
+    const screenshot = page.getByRole("tabpanel").getByRole("img");
+    await screenshot.scrollIntoViewIfNeeded();
+    await expect.poll(() => screenshot.evaluate((element) => {
+      const image = element as HTMLImageElement;
+      return image.complete && image.naturalWidth > 0;
+    }), { message: `${role} screenshot should decode` }).toBe(true);
+  }
+});
+
 test("landing starts in Uzbek and remembers a visitor's language after reload", async ({ page }) => {
   await page.goto("/");
   const landing = page.getByTestId("marketing-landing");

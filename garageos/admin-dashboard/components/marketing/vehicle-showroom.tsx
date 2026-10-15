@@ -34,8 +34,9 @@ export function VehicleShowroom() {
         <figure className="mkt-home__vehicle-scene">
           <div className="mkt-home__scene-heading"><span>Hyundai SONATA</span><span className="mkt-home__sample"><span />{t.vehicle.sample}</span></div>
           <div className="mkt-home__photo-frame">
+            {/* This 125 KiB asset loads directly from the CDN without an image-function dependency. */}
             <Image src="/marketing/sonata-studio.jpg" alt={t.vehicle.alt} width={2400} height={2400}
-              className="mkt-home__vehicle-photo" data-testid="hero-vehicle-photo" sizes="(max-width: 767px) 175vw, (max-width: 1100px) 140vw, 1500px" priority />
+              className="mkt-home__vehicle-photo" data-testid="hero-vehicle-photo" priority unoptimized />
           </div>
           <figcaption className="mkt-home__photo-credit">
             {t.vehicle.photoCredit} <a href="https://unsplash.com/photos/a-white-car-on-a-white-background-oa68pmfG-qk" target="_blank" rel="noopener noreferrer">Hyundai Motor Group / Unsplash<ArrowRight size={11} aria-hidden="true" /></a>

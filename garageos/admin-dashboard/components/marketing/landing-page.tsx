@@ -85,7 +85,7 @@ export function LandingPage() {
             <h2 id="passport-title">{t.passport.title}</h2><p>{t.passport.detail}</p>
           </div>
           <figure className="mkt-home__passport-image">
-            <Image src="/marketing/vehicle-health.png" alt={t.passport.alt} width={2880} height={1800} sizes="(max-width: 900px) 100vw, 50vw" loading="lazy" />
+            <Image src="/marketing/vehicle-health.png" alt={t.passport.alt} width={2880} height={1800} loading="lazy" unoptimized />
             <figcaption className="mkt-home__screenshot-note">{t.screenshot}</figcaption>
           </figure>
         </div>

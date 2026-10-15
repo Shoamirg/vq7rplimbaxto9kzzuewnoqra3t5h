@@ -50,7 +50,7 @@ export function ShowroomSwitcher() {
         </div>
         {view.image ? (
           <figure>
-            <div className="mkt-home__switcher-image"><Image src={view.image} alt={copy.alt} fill sizes="(max-width: 800px) 100vw, 56vw" /></div>
+            <div className="mkt-home__switcher-image"><Image src={view.image} alt={copy.alt} fill unoptimized /></div>
             <figcaption className="mkt-home__screenshot-note">{t.screenshot}</figcaption>
           </figure>
         ) : (

@@ -35,7 +35,12 @@ studio photograph (2400px, approximately 125KiB). The source and license are
 recorded in `admin-dashboard/public/marketing/PHOTO-CREDITS.md`; visible credit
 links to the source. CSS frames the image and blends its white background with
 the canvas without altering the downloaded photo or suggesting manufacturer
-endorsement. The photo loads with priority; lower product screenshots remain lazy.
+endorsement. The photo loads with priority directly from the static CDN using
+Next Image's per-image `unoptimized` option. The already compact 125KiB file
+does not depend on the deployment's image function, which returned HTTP 400
+for this local asset and the existing dashboard/passport screenshots during
+the live smoke check. The landing's product screenshots also use direct static
+delivery and remain lazy; image behavior elsewhere is unchanged.
 
 On screens below 768px, capability tiles and vehicle metadata use two columns.
 Shop chips, role tabs and pricing cards scroll horizontally with scroll snapping.
