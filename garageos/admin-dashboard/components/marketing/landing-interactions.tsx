@@ -10,7 +10,7 @@ export function EstimatePreview() {
   const [approved, setApproved] = useState(false);
   const Icon = approved ? FileCheck2 : FileText;
   return (
-    <div className="mkt-home__estimate" data-approved={approved}>
+    <div className="mkt-home__estimate" id="estimate-preview" data-approved={approved}>
       <Icon className="mkt-home__estimate-icon" size={30} aria-hidden="true" />
       <h3>{t.title}</h3><p>{t.label}</p>
       <div className="mkt-home__estimate-item"><span>{t.item}</span><strong>{t.amount}</strong></div>

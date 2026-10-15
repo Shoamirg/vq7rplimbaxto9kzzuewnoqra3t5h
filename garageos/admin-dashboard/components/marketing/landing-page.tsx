@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { ArrowRight, Bell, CarFront, Check, ClipboardList, Clock3, FileText, Package, Wrench } from "lucide-react";
+import { ArrowRight, Bell, CarFront, Check, Clock3, FileText, Package, Wrench } from "lucide-react";
 import { DEMO_HREF, LIVE_DEMO_HREF } from "@/components/marketing/chrome";
 import { useMarketingI18n } from "@/components/marketing/marketing-i18n-provider";
 import { ShowroomSwitcher } from "@/components/marketing/showroom-switcher";
@@ -9,7 +9,6 @@ import { VehicleShowroom } from "@/components/marketing/vehicle-showroom";
 import { EstimatePreview, PricingPreview } from "@/components/marketing/landing-interactions";
 
 const CAPABILITY_ICONS = [CarFront, FileText, Wrench, Clock3, Bell, Package];
-const PROOF_ICONS = [CarFront, ClipboardList, FileText, Clock3];
 
 export function LandingPage() {
   const { locale, messages: { landing: t } } = useMarketingI18n();
@@ -29,12 +28,6 @@ export function LandingPage() {
             <p className="mkt-home__note">{t.hero.note}</p>
           </div>
           <VehicleShowroom />
-        </div>
-        <div className="mkt-shell mkt-home__proof-row">
-          {t.proof.map((label, index) => {
-            const Icon = PROOF_ICONS[index];
-            return <div key={label}><Icon size={19} aria-hidden="true" /><span>{label}</span></div>;
-          })}
         </div>
       </section>
       <section className="mkt-home__section" id="showroom" aria-labelledby="showroom-title">

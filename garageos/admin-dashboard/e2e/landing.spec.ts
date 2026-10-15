@@ -1,6 +1,28 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
+test("hero uses a loaded local high-resolution vehicle photograph", async ({ page }) => {
+  await page.goto("/");
+  const photo = page.getByTestId("hero-vehicle-photo");
+  await expect(photo).toBeVisible();
+  await expect(photo).toHaveAttribute("alt", /\S/);
+  await expect.poll(() => photo.evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+
+  const renderedSource = new URL(await photo.evaluate((image) => (image as HTMLImageElement).currentSrc));
+  // Next may serve a smaller responsive rendition. Check the original local
+  // raster's resolution without requiring a desktop-sized download on a phone.
+  const originalSource = new URL(renderedSource.searchParams.get("url") ?? renderedSource.href, page.url());
+  expect(originalSource.origin).toBe(new URL(page.url()).origin);
+  expect(originalSource.pathname).toMatch(/\.(avif|jpe?g|png|webp)$/i);
+  const intrinsicWidth = await page.evaluate((source) => new Promise<number>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image.naturalWidth);
+    image.onerror = () => reject(new Error("Hero photograph could not be loaded"));
+    image.src = source;
+  }), originalSource.href);
+  expect(intrinsicWidth).toBeGreaterThanOrEqual(1000);
+});
+
 test("landing starts in Uzbek and remembers a visitor's language after reload", async ({ page }) => {
   await page.goto("/");
   const landing = page.getByTestId("marketing-landing");
