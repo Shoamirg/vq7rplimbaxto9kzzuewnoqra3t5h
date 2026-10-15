@@ -54,6 +54,7 @@ const SEGMENT_KEYS: Record<string, string> = {
   reports: "nav.reports",
   settings: "nav.settings",
   support: "nav.support",
+  mechanic: "work.mechanic",
 };
 
 function Breadcrumbs() {

@@ -61,12 +61,13 @@ export function useMarketingI18n() {
   return context;
 }
 
-export function MarketingNav() {
+/** Navigation for the dark content pages (pricing, security, docs, legal). */
+export function ContentNav() {
   const { locale, setLocale, messages: { nav } } = useMarketingI18n();
   const links = [
-    { href: "/#product", label: nav.product },
-    { href: "/#workflow", label: nav.workflow },
-    { href: "/#vehicle-passport", label: nav.vehicleRecord },
+    { href: "/#showroom", label: nav.product },
+    { href: "/#flow", label: nav.workflow },
+    { href: "/#passport", label: nav.vehicleRecord },
     { href: "/#pricing", label: nav.pricing },
   ];
   return (
@@ -100,8 +101,8 @@ export function MarketingCta({ title, body }: { title?: string; body?: string })
     <section className="mkt-section mkt-cta--slim" lang={locale}>
       <div className="mkt-shell">
         <div className="mkt-cta">
-          <h2 className="mkt-display" lang={title ? "en" : undefined}>{title ?? cta.title}</h2>
-          <p lang={body ? "en" : undefined}>{body ?? cta.body}</p>
+          <h2 className="mkt-display">{title ?? cta.title}</h2>
+          <p>{body ?? cta.body}</p>
           <div className="mkt-hero__cta" style={{ marginTop: 28 }}>
             <a href={MARKETING_LINKS.liveDemo} className="mkt-btn mkt-btn--primary mkt-btn--lg">{cta.explore} <ArrowRight size={17} aria-hidden="true" /></a>
             <a href={MARKETING_LINKS.demo} className="mkt-btn mkt-btn--ghost mkt-btn--lg">{cta.bookDemo}</a>
@@ -126,7 +127,7 @@ export function MarketingFooter() {
             <div>
               <h4>{footer.product}</h4>
               <ul>
-                <li><Link href="/#product">{footer.features}</Link></li>
+                <li><Link href="/#showroom">{footer.features}</Link></li>
                 <li><a href="/pricing">{footer.pricing}</a></li>
                 <li><a href="/security">{footer.security}</a></li>
                 <li><a href="/docs">{footer.documentation}</a></li>

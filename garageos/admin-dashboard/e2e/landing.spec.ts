@@ -1,5 +1,10 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import type { Page } from "@playwright/test";
+
+async function chooseLanguage(page: Page, locale: string) {
+  await page.getByTestId("marketing-language").getByRole("button", { name: locale.toUpperCase(), exact: true }).click();
+}
 
 test("hero uses a loaded local high-resolution vehicle photograph", async ({ page }) => {
   await page.goto("/");
@@ -23,31 +28,44 @@ test("hero uses a loaded local high-resolution vehicle photograph", async ({ pag
   expect(intrinsicWidth).toBeGreaterThanOrEqual(1000);
 });
 
-test("landing images load when scrolled into view and across screenshot roles", async ({ page }) => {
+test("staff roles show a real localized app screenshot and can switch to the interactive preview", async ({ page }) => {
   await page.goto("/");
-  await page.getByTestId("marketing-language").selectOption("en");
+  await chooseLanguage(page, "en");
   const landingImages = page.getByTestId("marketing-landing").locator("img");
-  await expect(landingImages).toHaveCount(3);
+  await expect(landingImages).toHaveCount(1);
+  await expect.poll(() => landingImages.first().evaluate((element) => {
+    const photo = element as HTMLImageElement;
+    return photo.complete && photo.naturalWidth > 0;
+  })).toBe(true);
 
-  for (const image of await landingImages.all()) {
-    await image.scrollIntoViewIfNeeded();
-    await expect.poll(() => image.evaluate((element) => {
-      const photo = element as HTMLImageElement;
-      return photo.complete && photo.naturalWidth > 0;
-    }), { message: `Landing image should decode: ${await image.getAttribute("alt")}` }).toBe(true);
-  }
+  const panel = page.getByRole("tabpanel");
+  await page.getByRole("tab", { name: "Car Owner (Telegram)", exact: true }).click();
+  await expect(panel).toHaveAttribute("data-role", "customer");
+  await expect(page.getByTestId("role-view-mode")).toHaveCount(0);
+  await expect(panel.getByRole("button").first()).toBeVisible();
 
-  for (const role of ["Owner", "Advisor", "Mechanic"]) {
+  for (const [role, id] of [["Service Advisor", "advisor"], ["Mechanic (Tablet)", "mechanic"], ["Garage Owner", "owner"]]) {
     const tab = page.getByRole("tab", { name: role, exact: true });
     await tab.click();
     await expect(tab).toHaveAttribute("aria-selected", "true");
-    const screenshot = page.getByRole("tabpanel").getByRole("img");
+    await expect(panel).toHaveAttribute("data-role", id);
+    const mode = page.getByTestId("role-view-mode");
+    await mode.getByRole("button", { name: "Real screen" }).click();
+    const screenshot = panel.getByTestId("role-screenshot");
+    await expect(screenshot).toHaveAttribute("src", new RegExp(`/marketing/screens/${id}-en[.]webp$`));
     await screenshot.scrollIntoViewIfNeeded();
     await expect.poll(() => screenshot.evaluate((element) => {
       const image = element as HTMLImageElement;
-      return image.complete && image.naturalWidth > 0;
-    }), { message: `${role} screenshot should decode` }).toBe(true);
+      return image.complete && image.naturalWidth >= 1000;
+    }), { message: `${id} screenshot should decode` }).toBe(true);
+    await mode.getByRole("button", { name: "Interactive" }).click();
+    await expect(panel).toHaveAttribute("data-mode", "interactive");
+    await expect(panel.getByRole("button").first()).toBeVisible();
   }
+
+  await chooseLanguage(page, "uz");
+  await page.getByTestId("role-view-mode").getByRole("button").first().click();
+  await expect(page.getByTestId("role-screenshot")).toHaveAttribute("src", /owner-uz\.webp$/);
 });
 
 test("landing starts in Uzbek and remembers a visitor's language after reload", async ({ page }) => {
@@ -57,32 +75,32 @@ test("landing starts in Uzbek and remembers a visitor's language after reload", 
   const heading = page.getByRole("heading", { level: 1 });
 
   await expect(landing).toHaveAttribute("lang", "uz");
-  await expect(language).toHaveValue("uz");
+  await expect(language).toHaveAttribute("data-value", "uz");
   const uzbekHeading = await heading.textContent();
 
-  await language.selectOption("ru");
+  await chooseLanguage(page, "ru");
   await expect(landing).toHaveAttribute("lang", "ru");
   await expect(heading).toContainText(/[А-Яа-яЁё]/);
   const russianHeading = await heading.textContent();
   await page.reload();
-  await expect(language).toHaveValue("ru");
+  await expect(language).toHaveAttribute("data-value", "ru");
   await expect(heading).toHaveText(russianHeading!);
 
-  await language.selectOption("en");
+  await chooseLanguage(page, "en");
   await expect(landing).toHaveAttribute("lang", "en");
   await expect(heading).not.toHaveText(uzbekHeading!);
   await expect(heading).not.toContainText(/[А-Яа-яЁё]/);
   const englishHeading = await heading.textContent();
   await page.reload();
-  await expect(language).toHaveValue("en");
+  await expect(language).toHaveAttribute("data-value", "en");
   await expect(heading).toHaveText(englishHeading!);
 });
 
-test("shop selection changes the sample work instead of only highlighting a chip", async ({ page }) => {
+test("shop selection swaps the KPI numbers and the live Telegram preview", async ({ page }) => {
   await page.goto("/");
-  await page.getByTestId("marketing-language").selectOption("en");
-  const general = page.getByTestId("shop-type-general");
-  const tires = page.getByTestId("shop-type-tires");
+  await chooseLanguage(page, "en");
+  const general = page.getByTestId("shop-type-repair");
+  const tires = page.getByTestId("shop-type-tire");
   const detailing = page.getByTestId("shop-type-detailing");
   const preview = page.getByTestId("shop-preview");
 
@@ -94,8 +112,11 @@ test("shop selection changes the sample work instead of only highlighting a chip
   await expect(preview).not.toHaveText(generalPreview!);
   const tirePreview = await preview.textContent();
 
+  const kpis = page.getByTestId("marketing-kpi-grid");
+  const tireKpis = await kpis.textContent();
   await detailing.click();
   await expect(detailing).toHaveAttribute("aria-pressed", "true");
+  await expect(kpis).not.toHaveText(tireKpis!);
   await expect(preview).not.toHaveText(tirePreview!);
   await general.click();
   await expect(preview).toHaveText(generalPreview!);
@@ -103,25 +124,24 @@ test("shop selection changes the sample work instead of only highlighting a chip
 
 test("role previews can be switched to mechanic with the keyboard", async ({ page }) => {
   await page.goto("/");
-  await page.getByTestId("marketing-language").selectOption("en");
+  await chooseLanguage(page, "en");
   const tabs = page.getByTestId("marketing-role-carousel");
   await tabs.getByRole("tab").first().focus();
   await page.keyboard.press("Home");
   await page.keyboard.press("ArrowRight");
   await page.keyboard.press("ArrowRight");
 
-  const mechanic = tabs.getByRole("tab", { name: "Mechanic", exact: true });
+  const mechanic = tabs.getByRole("tab", { name: "Mechanic (Tablet)", exact: true });
   await expect(mechanic).toBeFocused();
   await expect(mechanic).toHaveAttribute("aria-selected", "true");
   const panel = page.getByRole("tabpanel");
   await expect(panel).toBeVisible();
-  await expect(panel).toContainText(/assigned/i);
-  const previewImage = panel.getByRole("img");
-  await expect.poll(() => previewImage.evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  await expect(panel).toHaveAttribute("data-role", "mechanic");
+  await expect(panel.getByRole("img")).toBeVisible();
 
   await page.keyboard.press("End");
   await expect(tabs.getByRole("tab").last()).toHaveAttribute("aria-selected", "true");
-  await expect(panel).toContainText(/vehicle/i);
+  await expect(panel).toHaveAttribute("data-role", "owner");
 });
 
 test("sample estimate approval can be tried and reset without writing to the backend", async ({ page }) => {
@@ -132,7 +152,7 @@ test("sample estimate approval can be tried and reset without writing to the bac
     }
   });
   await page.goto("/");
-  await page.getByTestId("marketing-language").selectOption("en");
+  await chooseLanguage(page, "en");
   const approve = page.getByTestId("estimate-toggle");
   const status = page.getByTestId("estimate-status");
   const initialStatus = await status.textContent();
@@ -150,7 +170,7 @@ test("sample estimate approval can be tried and reset without writing to the bac
 
 test("currency choice is carried into the pricing enquiry", async ({ page }) => {
   await page.goto("/");
-  await page.getByTestId("marketing-language").selectOption("en");
+  await chooseLanguage(page, "en");
   const pricing = page.locator("#pricing");
   const enquiry = page.getByTestId("pricing-enquiry").first();
 
@@ -169,7 +189,7 @@ for (const width of [320, 390]) {
     await page.setViewportSize({ width, height: 844 });
     await page.goto("/");
     const tiles = page.getByTestId("marketing-kpi-grid").locator(":scope > *");
-    await expect(tiles).toHaveCount(6);
+    await expect(tiles).toHaveCount(4);
     const firstTile = await tiles.nth(0).boundingBox();
     const secondTile = await tiles.nth(1).boundingBox();
     const thirdTile = await tiles.nth(2).boundingBox();
@@ -219,7 +239,7 @@ for (const locale of ["uz", "ru", "en"]) {
       if (message.type() === "error") runtimeErrors.push(message.text());
     });
     await page.goto("/");
-    await page.getByTestId("marketing-language").selectOption(locale);
+    await chooseLanguage(page, locale);
     await expect(page.getByTestId("marketing-landing")).toHaveAttribute("lang", locale);
 
     for (const width of [320, 390, 768, 1024, 1440]) {
@@ -231,7 +251,7 @@ for (const locale of ["uz", "ru", "en"]) {
       }
       expect.soft(await page.evaluate(() => document.documentElement.scrollWidth), `${locale} viewport at ${width}px`).toBeLessThanOrEqual(width);
 
-      const clippedLabels = await page.getByTestId("marketing-kpi-grid").locator("p, h3").evaluateAll((labels) => labels
+      const clippedLabels = await page.getByTestId("marketing-kpi-grid").locator("dt, dd").evaluateAll((labels) => labels
         .filter((label) => label.scrollWidth > label.clientWidth + 1)
         .map((label) => ({ text: label.textContent, content: label.scrollWidth, available: label.clientWidth })));
       expect.soft(clippedLabels, `${locale} card text must fit inside each tile at ${width}px`).toEqual([]);

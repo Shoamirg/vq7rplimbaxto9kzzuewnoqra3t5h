@@ -38,9 +38,9 @@ export function AreaChart({ series }: { series: { label: string; value: number }
   return (
     <div>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="w-full h-[150px] border-b border-border">
-        <defs><linearGradient id="rev" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#2563EB" stopOpacity="0.25" /><stop offset="1" stopColor="#2563EB" stopOpacity="0" /></linearGradient></defs>
+        <defs><linearGradient id="rev" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#109868" stopOpacity="0.25" /><stop offset="1" stopColor="#109868" stopOpacity="0" /></linearGradient></defs>
         <path d={area} fill="url(#rev)" />
-        <path d={line} fill="none" stroke="#2563EB" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
+        <path d={line} fill="none" stroke="#109868" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
       </svg>
       <div className="flex justify-between text-[10px] text-muted-foreground mt-1.5">
         {series.map((s) => <span key={s.label}>{s.label}</span>)}
@@ -88,7 +88,7 @@ export function Donut({ dist, center }: { dist: Record<string, number>; center?:
 // Funnel of stages.
 export function Funnel({ stages }: { stages: { stage: string; count: number }[] }) {
   const max = Math.max(1, ...stages.map((s) => s.count));
-  const colors = ["#2563EB", "#3B82F6", "#60A5FA", "#059669", "#4338CA"];
+  const colors = ["#109868", "#2FA97C", "#66C4A0", "#0E7490", "#64748B"];
   return (
     <div className="space-y-2 mt-1">
       {stages.map((s, i) => (
@@ -103,7 +103,7 @@ export function Funnel({ stages }: { stages: { stage: string; count: number }[] 
 }
 
 // Horizontal bars (aging / distribution / revenue-by-service).
-export function BarRows({ rows, color = "#2563EB", fmt = (n: number) => String(n), bandColors = false }: {
+export function BarRows({ rows, color = "#109868", fmt = (n: number) => String(n), bandColors = false }: {
   rows: { label: string; value: number }[];
   color?: string;
   fmt?: (n: number) => string;

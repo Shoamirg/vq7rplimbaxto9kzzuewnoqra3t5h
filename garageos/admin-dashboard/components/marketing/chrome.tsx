@@ -6,4 +6,5 @@ export const DEMO_HREF = MARKETING_LINKS.demo;
 export const SIGN_IN_HREF = MARKETING_LINKS.signIn;
 export const LIVE_DEMO_HREF = MARKETING_LINKS.liveDemo;
 
-export { MarketingNav, MarketingFooter, MarketingCta } from "./marketing-i18n-provider";
+export { MarketingFooter, MarketingCta } from "./marketing-i18n-provider";
+export { MarketingNav } from "./site-nav";

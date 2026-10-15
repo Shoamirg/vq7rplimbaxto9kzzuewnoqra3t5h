@@ -17,7 +17,7 @@ export function money(n: number): string {
 
 const BAND_COLOR: Record<string, string> = {
   excellent: "#16a34a",
-  good: "#2563eb",
+  good: "#109868",
   fair: "#d97706",
   poor: "#dc2626",
 };

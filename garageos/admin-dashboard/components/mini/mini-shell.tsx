@@ -5,17 +5,12 @@ import { AlertCircle, Loader2, WifiOff } from "lucide-react";
 
 import { ensureSession } from "@/lib/mini/client";
 import { MessageStorageError } from "@/lib/message-intents";
-import { telegram, telegramLocale } from "@/lib/mini/telegram";
+import { telegram } from "@/lib/mini/telegram";
 import { useOnline } from "@/lib/mini/hooks";
 import { useI18n } from "@/lib/i18n/context";
-import { LOCALE_COOKIE } from "@/lib/i18n/dictionaries";
 import { TabBar } from "@/components/mini/tab-bar";
 import { LogoMark, LogoTile } from "@/components/brand/logo";
 
-function hasLocaleCookie(): boolean {
-  if (typeof document === "undefined") return false;
-  return document.cookie.split("; ").some((c) => c.startsWith(`${LOCALE_COOKIE}=`));
-}
 
 // The Mini App chrome: authenticates the customer session once, then renders the
 // scrolling content + a persistent bottom tab bar. Telegram's own header sits
@@ -24,7 +19,7 @@ export function MiniShell({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<"loading" | "ready" | "error" | "storage">("loading");
   const verification = useRef(0);
   const online = useOnline();
-  const { t, dir, setLocale } = useI18n();
+  const { t, dir } = useI18n();
   const verifySession = useCallback(() => {
     const version = ++verification.current;
     setState("loading");
@@ -37,15 +32,10 @@ export function MiniShell({ children }: { children: React.ReactNode }) {
     const wa = telegram();
     wa?.ready?.();
     wa?.expand?.();
-    // Auto-adopt the customer's Telegram language on first visit, unless they've
-    // already chosen a language (cookie present, which wins).
-    if (!hasLocaleCookie()) {
-      const tg = telegramLocale();
-      if (tg) setLocale(tg);
-    }
+    // Uzbek is the default for everyone; a customer's own choice (cookie) is kept.
     verifySession();
     return () => { verification.current++; };
-  }, [setLocale, verifySession]);
+  }, [verifySession]);
 
   if (state === "loading") {
     return (

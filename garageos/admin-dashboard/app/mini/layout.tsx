@@ -22,7 +22,7 @@ export default async function MiniLayout({ children }: { children: React.ReactNo
   // Resolve the locale server-side (from the cookie) so there's no flash of the
   // wrong language; the Mini App also auto-detects Telegram's language on mount.
   const cookieLocale = (await cookies()).get(LOCALE_COOKIE)?.value;
-  const initialLocale = isLocale(cookieLocale) ? cookieLocale : "en";
+  const initialLocale = isLocale(cookieLocale) ? cookieLocale : "uz";
 
   return (
     <>

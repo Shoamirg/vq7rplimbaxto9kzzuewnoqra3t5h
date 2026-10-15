@@ -17,22 +17,34 @@
 }
 
 @theme inline {
+  /* Brand: GarageOS is emerald. Legacy blue-* utilities resolve to the brand scale. */
+  --color-blue-50: #e9f7f1;
+  --color-blue-100: #cdeee0;
+  --color-blue-200: #9fdcc3;
+  --color-blue-300: #66c4a0;
+  --color-blue-400: #2fa97c;
+  --color-blue-500: #109868;
+  --color-blue-600: #0c8059;
+  --color-blue-700: #096645;
+  --color-blue-800: #074f36;
+  --color-blue-900: #053a28;
+  --color-blue-950: #032419;
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
 
-  --color-primary-50: #eff6ff;
-  --color-primary-100: #dbeafe;
-  --color-primary-200: #bfdbfe;
-  --color-primary-300: #93c5fd;
-  --color-primary-400: #60a5fa;
-  --color-primary-500: #2563eb;
-  --color-primary-600: #1d4ed8;
-  --color-primary-700: #1e40af;
-  --color-primary-800: #1e3a8a;
-  --color-primary-900: #172554;
+  --color-primary-50: #e9f7f1;
+  --color-primary-100: #cdeee0;
+  --color-primary-200: #9fdcc3;
+  --color-primary-300: #66c4a0;
+  --color-primary-400: #2fa97c;
+  --color-primary-500: #109868;
+  --color-primary-600: #0c8059;
+  --color-primary-700: #096645;
+  --color-primary-800: #074f36;
+  --color-primary-900: #053a28;
   --color-primary: hsl(var(--primary));
   --color-primary-foreground: hsl(var(--primary-foreground));
 
@@ -122,43 +134,43 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 222 47% 11%;
+    --foreground: 210 10% 8%;
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 210 10% 8%;
     --muted: 210 40% 96%;
     --muted-foreground: 215 16% 47%;
     --border: 214 32% 91%;
     --input: 214 32% 91%;
-    --ring: 222 84% 5%;
+    --ring: 160 83% 27%;
     --radius: 0.75rem;
 
-    --sidebar-background: 222 47% 11%;
-    --sidebar-foreground: 210 40% 88%;
-    --sidebar-muted: 217 33% 17%;
-    --sidebar-active: 217 91% 60%;
+    --sidebar-background: 210 10% 8%;
+    --sidebar-foreground: 220 9% 88%;
+    --sidebar-muted: 216 12% 14%;
+    --sidebar-active: 158 58% 48%;
 
-    --primary: 221 83% 53%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 160 83% 27%;
+    --primary-foreground: 0 0% 100%;
   }
 
   .dark {
-    --background: 222 47% 11%;
-    --foreground: 210 40% 98%;
-    --card: 222 47% 15%;
-    --card-foreground: 210 40% 98%;
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
-    --border: 217 33% 25%;
-    --input: 217 33% 25%;
-    --ring: 212 27% 84%;
+    --background: 216 12% 8%;
+    --foreground: 220 14% 96%;
+    --card: 216 12% 12%;
+    --card-foreground: 220 14% 96%;
+    --muted: 216 10% 17%;
+    --muted-foreground: 215 9% 65%;
+    --border: 216 10% 24%;
+    --input: 216 10% 24%;
+    --ring: 158 58% 48%;
 
-    --sidebar-background: 222 47% 8%;
-    --sidebar-foreground: 210 40% 88%;
-    --sidebar-muted: 217 33% 15%;
-    --sidebar-active: 217 91% 60%;
+    --sidebar-background: 216 12% 6%;
+    --sidebar-foreground: 220 9% 88%;
+    --sidebar-muted: 216 12% 13%;
+    --sidebar-active: 158 58% 48%;
 
-    --primary: 217 91% 60%;
-    --primary-foreground: 222 47% 11%;
+    --primary: 158 58% 48%;
+    --primary-foreground: 160 84% 8%;
   }
 }
 
@@ -179,8 +191,8 @@
 
 /* Appointment status badges */
 .status-pending { @apply bg-warning-light text-warning-dark; }
-.status-confirmed { @apply bg-primary-100 text-primary-700; }
-.status-in_progress { @apply bg-blue-100 text-blue-700; }
+.status-confirmed { @apply bg-sky-100 text-sky-800; }
+.status-in_progress { @apply bg-primary-100 text-primary-700; }
 .status-completed { @apply bg-success-light text-success-dark; }
 .status-cancelled { @apply bg-danger-light text-danger-dark; }
 
@@ -203,10 +215,10 @@
    The canonical palette + motion timings. Named tokens (not raw Tailwind hex)
    so every module references one source of truth. */
 :root {
-  --garage-black: #0B1220;
-  --garage-white: #F8FAFC;
-  --electric-blue: #2563EB;
-  --brand-gold: #D9A322;
+  --garage-black: #111315;
+  --garage-white: #F5F6F8;
+  --brand-emerald: #109868;
+  --brand-emerald-fill: #0C8059;
   --brand-success: #16A34A;
   --brand-warning: #F59E0B;
   --brand-danger: #DC2626;

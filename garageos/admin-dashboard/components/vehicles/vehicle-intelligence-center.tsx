@@ -31,7 +31,7 @@ import { clientFetch } from "@/lib/api/client";
 import type { VehicleIntelligence } from "@/lib/api/types";
 
 const BAND_COLOR: Record<string, string> = {
-  excellent: "#16A34A", good: "#2563EB", fair: "#F59E0B", poor: "#DC2626",
+  excellent: "#16A34A", good: "#109868", fair: "#F59E0B", poor: "#DC2626",
 };
 const bandColor = (b: string) => BAND_COLOR[b] ?? "#64748B";
 function useVehicleText() {
@@ -120,7 +120,7 @@ function CarStage({ subsystems, onPick, active }: {
   return (
     <div className="relative mt-2 grid h-[240px] place-items-center">
       <div className="twin-glow pointer-events-none absolute bottom-9 h-[110px] w-[380px] rounded-full"
-        style={{ background: "radial-gradient(closest-side, rgba(37,99,235,.4), transparent)", filter: "blur(8px)" }} />
+        style={{ background: "radial-gradient(closest-side, rgba(16,152,104,.4), transparent)", filter: "blur(8px)" }} />
       <svg className="twin-float relative z-2 w-full max-w-[420px]" width="420" height="176" viewBox="0 0 440 180" fill="none">
         <defs>
           <linearGradient id="ic-body" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#dfe7f2" /><stop offset="1" stopColor="#8aa0c4" /></linearGradient>
@@ -130,8 +130,8 @@ function CarStage({ subsystems, onPick, active }: {
         <path d="M96 92 C 112 78, 130 74, 162 74 L 210 74 L 210 92 Z" fill="url(#ic-glass)" />
         <path d="M220 74 L 250 74 C 280 74, 300 82, 322 92 L 220 92 Z" fill="url(#ic-glass)" />
         <rect x="30" y="126" width="384" height="6" rx="3" fill="#5b6b86" />
-        <circle cx="112" cy="134" r="28" fill="#0b1220" /><circle cx="112" cy="134" r="15" fill="#334155" /><circle cx="112" cy="134" r="6" fill="#94a3b8" />
-        <circle cx="330" cy="134" r="28" fill="#0b1220" /><circle cx="330" cy="134" r="15" fill="#334155" /><circle cx="330" cy="134" r="6" fill="#94a3b8" />
+        <circle cx="112" cy="134" r="28" fill="#111315" /><circle cx="112" cy="134" r="15" fill="#334155" /><circle cx="112" cy="134" r="6" fill="#94a3b8" />
+        <circle cx="330" cy="134" r="28" fill="#111315" /><circle cx="330" cy="134" r="15" fill="#334155" /><circle cx="330" cy="134" r="6" fill="#94a3b8" />
       </svg>
       {subsystems.map((s, i) => {
         const pos = SYS_POS[s.name] ?? extra[i % extra.length];
@@ -238,7 +238,7 @@ export function VehicleIntelligenceCenter({ data }: { data: VehicleIntelligence 
 
             {/* CENTER — the digital twin hero */}
             <div data-testid="vic-hero" className="relative overflow-hidden rounded-3xl p-6 text-white shadow-xl"
-              style={{ background: "radial-gradient(120% 90% at 30% 0%, #1a2740 0%, #0e1626 45%, #0B1220 100%)" }}>
+              style={{ background: "radial-gradient(120% 90% at 30% 0%, #1f2a26 0%, #15181c 45%, #111315 100%)" }}>
               <div className="pointer-events-none absolute inset-0 opacity-50"
                 style={{ backgroundImage: "linear-gradient(rgba(148,163,184,.12) 1px,transparent 1px),linear-gradient(90deg,rgba(148,163,184,.12) 1px,transparent 1px)", backgroundSize: "34px 34px", maskImage: "radial-gradient(70% 60% at 50% 40%,#000,transparent)" }} />
               <div className="relative z-2 flex flex-wrap items-start justify-between gap-3">
@@ -469,7 +469,7 @@ function OwnerLink({ href, icon, label }: { href: string; icon: React.ReactNode;
 function PassportCard({ passport, vehicleId, large }: { passport: VehicleIntelligence["passport"]; vehicleId: string; large?: boolean }) {
   const { t, vt } = useVehicleText();
   return (
-    <div className="relative overflow-hidden rounded-3xl p-5 text-white shadow-xl" style={{ background: "linear-gradient(150deg,#12203b,#0B1220)" }}>
+    <div className="relative overflow-hidden rounded-3xl p-5 text-white shadow-xl" style={{ background: "linear-gradient(150deg,#1b2420,#111315)" }}>
       <div className="pointer-events-none absolute -right-8 -top-8 size-32 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(217,163,34,.25), transparent)" }} />
       <div className="mb-3 flex items-center justify-between">
         <h3 className="font-brand text-[15px] font-extrabold">{vt("Certified Passport")}</h3>

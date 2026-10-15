@@ -33,7 +33,7 @@ const I18nContext = createContext<I18nValue | null>(null);
 // Client provider. The initial locale is resolved server-side (from the cookie)
 // and passed in, so there's no flash of the wrong language on first paint.
 export function I18nProvider({
-  initialLocale = "en",
+  initialLocale = "uz",
   children,
 }: {
   initialLocale?: Locale;
@@ -75,12 +75,12 @@ export function useI18n(): I18nValue {
   if (!ctx) {
     // Safe fallback so a component rendered outside the provider still works.
     return {
-      locale: "en",
+      locale: "uz",
       dir: "ltr",
       setLocale: () => {},
-      t: (key: string, params?: TParams) => translate("en", key, params),
-      tp: (key: string, count: number, params?: TParams) => translatePlural("en", key, count, params),
-      fmt: makeFormatters("en"),
+      t: (key: string, params?: TParams) => translate("uz", key, params),
+      tp: (key: string, count: number, params?: TParams) => translatePlural("uz", key, count, params),
+      fmt: makeFormatters("uz"),
     };
   }
   return ctx;

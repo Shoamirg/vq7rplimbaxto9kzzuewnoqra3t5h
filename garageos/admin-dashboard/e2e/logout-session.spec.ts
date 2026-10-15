@@ -48,7 +48,7 @@ for (const locale of ['uz', 'en', 'ru'] as Locale[]) test(`local logout with unc
   await page.getByRole('menuitem', { name: translate(locale, 'menu.signout'), exact: true }).click();
   await expect(page).toHaveURL(/\/login\?logout=unconfirmed&auth_epoch=[0-9a-f-]+$/);
   await expect(page.getByRole('alert').filter({ hasText: translate(locale, 'platform.logout_unconfirmed') })).toHaveText(translate(locale, 'platform.logout_unconfirmed'));
-  await expect(page.getByLabel('Email', { exact: true })).toBeEditable();
+  await expect(page.getByLabel(/^(Email|Эл. почта)$/)).toBeEditable();
   expect((await page.request.get('/api/proxy/auth/me')).status()).toBe(401);
   await assertAccessible(page, info, `logout-unconfirmed-${locale}`);
   await page.screenshot({ path: info.outputPath(`logout-unconfirmed-${locale}-360.png`), fullPage: true });
@@ -60,8 +60,8 @@ test('held old logout and actual login in another tab preserve the newer staff i
   const other = await page.context().newPage();
   const owner = queueProfiles(baseURL!).owners[1];
   await other.goto('/login?reauth=1');
-  await other.getByLabel('Email', { exact: true }).fill(owner.email);
-  await other.getByLabel('Password', { exact: true }).fill(owner.password);
+  await other.getByLabel(/^(Email|Эл. почта)$/).fill(owner.email);
+  await other.getByLabel(/^(Password|Parol|Пароль)$/).fill(owner.password);
   let release!: () => void, seen!: () => void;
   const held = new Promise<void>(resolve => release = resolve), received = new Promise<void>(resolve => seen = resolve);
   let loginRequests = 0;
@@ -74,7 +74,7 @@ test('held old logout and actual login in another tab preserve the newer staff i
     await page.getByRole('button', { name: 'User menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Sign Out', exact: true }).click();
     await received;
-    await other.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await other.getByRole('button', { name: /^(Sign in|Kirish|Войти)$/ }).click();
     await expect.poll(() => other.evaluate(async () => (await navigator.locks.query()).pending?.some(lock => lock.name === 'garageos.staff-auth-transition.v1') ?? false)).toBe(true);
     expect(loginRequests).toBe(0);
     release();
@@ -96,14 +96,14 @@ test('old staff tab cannot queue logout behind a held new UI login in another ta
   const other = await page.context().newPage();
   const owner = queueProfiles(baseURL!).owners[1];
   await other.goto('/login?reauth=1');
-  await other.getByLabel('Email', { exact: true }).fill(owner.email);
-  await other.getByLabel('Password', { exact: true }).fill(owner.password);
+  await other.getByLabel(/^(Email|Эл. почта)$/).fill(owner.email);
+  await other.getByLabel(/^(Password|Parol|Пароль)$/).fill(owner.password);
   let release!: () => void, seen!: () => void, logouts = 0;
   const held = new Promise<void>(resolve => release = resolve), received = new Promise<void>(resolve => seen = resolve);
   page.on('request', request => { if (new URL(request.url()).pathname === '/api/auth/logout') logouts++; });
   await other.route('**/api/auth/login', async route => { seen(); await held; const response = await route.fetch(); await route.fulfill({ response }); }, { times: 1 });
   try {
-    await other.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await other.getByRole('button', { name: /^(Sign in|Kirish|Войти)$/ }).click();
     await received;
     await page.getByRole('button', { name: 'User menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Sign Out', exact: true }).click();
@@ -127,8 +127,8 @@ for (const ownerIndex of [0, 1]) test(`delayed authenticated SSR cannot own a ne
   const other = await page.context().newPage();
   const owner = queueProfiles(baseURL!).owners[ownerIndex];
   await other.goto('/login?reauth=1');
-  await other.getByLabel('Email', { exact: true }).fill(owner.email);
-  await other.getByLabel('Password', { exact: true }).fill(owner.password);
+  await other.getByLabel(/^(Email|Эл. почта)$/).fill(owner.email);
+  await other.getByLabel(/^(Password|Parol|Пароль)$/).fill(owner.password);
   let release!: () => void, seen!: () => void, logouts = 0;
   const held = new Promise<void>(resolve => release = resolve), received = new Promise<void>(resolve => seen = resolve);
   page.on('request', request => { if (new URL(request.url()).pathname === '/api/auth/logout') logouts++; });
@@ -141,7 +141,7 @@ for (const ownerIndex of [0, 1]) test(`delayed authenticated SSR cannot own a ne
   const navigation = page.goto('/dashboard');
   try {
     await received;
-    await other.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await other.getByRole('button', { name: /^(Sign in|Kirish|Войти)$/ }).click();
     await expect(other).toHaveURL(/\/dashboard$/);
     const newer = await (await other.request.get('/api/proxy/auth/me')).json();
     expect(newer.email).toBe(owner.email);
@@ -167,7 +167,7 @@ test('unavailable browser coordination blocks login and demo before cookie mutat
   let authRequests = 0;
   page.on('request', request => { if (request.method() === 'POST' && ['/api/auth/login', '/api/demo'].includes(new URL(request.url()).pathname)) authRequests++; });
   await page.goto('/login');
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await page.getByRole('button', { name: /^(Sign in|Kirish|Войти)$/ }).click();
   await expect(page.getByRole('alert').filter({ hasText: 'Web Locks' })).toContainText('Web Locks');
   await page.goto('/demo');
   await page.getByRole('button', { name: /Enter the live demo|Jonli demoni ochish/ }).click();

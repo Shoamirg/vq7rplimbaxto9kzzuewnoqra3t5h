@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   const savedLocale = (await cookies()).get(LOCALE_COOKIE)?.value;
-  const locale: Locale = isLocale(savedLocale) ? savedLocale : "en";
+  const locale: Locale = isLocale(savedLocale) ? savedLocale : "uz";
   const p = await getPublicPassport(id).catch(() => null);
   if (!p) return { title: translate(locale, "passport.title"), robots: { index: false } };
   return {
@@ -34,7 +34,7 @@ async function verifyUrl(id: string): Promise<string> {
 export default async function PassportPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const savedLocale = (await cookies()).get(LOCALE_COOKIE)?.value;
-  const locale: Locale = isLocale(savedLocale) ? savedLocale : "en";
+  const locale: Locale = isLocale(savedLocale) ? savedLocale : "uz";
   const passport = await getPublicPassport(id).catch(() => null);
 
   if (!passport) {

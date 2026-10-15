@@ -251,9 +251,9 @@ for (const boundary of ["logout", "actor-change"] as const) test(`Inbox late gen
     if (boundary === "logout") {
       await expect(page).toHaveURL(/\/login$/);
       // Normal same-actor SPA login must not restore the revoked form receipt.
-      await page.getByLabel("Email", { exact: true }).fill(ownerA.email);
-      await page.getByLabel("Password", { exact: true }).fill(ownerA.password);
-      await page.getByRole("button", { name: "Sign in", exact: true }).click();
+      await page.getByLabel(/^(Email|Эл. почта)$/).fill(ownerA.email);
+      await page.getByLabel(/^(Password|Parol|Пароль)$/).fill(ownerA.password);
+      await page.getByRole("button", { name: /^(Sign in|Kirish|Войти)$/ }).click();
       await expect(page).toHaveURL(/\/dashboard$/); await page.locator('a[href="/inbox"]').first().click();
     } else {
       await expect(page.getByRole("heading", { name: b.subject, exact: true })).toBeVisible();

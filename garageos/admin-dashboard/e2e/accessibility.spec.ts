@@ -271,7 +271,7 @@ test("Tenant primary button text stays readable across brand colors", async ({
   page,
 }, info) => {
   for (const color of [
-    "#2563eb",
+    "#1d4ed8",
     "#ffff00",
     "#ffffff",
     "#000000",

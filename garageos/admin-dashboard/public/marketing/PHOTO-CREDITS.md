@@ -14,3 +14,6 @@ The downloaded photograph is unchanged. CSS frames it within the hero and blends
 its white background with the canvas. It is a stock example, not a customer's
 vehicle or a claim of partnership with the manufacturer. The source is also
 credited beside the displayed photo.
+
+`sonata-stage.jpg` is a crop of that same photograph (1500×640, car and floor
+shadow only) so the hero stage loads a smaller file. No other edits.

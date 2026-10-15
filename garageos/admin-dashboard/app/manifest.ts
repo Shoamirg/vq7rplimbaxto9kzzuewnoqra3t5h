@@ -2,13 +2,13 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "GarageOS — Vehicle Intelligence",
+    name: "GarageOS — Avtoservis tizimi",
     short_name: "GarageOS",
-    description: "Your garage, vehicles, service, billing and roadside help — in one app.",
+    description: "Avtoservis, mashinalar, smeta, toʻlov va yoʻlda yordam — bitta ilovada.",
     start_url: "/",
     display: "standalone",
-    background_color: "#0B1220",
-    theme_color: "#0B1220",
+    background_color: "#111315",
+    theme_color: "#111315",
     icons: [
       { src: "/icon.svg", type: "image/svg+xml", sizes: "any" },
       { src: "/brand/icon-192.png", type: "image/png", sizes: "192x192", purpose: "any" },

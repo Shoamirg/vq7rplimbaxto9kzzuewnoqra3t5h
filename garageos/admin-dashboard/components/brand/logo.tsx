@@ -1,37 +1,26 @@
 import type { CSSProperties } from "react";
 
-// GarageOS mark: a bold "G" ring with a road lane sweeping up through it to a
-// telemetry node — vehicle + intelligence + operations. The G uses `tone`, the
-// road + node use `accent`, so the same geometry recolors per context (blue on
-// dark/app surfaces, gold on the light wordmark).
+// GarageOS "Live G": a bold G ring whose open end carries an emerald status dot —
+// the same "live" dot used for bookings, Telegram and job status. The ring uses
+// `tone`, the dot uses `accent`; the dot is a stroked ring so its centre stays
+// transparent on any surface.
 
-export const BRAND_BLUE = "#2563EB";
-export const BRAND_GOLD = "#D9A322";
-export const GARAGE_BLACK = "#0B1220";
-export const GARAGE_WHITE = "#F8FAFC";
+export const BRAND_EMERALD = "#109868";
+export const GARAGE_BLACK = "#111315";
+export const GARAGE_WHITE = "#F5F6F8";
 
 function MarkPaths({ tone, accent }: { tone: string; accent: string }) {
   return (
     <>
       <path
-        d="M46.5 20.5 A19 19 0 1 0 51 41 L38 41 L38 34.5 L50.5 34.5"
+        d="M46.5 21.5 A17 17 0 1 0 49 36 H35"
         fill="none"
         stroke={tone}
-        strokeWidth={7}
+        strokeWidth={6.5}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <path d="M20 47 L28 47 L37.5 22 L33.5 22 Z" fill={accent} />
-      <path
-        d="M25.5 45 L33.5 24"
-        fill="none"
-        stroke={GARAGE_WHITE}
-        strokeWidth={1.4}
-        strokeLinecap="round"
-        strokeDasharray="0.5 4.5"
-      />
-      <circle cx={36.5} cy={18.5} r={3.6} fill={accent} />
-      <circle cx={36.5} cy={18.5} r={1.4} fill={GARAGE_WHITE} />
+      <circle cx={46.5} cy={21.5} r={3.15} fill="none" stroke={accent} strokeWidth={2.9} />
     </>
   );
 }
@@ -40,7 +29,7 @@ function MarkPaths({ tone, accent }: { tone: string; accent: string }) {
 export function LogoMark({
   size = 32,
   tone = GARAGE_BLACK,
-  accent = BRAND_BLUE,
+  accent = BRAND_EMERALD,
   className,
   title = "GarageOS",
 }: {
@@ -64,21 +53,21 @@ export function LogoMark({
   );
 }
 
-/** The mark inside the graphite app tile (for splash / large brand moments). */
-export function LogoTile({ size = 96, radius = 0.225 }: { size?: number; radius?: number }) {
+/** The mark inside the obsidian app tile (for splash / large brand moments). */
+export function LogoTile({ size = 96, radius = 0.25 }: { size?: number; radius?: number }) {
   return (
     <div
       style={{
         width: size,
         height: size,
         borderRadius: size * radius,
-        background: "linear-gradient(160deg,#111a2e,#0B1220)",
+        background: GARAGE_BLACK,
         display: "grid",
         placeItems: "center",
         boxShadow: "0 10px 30px -8px rgba(0,0,0,.5)",
       }}
     >
-      <LogoMark size={size * 0.68} tone={GARAGE_WHITE} accent={BRAND_BLUE} />
+      <LogoMark size={size} tone={GARAGE_WHITE} accent={BRAND_EMERALD} />
     </div>
   );
 }
@@ -99,8 +88,8 @@ export function Logo({
 }) {
   const dark = theme === "dark";
   const tone = dark ? GARAGE_WHITE : GARAGE_BLACK;
-  const accent = dark ? BRAND_BLUE : BRAND_GOLD;
-  const osColor = dark ? "#94A3B8" : "#334155";
+  const accent = BRAND_EMERALD;
+  const osColor = BRAND_EMERALD;
   return (
     <span className={className} style={{ display: "inline-flex", alignItems: "center", gap: size * 0.42, ...style }}>
       <LogoMark size={size * 1.5} tone={tone} accent={accent} />
@@ -110,7 +99,7 @@ export function Logo({
             fontFamily: "var(--font-brand, 'Manrope'), system-ui, sans-serif",
             fontWeight: 800,
             fontSize: size,
-            letterSpacing: "-0.02em",
+            letterSpacing: "-0.03em",
             color: tone,
             lineHeight: 1,
           }}

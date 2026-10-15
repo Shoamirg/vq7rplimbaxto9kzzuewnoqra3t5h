@@ -11,6 +11,12 @@ import { useTheme } from '@/components/providers/theme-provider';
 import { staffAuthTransition, AuthTransitionUnavailable, authTransitionMarkerCurrent } from '@/lib/auth-transition';
 import { loginFailureKey, retryAfterSeconds } from '@/lib/login-feedback';
 
+// Seeded demo credentials are only offered on local development builds — never
+// pre-filled or displayed on a deployed site.
+const DEV_DEMO_LOGIN = process.env.NODE_ENV === "development"
+  ? { email: "admin@demo.garageos.app", password: "parol12345" }
+  : null;
+
 export default function LoginPage() {
   const router = useRouter();
   const { t } = useI18n();
@@ -25,8 +31,8 @@ export default function LoginPage() {
     window.addEventListener('storage', notice);
     return () => window.removeEventListener('storage', notice);
   }, []);
-  const [email, setEmail] = useState("admin@demo.garageos.app");
-  const [password, setPassword] = useState("parol12345");
+  const [email, setEmail] = useState(DEV_DEMO_LOGIN?.email ?? "");
+  const [password, setPassword] = useState(DEV_DEMO_LOGIN?.password ?? "");
   const [error, setError] = useState<{ key: string; retryUntil?: number } | null>(null);
   const [clock, setClock] = useState(Date.now);
   const [isLoading, setIsLoading] = useState(false);
@@ -84,20 +90,20 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-1.5">
           <Logo size={26} theme={resolvedTheme} />
-          <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Vehicle Intelligence</p>
+          <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{t('platform.login_tagline')}</p>
         </div>
 
         <div className="rounded-2xl border border-border bg-card shadow-lg p-6 space-y-5">
           <div className="flex justify-end"><LanguageSwitcher /></div>
           {revocationUnconfirmed && <p role="alert" className="text-sm text-foreground">{t('platform.logout_unconfirmed')}</p>}
           <div>
-            <h1 className="text-lg font-semibold text-foreground">Sign in</h1>
-            <p className="text-sm text-muted-foreground">Access your garage dashboard</p>
+            <h1 className="text-lg font-semibold text-foreground">{t('platform.login_title')}</h1>
+            <p className="text-sm text-muted-foreground">{t('platform.login_subtitle')}</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <label htmlFor="email" className="text-sm font-medium text-foreground">Email</label>
+              <label htmlFor="email" className="text-sm font-medium text-foreground">{t('platform.login_email')}</label>
               <input
                 id="email"
                 type="email"
@@ -109,7 +115,7 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <label htmlFor="password" className="text-sm font-medium text-foreground">Password</label>
+              <label htmlFor="password" className="text-sm font-medium text-foreground">{t('platform.login_password')}</label>
               <input
                 id="password"
                 type="password"
@@ -126,13 +132,15 @@ export default function LoginPage() {
             )}
 
             <Button type="submit" fullWidth loading={isLoading} disabled={wait > 0} leftIcon={<LogIn className="size-4" />}>
-              Sign in
+              {t('platform.login_submit')}
             </Button>
           </form>
 
-          <p className="text-xs text-muted-foreground text-center">
-            Demo: <span className="font-mono">admin@demo.garageos.app</span> / <span className="font-mono">parol12345</span>
-          </p>
+          {DEV_DEMO_LOGIN && (
+            <p className="text-xs text-muted-foreground text-center">
+              {t('platform.login_demo_hint')} <span className="font-mono">{DEV_DEMO_LOGIN.email}</span> / <span className="font-mono">{DEV_DEMO_LOGIN.password}</span>
+            </p>
+          )}
         </div>
       </div>
     </main>

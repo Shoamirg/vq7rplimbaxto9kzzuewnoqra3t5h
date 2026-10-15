@@ -12,26 +12,34 @@ export const MARKETING_LINKS = {
   demo: "mailto:hello@garageos.app?subject=GarageOS%20demo%20request",
   signIn: "/login",
   liveDemo: "/demo",
+  // The landing QR opens the GarageOS bot, whose menu button launches the Mini App.
+  telegramPassport: "https://t.me/garageos1_bot",
 } as const;
+
+export function trialRequestHref(locale: MarketingLocale, detail?: string) {
+  const subject = encodeURIComponent("GarageOS 14-day trial request");
+  const body = encodeURIComponent([`Language: ${locale}`, detail].filter(Boolean).join("\n"));
+  return `${MARKETING_LINKS.demo.split("?")[0]}?subject=${subject}&body=${body}`;
+}
 
 export const marketingMessages = {
   uz: {
     nav: {
       home: "GarageOS bosh sahifa", primary: "Asosiy navigatsiya", language: "Sayt tili",
       product: "Imkoniyatlar", workflow: "Ish jarayoni", vehicleRecord: "Avto tarixi",
-      pricing: "Narxlar", signIn: "Kirish", bookDemo: "Demo so‘rash", demo: "Demo",
+      pricing: "Narxlar", signIn: "Kirish", bookDemo: "Demo soʻrash", demo: "Demo",
     },
     footer: {
       description: "Mijozlar, buyurtmalar va hisoblar — bir joyda.",
       product: "Mahsulot", features: "Imkoniyatlar", pricing: "Narxlar", security: "Xavfsizlik",
-      documentation: "Qo‘llanma", liveDemo: "Demoni ko‘rish", company: "Kompaniya",
-      bookDemo: "Demo so‘rash", contact: "Bog‘lanish", signIn: "Kirish",
+      documentation: "Qoʻllanma", liveDemo: "Demoni koʻrish", company: "Kompaniya",
+      bookDemo: "Demo soʻrash", contact: "Bogʻlanish", signIn: "Kirish",
       legal: "Huquqiy ma’lumot", privacy: "Maxfiylik", terms: "Foydalanish shartlari",
       rights: "Barcha huquqlar himoyalangan.", tagline: "Avtoservislar uchun yaratilgan.",
     },
     cta: {
-      title: "Ish jarayonini ko‘ring", body: "Demo servisni o‘rganing yoki tanishtiruv so‘rang.",
-      explore: "Demoni ko‘rish", bookDemo: "Demo so‘rash",
+      title: "Ish jarayonini koʻring", body: "Demo servisni oʻrganing yoki tanishtiruv soʻrang.",
+      explore: "Demoni koʻrish", bookDemo: "Demo soʻrash",
     },
     landing: landingMessages.uz,
   },

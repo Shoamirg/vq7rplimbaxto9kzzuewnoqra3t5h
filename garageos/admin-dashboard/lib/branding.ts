@@ -34,10 +34,15 @@ export function hexToHslChannels(hex: string): string | null {
 
 /** CSS custom properties that re-theme the app's semantic tokens for a tenant.
  *  Applied on a wrapping element; custom properties inherit to all children. */
+// The backend's original default tenant colour. Tenants still on it never chose a
+// colour, so they get the GarageOS emerald theme instead of the legacy blue.
+const LEGACY_DEFAULT_PRIMARY = "#2563eb";
+
 export function brandCssVars(
   branding: Branding | null | undefined,
 ): CSSProperties {
   if (!branding) return {};
+  if (branding.primary_color.trim().toLowerCase() === LEGACY_DEFAULT_PRIMARY) return {};
   const primary = hexToHslChannels(branding.primary_color);
   const accent = hexToHslChannels(branding.accent_color);
   if (!primary) return {};

@@ -51,9 +51,9 @@ async function topBarLogout(page: Page) {
 }
 async function loginSameActorSPA(page: Page, baseURL: string, thread: string) {
   const owner = queueProfiles(baseURL).owners[0];
-  await page.getByLabel("Email", { exact: true }).fill(owner.email);
-  await page.getByLabel("Password", { exact: true }).fill(owner.password);
-  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await page.getByLabel(/^(Email|Эл. почта)$/).fill(owner.email);
+  await page.getByLabel(/^(Password|Parol|Пароль)$/).fill(owner.password);
+  await page.getByRole("button", { name: /^(Sign in|Kirish|Войти)$/ }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
   await page.locator('a[href="/inbox"]').first().click(); await expect(page).toHaveURL(/\/inbox$/);
   await page.evaluate(id => history.pushState(null, "", `/inbox?c=${id}`), thread);

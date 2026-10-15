@@ -169,7 +169,7 @@ function SectionChart({ s, currency }: { s: ReportSection; currency: string }) {
   if (s.kind === "donut") return <Donut dist={s.data.dist} center={s.data.center} />;
   if (s.kind === "funnel") return <Funnel stages={s.data.map((row: { stage: string; count: number }) => ({ ...row, stage: text(row.stage) }))} />;
   const d = s.data;
-  const color = d.color === "amber" ? "#D97706" : d.color === "green" ? "#059669" : "#2563EB";
+  const color = d.color === "amber" ? "#D97706" : d.color === "green" ? "#059669" : "#109868";
   const format = d.fmt === "money" || d.fmt === "moneyK" ? money : fmt.number;
   return <BarRows rows={d.rows.map((row: { label: string; value: number }) => ({ ...row, label: text(row.label) }))} color={color} fmt={format} bandColors={!!d.bandColors} />;
 }
@@ -178,7 +178,7 @@ function KpiCard({ k, currency }: { k: ReportKpi; currency: string }) {
   const { text, fmtKpi } = useReportText(currency);
   const d = k.delta;
   return (
-    <Link href={k.drill} className="rounded-2xl border border-border bg-card p-3.5 hover:border-primary/40 hover:shadow-[0_6px_20px_-14px_rgba(37,99,235,.5)] transition-all relative group">
+    <Link href={k.drill} className="rounded-2xl border border-border bg-card p-3.5 hover:border-primary/40 hover:shadow-[0_6px_20px_-14px_rgba(16,152,104,.5)] transition-all relative group">
       <span className="absolute right-3 top-3.5 text-xs text-muted-foreground/50 group-hover:text-primary">↗</span>
       <p className="text-[11px] text-muted-foreground font-medium truncate">{text(k.label)}</p>
       <p className={cn("text-lg lg:text-2xl font-extrabold mt-1 wrap-break-word", k.tone === "danger" ? "text-red-600" : k.tone === "success" ? "text-emerald-600" : "text-foreground")}>{fmtKpi(k)}</p>
