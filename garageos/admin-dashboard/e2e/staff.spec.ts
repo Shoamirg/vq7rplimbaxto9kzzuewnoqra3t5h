@@ -4,7 +4,7 @@ import { test, expect, type Page } from "@playwright/test";
 // boundary). Locale-resilient: checks URLs, the persistent shell, and stable
 // hrefs/testids rather than translated copy.
 
-const CREDS = { email: "admin@demo.garageos.app", password: "demo1234" };
+const CREDS = { email: "admin@demo.garageos.app", password: "parol12345" };
 
 async function login(page: Page) {
   const res = await page.request.post("/api/auth/login", { data: CREDS });
@@ -33,7 +33,16 @@ test("every core staff surface renders", async ({ page }) => {
     "/dashboard", "/calendar", "/appointments", "/vehicles",
     "/customers", "/operations", "/inbox", "/billing", "/reports",
   ]) {
-    await page.goto(path, { waitUntil: "networkidle" });
+    // Inbox prefetches a linked operations page. Its background request is
+    // unrelated to the already-loaded queue/thread and can prevent networkidle.
+    const inbox = path === '/inbox' ? page.waitForResponse((response) =>
+      response.url().includes('/api/proxy/conversations?') && response.ok()) : null;
+    await page.goto(path, { waitUntil: path === '/inbox' ? 'domcontentloaded' : 'networkidle' });
+    if (inbox) {
+      const data = await (await inbox).json();
+      expect(data.items.length).toBeGreaterThan(0);
+      await expect(page.getByText(data.items[0].customer_name, { exact:true }).first()).toBeVisible();
+    }
     await expectHealthyPage(page, path);
   }
 });
@@ -60,9 +69,10 @@ test("global search (⌘K) opens and finds results", async ({ page }) => {
   await page.goto("/dashboard", { waitUntil: "networkidle" });
   await page.keyboard.press("ControlOrMeta+k");
   // The command menu dialog has its own search input.
-  const search = page.getByPlaceholder(/search customers/i);
+  const dialog = page.getByRole("dialog");
+  const search = dialog.getByRole("textbox");
   await expect(search).toBeVisible();
   await search.fill("toyota");
   // Result rows are buttons; a matching vehicle shows "Toyota …".
-  await expect(page.getByText(/toyota/i).first()).toBeVisible({ timeout: 10_000 });
+  await expect(dialog.getByRole("button").filter({ hasText: /toyota/i }).first()).toBeVisible({ timeout: 10_000 });
 });

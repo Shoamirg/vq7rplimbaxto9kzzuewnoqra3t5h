@@ -1,0 +1,48 @@
+name: garageos_staff
+description: GarageOS staff app — Uzbek reception, service work and invoices.
+publish_to: none
+version: 0.1.1+2
+environment:
+  sdk: ^3.13.0
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  http: ^1.5.0
+  shared_preferences: ^2.5.5
+  uuid: ^4.5.1
+  intl: ^0.20.3
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  shared_preferences_platform_interface: ^2.4.2
+flutter:
+  generate: true
+  uses-material-design: true
+  assets:
+    - assets/fonts/OFL.txt
+    - assets/fonts/dmsans-OFL.txt
+    - assets/fonts/plusjakartasans-OFL.txt
+  fonts:
+    - family: Golos Text
+      fonts:
+        - asset: assets/fonts/GolosText.ttf
+    - family: DM Sans
+      fonts:
+        - asset: assets/fonts/DMSans-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/DMSans-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/DMSans-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/DMSans-Bold.ttf
+          weight: 700
+    - family: Plus Jakarta Sans
+      fonts:
+        - asset: assets/fonts/PlusJakartaSans-SemiBold.ttf
+          weight: 600

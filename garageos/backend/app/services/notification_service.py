@@ -1,8 +1,8 @@
-"""Notification engine — the read/write side of the one event stream.
+"""Notification engine — the transactional read/write side of the event stream.
 
 Business modules never call this to "send" a notification; the event handlers
-map domain events to notifications (see notification_handlers). This service
-persists them and serves the bell feed.
+map domain events to notification rows inside the same UnitOfWork transaction
+(see notification_handlers). This service also serves the bell feed.
 """
 from __future__ import annotations
 

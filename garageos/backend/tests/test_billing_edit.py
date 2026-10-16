@@ -11,7 +11,7 @@ import pytest_asyncio
 from app.core.database import engine
 from app.main import app
 
-ADMIN = ("admin@demo.garageos.app", "demo1234")
+ADMIN = ("admin@demo.garageos.app", "parol12345")
 
 
 @pytest_asyncio.fixture(autouse=True)

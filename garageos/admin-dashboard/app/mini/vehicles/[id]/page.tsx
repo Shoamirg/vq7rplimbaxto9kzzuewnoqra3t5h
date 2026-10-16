@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, BadgeCheck, ExternalLink, Wrench } from "lucide-react";
+import { ArrowLeft, BadgeCheck, ExternalLink, FileText, Wrench } from "lucide-react";
 
 import { useMiniData } from "@/lib/mini/hooks";
 import { haptic } from "@/lib/mini/telegram";
@@ -21,7 +21,7 @@ export default function VehicleDetailPage() {
     <Link
       href="/mini/vehicles"
       onClick={() => haptic("light")}
-      className="inline-flex min-h-[44px] items-center gap-1 text-sm font-medium text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg"
+      className="inline-flex min-h-[44px] items-center gap-1 text-sm font-medium text-slate-500 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg"
     >
       <ArrowLeft className="size-4" aria-hidden /> {t("mini.tab.vehicles")}
     </Link>
@@ -48,11 +48,11 @@ export default function VehicleDetailPage() {
       {back}
 
       {/* Passport hero — the differentiator, led with identity */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 to-slate-700 p-5 text-white shadow-xl">
+      <div className="relative overflow-hidden rounded-3xl bg-linear-to-br from-slate-900 to-slate-700 p-5 text-white shadow-xl">
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <BadgeCheck className="size-4 text-amber-300" aria-hidden />
+              <FileText className="size-4 text-amber-300" aria-hidden />
               <span className="text-xs font-semibold uppercase tracking-[0.14em] text-white/70">{passportTitle}</span>
             </div>
             <h1 className="mt-2 text-2xl font-bold leading-tight">
@@ -78,7 +78,7 @@ export default function VehicleDetailPage() {
       </div>
 
       {/* Highlights */}
-      <Card className="!p-2">
+      <Card className="p-2!">
         <ul className="divide-y divide-slate-100">
           {p.highlights.map((h, i) => (
             <li key={i} className="flex items-center gap-3 px-2 py-2.5">
@@ -93,7 +93,7 @@ export default function VehicleDetailPage() {
       {p.upcoming.length > 0 ? (
         <div>
           <SectionLabel>{t("mini.vehicle.upcoming_service")}</SectionLabel>
-          <Card className="!p-2">
+          <Card className="p-2!">
             <ul className="divide-y divide-slate-100">
               {p.upcoming.map((u, i) => (
                 <li key={i} className="flex items-center gap-3 px-2 py-3">
@@ -118,7 +118,7 @@ export default function VehicleDetailPage() {
       {p.history.length > 0 ? (
         <div>
           <SectionLabel>{t("mini.vehicle.recent_service")}</SectionLabel>
-          <Card className="!p-2">
+          <Card className="p-2!">
             <ul className="divide-y divide-slate-100">
               {p.history.map((h, i) => (
                 <li key={i} className="flex items-center justify-between px-2 py-3">
@@ -126,7 +126,7 @@ export default function VehicleDetailPage() {
                     <p className="text-sm font-medium text-slate-800">{h.service_type}</p>
                     <p className="text-xs text-slate-400">{fmt.date(h.date) || "—"}</p>
                   </div>
-                  {h.cost != null ? <span className="text-sm font-semibold text-slate-700">{fmt.money(h.cost)}</span> : null}
+                  {h.cost != null && h.currency ? <span className="text-sm font-semibold text-slate-700">{fmt.money(h.cost, h.currency)}</span> : null}
                 </li>
               ))}
             </ul>
@@ -137,7 +137,7 @@ export default function VehicleDetailPage() {
       <Link
         href={`/passport/${p.vehicle.id}`}
         onClick={() => haptic("light")}
-        className="flex min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-slate-900 py-3.5 text-sm font-semibold text-white transition motion-safe:active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50"
+        className="flex min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-slate-900 py-3.5 text-sm font-semibold text-white transition motion-safe:active:scale-[0.99] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50"
       >
         <ExternalLink className="size-4" aria-hidden /> {t("mini.vehicle.view_passport")}
       </Link>

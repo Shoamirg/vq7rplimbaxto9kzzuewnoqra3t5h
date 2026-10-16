@@ -1,0 +1,505 @@
+{
+  "archive_sha256": "e8fffa9a36d0b16e8349512208cbecacda9f7ea67207e1f5a1fa23890f9319ea",
+  "files": [
+    {
+      "file": "garageos-html/C-12-Services.html",
+      "bytes": 27700,
+      "sha256": "e075e748bcaf37d1dfc3360dadabdd1e3197df36bf39e5cd2427f6aab685dccc"
+    },
+    {
+      "file": "garageos-html/B-34-38-Inventory.html",
+      "bytes": 74544,
+      "sha256": "114afeefaf998fd3662b08c03cad8efb3f4aefb6b863ff7b7a36f7b5f06b6ffa"
+    },
+    {
+      "file": "garageos-html/QA-Drift-list.html",
+      "bytes": 15934,
+      "sha256": "3a368643cde81bf1754e3c006296b30ce815c81a57f2ee17c8d0402cdc6a932e"
+    },
+    {
+      "file": "garageos-html/C-10-Home.html",
+      "bytes": 63289,
+      "sha256": "657b438b7d1d4d1c7704bdd316f59fc8395de00cb6a296deae6e168ae555bf78"
+    },
+    {
+      "file": "garageos-html/FLOW-Business.html",
+      "bytes": 44453,
+      "sha256": "8d69dff3fe1ccf01fda733d38aca69591b46e678d3945249da5abc24f70b613b"
+    },
+    {
+      "file": "garageos-html/C-04-OTP.html",
+      "bytes": 25420,
+      "sha256": "e61a5a36f8f676a1acba67a5f1fd440d712e7ce6621cb276c748b50e919441bb"
+    },
+    {
+      "file": "garageos-html/C-07-Garage-confirmed.html",
+      "bytes": 16493,
+      "sha256": "b8a2f35b54d239c7c120463c0c26bc34edfcbcd37fa84770ea5a5cc78f4cc2a9"
+    },
+    {
+      "file": "garageos-html/C-33-Rate.html",
+      "bytes": 24943,
+      "sha256": "d178c1a06c8b775f3a3b680c11cc5d2132805ebdad30b80357cad927b82633a7"
+    },
+    {
+      "file": "garageos-html/X-08-Announcements.html",
+      "bytes": 33024,
+      "sha256": "81da309b9770502fdc04bee4f2c7201e46369dc8899b710d1c40d60d3fbe6588"
+    },
+    {
+      "file": "garageos-html/B-12-Today.html",
+      "bytes": 37257,
+      "sha256": "a35f06e5360154e35af1e0d6e1f82e5df6375574cc1d31f35ddec6ae6328b6ae"
+    },
+    {
+      "file": "garageos-html/B-17-Job-detail.html",
+      "bytes": 57642,
+      "sha256": "b1a9e6f06130f9e25d335223ad34c84fa723af41d676dbb8d31f278ee3228bdc"
+    },
+    {
+      "file": "garageos-html/RU-B-43-Settings.html",
+      "bytes": 26393,
+      "sha256": "83785a041c07d1281cfe5c2fcf5a1dc4ef6709a6bdcb4ec99fd1dbab78169010"
+    },
+    {
+      "file": "garageos-html/B-23-24-Customers.html",
+      "bytes": 41892,
+      "sha256": "12ab5cebd60ba40590801483000c29fc24b5875957ccca743b1b99139ddf6922"
+    },
+    {
+      "file": "garageos-html/C-18-Booking-detail.html",
+      "bytes": 28686,
+      "sha256": "18b80da30efbb36d4ef5e78703dffd5157bd9c0476de7ed272ef5ce7eaca2433"
+    },
+    {
+      "file": "garageos-html/C-02-Language.html",
+      "bytes": 10756,
+      "sha256": "1b4ba89d6c2695e8adaf1c278041a3abe4cc499c1cae29eee6d7e08259ca1f17"
+    },
+    {
+      "file": "garageos-html/C-16-Booking-confirmed.html",
+      "bytes": 13099,
+      "sha256": "7597ab2ea955d0faf0040163dcea6d2d70be46645c3282145324589caea6f30c"
+    },
+    {
+      "file": "garageos-html/X-01-Sign-in.html",
+      "bytes": 16246,
+      "sha256": "e68a7c519462b796e8f809c10fffc0ed1b36a75460b14feafdd5d6a8ff71f981"
+    },
+    {
+      "file": "garageos-html/index.html",
+      "bytes": 12249,
+      "sha256": "4ef645403f2d70d05bd2ccb976906a15380a1fb9f484674b04db311bc7cb5767"
+    },
+    {
+      "file": "garageos-html/DS-02-Data-display.html",
+      "bytes": 98265,
+      "sha256": "066a6e76016d24058e8738c539a4fe04432b86e01e84e7663e99117e4944301d"
+    },
+    {
+      "file": "garageos-html/C-14-Pick-time.html",
+      "bytes": 49111,
+      "sha256": "fd0c4c102b540dddb10102f959761041b39971df47342a928c716f3dd567d321"
+    },
+    {
+      "file": "garageos-html/B-40-42-Staff.html",
+      "bytes": 36910,
+      "sha256": "b2575a658166456b10dbe7927fe3dafdb6bb8e6db56b00ff211b627e3d0171eb"
+    },
+    {
+      "file": "garageos-html/B-04-07-Onboarding.html",
+      "bytes": 45311,
+      "sha256": "4b4764b568ae5df89188f2e035bac256da72f39c17fc9b42d082cc3a8692f282"
+    },
+    {
+      "file": "garageos-html/C-25-Ready.html",
+      "bytes": 15529,
+      "sha256": "862a1137cbbf302ae4cd5705603f901ad939675da584e6b5cfad0e3f8d38b8c0"
+    },
+    {
+      "file": "garageos-html/DS-01-Actions-inputs.html",
+      "bytes": 56297,
+      "sha256": "b17e51f9e748ee8595a52f15be0e073b74130baf4fdf3759cdd31f194c753d2e"
+    },
+    {
+      "file": "garageos-html/P-01-Plate.html",
+      "bytes": 37293,
+      "sha256": "fb87ca15537d050c0ce0f8ca9e2ae60a4391b3e7536a7fadee1069d9b0ed5bfa"
+    },
+    {
+      "file": "garageos-html/C-13-Describe-problem.html",
+      "bytes": 21500,
+      "sha256": "dcb6f683d31f4301b2bafbf829210bbc572d5cba740b26b88e494a61dd920a4f"
+    },
+    {
+      "file": "garageos-html/C-GAP-Empty-permission.html",
+      "bytes": 49928,
+      "sha256": "c534e66488097c2929b271684be24e26d5c8233dddb873145dd6b9dfe4507378"
+    },
+    {
+      "file": "garageos-html/C-26-Invoices.html",
+      "bytes": 37080,
+      "sha256": "d982925943384914cb385d29e3a34fb1455c1da6303ba4d1a4c7ff32dd509b5b"
+    },
+    {
+      "file": "garageos-html/C-20-Cancel.html",
+      "bytes": 18000,
+      "sha256": "54b28d851cc6e2f76c2429a72aff6594d8ca529dc9c212eefabe884a2db60402"
+    },
+    {
+      "file": "garageos-html/X-09-Audit-log.html",
+      "bytes": 63115,
+      "sha256": "2e7daf290a637c87de648f6de8f560ce299e22cb83cb89aaf510341b7df6422b"
+    },
+    {
+      "file": "garageos-html/FLOW-Console.html",
+      "bytes": 23764,
+      "sha256": "13cfb148244c606a0d326cdec5552a5095cbdac902fe0dfc5ab92a9cd54e09aa"
+    },
+    {
+      "file": "garageos-html/C-08-Add-car.html",
+      "bytes": 31387,
+      "sha256": "9b0c1f88620a0fb7723bbc23b3171965a3f1b7fb6579e112307da409dae31763"
+    },
+    {
+      "file": "garageos-html/C-03-Phone.html",
+      "bytes": 19948,
+      "sha256": "df19bcf3ee11c18095f8d01fa07d4f6cfd7a8a7354c68b408a57d48c20fbb444"
+    },
+    {
+      "file": "garageos-html/C-28-Pay.html",
+      "bytes": 14340,
+      "sha256": "e4f8ac3f334f398411f30f8ec0a72883ab00cdf16e4302f859bc03005e47ec44"
+    },
+    {
+      "file": "garageos-html/X-04-Garage-detail.html",
+      "bytes": 69402,
+      "sha256": "db96600dd5a8d560af55309920c0f5969706f8e4526dfd8fa5fb3f1c6bef1dbe"
+    },
+    {
+      "file": "garageos-html/B-48-50-System-states.html",
+      "bytes": 22684,
+      "sha256": "dc3aab25dea41c0ba1ed00fad1004d4f1131eaad1bb1bd51af08cef712707bf1"
+    },
+    {
+      "file": "garageos-html/C-01-Splash.html",
+      "bytes": 6306,
+      "sha256": "c13c1c0d0b9b6c2dac2b5bd93df2fb7f8f01d66e6ba7a2a2c01e4d13aa721384"
+    },
+    {
+      "file": "garageos-html/B-33-Offline.html",
+      "bytes": 40595,
+      "sha256": "3ac44139428dd6c6c303f213a7c2653fd4ec9a4a2ce85b0dbe1c07a86b895f7b"
+    },
+    {
+      "file": "garageos-html/C-23-24-Estimate-outcome.html",
+      "bytes": 22190,
+      "sha256": "2c66de454c64cead43294453735ba1166ca3a69ddc04fa09b288f61dea6f09c5"
+    },
+    {
+      "file": "garageos-html/STATES-Matrix.html",
+      "bytes": 175160,
+      "sha256": "a8ed20bf151acfebcc9dc8478c831d14d32180b6c9c115681ca71b05593aed97"
+    },
+    {
+      "file": "garageos-html/RU-C-22-Estimate.html",
+      "bytes": 59640,
+      "sha256": "5269f03edfeb90b74c7b4cd3a85bbf0541c117cc421241074fd543fd370b7382"
+    },
+    {
+      "file": "garageos-html/DS-04-Payments-chat.html",
+      "bytes": 43730,
+      "sha256": "76e231f534522ca8276b031663faec7d0fd1b5dc1d2b7d60481473a2bbb82656"
+    },
+    {
+      "file": "garageos-html/B-19-22-Payments.html",
+      "bytes": 35142,
+      "sha256": "316deaacb6b44e4f7cc87b284e87c3dc6f8c678da0d7930ae7dc1ae4433d35f8"
+    },
+    {
+      "file": "garageos-html/B-14-Calendar.html",
+      "bytes": 49844,
+      "sha256": "47f22fd2f67cbeb70bb9c31498fb990df301cb7008618640bb9438c9b480d8dd"
+    },
+    {
+      "file": "garageos-html/C-27-32-Invoice-detail.html",
+      "bytes": 31305,
+      "sha256": "51b4acb435d86d33de27545d27f774d794bbd266b845172a1eb406534e33030b"
+    },
+    {
+      "file": "garageos-html/C-29-31-Payment-result.html",
+      "bytes": 18149,
+      "sha256": "12543bacb7b2f54eb4cf141dddd18aff62495baa0d0c719c8638bad15ffed7f4"
+    },
+    {
+      "file": "garageos-html/B-46-47-Billing-states.html",
+      "bytes": 27093,
+      "sha256": "bd52a925856d439a86f8a40dd7d88ae7d24dae228199e5d66a852f53e0b60630"
+    },
+    {
+      "file": "garageos-html/C-45-Bonus.html",
+      "bytes": 16283,
+      "sha256": "e55f82d8c5fb76f03dd8932283e86ffb56746ed2b3fd6aacde6dac891297fdc7"
+    },
+    {
+      "file": "garageos-html/C-37-39-Edit-car.html",
+      "bytes": 31795,
+      "sha256": "ca656576972f94fa7de649262ba30cfb3518b6bf964e05133c92751fc5a279a7"
+    },
+    {
+      "file": "garageos-html/RU-C-15-Review.html",
+      "bytes": 42430,
+      "sha256": "2f5134d02530aba09f7381ca0f2d21c782b9b4b718db337b71dcb39060c3e284"
+    },
+    {
+      "file": "garageos-html/C-15-Review.html",
+      "bytes": 40438,
+      "sha256": "cf6629bac865bef367b23908b088f9898221d5e3908920f0a928bc365b131620"
+    },
+    {
+      "file": "garageos-html/X-06-Payments.html",
+      "bytes": 48519,
+      "sha256": "4a199bda2ee9e7c0d6a8c4aa249d5d0eca7d875604fcefe1e25d5043dce3b52a"
+    },
+    {
+      "file": "garageos-html/C-17-Bookings.html",
+      "bytes": 59453,
+      "sha256": "b237f7fed783c6dba40e39b7a22509142cc8f4f2dc7a7c55ccaf606cc50d7d70"
+    },
+    {
+      "file": "garageos-html/DS-05-Icons.html",
+      "bytes": 35442,
+      "sha256": "1f3e2826851e710497d5ab857c9c9066191caa2b7dce2b96b6c87c717d61e927"
+    },
+    {
+      "file": "garageos-html/B-14-Calendar-tablet.html",
+      "bytes": 45578,
+      "sha256": "dfa6fa0be88c3c396c8a6844b283ace4e551050e6c83c4be082f5d3bf23d0899"
+    },
+    {
+      "file": "garageos-html/B-11-Role-homes.html",
+      "bytes": 53417,
+      "sha256": "c57b7f293a9b28e2201d8124857727ce61fa31e614ea51235af45d7aab5aff12"
+    },
+    {
+      "file": "garageos-html/C-21-Live-tracker.html",
+      "bytes": 57297,
+      "sha256": "7ca17031af7ec56855326b7d38b85ccc759af08690bf2688ac875bbfc5e40b5b"
+    },
+    {
+      "file": "garageos-html/B-28-29-Mechanic.html",
+      "bytes": 53370,
+      "sha256": "3b221e7616a8bb681ef9632cefc382e38e6c3a07c87d848bb0472afe5bfb4733"
+    },
+    {
+      "file": "garageos-html/B-13-Board.html",
+      "bytes": 32449,
+      "sha256": "19524e6db29bdc0dc4912d27016278eb45cfbc7cc27613c3183ec2023e49edaf"
+    },
+    {
+      "file": "garageos-html/B-25-27-Inbox.html",
+      "bytes": 51331,
+      "sha256": "84b7e21c5d0162b678038a66631475ebfc0ea5f655a134d920b56ef963365afd"
+    },
+    {
+      "file": "garageos-html/B-08-10-Onboarding.html",
+      "bytes": 45100,
+      "sha256": "66da5107c64f4632321414f77f48ad93bb9596e8e53ca4edc106ec03fed5d782"
+    },
+    {
+      "file": "garageos-html/C-34-35-Cars.html",
+      "bytes": 84160,
+      "sha256": "84398df50c759a7cd92720f9a88642420c277feae614b15f47b44cc99fb8039b"
+    },
+    {
+      "file": "garageos-html/B-15-New-appointment.html",
+      "bytes": 23282,
+      "sha256": "a63620162c81765eb3484818e6ebb125f45dfd343ab9ad0c9cadd992a451102c"
+    },
+    {
+      "file": "garageos-html/RU-B-17-Job-detail.html",
+      "bytes": 59523,
+      "sha256": "4c80aa25bfbcbbcf9221a027c8093b0978c776af6dc14a30c0a29d7b520b1e5e"
+    },
+    {
+      "file": "garageos-html/X-03-Garages.html",
+      "bytes": 69900,
+      "sha256": "d3786e6d9315319af38a71e151d55ae8ad8a515ecec0134443414d772c78c75e"
+    },
+    {
+      "file": "garageos-html/Main.html",
+      "bytes": 80258,
+      "sha256": "4534788a0659552edf11e7b189425d0a109a6934b613027d1a7e47d1ce85c0d7"
+    },
+    {
+      "file": "garageos-html/C-41-Chat.html",
+      "bytes": 37952,
+      "sha256": "b2cc0fe25494fd2ff6679e1e82cfdc0b7ce119c56c57b3fc888897f9dd0051de"
+    },
+    {
+      "file": "garageos-html/X-02-Overview.html",
+      "bytes": 51215,
+      "sha256": "8f8269924f70b3867967be2b0fe2642eb140b0d5d8b6be1fcd6d06594f7d95b7"
+    },
+    {
+      "file": "garageos-html/RU-C-46-Profile.html",
+      "bytes": 56989,
+      "sha256": "ea5d4301f9e3d7a0840d82e8961fc8b7ebf11a29c3c3f65f894df5f87acc777e"
+    },
+    {
+      "file": "garageos-html/B-43-45-Settings.html",
+      "bytes": 45925,
+      "sha256": "229512df3e8ebdd5e8adad19b79add4c18bfbe1b76ac13dfae44856875504460"
+    },
+    {
+      "file": "garageos-html/B-13-Board-tablet.html",
+      "bytes": 67218,
+      "sha256": "5c4e20d75d196a1ddb47ec252d1b34f467d262dd5b8e92d58a0bffadd21cd4b2"
+    },
+    {
+      "file": "garageos-html/C-22-Estimate.html",
+      "bytes": 57697,
+      "sha256": "fab7420d0f1417a378aff75cdd6aa3f7e98baf4ba880a1d616e22886b402c632"
+    },
+    {
+      "file": "garageos-html/B-GAP-Empty-permission.html",
+      "bytes": 59876,
+      "sha256": "73a1200ed7bf2dc13491067943991cf369eef0dd34885a3e430107107165ba67"
+    },
+    {
+      "file": "garageos-html/QA-Checklist-review.html",
+      "bytes": 13857,
+      "sha256": "09fff2d363a739201c9963795d7a00a16a0b310d063051b0e8b2f05ab61b2331"
+    },
+    {
+      "file": "garageos-html/B-18-Estimate-builder.html",
+      "bytes": 81102,
+      "sha256": "3563e5aae170618160bd0306eda6929ee773b567a035c146c0e5a7f13d859e86"
+    },
+    {
+      "file": "garageos-html/C-36-History-item.html",
+      "bytes": 15697,
+      "sha256": "3a4a986c08af65c752e24b4f626e4ac148f205dfeb59b01cc6be98cf4f43054e"
+    },
+    {
+      "file": "garageos-html/C-44-Notifications.html",
+      "bytes": 21661,
+      "sha256": "cb4e337845c0bfcb8f9f1588aeb1401bdeb6b2815f6ae620cf23d6bff1b46b21"
+    },
+    {
+      "file": "garageos-html/C-19-Reschedule.html",
+      "bytes": 29298,
+      "sha256": "f83d11e8681c2854e169732634f55c7241afa806e1af5f31c13a564650db5464"
+    },
+    {
+      "file": "garageos-html/X-07-Support.html",
+      "bytes": 41377,
+      "sha256": "9f849f90cb838878aa544f9c9ecb0de619ec13706ea538adad5b2d706895631c"
+    },
+    {
+      "file": "garageos-html/DS-06-Additions.html",
+      "bytes": 36566,
+      "sha256": "8ad0ec58c7d8d07d57b20937256d7ff47a0552c120f418fecc86e3691e25ecd3"
+    },
+    {
+      "file": "garageos-html/B-16-Check-in.html",
+      "bytes": 62939,
+      "sha256": "af72d558258ea52f2e7115216eaf61ac96457048c8e487a2ccef314e72694a73"
+    },
+    {
+      "file": "garageos-html/X-05-Plans.html",
+      "bytes": 35678,
+      "sha256": "b3d88f5c0f41cefe5edb881323acd364abcc2acbc12c1ab847eb8953523ed389"
+    },
+    {
+      "file": "garageos-html/C-46-Profile.html",
+      "bytes": 55908,
+      "sha256": "09967c5f8a7057f9e9db7278d4510185ab5fa265cc47cdd7c4d84c5c13b213dc"
+    },
+    {
+      "file": "garageos-html/C-40-Messages.html",
+      "bytes": 16882,
+      "sha256": "952da971f058d54e59d5520a9f4c1eb941c3586f33bae629ffa5f2bdaa2002e3"
+    },
+    {
+      "file": "garageos-html/C-42-43-Roadside.html",
+      "bytes": 44995,
+      "sha256": "edf268e22c0fdac6969e6d5a80db1df06d4b66d2360f28e38d1036bdc136c4ad"
+    },
+    {
+      "file": "garageos-html/C-05-Name.html",
+      "bytes": 9267,
+      "sha256": "11867e22e487a9c017bb6d5e6675e34353305298e71b10e7a980ea8142b2ea8c"
+    },
+    {
+      "file": "garageos-html/X-10-Team.html",
+      "bytes": 66115,
+      "sha256": "351cd769f8fad6f264d5cd2b2a32ead25d0e77a564a241de81277c88b05aebe5"
+    },
+    {
+      "file": "garageos-html/B-39-Reports.html",
+      "bytes": 51719,
+      "sha256": "21a09e43b509de750935d89d226ce9ce4223bcb9b34e57f113f32ed36f105a83"
+    },
+    {
+      "file": "garageos-html/DS-03-Navigation-feedback.html",
+      "bytes": 49176,
+      "sha256": "089dc1f0437761943dd3f2185b6048ea8030ac4d7dfc01ef7af7d39d5958f9a7"
+    },
+    {
+      "file": "garageos-html/C-06-Choose-garage.html",
+      "bytes": 44734,
+      "sha256": "4e98845340e682d6b72380451808746705e8bb2210cdf25d9eea7c7b7a9778bd"
+    },
+    {
+      "file": "garageos-html/B-03-Location.html",
+      "bytes": 11669,
+      "sha256": "199cd43bd782ce114379e99d52c128030562a1945dcf8bcfe573a7dc4cb3894b"
+    },
+    {
+      "file": "garageos-html/C-09-Notifications.html",
+      "bytes": 9798,
+      "sha256": "fce6bdf72d519e6d87679bcddebe17cb759ee3e5afab04670f3d11e0adb88d37"
+    },
+    {
+      "file": "garageos-html/FLOW-Customer.html",
+      "bytes": 59599,
+      "sha256": "f1935ed8478b88ed54eefd3520208edd7ca60e1115e292de80f825863b2f8581"
+    },
+    {
+      "file": "garageos-html/B-01-02-Sign-in.html",
+      "bytes": 20300,
+      "sha256": "31316b86afc6797e4e490545d27c1e12bf3ecacce26faf9f46cddbc56087f747"
+    },
+    {
+      "file": "garageos-html/X-11-Flags.html",
+      "bytes": 44758,
+      "sha256": "c323ac50cf9965c67d56fa485d3c0e24252dc840747a5b7ad561778409a5f40d"
+    },
+    {
+      "file": "garageos-html/C-47-Garage-profile.html",
+      "bytes": 64871,
+      "sha256": "47d178f9aaaf54b497b4a6ae0006a096c525fb429852a9f9c478fae8cf287279"
+    },
+    {
+      "file": "garageos-html/B-30-32-Finding-part-done.html",
+      "bytes": 41934,
+      "sha256": "5a6d106b9e0afc7e25a60b3fb7a8f9bbf1285a7ab6a5715c2d40dc9a84eca885"
+    },
+    {
+      "file": "garageos-html/X-12-Console-states.html",
+      "bytes": 98606,
+      "sha256": "85bfa33b7e1591c0e5e007f5fb73192ce1a207486b93315c8f043218a7914016"
+    },
+    {
+      "file": "garageos-html/C-11-Book-car.html",
+      "bytes": 20455,
+      "sha256": "16d2cc0cac08d3412f78392ace138f292576804533badb21127f5b58bf267f72"
+    },
+    {
+      "file": "garageos-html/C-10-Home-states.html",
+      "bytes": 54032,
+      "sha256": "314114e484c7d837389e96c20926ce36ac4134b1859f4482b6e18a614f36df93"
+    }
+  ]
+}

@@ -78,7 +78,7 @@ export function ComponentsSection() {
             <CardFooter><Button size="sm" variant="outline">Action</Button></CardFooter>
           </Card>
           <Card variant="elevated" className="relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent" />
+            <div className="absolute inset-0 bg-linear-to-br from-primary/10 to-transparent" />
             <CardHeader><CardTitle>With accent</CardTitle><CardDescription>Gradient wash for emphasis.</CardDescription></CardHeader>
             <CardContent><p className="text-sm text-muted-foreground">Fleet-health style.</p></CardContent>
           </Card>

@@ -1,50 +1,77 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
-import { Loader2, Plus, Receipt, Search, Trash2, X } from "lucide-react";
-import { Button, useToast } from "@garageos/design-system";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Loader2, Plus, Receipt, Trash2, X } from "lucide-react";
+import { Button, Dialog, DialogContent, DialogTitle, useToast } from "@garageos/design-system";
 
 import { clientFetch, ClientApiError } from "@/lib/api/client";
-import type { Customer360, CustomerList, CustomerListItem, InvoiceDoc } from "@/lib/api/types";
+import { useI18n } from "@/lib/i18n/context";
+import type { Appointment, Customer360, CustomerListItem, InvoiceDoc, InvoiceListResponse } from "@/lib/api/types";
+import { CustomerPicker } from "@/components/intake/customer-picker";
+import { NewCustomerModal, NewVehicleModal } from "@/components/intake/intake-modals";
 
-const FIELD = "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
+const FIELD = "min-h-11 min-w-0 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40";
 const LABEL = "block text-xs font-semibold text-muted-foreground mb-1.5";
 const LINE_KINDS = [["part", "Part"], ["labor", "Labor"], ["fee", "Fee"], ["discount", "Discount"]] as const;
+const UNCERTAIN_ESTIMATE_KEY = "garageos:estimate:uncertain:v1";
 
 type Vehicle = { id: string; label: string };
 type Line = { kind: string; description: string; quantity: number; unit_price: number };
+type EstimateTarget = { customerId: string; vehicleId: string | null; attemptedAt: string; notes: string | null; lines: Line[] };
+
+function loadUncertainEstimate(): EstimateTarget | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const target = JSON.parse(window.sessionStorage.getItem(UNCERTAIN_ESTIMATE_KEY) ?? "null") as Partial<EstimateTarget> | null;
+    if (target && typeof target.customerId === "string" && typeof target.attemptedAt === "string" && Number.isFinite(Date.parse(target.attemptedAt))
+      && (target.vehicleId === null || typeof target.vehicleId === "string")
+      && Array.isArray(target.lines) && target.lines.every((line) => line && typeof line.kind === "string"
+        && typeof line.description === "string" && typeof line.quantity === "number" && typeof line.unit_price === "number")) {
+      return { customerId: target.customerId, vehicleId: target.vehicleId ?? null, attemptedAt: target.attemptedAt,
+        notes: typeof target.notes === "string" ? target.notes : null, lines: target.lines };
+    }
+  } catch { /* Invalid tab storage cannot authorize a replay. */ }
+  return null;
+}
+
+function clearUncertainEstimate() {
+  try { window.sessionStorage.removeItem(UNCERTAIN_ESTIMATE_KEY); return true; }
+  catch { return false; }
+}
 
 const emptyLine = (): Line => ({ kind: "part", description: "", quantity: 1, unit_price: 0 });
 
 export function NewInvoiceModal({
   kind,
   edit,
+  appointment,
+  preset,
   onClose,
   onCreated,
   onSaved,
 }: {
   kind?: "estimate" | "invoice";
   edit?: InvoiceDoc;
+  appointment?: Appointment;
+  preset?: { customerId: string; customerName: string; vehicleId?: string };
   onClose: () => void;
   onCreated?: (doc: InvoiceDoc) => void;
   onSaved?: (doc: InvoiceDoc) => void;
 }) {
   const { toast } = useToast();
+  const { t, fmt } = useI18n();
   const docKind = edit ? edit.kind : (kind ?? "invoice");
   const isEstimate = docKind === "estimate";
   const isEdit = Boolean(edit);
 
   // In edit mode the customer is fixed (shown, not searchable).
-  const editCustomer: CustomerListItem | null = edit
-    ? { id: edit.customer_id, full_name: edit.customer_name ?? "Customer", phone: null, email: null, vehicle_count: 0, lifetime_value: 0, tier: "", last_visit: null }
+  const fixedCustomer: CustomerListItem | null = edit || appointment || preset
+    ? { id: edit?.customer_id ?? appointment?.customer_id ?? preset!.customerId, full_name: edit?.customer_name ?? appointment?.customer_name ?? preset?.customerName ?? t("work.customer"), phone: null, email: null, vehicle_count: 0, lifetime_value: 0, tier: "", last_visit: null }
     : null;
 
-  const [customers, setCustomers] = useState<CustomerListItem[]>([]);
-  const [query, setQuery] = useState("");
-  const [customer, setCustomer] = useState<CustomerListItem | null>(editCustomer);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [vehicleId, setVehicleId] = useState(edit?.vehicle_id ?? "");
+  const [customer, setCustomer] = useState<CustomerListItem | null>(fixedCustomer);
+  const [vehicles, setVehicles] = useState<Vehicle[]>(appointment ? [{ id: appointment.vehicle_id, label: appointment.vehicle_summary }] : []);
+  const [vehicleId, setVehicleId] = useState(edit?.vehicle_id ?? appointment?.vehicle_id ?? preset?.vehicleId ?? "");
   const [lines, setLines] = useState<Line[]>(
     edit && edit.line_items.length
       ? edit.line_items.map((li) => ({ kind: li.kind, description: li.description, quantity: li.quantity, unit_price: li.unit_price }))
@@ -52,29 +79,36 @@ export function NewInvoiceModal({
   );
   const [notes, setNotes] = useState(edit?.notes ?? "");
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const [uncertain, setUncertain] = useState<EstimateTarget | null>(loadUncertainEstimate);
+  const [uncertainResult, setUncertainResult] = useState<"found" | "not_found" | null>(null);
+  const [checkingOutcome, setCheckingOutcome] = useState(false);
+  const checkingOutcomeRef = useRef(false);
+  const [outcomeCheckFailed, setOutcomeCheckFailed] = useState(false);
+  const [loadingVehicles, setLoadingVehicles] = useState(false);
+  const [vehicleError, setVehicleError] = useState(false);
+  const [retryVehicles, setRetryVehicles] = useState(0);
+  const [intake, setIntake] = useState<"customer" | "vehicle" | null>(null);
 
   useEffect(() => {
-    if (isEdit) return;  // no customer search in edit mode
-    clientFetch<CustomerList>("/customers?limit=200").then((r) => setCustomers(r.items)).catch(() => {});
-  }, [isEdit]);
-
-  useEffect(() => {
+    if (appointment) return;
     if (!customer) { setVehicles([]); setVehicleId(""); return; }
+    let active = true;
+    setVehicles([]); setVehicleId(edit?.vehicle_id ?? ""); setLoadingVehicles(true); setVehicleError(false);
     clientFetch<Customer360>(`/customers/${customer.id}`)
       .then((c) => {
+        if (!active) return;
         setVehicles(c.vehicles.map((v) => ({ id: v.id, label: v.label })));
         // Preserve the edited doc's vehicle selection once vehicles load.
-        if (edit?.vehicle_id) setVehicleId(edit.vehicle_id);
+        const selectedVehicleId = edit?.vehicle_id ?? preset?.vehicleId;
+        if (selectedVehicleId && c.vehicles.some((v) => v.id === selectedVehicleId)) setVehicleId(selectedVehicleId);
+        else if (selectedVehicleId) setVehicleId("");
       })
-      .catch(() => setVehicles([]));
+      .catch(() => { if (active) setVehicleError(true); })
+      .finally(() => { if (active) setLoadingVehicles(false); });
+    return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customer]);
-
-  const matches = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return customers.slice(0, 8);
-    return customers.filter((c) => c.full_name.toLowerCase().includes(q) || (c.phone ?? "").includes(q)).slice(0, 8);
-  }, [query, customers]);
+  }, [customer, retryVehicles]);
 
   const total = useMemo(
     () => lines.reduce((s, l) => s + (Number(l.quantity) || 0) * (Number(l.unit_price) || 0) * (l.kind === "discount" ? -1 : 1), 0),
@@ -82,16 +116,69 @@ export function NewInvoiceModal({
   );
 
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
-  const validLines = lines.filter((l) => l.description.trim());
-  const canSave = Boolean(customer) && validLines.length > 0 && !saving;
+  const validLines = lines;
+  const canSave = Boolean(customer) && validLines.length > 0 && validLines.every((l) => l.description.trim() && Number.isFinite(l.quantity) && l.quantity > 0 && Number.isFinite(l.unit_price) && l.unit_price >= 0) && total >= 0 && !saving && !uncertain;
+
+  async function findMatchingEstimate(target: EstimateTarget) {
+    const params = new URLSearchParams({ view: "estimates", customer_id: target.customerId, page_size: "100" });
+    let page = 1;
+    const attemptedAt = Date.parse(target.attemptedAt) - 5 * 60_000;
+    while (true) {
+      params.set("page", String(page));
+      const list = await clientFetch<InvoiceListResponse>(`/invoices?${params}`);
+      for (const item of list.items) {
+        const createdAt = item.created_at ? Date.parse(item.created_at) : Number.NaN;
+        if (item.kind !== "estimate" || item.customer_id !== target.customerId || item.vehicle_id !== target.vehicleId
+          || !Number.isFinite(createdAt) || createdAt < attemptedAt) continue;
+        const doc = await clientFetch<InvoiceDoc>(`/invoices/${item.id}`);
+        const linesMatch = doc.line_items.length === target.lines.length && doc.line_items.every((line, index) => {
+          const expected = target.lines[index];
+          return line.kind === expected.kind && line.description === expected.description
+            && line.quantity === expected.quantity && line.unit_price === expected.unit_price;
+        });
+        if (linesMatch && doc.notes === target.notes) return doc;
+      }
+      if (page >= list.total_pages) return null;
+      page += 1;
+    }
+  }
+
+  async function reconcileOutcome() {
+    if (!uncertain || checkingOutcomeRef.current) return;
+    checkingOutcomeRef.current = true; setCheckingOutcome(true); setOutcomeCheckFailed(false); setUncertainResult(null);
+    try {
+      const match = await findMatchingEstimate(uncertain);
+      if (match) {
+        setUncertainResult("found");
+        clearUncertainEstimate();
+        onCreated?.(match);
+      } else setUncertainResult("not_found");
+    } catch { setOutcomeCheckFailed(true); }
+    finally { checkingOutcomeRef.current = false; setCheckingOutcome(false); }
+  }
+
+  function allowSeparateEstimate() {
+    if (uncertainResult !== "not_found" || !clearUncertainEstimate()) { setOutcomeCheckFailed(true); return; }
+    setUncertain(null); setUncertainResult(null); setOutcomeCheckFailed(false);
+  }
 
   async function save() {
-    if (!customer) return;
-    setSaving(true);
+    if (!customer || uncertain || savingRef.current) return;
+    savingRef.current = true; setSaving(true);
     const items = validLines.map((l) => ({
       kind: l.kind, description: l.description.trim(),
       quantity: Number(l.quantity) || 1, unit_price: Number(l.unit_price) || 0,
     }));
+    const target: EstimateTarget = { customerId: customer.id, vehicleId: vehicleId || null,
+      attemptedAt: new Date().toISOString(), notes: notes.trim() || null,
+      lines: items.map((line) => ({ ...line, quantity: Number(line.quantity) || 1, unit_price: Number(line.unit_price) || 0 })) };
+    if (!isEdit && isEstimate) {
+      try { window.sessionStorage.setItem(UNCERTAIN_ESTIMATE_KEY, JSON.stringify(target)); }
+      catch {
+        toast({ title: t("invoice.outcome_store_failed"), variant: "danger" });
+        savingRef.current = false; setSaving(false); return;
+      }
+    }
     try {
       const doc = isEdit && edit
         ? await clientFetch<InvoiceDoc>(`/invoices/${edit.id}`, {
@@ -100,116 +187,122 @@ export function NewInvoiceModal({
           })
         : await clientFetch<InvoiceDoc>("/invoices", {
             method: "POST",
-            body: JSON.stringify({ kind: docKind, customer_id: customer.id, vehicle_id: vehicleId || null, notes: notes.trim() || null, line_items: items }),
+            body: JSON.stringify({ kind: docKind, customer_id: customer.id, vehicle_id: vehicleId || null, appointment_id: appointment?.id ?? null, tax_rate: appointment ? 0 : undefined, notes: notes.trim() || null, line_items: items }),
           });
-      const noun = isEstimate ? "Estimate" : "Invoice";
-      toast({ title: isEdit ? `${noun} updated` : `${noun} created`, description: customer.full_name, variant: "success" });
+      toast({ title: isEdit ? t("invoice.updated") : t(isEstimate ? "invoice.estimate_created" : "invoice.created"), description: customer.full_name, variant: "success" });
+      if (!isEdit && isEstimate) clearUncertainEstimate();
       (isEdit ? onSaved : onCreated)?.(doc);
       onClose();
     } catch (err) {
       const paid = err instanceof ClientApiError && err.status === 409;
-      if (!(err instanceof ClientApiError && err.status === 403)) {
+      if (!isEdit && isEstimate && ((err instanceof ClientApiError && (err.status === 408 || err.status >= 500)) || !(err instanceof ClientApiError))) {
+        setUncertain(target); setUncertainResult(null);
+      } else if (!(err instanceof ClientApiError && err.status === 403)) {
+        if (!isEdit && isEstimate) clearUncertainEstimate();
         toast({
-          title: paid ? "Can't edit a paid document" : `Could not ${isEdit ? "update" : "create"} ${docKind}`,
-          description: paid ? "It has recorded payments. Void or refund it first." : "Please check the details and try again.",
+          title: err instanceof ClientApiError && err.status === 401 ? t("invoice.auth") : paid ? t("invoice.conflict") : t("invoice.failed"),
+          description: paid ? t("invoice.conflict_hint") : undefined,
           variant: "danger",
         });
+      } else {
+        if (!isEdit && isEstimate) clearUncertainEstimate();
+        toast({ title: t("invoice.denied"), variant: "danger" });
       }
     } finally {
-      setSaving(false);
+      savingRef.current = false; setSaving(false);
     }
   }
 
-  if (typeof document === "undefined") return null;
-
-  return createPortal(
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div role="dialog" aria-modal="true" aria-label={`${isEdit ? "Edit" : "New"} ${docKind}`}
-        className="relative w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl">
+  return <>
+    <Dialog open onOpenChange={(open) => { if (!open && !saving) onClose(); }}>
+      <DialogContent size="lg" hideClose noPadding aria-describedby={undefined} className="max-h-[92vh] overflow-y-auto [&_button]:min-h-11 [&_button]:min-w-11 [&_input]:min-h-11 [&_select]:min-h-11">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <h2 className="flex items-center gap-2 text-base font-bold">
-            <Receipt className={`size-4 ${isEstimate ? "text-blue-600" : "text-emerald-600"}`} /> {isEdit ? "Edit" : "New"} {docKind}{isEdit && edit ? ` · ${edit.code}` : ""}
-          </h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors" aria-label="Close"><X className="size-4" /></button>
+          <DialogTitle className="flex items-center gap-2 text-base font-bold">
+            <Receipt className={`size-4 ${isEstimate ? "text-blue-600" : "text-emerald-600"}`} /> {t(isEdit ? "invoice.edit" : isEstimate ? "invoice.new_estimate" : "invoice.new")}{isEdit && edit ? ` · ${edit.code}` : ""}
+          </DialogTitle>
+          <button onClick={onClose} disabled={saving} className="p-1.5 rounded-lg hover:bg-muted transition-colors" aria-label={t("common.close")}><X className="size-4" /></button>
         </div>
 
         <div className="p-5 space-y-4">
+          {uncertain && <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950" role="alert">
+            <p>{uncertainResult === "found" ? t("invoice.outcome_found") : uncertainResult === "not_found" ? t("invoice.outcome_not_found") : t("invoice.outcome_uncertain")}</p>
+            {outcomeCheckFailed && <p className="mt-1">{t("invoice.outcome_check_failed")}</p>}
+            {uncertainResult !== "found" && <Button variant="outline" size="sm" className="mt-2 min-h-11 min-w-11" disabled={checkingOutcome} onClick={() => void reconcileOutcome()}>
+              {checkingOutcome ? t("invoice.outcome_checking") : t("invoice.check_estimates")}
+            </Button>}
+            {uncertainResult === "not_found" && <Button variant="ghost" size="sm" className="mt-2 min-h-11 min-w-11" onClick={allowSeparateEstimate}>
+              {t("invoice.allow_separate_estimate")}
+            </Button>}
+          </div>}
+          {!uncertain && <fieldset disabled={saving} className="m-0 min-w-0 space-y-4 border-0 p-0">
           {/* Customer */}
           <div>
-            <label className={LABEL} htmlFor="inv-customer">Customer</label>
+            <label className={LABEL} htmlFor="inv-customer">{t("work.customer")}</label>
             {customer ? (
               <div className="flex items-center justify-between rounded-lg border border-primary/40 bg-primary/5 px-3 py-2">
                 <span className="text-sm font-medium">{customer.full_name}</span>
-                {!isEdit && <button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => { setCustomer(null); setQuery(""); }}>Change</button>}
+                {!isEdit && !appointment && !preset && <button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setCustomer(null)}>{t("invoice.change")}</button>}
               </div>
             ) : (
               <>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                  <input id="inv-customer" className={`${FIELD} pl-9`} placeholder="Search customers…" value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
-                </div>
-                {matches.length > 0 && (
-                  <div className="mt-1.5 max-h-40 overflow-y-auto rounded-lg border border-border divide-y divide-border">
-                    {matches.map((c) => (
-                      <button key={c.id} onClick={() => setCustomer(c)} className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors">
-                        <span className="font-medium">{c.full_name}</span>{c.phone ? <span className="text-muted-foreground"> · {c.phone}</span> : null}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <CustomerPicker id="inv-customer" onSelect={setCustomer} />
               </>
             )}
+            {!isEdit && !appointment && !preset ? <button onClick={() => setIntake("customer")} className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline"><Plus className="size-3" />{t("intake.new_customer")}</button> : null}
           </div>
 
           {/* Vehicle */}
           <div>
-            <label className={LABEL} htmlFor="inv-vehicle">Vehicle <span className="font-normal text-muted-foreground">(optional)</span></label>
-            <select id="inv-vehicle" className={FIELD} value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} disabled={!customer}>
-              <option value="">No specific vehicle</option>
+            <label className={LABEL} htmlFor="inv-vehicle">{t("work.vehicle")} {!appointment && <span className="font-normal text-muted-foreground">({t("invoice.vehicle_optional")})</span>}</label>
+            <select id="inv-vehicle" className={FIELD} value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} disabled={!customer || Boolean(appointment) || loadingVehicles}>
+              <option value="">{t(loadingVehicles ? "appointment.loading" : "invoice.no_vehicle")}</option>
               {vehicles.map((v) => (<option key={v.id} value={v.id}>{v.label}</option>))}
             </select>
+            {vehicleError ? <p role="alert" className="mt-2 text-xs text-red-600">{t("intake.load_failed")} <button className="underline" onClick={() => setRetryVehicles((n) => n + 1)}>{t("intake.retry")}</button></p> : null}
+            {customer && !appointment ? <button onClick={() => setIntake("vehicle")} disabled={loadingVehicles} className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline disabled:opacity-50"><Plus className="size-3" />{t("intake.new_vehicle")}</button> : null}
           </div>
 
           {/* Line items */}
           <div>
-            <label className={LABEL}>Line items</label>
+            <label className={LABEL}>{t("invoice.lines")}</label>
             <div className="space-y-2">
               {lines.map((l, i) => (
-                <div key={i} className="flex items-start gap-2">
-                  <select className={`${FIELD} w-24 shrink-0`} value={l.kind} onChange={(e) => setLine(i, { kind: e.target.value })} aria-label="Line type">
-                    {LINE_KINDS.map(([v, label]) => (<option key={v} value={v}>{label}</option>))}
+                <div key={i} className="grid grid-cols-2 sm:grid-cols-4 gap-2 rounded-lg border border-border p-3">
+                  <input className={`${FIELD} col-span-2 sm:col-span-4`} aria-label={t("invoice.description")} placeholder={t("invoice.description")} value={l.description} onChange={(e) => setLine(i, { description: e.target.value })} />
+                  <select className={FIELD} value={l.kind} onChange={(e) => setLine(i, { kind: e.target.value })} aria-label={t("invoice.lines")}>
+                    {LINE_KINDS.map(([v]) => (<option key={v} value={v}>{t(`invoice.kind_${v}`)}</option>))}
                   </select>
-                  <input className={FIELD} placeholder="Description" value={l.description} onChange={(e) => setLine(i, { description: e.target.value })} />
-                  <input className={`${FIELD} w-14 shrink-0 text-center`} type="number" min={0} step="1" value={l.quantity} onChange={(e) => setLine(i, { quantity: Number(e.target.value) })} aria-label="Quantity" />
-                  <input className={`${FIELD} w-24 shrink-0 text-right`} type="number" min={0} step="0.01" value={l.unit_price} onChange={(e) => setLine(i, { unit_price: Number(e.target.value) })} aria-label="Unit price" />
-                  <button className="p-2 mt-0.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-30" onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))} disabled={lines.length === 1} aria-label="Remove line"><Trash2 className="size-4" /></button>
+                  <label className="text-xs space-y-1"><span>{t("invoice.quantity")}</span><input className={`${FIELD} text-center`} type="number" min={0.01} step="0.01" value={l.quantity} onChange={(e) => setLine(i, { quantity: Number(e.target.value) })} /></label>
+                  <label className="text-xs space-y-1"><span>{t("invoice.price")}</span><input className={`${FIELD} text-right`} type="number" min={0} step="0.01" value={l.unit_price} onChange={(e) => setLine(i, { unit_price: Number(e.target.value) })} /></label>
+                  <button className="p-2 mt-0.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-30" onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))} disabled={lines.length === 1} aria-label={t("invoice.remove_line")}><Trash2 className="size-4" /></button>
                 </div>
               ))}
             </div>
             <button onClick={() => setLines((ls) => [...ls, emptyLine()])} className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
-              <Plus className="size-4" /> Add line
+              <Plus className="size-4" /> {t("invoice.add_line")}
             </button>
           </div>
 
           {/* Notes */}
           <div>
-            <label className={LABEL} htmlFor="inv-notes">Notes <span className="font-normal text-muted-foreground">(optional)</span></label>
+            <label className={LABEL} htmlFor="inv-notes">{t("invoice.notes")} <span className="font-normal text-muted-foreground">({t("invoice.vehicle_optional")})</span></label>
             <textarea id="inv-notes" className={`${FIELD} resize-none`} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
+          </fieldset>}
         </div>
 
-        <div className="flex items-center justify-between gap-2 px-5 py-4 border-t border-border">
-          <div className="text-sm"><span className="text-muted-foreground">Subtotal</span> <span className="font-bold tabular-nums">${total.toFixed(2)}</span></div>
+        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-t border-border">
+          <div className="text-sm"><span className="text-muted-foreground">{t("invoice.subtotal")}</span> <span className="font-bold tabular-nums">{fmt.money(total, edit?.currency ?? "UZS")}</span></div>
           <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
+            <Button variant="ghost" size="sm" onClick={onClose} disabled={saving}>{t("common.cancel")}</Button>
             <Button size="sm" disabled={!canSave} onClick={save} leftIcon={saving ? <Loader2 className="size-4 animate-spin" /> : <Receipt className="size-4" />}>
-              {saving ? "Saving…" : isEdit ? "Save changes" : `Create ${docKind}`}
+              {saving ? t("invoice.saving") : isEdit ? t("invoice.save") : isEstimate ? t("invoice.create_estimate") : t("invoice.create")}
             </Button>
           </div>
         </div>
-      </div>
-    </div>,
-    document.body,
-  );
+      </DialogContent>
+    </Dialog>
+    {intake === "customer" ? <NewCustomerModal onClose={() => setIntake(null)} onCreated={setCustomer} /> : null}
+    {intake === "vehicle" && customer ? <NewVehicleModal presetCustomer={customer} onClose={() => setIntake(null)} onCreated={(vehicle) => { setVehicles((current) => [...current, { id: vehicle.id, label: vehicle.label }]); setVehicleId(vehicle.id); }} /> : null}
+  </>;
 }

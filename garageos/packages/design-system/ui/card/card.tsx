@@ -12,7 +12,7 @@ import type {
 
 // ─── Card ─────────────────────────────────────────────────────
 const variantClasses: Record<string, string> = {
-  default: "bg-card text-card-foreground border border-border shadow-sm",
+  default: "bg-card text-card-foreground border border-border shadow-xs",
   outline: "bg-background text-foreground border border-border",
   elevated: "bg-card text-card-foreground border border-border shadow-md",
   muted: "bg-muted/40 text-foreground border border-border/50",
@@ -87,7 +87,7 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
         className={cn(
           "rounded-xl",
           variantClasses[variant],
-          onClick && "cursor-pointer select-none hover:shadow-md active:shadow-sm transition-all duration-150",
+          onClick && "cursor-pointer select-none hover:shadow-md active:shadow-xs transition-all duration-150",
           className
         )}
         onClick={onClick}

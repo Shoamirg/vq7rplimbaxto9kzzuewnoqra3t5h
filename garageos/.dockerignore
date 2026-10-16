@@ -1,0 +1,24 @@
+# Root context is used by the dashboard workspace image. Send only its inputs.
+**
+!package.json
+!package-lock.json
+!admin-dashboard/
+!admin-dashboard/**
+!packages/
+!packages/**
+
+# Local dependencies, generated output and private files must stay on the host.
+**/node_modules
+**/.next
+**/out
+**/.turbo
+**/.cache
+**/test-results
+**/playwright-report
+**/.playwright
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+**/*.log
+**/*.tsbuildinfo

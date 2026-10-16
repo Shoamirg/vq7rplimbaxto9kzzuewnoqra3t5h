@@ -13,8 +13,7 @@ from math import ceil
 from fastapi import APIRouter, Body, Depends, Header, Query, status
 
 from app.api.deps import get_tenant_uow
-from app.core.idempotency import idempotency_store
-from app.exceptions import AppointmentStateError
+from app.core.idempotency import execute_idempotent
 from app.repositories.unit_of_work import UnitOfWork
 from app.schemas.appointment import (
     AppointmentBookRequest,
@@ -27,6 +26,7 @@ from app.schemas.appointment import (
     MoveAppointmentRequest,
 )
 from app.services.appointment_service import AppointmentService
+from app.services.invoice_service import InvoiceService
 
 router = APIRouter()
 
@@ -41,12 +41,16 @@ async def list_appointments(
     date_from: date | None = Query(default=None),
     date_to: date | None = Query(default=None),
     overdue: bool = Query(default=False),
+    awaiting_invoice: bool = Query(default=False),
+    q: str | None = Query(default=None, max_length=100),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
 ) -> dict:
     service = AppointmentService(uow)
     result = await service.list_appointments(
         status=status, date_from=date_from, date_to=date_to, overdue=overdue,
+        awaiting_invoice=awaiting_invoice,
+        q=q,
         skip=(page - 1) * page_size, limit=page_size,
     )
     total = result["total"]
@@ -84,13 +88,21 @@ async def get_appointment(
     return await AppointmentService(uow).get_appointment(appointment_id)
 
 
+@router.get("/{appointment_id}/invoice", summary="Get the final invoice linked to an appointment")
+async def get_appointment_invoice(
+    appointment_id: uuid.UUID,
+    uow: UnitOfWork = Depends(get_tenant_uow),
+) -> dict:
+    return await InvoiceService(uow).get_for_appointment(appointment_id)
+
+
 # --- Booking lifecycle (write) ------------------------------------------------
 
 @router.post("", status_code=status.HTTP_201_CREATED, summary="Book an appointment")
 async def book_appointment(
     body: AppointmentBookRequest,
-    uow: UnitOfWork = Depends(get_tenant_uow),
-    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key", max_length=128),
 ) -> dict:
     service = AppointmentService(uow)
 
@@ -103,54 +115,63 @@ async def book_appointment(
             customer_notes=body.customer_notes,
         )
 
-    if not idempotency_key:
-        return await _create()
-
-    # Namespace the key by tenant so keys can't collide across service centers.
-    key = f"idem:appt:{uow.service_center_id}:{idempotency_key}"
-    state, existing = await idempotency_store.reserve(key)
-    if state == "done":
-        return await service.get_appointment(uuid.UUID(existing))
-    if state == "in_progress":
-        raise AppointmentStateError("A booking with this Idempotency-Key is already in progress")
-    try:
-        result = await _create()
-    except Exception:
-        await idempotency_store.release(key)
-        raise
-    await idempotency_store.store(key, result["id"])
-    return result
+    return await execute_idempotent(
+        uow,
+        key=idempotency_key,
+        operation="staff.slot-appointment.create.v1",
+        request=body.model_dump(mode="json"),
+        execute=_create,
+    )
 
 
 @router.post("/direct", status_code=status.HTTP_201_CREATED, summary="Create an appointment at a date/time (no slot)")
 async def create_appointment_direct(
     body: AppointmentDirectCreateRequest,
-    uow: UnitOfWork = Depends(get_tenant_uow),
+    uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key", max_length=128),
 ) -> dict:
-    return await AppointmentService(uow).create_appointment_direct(
-        customer_id=body.customer_id,
-        vehicle_id=body.vehicle_id,
-        appointment_date=body.appointment_date,
-        appointment_time=body.appointment_time,
-        estimated_duration_minutes=body.estimated_duration_minutes,
-        mechanic_name=body.mechanic_name,
-        maintenance_rule_id=body.maintenance_rule_id,
-        customer_notes=body.customer_notes,
+    async def _create() -> dict:
+        return await AppointmentService(uow).create_appointment_direct(
+            customer_id=body.customer_id,
+            vehicle_id=body.vehicle_id,
+            appointment_date=body.appointment_date,
+            appointment_time=body.appointment_time,
+            estimated_duration_minutes=body.estimated_duration_minutes,
+            mechanic_name=body.mechanic_name,
+            mechanic_user_id=body.mechanic_user_id,
+            maintenance_rule_id=body.maintenance_rule_id,
+            customer_notes=body.customer_notes,
+        )
+
+    return await execute_idempotent(
+        uow,
+        key=idempotency_key,
+        operation="staff.direct-appointment.create.v1",
+        request=body.model_dump(mode="json"),
+        execute=_create,
     )
 
 
 @router.patch("/{appointment_id}/confirm", summary="Confirm a pending appointment")
 async def confirm_appointment(
     appointment_id: uuid.UUID,
-    uow: UnitOfWork = Depends(get_tenant_uow),
+    uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
 ) -> dict:
     return await AppointmentService(uow).confirm_appointment(appointment_id)
+
+
+@router.patch("/{appointment_id}/start", summary="Start assigned service work")
+async def start_appointment(
+    appointment_id: uuid.UUID,
+    uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
+) -> dict:
+    return await AppointmentService(uow).start_appointment(appointment_id)
 
 
 @router.patch("/{appointment_id}/cancel", summary="Cancel an appointment (frees its slot)")
 async def cancel_appointment(
     appointment_id: uuid.UUID,
-    uow: UnitOfWork = Depends(get_tenant_uow),
+    uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
     body: AppointmentCancelRequest | None = Body(default=None),
 ) -> dict:
     reason = body.reason if body else None
@@ -161,13 +182,14 @@ async def cancel_appointment(
 async def complete_appointment(
     appointment_id: uuid.UUID,
     body: AppointmentCompleteRequest,
-    uow: UnitOfWork = Depends(get_tenant_uow),
+    uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
 ) -> dict:
     return await AppointmentService(uow).complete_appointment(
         appointment_id,
         odometer_km=body.odometer_km,
         total_cost=body.total_cost,
         notes=body.notes,
+        service_type=body.service_type,
     )
 
 
@@ -175,13 +197,14 @@ async def complete_appointment(
 async def update_appointment(
     appointment_id: uuid.UUID,
     body: AppointmentUpdate,
-    uow: UnitOfWork = Depends(get_tenant_uow),
+    uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
 ) -> dict:
     return await AppointmentService(uow).update_appointment(
         appointment_id,
         appointment_date=body.appointment_date,
         appointment_time=body.appointment_time,
         mechanic_name=body.mechanic_name,
+        mechanic_user_id=body.mechanic_user_id,
         estimated_duration_minutes=body.estimated_duration_minutes,
         notes=body.notes,
     )
@@ -191,7 +214,7 @@ async def update_appointment(
 async def move_appointment(
     appointment_id: uuid.UUID,
     body: MoveAppointmentRequest,
-    uow: UnitOfWork = Depends(get_tenant_uow),
+    uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
 ) -> dict:
     return await AppointmentService(uow).move_appointment(appointment_id, body.slot_id)
 
@@ -200,6 +223,8 @@ async def move_appointment(
 async def assign_mechanic(
     appointment_id: uuid.UUID,
     body: AssignMechanicRequest,
-    uow: UnitOfWork = Depends(get_tenant_uow),
+    uow: UnitOfWork = Depends(get_tenant_uow, scope="function"),
 ) -> dict:
-    return await AppointmentService(uow).assign_mechanic(appointment_id, body.mechanic_name)
+    return await AppointmentService(uow).assign_mechanic(
+        appointment_id, body.mechanic_name, mechanic_user_id=body.mechanic_user_id,
+    )

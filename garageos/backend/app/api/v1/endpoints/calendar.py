@@ -23,6 +23,7 @@ async def calendar(
     uow: UnitOfWork = Depends(get_tenant_uow),
     start: date_type = Query(..., description="Range start (inclusive, YYYY-MM-DD)"),
     end: date_type = Query(..., description="Range end (exclusive, YYYY-MM-DD)"),
+    include_cancelled: bool = Query(False, description="Include active cancelled appointments for inspection"),
 ) -> dict:
     if end <= start:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "end must be after start")
@@ -30,4 +31,4 @@ async def calendar(
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST, f"range may not exceed {_MAX_RANGE_DAYS} days"
         )
-    return await AppointmentService(uow).get_calendar(start, end)
+    return await AppointmentService(uow).get_calendar(start, end, include_cancelled=include_cancelled)

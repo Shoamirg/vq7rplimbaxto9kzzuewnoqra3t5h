@@ -1,0 +1,15 @@
+[Unit]
+Description=GarageOS verified off-host database backup
+After=docker.service network-online.target
+Requires=docker.service
+OnFailure=garageos-alert@%n.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/garageos/garageos
+EnvironmentFile=/etc/garageos/operations.env
+UMask=0077
+StateDirectory=garageos
+StateDirectoryMode=0700
+ExecStart=/usr/bin/python3 /opt/garageos/garageos/scripts/production_ops.py backup --env-file /etc/garageos/.env.prod --backup-dir /var/lib/garageos/backups --receipt /var/lib/garageos/backup-status.json
+TimeoutStartSec=45min

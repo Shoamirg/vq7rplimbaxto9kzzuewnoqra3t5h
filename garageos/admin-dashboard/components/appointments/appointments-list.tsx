@@ -1,386 +1,199 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import {
-  CalendarClock, CalendarPlus, Check, CheckCheck, ChevronLeft, ChevronRight, Clock,
-  MoreHorizontal, QrCode, Search, User, Wrench, X,
-} from "lucide-react";
-import {
-  Badge, Button, cn, useToast,
-  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
-} from "@garageos/design-system";
+import { CalendarPlus, CheckCheck, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
+import { Button, cn, useToast } from "@garageos/design-system";
+import { clientFetch, ClientApiError } from "@/lib/api/client";
+import { useI18n } from "@/lib/i18n/context";
+import { NewInvoiceModal } from "@/components/billing/new-invoice-modal";
+import { NewAppointmentButton } from "./new-appointment-modal";
+import { EditAppointmentModal } from "./edit-appointment-modal";
+import { CompleteWorkModal } from "./complete-work-modal";
+import { QueueCheckbox, QueueRow, QUEUE_GRID } from "./queue-row";
+import { dateParams, eligible, type BulkAction, type DateFilter, type QueueAction } from "./queue-model";
+import type { Appointment, AppointmentListResponse, AppointmentStats, InvoiceDoc } from "@/lib/api/types";
 
-import { clientFetch } from "@/lib/api/client";
-import { NewAppointmentButton } from "@/components/appointments/new-appointment-modal";
-import { EditAppointmentModal } from "@/components/appointments/edit-appointment-modal";
-import type {
-  Appointment, AppointmentListResponse, AppointmentStats, AppointmentStatus,
-} from "@/lib/api/types";
-
-// Appointments = operational management queue (Calendar owns scheduling). Real
-// data, KPI strip, date + status filters, per-row launchpad into every module,
-// and bulk actions.
-const STATUS_TABS: { key: string; label: string; statKey?: keyof AppointmentStats }[] = [
-  { key: "all", label: "All" },
-  { key: "pending", label: "Pending", statKey: "pending_count" },
-  { key: "confirmed", label: "Confirmed", statKey: "confirmed_count" },
-  { key: "in_progress", label: "In progress" },
-  { key: "completed", label: "Completed", statKey: "completed_count" },
-  { key: "cancelled", label: "Cancelled", statKey: "cancelled_count" },
+const STATUS_TABS: { key: string; labelKey: string; statKey?: keyof AppointmentStats }[] = [
+  { key: "all", labelKey: "work.all" }, { key: "pending", labelKey: "status.pending", statKey: "pending_count" },
+  { key: "confirmed", labelKey: "status.confirmed", statKey: "confirmed_count" }, { key: "in_progress", labelKey: "status.in_progress" },
+  { key: "completed", labelKey: "status.completed", statKey: "completed_count" }, { key: "cancelled", labelKey: "status.cancelled", statKey: "cancelled_count" },
 ];
-
-type DateFilter = "all" | "today" | "tomorrow" | "week" | "overdue";
-const DATE_FILTERS: { key: DateFilter; label: string }[] = [
-  { key: "all", label: "All dates" },
-  { key: "today", label: "Today" },
-  { key: "tomorrow", label: "Tomorrow" },
-  { key: "week", label: "This week" },
-  { key: "overdue", label: "Overdue" },
+const DATE_FILTERS: { key: DateFilter; labelKey: string }[] = [
+  { key: "all", labelKey: "work.all_dates" }, { key: "today", labelKey: "work.today" }, { key: "tomorrow", labelKey: "work.tomorrow" },
+  { key: "week", labelKey: "queue.next_seven" }, { key: "overdue", labelKey: "work.overdue" },
 ];
-
-const STATUS_BADGE: Record<AppointmentStatus, "warning" | "info" | "primary" | "success" | "danger" | "neutral"> = {
-  pending: "warning", confirmed: "info", in_progress: "primary",
-  completed: "success", cancelled: "danger", rescheduled: "neutral",
-};
-
-const HEALTH_COLOR: Record<string, string> = {
-  excellent: "text-emerald-600 bg-emerald-50 border-emerald-200",
-  good: "text-lime-600 bg-lime-50 border-lime-200",
-  fair: "text-amber-600 bg-amber-50 border-amber-200",
-  poor: "text-red-600 bg-red-50 border-red-200",
-};
-
-const GRID = "grid-cols-[auto_1.3fr_1.3fr_1fr_1fr_0.9fr_auto_auto_auto_auto]";
-
-const PAGE_SIZE = 15;
-
-function localISO(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-// Returns the query params for the active date quick-filter.
-function dateParams(f: DateFilter): Record<string, string> {
-  const today = new Date();
-  const iso = localISO(today);
-  if (f === "today") return { date_from: iso, date_to: iso };
-  if (f === "tomorrow") {
-    const t = new Date(today); t.setDate(t.getDate() + 1);
-    return { date_from: localISO(t), date_to: localISO(t) };
-  }
-  if (f === "week") {
-    const end = new Date(today); end.setDate(end.getDate() + 6);
-    return { date_from: iso, date_to: localISO(end) };
-  }
-  if (f === "overdue") return { overdue: "true" };
-  return {};
-}
-
-function fmtDuration(min: number): string {
-  if (!min) return "—";
-  if (min < 60) return `${min}m`;
-  const h = Math.floor(min / 60), m = min % 60;
-  return m ? `${h}h ${m}m` : `${h}h`;
-}
-
-function plateOf(summary: string): { name: string; plate: string | null } {
-  const m = summary.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
-  return m ? { name: m[1].trim(), plate: m[2] } : { name: summary, plate: null };
-}
+const CONTROL = "min-h-11 min-w-11 rounded-lg border border-border px-3 text-sm font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50";
+type ListState = { key: string; phase: "loading" | "error" } | { key: string; phase: "ready"; data: AppointmentListResponse };
+type StatsState = { phase: "loading" | "error" } | { phase: "ready"; data: AppointmentStats };
 
 export function AppointmentsList() {
-  const { toast } = useToast();
-  const router = useRouter();
-  const [tab, setTab] = useState("all");
-  const [dateFilter, setDateFilter] = useState<DateFilter>("all");
-  const [page, setPage] = useState(1);
-  const [q, setQ] = useState("");
-  const [data, setData] = useState<AppointmentListResponse | null>(null);
-  const [stats, setStats] = useState<AppointmentStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState<Appointment | null>(null);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-
-  const loadStats = useCallback(() => {
-    clientFetch<AppointmentStats>("/appointments/stats").then(setStats).catch(() => {});
-  }, []);
+  const { toast } = useToast(), { t, fmt } = useI18n(), router = useRouter();
+  const [tab, setTab] = useState("all"), [dateFilter, setDateFilter] = useState<DateFilter>("all"), [page, setPage] = useState(1);
+  const [q, setQ] = useState(""), [list, setList] = useState<ListState>(), [statsState, setStatsState] = useState<StatsState>({ phase: "loading" });
+  const [editing, setEditing] = useState<Appointment | null>(null), [invoicing, setInvoicing] = useState<Appointment | null>(null), [completing, setCompleting] = useState<Appointment | null>(null);
+  const [selection, setSelection] = useState({ key: "", ids: new Set<string>() }), [busy, setBusy] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+  const search = q.trim(), key = JSON.stringify([tab, dateFilter, page, search]);
+  const keyRef = useRef(key); keyRef.current = key;
+  const listEpoch = useRef(0), statsEpoch = useRef(0), mutation = useRef(false);
+  const invalidateList = useCallback(() => { listEpoch.current++; }, []);
+  const invalidateStats = useCallback(() => { statsEpoch.current++; }, []);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; setHydrated(true); return () => { mounted.current = false; invalidateList(); invalidateStats(); }; }, [invalidateList, invalidateStats]);
+  const root = useRef<HTMLDivElement>(null), returnTo = useRef<string | null>(null);
+  const data = list?.key === key && list.phase === "ready" ? list.data : null;
+  const ready = data !== null, error = list?.key === key && list.phase === "error";
+  const rows = data?.items ?? [], stats = statsState.phase === "ready" ? statsState.data : null;
+  const selected = ready && selection.key === key ? selection.ids : new Set<string>();
+  const current = useRef({ ready, rows, selected }); current.current = { ready, rows, selected };
 
   const load = useCallback(async () => {
-    setLoading(true);
-    const qs = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE), ...dateParams(dateFilter) });
-    if (tab !== "all") qs.set("status", tab);
+    if (!mounted.current) return;
+    const epoch = ++listEpoch.current;
+    current.current.ready = false;
+    setList({ key, phase: "loading" }); setSelection({ key, ids: new Set() });
+    const params = new URLSearchParams({ page: String(page), page_size: "15", ...dateParams(dateFilter) });
+    if (tab !== "all") params.set("status", tab);
+    if (search) params.set("q", search);
     try {
-      setData(await clientFetch<AppointmentListResponse>(`/appointments?${qs.toString()}`));
-    } catch { /* keep */ } finally { setLoading(false); }
-  }, [tab, page, dateFilter]);
+      const result = await clientFetch<AppointmentListResponse>(`/appointments?${params}`);
+      if (!mounted.current || epoch !== listEpoch.current || keyRef.current !== key) return;
+      const lastPage = Math.max(1, result.total_pages);
+      if (page > lastPage) { setPage(lastPage); return; }
+      setList({ key, phase: "ready", data: result });
+    } catch { if (mounted.current && epoch === listEpoch.current && keyRef.current === key) setList({ key, phase: "error" }); }
+  }, [key, page, dateFilter, tab, search]);
+  const loadRef = useRef(load); loadRef.current = load;
+  const loadStats = useCallback(async () => {
+    if (!mounted.current) return;
+    const epoch = ++statsEpoch.current; setStatsState({ phase: "loading" });
+    try {
+      const result = await clientFetch<AppointmentStats>("/appointments/stats");
+      if (mounted.current && epoch === statsEpoch.current) setStatsState({ phase: "ready", data: result });
+    } catch { if (mounted.current && epoch === statsEpoch.current) setStatsState({ phase: "error" }); }
+  }, []);
+  const refresh = useCallback(() => { void loadRef.current(); void loadStats(); }, [loadStats]);
+  useEffect(() => {
+    setSelection({ key, ids: new Set() });
+    const timer = setTimeout(() => void load(), search ? 250 : 0);
+    return () => { clearTimeout(timer); invalidateList(); };
+  }, [load, key, search, invalidateList]);
+  useEffect(() => { void loadStats(); return invalidateStats; }, [loadStats, invalidateStats]);
 
-  useEffect(() => { load(); }, [load]);
-  useEffect(() => { loadStats(); }, [loadStats]);
-  useEffect(() => { setSelected(new Set()); }, [tab, dateFilter, page]);
-
-  const act = useCallback(async (id: string, action: "confirm" | "cancel") => {
+  function begin() {
+    if (mutation.current || !current.current.ready) return false;
+    mutation.current = true; setBusy(true); return true;
+  }
+  function finish() { mutation.current = false; setBusy(false); refresh(); }
+  function closeForms() {
+    const id = returnTo.current; returnTo.current = null;
+    setEditing(null); setCompleting(null); setInvoicing(null);
+    if (id) requestAnimationFrame(() => {
+      const target = root.current?.querySelector<HTMLButtonElement>(`[data-testid="appointment-row-${id}"] [data-queue-actions]`);
+      (target || root.current?.querySelector<HTMLInputElement>("#queue-search"))?.focus({ preventScroll: true });
+    });
+  }
+  function edit(appointment: Appointment) {
+    const actual = current.current.rows.find(row => row.id === appointment.id);
+    if (!mutation.current && current.current.ready && actual && eligible(actual, "cancel")) { returnTo.current = actual.id; setEditing(actual); }
+  }
+  async function act(id: string, action: QueueAction) {
+    const appointment = current.current.rows.find(row => row.id === id);
+    if (mutation.current || !current.current.ready || !appointment || !eligible(appointment, action)) return;
+    if (action === "complete") { returnTo.current = id; setCompleting(appointment); return; }
+    if (action === "start" && !appointment.mechanic_name?.trim()) { toast({ title: t("work.assign_first"), variant: "warning" }); return; }
+    if (!begin()) return;
     try {
       await clientFetch(`/appointments/${id}/${action}`, { method: "PATCH", body: JSON.stringify({}) });
-      toast({ title: action === "confirm" ? "Appointment confirmed" : "Appointment cancelled", variant: "success" });
-      load(); loadStats();
-    } catch { toast({ title: "Action failed", variant: "danger" }); }
-  }, [load, loadStats, toast]);
-
-  const bulkAct = useCallback(async (action: "confirm" | "cancel") => {
-    const ids = [...selected];
-    if (!ids.length) return;
-    const results = await Promise.allSettled(
-      ids.map((id) => clientFetch(`/appointments/${id}/${action}`, { method: "PATCH", body: JSON.stringify({}) })));
-    const ok = results.filter((r) => r.status === "fulfilled").length;
-    toast({ title: `${ok}/${ids.length} ${action === "confirm" ? "confirmed" : "cancelled"}`, variant: ok ? "success" : "danger" });
-    setSelected(new Set()); load(); loadStats();
-  }, [selected, load, loadStats, toast]);
-
-  const rows = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    const items = data?.items ?? [];
-    if (!s) return items;
-    return items.filter((a) =>
-      a.customer_name.toLowerCase().includes(s) ||
-      a.vehicle_summary.toLowerCase().includes(s) ||
-      (a.service_type ?? "").toLowerCase().includes(s));
-  }, [q, data]);
-
-  const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
-  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.id)));
-  const toggleOne = (id: string) => setSelected((prev) => {
-    const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n;
-  });
-
-  const KPIS = stats ? [
-    { label: "Today", value: stats.today_count, tone: "text-foreground" },
-    { label: "Waiting confirmation", value: stats.pending_count, tone: "text-amber-600" },
-    { label: "Confirmed", value: stats.confirmed_count, tone: "text-blue-600" },
-    { label: "Completed", value: stats.completed_count, tone: "text-emerald-600" },
-    { label: "Cancelled", value: stats.cancelled_count, tone: "text-red-600" },
+      toast({ title: t(`work.${action === "confirm" ? "confirmed" : action === "start" ? "started" : "cancelled"}`), variant: "success" });
+    } catch { toast({ title: t("work.failed"), variant: "danger" }); }
+    finally { finish(); }
+  }
+  async function bulkAct(action: BulkAction) {
+    const visible = current.current.rows.filter(row => current.current.selected.has(row.id));
+    if (!visible.length || !begin()) return;
+    const ids = visible.filter(row => eligible(row, action)).map(row => row.id);
+    try {
+      const results = await Promise.allSettled(ids.map(id => clientFetch(`/appointments/${id}/${action}`, { method: "PATCH", body: JSON.stringify({}) })));
+      const done = results.filter(result => result.status === "fulfilled").length, failed = ids.length - done, skipped = visible.length - ids.length;
+      toast({ title: t("queue.bulk_result", { done: fmt.number(done), failed: fmt.number(failed), skipped: fmt.number(skipped) }), variant: failed && !done ? "danger" : failed || skipped ? "warning" : "success" });
+    } finally { finish(); }
+  }
+  async function openInvoice(appointment: Appointment) {
+    const actual = current.current.rows.find(row => row.id === appointment.id);
+    if (!actual || actual.status !== "completed" || !begin()) return;
+    try {
+      const invoice = await clientFetch<InvoiceDoc>(`/appointments/${actual.id}/invoice`);
+      if (current.current.ready && current.current.rows.some(row => row.id === actual.id)) router.push(`/invoice/${invoice.id}`);
+    } catch (failure) {
+      if (failure instanceof ClientApiError && failure.status === 404) {
+        if (current.current.ready && current.current.rows.some(row => row.id === actual.id)) { returnTo.current = actual.id; setInvoicing(actual); }
+      } else toast({ title: t("work.invoice_failed"), variant: "danger" });
+    } finally { mutation.current = false; setBusy(false); }
+  }
+  function toggle(id?: string) {
+    if (!current.current.ready || mutation.current) return;
+    setSelection(previous => {
+      const ids = new Set(previous.key === key ? previous.ids : []);
+      if (id) { if (!current.current.rows.some(row => row.id === id)) return previous; ids.has(id) ? ids.delete(id) : ids.add(id); }
+      else { if (current.current.rows.every(row => ids.has(row.id))) ids.clear(); else for (const row of current.current.rows) ids.add(row.id); }
+      return { key, ids };
+    });
+  }
+  const allSelected = rows.length > 0 && rows.every(row => selected.has(row.id));
+  const kpis = stats ? [
+    { label: "work.today", count: stats.today_count }, { label: "work.waiting", count: stats.pending_count },
+    { label: "status.confirmed", count: stats.confirmed_count }, { label: "status.completed", count: stats.completed_count }, { label: "status.cancelled", count: stats.cancelled_count },
   ] : [];
 
-  return (
-    <div className="p-4 lg:p-6 space-y-4 animate-fade-in">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Appointments</h1>
-          <p className="text-sm text-muted-foreground mt-1">Your operational queue — filter, action, and jump into any record.</p>
-        </div>
-        <NewAppointmentButton label="New Appointment" onCreated={() => { load(); loadStats(); }} />
-      </div>
-
-      {/* KPI strip */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        {KPIS.map((k) => (
-          <div key={k.label} className="rounded-xl border border-border bg-card p-3.5">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground truncate">{k.label}</p>
-            <p className={cn("text-2xl font-bold mt-1 tabular-nums", k.tone)}>{k.value}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex flex-wrap items-center gap-1 rounded-lg border border-border bg-card p-1">
-          {STATUS_TABS.map((t) => {
-            const count = t.statKey && stats ? stats[t.statKey] : undefined;
-            return (
-              <button key={t.key} onClick={() => { setTab(t.key); setPage(1); }}
-                className={cn("px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5",
-                  tab === t.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted")}>
-                {t.label}
-                {count != null && <span className={cn("text-[11px] font-bold rounded-full px-1.5", tab === t.key ? "bg-white/20" : "bg-muted")}>{count}</span>}
-              </button>
-            );
-          })}
-        </div>
-        <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 ml-auto">
-          <Search className="size-4 text-muted-foreground" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search customer, vehicle, service…"
-            className="bg-transparent py-2 text-sm text-foreground outline-none w-56 placeholder:text-muted-foreground" />
-        </div>
-      </div>
-
-      {/* Quick date filters */}
-      <div className="flex items-center gap-1.5 flex-wrap">
-        <CalendarClock className="size-4 text-muted-foreground" />
-        {DATE_FILTERS.map((d) => (
-          <button key={d.key} onClick={() => { setDateFilter(d.key); setPage(1); }}
-            className={cn("px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
-              dateFilter === d.key ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground hover:bg-muted")}>
-            {d.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Bulk action bar */}
-      {selected.size > 0 && (
-        <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2.5 animate-fade-in">
-          <span className="text-sm font-semibold text-foreground">{selected.size} selected</span>
-          <div className="flex items-center gap-2 ml-auto">
-            <Button size="sm" variant="outline" leftIcon={<CheckCheck className="size-4" />} onClick={() => bulkAct("confirm")}>Confirm</Button>
-            <Button size="sm" variant="outline" leftIcon={<X className="size-4" />} onClick={() => bulkAct("cancel")}>Cancel</Button>
-            <button onClick={() => setSelected(new Set())} className="text-xs text-muted-foreground hover:text-foreground">Clear</button>
-          </div>
-        </div>
-      )}
-
-      {/* Table */}
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
-        <div className={cn("grid gap-3 px-4 py-2.5 border-b border-border bg-muted/40 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground items-center", GRID)}>
-          <input type="checkbox" checked={allSelected} onChange={toggleAll} className="size-4 accent-[hsl(var(--primary))]" aria-label="Select all" />
-          <span>Customer</span><span>Vehicle</span><span>Service</span><span>When</span><span>Mechanic</span>
-          <span className="text-center">Health</span><span className="text-center">Billing</span><span className="text-center">Duration</span><span className="text-right pr-1">Status</span>
-        </div>
-
-        {loading && (
-          <div className="divide-y divide-border">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-14 px-4 flex items-center"><div className="h-3 w-1/3 rounded bg-muted animate-pulse" /></div>
-            ))}
-          </div>
-        )}
-
-        {!loading && rows.length === 0 && (
-          <div className="py-16 text-center">
-            <CalendarPlus className="size-8 mx-auto text-muted-foreground/40 mb-2" />
-            <p className="text-sm text-muted-foreground">No appointments match these filters.</p>
-          </div>
-        )}
-
-        {!loading && rows.length > 0 && (
-          <div className="divide-y divide-border">
-            {rows.map((a) => (
-              <Row key={a.id} a={a} selected={selected.has(a.id)} onToggle={() => toggleOne(a.id)} onAct={act} onEdit={setEditing} router={router} />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Pagination */}
-      {data && data.total_pages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">Page {data.page} of {data.total_pages} · {data.total} total</p>
-          <div className="flex items-center gap-1">
-            <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="grid size-8 place-items-center rounded-lg border border-border disabled:opacity-40 hover:bg-muted"><ChevronLeft className="size-4" /></button>
-            <button disabled={page >= data.total_pages} onClick={() => setPage((p) => p + 1)} className="grid size-8 place-items-center rounded-lg border border-border disabled:opacity-40 hover:bg-muted"><ChevronRight className="size-4" /></button>
-          </div>
-        </div>
-      )}
-
-      {editing && (
-        <EditAppointmentModal
-          appointment={editing}
-          onClose={() => setEditing(null)}
-          onSaved={() => { setEditing(null); load(); loadStats(); }}
-        />
-      )}
+  // The server-rendered shell must not accept actions before handlers mount.
+  return <fieldset disabled={!hydrated} aria-label={t("work.title")} className="contents"><div ref={root} className="min-w-0 p-4 lg:p-6 space-y-4 animate-fade-in" data-testid="appointments-queue">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div><h1 className="text-2xl font-bold text-foreground">{t("work.title")}</h1><p className="text-sm text-muted-foreground mt-1">{t("work.subtitle")}</p></div>
+      <NewAppointmentButton label={t("action.new_appointment")} onCreated={refresh} />
     </div>
-  );
-}
-
-function Row({
-  a, selected, onToggle, onAct, onEdit, router,
-}: {
-  a: Appointment;
-  selected: boolean;
-  onToggle: () => void;
-  onAct: (id: string, action: "confirm" | "cancel") => void;
-  onEdit: (a: Appointment) => void;
-  router: ReturnType<typeof useRouter>;
-}) {
-  const date = new Date(a.appointment_date).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  const { name: vehName, plate } = plateOf(a.vehicle_summary);
-  const canConfirm = a.status === "pending";
-  const canCancel = a.status === "pending" || a.status === "confirmed";
-
-  return (
-    <div className={cn("grid gap-3 px-4 py-3 items-center transition-colors", GRID,
-      selected ? "bg-primary/5" : "hover:bg-muted/30")}>
-      <input type="checkbox" checked={selected} onChange={onToggle} className="size-4 accent-[hsl(var(--primary))]" aria-label="Select row" />
-      <div className="flex items-center gap-2 min-w-0">
-        <span className="grid size-8 place-items-center rounded-full bg-primary/10 text-primary text-[11px] font-bold shrink-0">
-          {a.customer_name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "?"}
-        </span>
-        <Link href={`/customers/${a.customer_id}`} className="text-sm font-medium text-foreground truncate hover:text-primary hover:underline">{a.customer_name || "—"}</Link>
-      </div>
-      <Link href={`/vehicles/${a.vehicle_id}`} className="min-w-0 group">
-        <span className="text-sm text-foreground/90 truncate block group-hover:text-primary group-hover:underline">{vehName || "—"}</span>
-        {plate && <span className="text-[11px] font-mono text-muted-foreground">{plate}</span>}
-      </Link>
-      <span className="text-sm text-muted-foreground truncate flex items-center gap-1.5"><Wrench className="size-3.5 shrink-0 text-muted-foreground/60" />{a.service_type ?? "General service"}</span>
-      <span className="text-sm text-foreground/90 flex items-center gap-1.5"><Clock className="size-3.5 shrink-0 text-muted-foreground/60" /><span className="tabular-nums">{date} · {a.appointment_time}</span></span>
-      <span className="text-sm text-muted-foreground truncate flex items-center gap-1.5">
-        {a.mechanic_name ? <><User className="size-3.5 shrink-0 text-muted-foreground/60" />{a.mechanic_name}</> : <span className="text-muted-foreground/50">Unassigned</span>}
-      </span>
-      <span className="flex justify-center">
-        {a.health_score != null && a.health_band ? (
-          <Link href={`/vehicles/${a.vehicle_id}`}
-            className={cn("inline-flex items-center justify-center min-w-[34px] px-1.5 py-0.5 rounded-md border text-[12px] font-bold tabular-nums hover:opacity-80", HEALTH_COLOR[a.health_band] ?? "text-muted-foreground bg-muted border-border")}
-            title={`Health ${a.health_score} · ${a.health_band}`}>
-            {Math.round(a.health_score)}
-          </Link>
-        ) : <span className="text-muted-foreground/40 text-sm">—</span>}
-      </span>
-      <span className="flex justify-center"><BillingPill b={a.billing} vid={a.vehicle_id} /></span>
-      <span className="text-sm text-muted-foreground text-center tabular-nums">{fmtDuration(a.estimated_duration_minutes)}</span>
-      <div className="flex items-center justify-end gap-2">
-        <Badge variant={STATUS_BADGE[a.status]} size="sm" className="capitalize">{a.status.replace("_", " ")}</Badge>
-        <RowActions a={a} canConfirm={canConfirm} canCancel={canCancel} onAct={onAct} onEdit={onEdit} router={router} />
-      </div>
+    <section aria-label={t("queue.stats_scope")} className="space-y-2">
+      <p className="text-sm font-semibold">{t("queue.stats_scope")}</p><p className="text-xs text-muted-foreground">{t("queue.stats_date")}</p>
+      {statsState.phase === "loading" && <p role="status" aria-label={t("queue.stats_loading")} className="text-sm text-muted-foreground">{t("queue.stats_loading")}</p>}
+      {statsState.phase === "error" && <div role="alert" className="flex flex-wrap items-center gap-2 rounded-lg border border-border p-3 text-sm">{t("queue.stats_failed")}<button className={CONTROL} onClick={() => void loadStats()}>{t("queue.stats_retry")}</button></div>}
+      {stats && <div className="grid grid-cols-2 md:grid-cols-5 gap-3">{kpis.map(kpi => <div key={kpi.label} className="rounded-xl border border-border bg-card p-3"><p className="text-xs font-semibold text-muted-foreground">{t(kpi.label)}</p><p className="text-2xl font-bold tabular-nums">{fmt.number(kpi.count)}</p></div>)}</div>}
+    </section>
+    <div className="flex flex-wrap gap-2" aria-label={t("work.status")} role="group">{STATUS_TABS.map(filter => <button key={filter.key} aria-pressed={tab === filter.key} aria-label={t(filter.labelKey)} onClick={() => { setTab(filter.key); setPage(1); }} className={cn(CONTROL, tab === filter.key && "bg-primary text-primary-foreground hover:bg-primary")}>
+      {t(filter.labelKey)}{filter.statKey && stats && <span aria-hidden className="ml-2 tabular-nums">{fmt.number(stats[filter.statKey])}</span>}
+    </button>)}</div>
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="flex min-w-0 w-full sm:max-w-sm items-center gap-2 rounded-lg border border-border bg-card px-3 focus-within:ring-2 focus-within:ring-primary"><Search className="size-4 shrink-0 text-muted-foreground" /><input id="queue-search" value={q} maxLength={100} onChange={event => { setQ(event.target.value); setPage(1); }} aria-label={t("work.search")} placeholder={t("work.search")} className="min-h-11 min-w-0 w-full bg-transparent text-sm text-foreground outline-none" /></div>
+      <button className={CONTROL} disabled={!ready || busy} onClick={refresh}>{t("queue.refresh")}</button>
     </div>
-  );
-}
-
-function BillingPill({ b, vid }: { b: import("@/lib/api/types").AppointmentBilling | null | undefined; vid: string }) {
-  if (!b) return <span className="text-muted-foreground/40 text-sm">—</span>;
-  const bal = "$" + b.balance.toLocaleString("en-US", { maximumFractionDigits: 0 });
-  let cls = "text-slate-500 bg-slate-100 border-slate-200", label = b.status as string;
-  if (b.kind === "estimate") {
-    cls = b.status === "approved" ? "text-emerald-600 bg-emerald-50 border-emerald-200" : "text-purple-600 bg-purple-50 border-purple-200";
-    label = "Est";
-  } else if (b.status === "paid") { cls = "text-emerald-600 bg-emerald-50 border-emerald-200"; label = "Paid"; }
-  else if (b.status === "overdue") { cls = "text-red-600 bg-red-50 border-red-200"; label = bal; }
-  else if (b.status === "partial") { cls = "text-amber-600 bg-amber-50 border-amber-200"; label = bal; }
-  else { cls = "text-blue-600 bg-blue-50 border-blue-200"; label = bal; }  // issued
-  return (
-    <Link href="/billing" title={`${b.code} · ${b.status}`}
-      className={cn("inline-flex items-center justify-center min-w-[42px] px-2 py-0.5 rounded-md border text-[11px] font-bold hover:opacity-80", cls)}>
-      {label}
-    </Link>
-  );
-}
-
-function RowActions({
-  a, canConfirm, canCancel, onAct, onEdit, router,
-}: {
-  a: Appointment;
-  canConfirm: boolean;
-  canCancel: boolean;
-  onAct: (id: string, action: "confirm" | "cancel") => void;
-  onEdit: (a: Appointment) => void;
-  router: ReturnType<typeof useRouter>;
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button className="grid size-7 place-items-center rounded-lg border border-border text-muted-foreground hover:bg-muted" aria-label="Actions">
-          <MoreHorizontal className="size-4" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52">
-        {canConfirm && <DropdownMenuItem icon={<Check className="size-4" />} onClick={() => onAct(a.id, "confirm")}>Confirm</DropdownMenuItem>}
-        {canCancel && <DropdownMenuItem icon={<X className="size-4" />} destructive onClick={() => onAct(a.id, "cancel")}>Cancel</DropdownMenuItem>}
-        {(canConfirm || canCancel) && <DropdownMenuSeparator />}
-        <DropdownMenuItem icon={<User className="size-4" />} onClick={() => router.push(`/customers/${a.customer_id}`)}>Open Customer 360</DropdownMenuItem>
-        <DropdownMenuItem icon={<Wrench className="size-4" />} onClick={() => router.push(`/vehicles/${a.vehicle_id}`)}>Open Vehicle</DropdownMenuItem>
-        <DropdownMenuItem icon={<QrCode className="size-4" />} onClick={() => window.open(`/passport/${a.vehicle_id}`, "_blank")}>Open Passport</DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem icon={<CalendarClock className="size-4" />} onClick={() => onEdit(a)}>Edit / reschedule</DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
+    <div role="group" aria-label={t("work.when")} className="flex flex-wrap gap-2">{DATE_FILTERS.map(filter => <button key={filter.key} aria-pressed={dateFilter === filter.key} onClick={() => { setDateFilter(filter.key); setPage(1); }} className={cn(CONTROL, dateFilter === filter.key && "border-primary bg-primary/10 text-foreground")}>
+      {t(filter.labelKey)}
+    </button>)}</div>
+    <div className="flex flex-wrap items-center gap-2">
+      <QueueCheckbox label={t("queue.select_all")} checked={allSelected} disabled={!ready || !rows.length || busy} onChange={() => toggle()} />
+      {selected.size > 0 && <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 p-2" data-testid="queue-bulk">
+        <span className="text-sm font-semibold">{t("work.bulk_selected", { count: fmt.number(selected.size) })}</span>
+        <Button className="min-h-11 min-w-11" variant="outline" leftIcon={<CheckCheck className="size-4" />} disabled={busy} onClick={() => void bulkAct("confirm")}>{t("work.confirm")}</Button>
+        <Button className="min-h-11 min-w-11" variant="outline" leftIcon={<X className="size-4" />} disabled={busy} onClick={() => void bulkAct("cancel")}>{t("common.cancel")}</Button>
+        <button className={CONTROL} disabled={busy} onClick={() => setSelection({ key, ids: new Set() })}>{t("work.bulk_clear")}</button>
+      </div>}
+    </div>
+    {busy && <p role="status" aria-label={t("queue.working")} className="text-sm text-muted-foreground">{t("queue.working")}</p>}
+    <div className="max-w-full rounded-xl border border-border bg-card overflow-x-auto" data-testid="queue-records">
+      {!ready && !error && <p role="status" aria-label={t("queue.loading")} className="p-6 text-sm text-muted-foreground">{t("queue.loading")}</p>}
+      {error && <div role="alert" className="flex flex-wrap items-center gap-3 p-4 text-sm">{t("queue.failed")}<button className={CONTROL} onClick={() => void loadRef.current()}>{t("queue.retry")}</button></div>}
+      {ready && rows.length === 0 && <div className="p-12 text-center"><CalendarPlus className="size-8 mx-auto text-muted-foreground mb-2" /><p className="text-sm text-muted-foreground">{t("work.empty")}</p></div>}
+      {ready && rows.length > 0 && <>
+        <div aria-hidden className={cn("hidden xl:grid gap-3 p-4 bg-muted/40 text-xs font-semibold text-muted-foreground", QUEUE_GRID)}><span />{["customer", "vehicle", "service", "when", "mechanic", "health", "billing", "duration", "status"].map(field => <span key={field} className="min-w-0 break-words [overflow-wrap:anywhere]">{t(`work.${field}`)}</span>)}</div>
+        <div role="list" aria-label={t("work.title")} className="divide-y divide-border">{rows.map(appointment => <QueueRow key={appointment.id} appointment={appointment} selected={selected.has(appointment.id)} busy={busy} onToggle={() => toggle(appointment.id)} onAct={(id, action) => void act(id, action)} onEdit={edit} onInvoice={appointment => void openInvoice(appointment)} onNavigate={href => router.push(href)} />)}</div>
+      </>}
+    </div>
+    {data && <div className="flex flex-wrap items-center justify-between gap-3">
+      <p className="text-sm text-muted-foreground" data-testid="queue-pagination">{t("queue.page", { page: fmt.number(data.page), pages: fmt.number(Math.max(1, data.total_pages)), total: fmt.number(data.total) })}</p>
+      <div className="flex gap-2"><button className={cn(CONTROL, "grid place-items-center px-0 size-11")} aria-label={t("queue.previous")} disabled={data.page <= 1 || busy} onClick={() => setPage(data.page - 1)}><ChevronLeft className="size-4" /></button><button className={cn(CONTROL, "grid place-items-center px-0 size-11")} aria-label={t("queue.next")} disabled={data.page >= data.total_pages || busy} onClick={() => setPage(data.page + 1)}><ChevronRight className="size-4" /></button></div>
+    </div>}
+    {editing && <EditAppointmentModal appointment={editing} onClose={closeForms} onSaved={() => { closeForms(); refresh(); }} />}
+    {completing && <CompleteWorkModal appointment={completing} onClose={closeForms} onCompleted={() => { closeForms(); refresh(); }} />}
+    {invoicing && <NewInvoiceModal appointment={invoicing} onClose={closeForms} onCreated={doc => { returnTo.current = null; closeForms(); refresh(); router.push(`/invoice/${doc.id}`); }} />}
+  </div></fieldset>;
 }

@@ -1,24 +1,25 @@
-fastapi==0.115.0
+fastapi==0.135.4
+# Pin the patched HTTP/form parser used by FastAPI.
+starlette==1.3.1
 uvicorn[standard]==0.30.6
 sqlalchemy[asyncio]==2.0.35
 asyncpg==0.29.0
 alembic==1.13.3
 pydantic==2.9.2
 pydantic-settings==2.5.2
-python-jose[cryptography]==3.3.0
+PyJWT[crypto]==2.15.1
 passlib[bcrypt]==1.7.4
 # Pin bcrypt < 4.1: passlib 1.7.4's backend detection is incompatible with
 # bcrypt >= 4.1 (raises "password cannot be longer than 72 bytes" during init).
 bcrypt==4.0.1
-python-multipart==0.0.12
+python-multipart==0.0.32
 email-validator==2.2.0
 httpx==0.27.2
 redis==5.1.1
 apscheduler==3.10.4
 # Optional error monitoring — activates only when SENTRY_DSN is set (see
 # app/core/observability.py). Safe to keep installed; a no-op without a DSN.
-sentry-sdk[fastapi]==2.19.2
-python-dotenv==1.0.1
+# Handles Starlette's absent optional template dependency when monitoring is on.
+sentry-sdk[fastapi]==2.71.0
+python-dotenv==1.2.4
 structlog==24.4.0
-pytest==8.3.3
-pytest-asyncio==0.24.0

@@ -31,7 +31,7 @@ export default function HomePage() {
   return (
     <div className="space-y-5">
       <header className="px-1">
-        <p className="text-sm font-medium text-slate-400">{home.garage.name}</p>
+        <p className="text-sm font-medium text-slate-600">{home.garage.name}</p>
         <h1 className="text-[28px] font-bold tracking-tight text-slate-900">
           {t("mini.home.greeting", { name: home.greeting })} 👋
         </h1>
@@ -42,20 +42,20 @@ export default function HomePage() {
         href="/mini/roadside"
         aria-label={t("mini.home.sos_title")}
         onClick={() => haptic("heavy")}
-        className="flex items-center gap-4 rounded-3xl bg-gradient-to-br from-red-500 to-rose-600 p-4 text-white shadow-[0_12px_32px_-10px_rgba(220,38,38,0.6)] transition motion-safe:active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50"
+        className="flex items-center gap-4 rounded-3xl bg-linear-to-br from-red-700 to-rose-700 p-4 text-white shadow-[0_12px_32px_-10px_rgba(220,38,38,0.6)] transition motion-safe:active:scale-[0.99] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50"
       >
         <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-white/20">
           <LifeBuoy className="size-7" />
         </div>
         <div className="flex-1">
           <p className="text-lg font-bold leading-tight">{t("mini.home.sos_title")}</p>
-          <p className="text-sm text-white/85">{t("mini.home.sos_sub")}</p>
+          <p className="text-sm text-white">{t("mini.home.sos_sub")}</p>
         </div>
         <ChevronRight className="size-5 text-white/80" aria-hidden />
       </Link>
 
       {/* Book a service — primary action */}
-      <Card href="/mini/book" className="!bg-slate-900 !ring-slate-900">
+      <Card href="/mini/book" className="bg-slate-900! ring-slate-900!">
         <div className="flex items-center gap-3">
           <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-white/10 text-white">
             <CalendarClock className="size-6" aria-hidden />
@@ -64,7 +64,7 @@ export default function HomePage() {
             <p className="font-semibold text-white">{t("mini.home.book_service")}</p>
             <p className="text-sm text-slate-300">{t("mini.home.book_service_sub")}</p>
           </div>
-          <ChevronRight className="size-5 text-slate-400" aria-hidden />
+          <ChevronRight className="size-5 text-slate-600" aria-hidden />
         </div>
       </Card>
 
@@ -82,7 +82,7 @@ export default function HomePage() {
                   {home.next_appointment.service_type ?? t("mini.home.appointment_default")}
                 </p>
                 <p className="text-sm text-slate-500">
-                  {fmt.date(home.next_appointment.date, DAY_DATE)}
+                  {fmt.date(home.next_appointment.local_date || home.next_appointment.date, DAY_DATE)}
                   {home.next_appointment.time ? ` · ${home.next_appointment.time}` : ""}
                   {home.next_appointment.vehicle_label ? ` · ${home.next_appointment.vehicle_label}` : ""}
                 </p>
@@ -93,8 +93,8 @@ export default function HomePage() {
       ) : null}
 
       {/* Outstanding invoice */}
-      {home.outstanding_balance > 0.005 ? (
-        <Card href="/mini/billing" className="!bg-amber-50 !ring-amber-200/60">
+      {Object.values(home.balances_by_currency ?? { [home.balance_currency ?? "USD"]: home.outstanding_balance }).some((amount) => amount > 0.005) ? (
+        <Card href="/mini/billing" className="bg-amber-50! ring-amber-200/60!">
           <div className="flex items-center gap-3">
             <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-amber-100 text-amber-700">
               <Receipt className="size-6" aria-hidden />
@@ -107,7 +107,7 @@ export default function HomePage() {
                   : t("mini.home.tap_to_pay")}
               </p>
             </div>
-            <p className="text-lg font-bold text-slate-900">{fmt.money(home.outstanding_balance)}</p>
+            <p className="text-lg font-bold text-slate-900">{Object.entries(home.balances_by_currency ?? { [home.balance_currency ?? "USD"]: home.outstanding_balance }).filter(([, amount]) => amount > 0.005).map(([currency, amount]) => fmt.money(amount, currency)).join(" · ")}</p>
           </div>
         </Card>
       ) : null}
@@ -161,17 +161,17 @@ export default function HomePage() {
       {home.activity.length > 0 ? (
         <div>
           <SectionLabel>{t("mini.home.recent_activity")}</SectionLabel>
-          <Card className="!p-2">
+          <Card className="p-2!">
             <ul className="divide-y divide-slate-100">
               {home.activity.map((a, i) => (
                 <li key={i} className="flex items-start gap-3 px-2 py-3">
-                  <div className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-400">
+                  <div className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-600">
                     <Bell className="size-4" aria-hidden />
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-medium text-slate-800">{a.title}</p>
                     {a.detail ? <p className="text-sm text-slate-500">{a.detail}</p> : null}
-                    <p className="mt-0.5 text-xs text-slate-400">{fmt.date(a.date, DAY_DATE)}</p>
+                    <p className="mt-0.5 text-xs text-slate-600">{fmt.date(a.date, DAY_DATE)}</p>
                   </div>
                 </li>
               ))}

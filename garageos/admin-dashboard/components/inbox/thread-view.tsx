@@ -1,22 +1,27 @@
 "use client";
 
-import { forwardRef, useState } from "react";
+import { forwardRef, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
-  ArrowUpRight, Camera, Check, MapPin, Megaphone, Mic, Moon, Paperclip, PanelRightOpen,
-  Pin, Send, Siren, Smile, Sparkles,
+  ArrowUpRight, CalendarPlus, Camera, Check, Download, MapPin, Megaphone, Moon, PanelRightOpen, Phone, Pin, Receipt, Send, Share2, Siren,
 } from "lucide-react";
-import { cn } from "@garageos/design-system";
+import { Button, cn } from "@garageos/design-system";
 
-import type { ConvMessage, ThreadDetail } from "@/lib/api/types";
-import { CHANNEL_META, CONV_TYPE_ICON, activityIcon, relTime, roleColor } from "./shared";
+import { clientFetch } from "@/lib/api/client";
+import type { ConvMessage, ConvStatus, Passport, ThreadDetail } from "@/lib/api/types";
+import { useI18n } from "@/lib/i18n/context";
+import { useMessageComposer } from "@/lib/use-message-composer";
+import { messageSessionEpoch } from "@/lib/message-reset";
+import { verifyStaffMessageActor } from "@/lib/use-staff-message-session";
+import { MessageSubmissionStatus } from "@/components/message-submission-status";
+import { NewAppointmentModal } from "@/components/appointments/new-appointment-modal";
+import { NewInvoiceModal } from "@/components/billing/new-invoice-modal";
+import { NewInboxCaseModal } from "@/components/inbox/new-inbox-case-modal";
+import { InternalNoteBubble } from "@/components/inbox/internal-note-bubble";
+import { relTime as localizedRelTime } from "../operations/shared";
+import { CHANNEL_META, CONV_TYPE_ICON, activityIcon, conversationMessageTimestamp, inboxEnumLabel, roleColor, safeCallHref } from "./shared";
 
 type ComposerTab = "reply" | "note" | "announcement";
-
-const QUICK_ACTIONS = [
-  "📞 Call", "🚗 Share ETA", "🏅 Share Passport", "📅 Book Appt",
-  "🆘 Create Emergency", "🧾 Generate Estimate", "📷 Request Photos", "📍 Request Location",
-];
 
 // Column 3 — the conversation. Activity interleaves the event stream with
 // messages; Messages is human replies only. One composer, three modes.
@@ -26,93 +31,249 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
   onMode: (m: "activity" | "messages") => void;
   composerTab: ComposerTab;
   onComposerTab: (t: ComposerTab) => void;
-  onSend: (text: string, tab: ComposerTab) => void;
-  onStatus: (s: string) => void;
+  composer: ReturnType<typeof useMessageComposer<ConvMessage>>;
+  canWrite: boolean;
+  loading: boolean;
+  readError: boolean;
+  readAcknowledgement?: ReactNode;
+  actionNotice?: ReactNode;
+  actionBlocked: boolean;
+  actorId: string;
+  onAssign: (id: string | null) => void;
+  onChooseAssignee: (opener: HTMLElement) => void;
+  onSend: () => void;
+  onStatus: (s: ConvStatus) => void;
   onToggleFollow: () => void;
+  onPrepareRequest: (kind: "photos" | "location") => void;
   contextOpen: boolean;
   onOpenContext: () => void;
 }>(function ThreadView(
-  { thread, mode, onMode, composerTab, onComposerTab, onSend, onStatus, onToggleFollow, contextOpen, onOpenContext },
+  { thread, mode, onMode, composerTab, onComposerTab, composer, canWrite, loading, readError, readAcknowledgement, actionNotice, actionBlocked, actorId, onAssign, onChooseAssignee, onSend, onStatus, onToggleFollow, onPrepareRequest, contextOpen, onOpenContext },
   composerRef,
 ) {
-  const [text, setText] = useState("");
-  const ch = thread.last_channel ? CHANNEL_META[thread.last_channel] : CHANNEL_META.web;
+  const { t } = useI18n();
+  const [passportShareResult, setPassportShareResult] = useState<{
+    threadId: string; actorId: string; result: "copied" | "failed";
+  } | null>(null);
+  const shareSelection = useRef({ threadId: thread.id, actorId });
+  if (shareSelection.current.threadId !== thread.id || shareSelection.current.actorId !== actorId) {
+    shareSelection.current = { threadId: thread.id, actorId };
+  }
+  const [sharingTarget, setSharingTarget] = useState<typeof shareSelection.current | null>(null);
+  const sharingRef = useRef<{ selection: typeof shareSelection.current; epoch: string } | null>(null);
+  const sharing = sharingTarget === shareSelection.current;
+  const [exporting, setExporting] = useState(false);
+  const [exportResult, setExportResult] = useState<"downloaded" | "failed" | null>(null);
+  const exportingRef = useRef(false);
+  const mounted = useRef(false);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const currentThreadId = useRef(thread.id); currentThreadId.current = thread.id;
+  const currentActorId = useRef(actorId); currentActorId.current = actorId;
+  const [appointmentContext, setAppointmentContext] = useState<{ id: string; name: string; vehicleId?: string } | null>(null);
+  const [estimateContext, setEstimateContext] = useState<{ customerId: string; customerName: string; vehicleId?: string } | null>(null);
+  const [caseContext, setCaseContext] = useState<{ customerId: string; customerName: string; vehicleId?: string; vehicleLabel?: string } | null>(null);
+  const blocked = !canWrite || loading || readError;
+  const callHref = safeCallHref(thread.customer_phone);
+  const passport = thread.linked.find((card) => card.kind === "passport" && card.link && card.available !== false);
+  const caseLink = thread.linked.find((card) => card.kind === "case" && card.link && card.available !== false)?.link;
+  const appointmentPreset = thread.customer_id && thread.customer_name ? {
+    id: thread.customer_id, name: thread.customer_name, vehicleId: thread.vehicle_id ?? undefined,
+  } : null;
 
-  const send = () => {
-    const t = text.trim();
-    if (!t) return;
-    onSend(t, composerTab);
-    setText("");
-  };
+  async function copyPassportLink() {
+    const selection = shareSelection.current;
+    if (loading || readError || !passport || sharingRef.current?.selection === selection) return;
+    const action = { selection, epoch: messageSessionEpoch() };
+    sharingRef.current = action;
+    setSharingTarget(selection);
+    const targetVehicle = thread.vehicle_id;
+    const isCurrent = () => mounted.current && sharingRef.current === action
+      && shareSelection.current === selection && messageSessionEpoch() === action.epoch;
+    setPassportShareResult(null);
+    try {
+      const verified = await verifyStaffMessageActor(isCurrent);
+      if (!isCurrent()) return;
+      if (verified.actor.id !== selection.actorId) throw new Error("Passport actor changed");
+      const fresh = await clientFetch<ThreadDetail>(`/conversations/${selection.threadId}`, { cache: "no-store" });
+      if (!isCurrent()) return;
+      const expectedLink = targetVehicle ? `/passport/${targetVehicle}` : null;
+      const card = fresh.linked.find(item => item.kind === "passport" && item.available !== false);
+      if (fresh.id !== selection.threadId || fresh.vehicle_id !== targetVehicle || !expectedLink || card?.link !== expectedLink) {
+        throw new Error("Current passport context unavailable");
+      }
+      const artifact = await clientFetch<Passport>(`/public/passport/${targetVehicle}`, { cache: "no-store" });
+      if (!isCurrent()) return;
+      if (artifact.vehicle?.id !== targetVehicle) throw new Error("Passport artifact unavailable");
+      await verifyStaffMessageActor(isCurrent, verified.actor);
+      if (!isCurrent()) return;
+      await navigator.clipboard.writeText(new URL(expectedLink, window.location.origin).href);
+      if (!isCurrent()) return;
+      setPassportShareResult({ ...selection, result: "copied" });
+    } catch {
+      if (isCurrent()) setPassportShareResult({ ...selection, result: "failed" });
+    } finally {
+      if (sharingRef.current === action) {
+        sharingRef.current = null;
+        setSharingTarget(null);
+      }
+    }
+  }
+
+  async function exportThread() {
+    const targetId = thread.id;
+    const targetActor = actorId;
+    if (exportingRef.current) return;
+    exportingRef.current = true; setExporting(true); setExportResult(null);
+    try {
+      // Re-read through the normal current-auth, tenant-scoped and safe-child
+      // boundary; never export the possibly stale page copy or its read token.
+      const fresh = await clientFetch<ThreadDetail>(`/conversations/${targetId}`);
+      if (!mounted.current || currentThreadId.current !== targetId || currentActorId.current !== targetActor) return;
+      const file = {
+        format: "garageos.inbox-thread.v1",
+        exported_at: new Date().toISOString(),
+        scope: "one authorized conversation and its complete recorded message history",
+        conversation: {
+          id: fresh.id, subject: fresh.subject, conv_type: fresh.conv_type, status: fresh.status,
+          priority: fresh.priority, last_channel: fresh.last_channel, created_at: fresh.created_at,
+          last_message_at: fresh.last_message_at, last_activity_at: fresh.last_activity_at,
+          last_message_preview: fresh.last_message_preview, last_sender_role: fresh.last_sender_role,
+          customer_id: fresh.customer_id, customer_name: fresh.customer_name, customer_phone: fresh.customer_phone,
+          vehicle_id: fresh.vehicle_id, vehicle_label: fresh.vehicle_label,
+          appointment_id: fresh.appointment_id, case_id: fresh.case_id, invoice_id: fresh.invoice_id,
+          assigned_user_id: fresh.assigned_user_id, assigned_name: fresh.assigned_name,
+          case_code: fresh.case_code, case_status: fresh.case_status,
+          stored_summary: fresh.ai_summary, pinned_notes: fresh.pinned_notes,
+          linked: fresh.linked.map(({ kind, title, subtitle, link, available, case_type, appointment_date, appointment_time, invoice_kind }) => ({ kind, title, subtitle, link, available, case_type, appointment_date, appointment_time, invoice_kind })),
+        },
+        participants: fresh.participants.map(({ id, role, display_name, is_following, active_channel }) => ({
+          id, role, display_name, is_following, active_channel,
+        })),
+        messages: fresh.messages.map(({ id, kind, channel, is_internal, author_role, author_name, body,
+          delivery_status, mentions, created_at, attachments }) => ({
+          id, kind, channel, is_internal, author_role, author_name, body, delivery_status, mentions, created_at,
+          attachments: attachments.map(({ id: attachmentId, kind: attachmentKind, label }) => ({
+            id: attachmentId, kind: attachmentKind, label,
+          })),
+        })),
+        activity: fresh.activity.map(({ id, type, title, detail, date, severity, category, author_role, channel }) => ({
+          id, type, title, detail, date, severity, category, author_role, channel,
+        })),
+        omitted: ["authentication/session data", "read-observation token", "attachment URLs and metadata", "live presence flags"],
+      };
+      const blob = new Blob([JSON.stringify(file, null, 2)], { type: "application/json;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url; anchor.download = `garageos-inbox-${targetId}.json`; anchor.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setExportResult("downloaded");
+    } catch {
+      if (mounted.current && currentThreadId.current === targetId && currentActorId.current === targetActor) setExportResult("failed");
+    } finally {
+      exportingRef.current = false; setExporting(false);
+    }
+  }
 
   return (
-    <div className="flex-1 min-w-0 flex flex-col bg-muted/20">
+    <div className="flex-1 min-h-0 min-w-0 flex flex-col bg-muted/20 [overflow-wrap:anywhere]">
       {/* Header */}
-      <div className="bg-card border-b border-border px-4 pt-3 shrink-0">
-        <div className="flex items-center gap-3">
+      <div role="region" aria-label={t("message.overview")} tabIndex={0} className="max-h-[20%] sm:max-h-[25%] lg:max-h-[45%] overflow-y-auto bg-card border-b border-border px-4 pt-3 shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
+        {readAcknowledgement}
+        {actionNotice}
+        {!canWrite && <p className="pb-3 text-sm">{t("ops.readonly")}</p>}
+        <div className="flex flex-wrap items-center gap-3">
           <span className="grid size-9 place-items-center rounded-xl bg-slate-800 text-white text-sm font-bold">
             {(thread.customer_name ?? "?").split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
           </span>
-          <div className="min-w-0">
-            <p className="text-[15px] font-bold text-foreground truncate">
-              {thread.customer_name ?? thread.subject ?? "Conversation"}
-            </p>
-            <p className="text-xs text-muted-foreground truncate">
-              {[thread.vehicle_label, thread.case_code, thread.subject].filter(Boolean).join(" · ")}
+          <div className="min-w-0 flex-1">
+            <h2 className="break-words text-[15px] font-bold text-foreground">
+              {thread.subject || thread.customer_name || t("inbox.conversation")}
+            </h2>
+            <p className="break-words text-xs text-muted-foreground">
+              {[thread.customer_name, thread.vehicle_label, thread.case_code].filter(Boolean).join(" · ")}
             </p>
           </div>
-          <div className="ml-auto flex items-center gap-1.5">
-            {thread.case_id && (
-              <Link href={`/operations?case=${thread.case_id}`}
-                className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 inline-flex items-center gap-1">
-                <Siren className="size-3.5" /> Open case <ArrowUpRight className="size-3" />
+          <div className="flex flex-wrap items-center gap-1.5">
+            {caseLink && (
+              <Link href={caseLink}
+                className="min-h-11 min-w-11 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 inline-flex items-center gap-1">
+                <Siren className="size-3.5" /> {t("message.open_case")} <ArrowUpRight className="size-3" />
               </Link>
             )}
-            <button onClick={onToggleFollow}
-              className={cn("text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-colors",
-                thread.is_following ? "border-primary/40 bg-primary/5 text-primary" : "border-border text-slate-600 hover:bg-muted")}>
-              {thread.is_following ? "Following ✓" : "Follow"}
+            <button onClick={onToggleFollow} disabled={actionBlocked}
+              className={cn("min-h-11 min-w-11 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-colors",
+                thread.is_following ? "border-primary/40 bg-primary/5 text-primary dark:text-blue-300" : "border-border text-slate-600 dark:text-slate-300 hover:bg-muted")}>
+              {t(thread.is_following ? "message.following" : "message.follow")}
             </button>
-            <button onClick={() => onStatus("snoozed")}
-              className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-border text-amber-600 hover:bg-muted inline-flex items-center gap-1">
-              <Moon className="size-3.5" /> Snooze
+            <button onClick={() => onStatus("snoozed")} disabled={actionBlocked || thread.status === "snoozed"}
+              className="min-h-11 min-w-11 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-border text-amber-800 dark:text-amber-300 hover:bg-muted inline-flex items-center gap-1">
+              <Moon className="size-3.5" /> {t("message.snooze")}
             </button>
-            <button onClick={() => onStatus("resolved")}
-              className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 inline-flex items-center gap-1">
-              <Check className="size-3.5" /> Resolve
+            <button onClick={() => onStatus("resolved")} disabled={actionBlocked || thread.status === "resolved"}
+              className="min-h-11 min-w-11 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-emerald-700 text-white hover:bg-emerald-800 inline-flex items-center gap-1">
+              <Check className="size-3.5" /> {t("message.close_thread")}
             </button>
             {!contextOpen && (
-              <button onClick={onOpenContext} className="p-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted" aria-label="Open context">
+              <button onClick={onOpenContext} className="min-h-11 min-w-11 grid place-items-center p-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted" aria-label={t("message.context")}>
                 <PanelRightOpen className="size-4" />
               </button>
             )}
           </div>
         </div>
 
+        <div className="mt-3 flex flex-wrap items-end gap-2">
+          <label className="min-w-0 text-sm">{t("inbox.action.status")}
+            <select className="mt-1 block min-h-11 max-w-full rounded-lg border border-border bg-background px-3 py-2 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50"
+              value={thread.status} disabled={actionBlocked} onChange={event => onStatus(event.target.value as ConvStatus)}>
+              {(["open", "waiting_customer", "waiting_technician", "waiting_approval", "snoozed", "resolved"] as const).map(status =>
+                <option key={status} value={status}>{t(`inbox.status.${status}`)}</option>)}
+            </select>
+          </label>
+          <p className="min-w-0 break-words text-sm">{t("inbox.action.assigned")}: {thread.assigned_name ?? t("inbox.action.unassigned")}</p>
+          <button className="min-h-11 min-w-11 rounded-lg border border-border px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50"
+            disabled={actionBlocked} onClick={event => onChooseAssignee(event.currentTarget)}>{t("inbox.choice.assignee")}</button>
+          <button className="min-h-11 min-w-11 rounded-lg border border-border px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50"
+            disabled={actionBlocked || thread.assigned_user_id === actorId} onClick={() => onAssign(actorId)}>{t("inbox.action.assign_me")}</button>
+          <button className="min-h-11 min-w-11 rounded-lg border border-border px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50"
+            disabled={actionBlocked || !thread.assigned_user_id} onClick={() => onAssign(null)}>{t("inbox.action.clear_assignment")}</button>
+        </div>
+
         {/* Linked pills */}
         <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
           <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border border-border">
-            {CONV_TYPE_ICON[thread.conv_type]} <span className="capitalize">{thread.conv_type}</span>
+            {CONV_TYPE_ICON[thread.conv_type]} <span>{t(`inbox.type.${thread.conv_type}`)}</span>
           </span>
-          {thread.linked.map((c) => (
-            <Link key={c.kind} href={c.link} target={c.kind === "passport" ? "_blank" : undefined}
-              className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border border-border hover:border-primary/40 hover:text-primary transition-colors">
-              {c.title}
-            </Link>
-          ))}
+          {thread.linked.map((c) => {
+            const label = c.available === false ? t(c.kind === "vehicle" ? "inbox.linked.vehicle_unavailable" : "inbox.linked.record_unavailable")
+              : c.kind === "passport" ? t("inbox.context.passport")
+              : c.kind === "appointment" ? t("inbox.context.appointment")
+              : c.kind === "invoice" ? c.title
+              : c.kind === "case" ? `${inboxEnumLabel(t, "case_type", c.case_type)} · ${c.title ?? ""}` : c.title;
+            return c.link ? (
+              <Link key={c.kind} href={c.link} target={c.kind === "passport" ? "_blank" : undefined}
+                className="min-h-11 min-w-11 inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border border-border hover:border-primary/40 hover:text-primary transition-colors">
+                {label}
+              </Link>
+            ) : (
+              <span key={c.kind} role="note" aria-label={label ?? undefined}
+                className="min-h-11 inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full border border-border text-muted-foreground">
+                {label}
+              </span>
+            );
+          })}
         </div>
 
         {/* Activity | Messages */}
-        <div className="flex items-center gap-0 mt-2.5">
+        <div className="flex flex-wrap items-center gap-0 mt-2.5">
           {(["activity", "messages"] as const).map((m) => (
             <button key={m} onClick={() => onMode(m)}
-              className={cn("text-[13px] font-semibold px-3 py-2 border-b-2 -mb-px capitalize transition-colors",
+              className={cn("min-h-11 min-w-11 text-[13px] font-semibold px-3 py-2 border-b-2 -mb-px capitalize transition-colors",
                 mode === m ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
-              {m}
+              {t(`message.${m}`)}
             </button>
           ))}
           <span className="ml-auto text-[11px] text-muted-foreground pb-1.5">
-            Activity = every event + message · Messages = human replies
+            {t("message.activity_hint")}
           </span>
         </div>
       </div>
@@ -128,7 +289,7 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
       )}
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div role="region" aria-label={t("message.messages")} tabIndex={0} className="min-h-0 flex-1 overflow-y-auto p-4 space-y-3 focus-visible:outline-2 focus-visible:outline-primary">
         {mode === "messages"
           ? thread.messages.map((m) => <MessageBubble key={m.id} m={m} />)
           : thread.activity.map((a, i) => (
@@ -137,70 +298,127 @@ export const ThreadView = forwardRef<HTMLTextAreaElement, {
               : <EventLine key={i} icon={activityIcon(a)} title={a.title} detail={a.detail} date={a.date} />
           ))}
         {mode === "messages" && thread.messages.length === 0 && (
-          <p className="text-center text-sm text-muted-foreground py-8">No messages yet.</p>
+          <p className="text-center text-sm text-muted-foreground py-8">{t("message.empty")}</p>
         )}
       </div>
 
       {/* Quick actions */}
-      <div className="flex gap-1.5 px-4 py-2 bg-card border-t border-border overflow-x-auto shrink-0">
-        {QUICK_ACTIONS.map((a) => (
-          <span key={a} className={cn("text-[11.5px] font-semibold px-2.5 py-1.5 rounded-lg border whitespace-nowrap",
-            a.includes("Emergency") ? "border-red-200 bg-red-50 text-red-600" : "border-border text-slate-600")}>
-            {a}
+      <div role="region" aria-label={t("message.quick_actions")} tabIndex={0} className="flex gap-1.5 px-4 py-2 bg-card border-t border-border overflow-x-auto shrink-0 [&>*]:shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
+        {callHref ? (
+          <a href={callHref} className="min-h-11 min-w-11 inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11.5px] font-semibold whitespace-nowrap text-slate-600 dark:text-slate-300 focus-visible:outline-2 focus-visible:outline-primary">
+            <Phone className="size-3.5" aria-hidden="true" />{t("message.action.call")}
+          </a>
+        ) : (
+          <span role="note" aria-label={t("message.action.phone_unavailable")} className="min-h-11 inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11.5px] whitespace-nowrap text-muted-foreground">
+            <Phone className="size-3.5" aria-hidden="true" />{t("message.action.phone_unavailable")}
           </span>
-        ))}
+        )}
+        <button type="button" disabled={blocked || actionBlocked} onClick={() => onPrepareRequest("photos")}
+          className="min-h-11 min-w-11 inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11.5px] font-semibold whitespace-nowrap text-slate-600 dark:text-slate-300 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50">
+          <Camera className="size-3.5" aria-hidden="true" />{t("message.action.request_photos")}
+        </button>
+        <button type="button" disabled={blocked || actionBlocked} onClick={() => onPrepareRequest("location")}
+          className="min-h-11 min-w-11 inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11.5px] font-semibold whitespace-nowrap text-slate-600 dark:text-slate-300 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50">
+          <MapPin className="size-3.5" aria-hidden="true" />{t("message.action.request_location")}
+        </button>
+        {passport ? (
+          <Button variant="outline" size="sm" className="min-h-11 min-w-11"
+            leftIcon={<Share2 className="size-3.5" aria-hidden="true" />}
+            disabled={loading || readError || sharing} aria-busy={sharing}
+            onClick={() => void copyPassportLink()}>
+            {t("message.action.share_passport")}
+          </Button>
+        ) : (
+          <span role="note" aria-label={t("message.action.passport_unavailable")}
+            className="min-h-11 inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11.5px] whitespace-nowrap text-muted-foreground">
+            🏅 {t("message.action.passport_unavailable")}
+          </span>
+        )}
+        {passportShareResult?.threadId === thread.id && passportShareResult.actorId === actorId && passportShareResult.result === "copied"
+          && <span role="status" className="sr-only">{t("message.action.passport_copied")}</span>}
+        {passportShareResult?.threadId === thread.id && passportShareResult.actorId === actorId && passportShareResult.result === "failed"
+          && <span role="alert" className="sr-only">{t("message.action.passport_copy_failed")}</span>}
+        <Button variant="outline" size="sm" className="min-h-11 min-w-11"
+          leftIcon={<Download className="size-3.5" aria-hidden="true" />}
+          disabled={loading || readError || exporting} onClick={() => void exportThread()}>
+          {t(exporting ? "message.action.exporting" : "message.action.export_thread")}
+        </Button>
+        {exportResult === "downloaded" && <span role="status">{t("message.action.export_downloaded")}</span>}
+        {exportResult === "failed" && <span role="alert">{t("message.action.export_failed")}</span>}
+        {appointmentPreset ? (
+          <Button variant="outline" size="sm" className="min-h-11 min-w-11"
+            leftIcon={<CalendarPlus className="size-3.5" aria-hidden="true" />}
+            disabled={blocked || actionBlocked} onClick={() => setAppointmentContext(appointmentPreset)}>
+            {t("message.action.book_appointment")}
+          </Button>
+        ) : (
+          <span role="note" aria-label={t("message.action.appointment_unavailable")}
+            className="min-h-11 inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11.5px] whitespace-nowrap text-muted-foreground">
+            📅 {t("message.action.appointment_unavailable")}
+          </span>
+        )}
+        {appointmentPreset ? (
+          <Button variant="outline" size="sm" className="min-h-11 min-w-11"
+            leftIcon={<Siren className="size-3.5" aria-hidden="true" />}
+            disabled={blocked || actionBlocked} onClick={() => setCaseContext({
+              customerId: appointmentPreset.id, customerName: appointmentPreset.name,
+              vehicleId: appointmentPreset.vehicleId, vehicleLabel: thread.vehicle_label ?? undefined,
+            })}>
+            {t("message.action.open_case")}
+          </Button>
+        ) : (
+          <span role="note" aria-label={t("message.action.case_unavailable")}
+            className="min-h-11 inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11.5px] whitespace-nowrap text-muted-foreground">
+            🚨 {t("message.action.case_unavailable")}
+          </span>
+        )}
+        {appointmentPreset ? (
+          <Button variant="outline" size="sm" className="min-h-11 min-w-11"
+            leftIcon={<Receipt className="size-3.5" aria-hidden="true" />}
+            disabled={blocked || actionBlocked} onClick={() => setEstimateContext({
+              customerId: appointmentPreset.id, customerName: appointmentPreset.name, vehicleId: appointmentPreset.vehicleId,
+            })}>
+            {t("message.action.create_estimate")}
+          </Button>
+        ) : (
+          <span role="note" aria-label={t("message.action.estimate_unavailable")}
+            className="min-h-11 inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11.5px] whitespace-nowrap text-muted-foreground">
+            🧾 {t("message.action.estimate_unavailable")}
+          </span>
+        )}
+        <span role="note" aria-label={t("message.action.eta_unavailable")}
+          className="min-h-11 inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11.5px] whitespace-nowrap text-muted-foreground">
+          🚗 {t("message.action.eta_unavailable")}
+        </span>
       </div>
 
-      {/* Suggested reply (single inline AI) */}
-      {thread.ai_summary && composerTab === "reply" && (
-        <div className="mx-4 mb-1 flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50/50 px-3 py-2 shrink-0">
-          <Sparkles className="size-3.5 text-indigo-600 shrink-0" />
-          <span className="text-[10px] font-bold uppercase tracking-wide text-indigo-600 shrink-0">Suggested</span>
-          <span className="text-[12.5px] text-slate-700 flex-1 truncate">
-            A technician is on the way — you&apos;ll get an update shortly.
-          </span>
-          <button onClick={() => setText("A technician is on the way — you'll get an update shortly.")}
-            className="text-[11px] font-bold text-white bg-indigo-600 rounded-md px-2.5 py-1 shrink-0">Insert</button>
-        </div>
-      )}
+      {appointmentContext && <NewAppointmentModal
+        preset={appointmentContext} onClose={() => setAppointmentContext(null)} />}
+      {estimateContext && <NewInvoiceModal
+        kind="estimate" preset={estimateContext} onClose={() => setEstimateContext(null)} />}
+      {caseContext && <NewInboxCaseModal preset={caseContext} onClose={() => setCaseContext(null)} />}
 
-      {/* Composer */}
-      <div className="bg-card border-t border-border p-3 shrink-0">
-        <div className="flex gap-1.5 mb-2">
-          {([["reply", "Reply"], ["note", "Internal note"], ["announcement", "Announcement"]] as const).map(([k, label]) => (
-            <button key={k} onClick={() => onComposerTab(k)}
-              className={cn("text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors",
-                composerTab === k
-                  ? k === "note" ? "bg-amber-100 text-amber-700" : k === "announcement" ? "bg-purple-100 text-purple-700" : "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:text-foreground")}>
-              {label}
-            </button>
-          ))}
+      {composer.saved && <p role="status" className="shrink-0 border-t border-border bg-card px-3 py-2 text-sm">{t("message.saved")}</p>}
+      <div data-message-composer className="min-w-0 max-h-[65%] space-y-2 overflow-y-auto bg-card border-t border-border p-3">
+        <MessageSubmissionStatus composer={composer} showSaved={false} />
+        {!canWrite && <p className="text-sm">{t("ops.readonly")}</p>}
+        <div className="flex flex-wrap gap-2">
+          {(["reply", "note", "announcement"] as const).map(value => <button key={value} onClick={() => onComposerTab(value)} aria-pressed={composerTab === value}
+            className={cn("min-h-11 min-w-11 rounded-lg border border-border px-3 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-primary", composerTab === value && "bg-primary/10 text-foreground")}>
+            {t(`message.${value}`)}
+          </button>)}
         </div>
-        <textarea
-          ref={composerRef}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); } }}
-          rows={2}
-          placeholder={composerTab === "note" ? "Internal note — @mention a teammate…" : `Reply to ${thread.customer_name ?? "customer"}…`}
-          className={cn("w-full resize-none rounded-lg border px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary",
-            composerTab === "note" ? "border-amber-200 bg-amber-50/40" : "border-border bg-background")}
-        />
-        <div className="flex items-center gap-1.5 mt-2">
-          {[Camera, MapPin, Mic, Paperclip, Smile].map((Icon, i) => (
-            <button key={i} className="grid size-8 place-items-center rounded-lg border border-border text-muted-foreground hover:bg-muted">
-              <Icon className="size-4" />
-            </button>
-          ))}
-          <span className="ml-auto text-[11px] text-muted-foreground">
-            {composerTab === "note" ? "🔒 Internal" : `Sending via ${ch.icon} ${ch.label}`}
-          </span>
-          <button onClick={send} disabled={!text.trim()}
-            className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground text-[13px] font-bold px-4 py-2 rounded-lg disabled:opacity-40">
-            {composerTab === "announcement" ? <Megaphone className="size-4" /> : <Send className="size-4" />} Send
-          </button>
-        </div>
+        <label className="block text-sm"><span>{t("ops.message")}</span>
+          <textarea ref={composerRef} aria-label={t("ops.message")} value={composer.text} maxLength={64 * 1024} rows={3} disabled={!canWrite}
+            onChange={event => composer.edit(event.target.value)} onKeyDown={event => {
+              if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); onSend(); }
+            }} className="mt-1 min-h-11 w-full min-w-0 resize-y rounded-lg border border-border bg-background p-2 text-sm focus-visible:outline-2 focus-visible:outline-primary" />
+        </label>
+        <button onClick={onSend} disabled={blocked || composer.pending || !!composer.intent || !!composer.storageError || !composer.text.trim()}
+          className="min-h-11 min-w-11 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50">
+          {composerTab === "announcement" ? <Megaphone className="size-4" /> : <Send className="size-4" />}
+          {t(composer.pending ? "message.pending" : "message.send")}
+        </button>
       </div>
     </div>
   );
@@ -214,22 +432,22 @@ function bubbleSide(role: string): "them" | "me" | "mech" {
 }
 
 function MessageBubble({ m }: { m: ConvMessage }) {
+  const { t, fmt } = useI18n();
   const side = bubbleSide(m.author_role);
   if (m.is_internal && m.kind === "note") {
-    return (
-      <div className="mx-auto w-[88%] rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
-        <p className="text-[10px] font-bold uppercase tracking-wide text-amber-700 mb-1">🔒 Internal note</p>
-        <p className="text-[13px] text-amber-900 whitespace-pre-wrap">{renderMentions(m.body)}</p>
-      </div>
-    );
+    return <InternalNoteBubble
+      label={t("message.note")}
+      body={renderMentions(m.body)}
+      timestamp={conversationMessageTimestamp(m.created_at, Date.now(), t, fmt.number, "block text-[10px] text-amber-700 mt-1 px-1")}
+    />;
   }
   return (
     <div className={cn("max-w-[74%]", side === "me" ? "ml-auto" : "")}>
-      <p className={cn("text-[10px] font-bold mb-1 px-1", side === "me" ? "text-primary text-right" : roleColor(m.author_role))}>
+      <p className={cn("text-[10px] font-bold mb-1 px-1", side === "me" ? "text-primary dark:text-blue-300 text-right" : roleColor(m.author_role))}>
         {m.author_name ?? m.author_role}
       </p>
       {m.body && (
-        <div className={cn("px-3 py-2 rounded-2xl text-[13px] leading-relaxed",
+        <div className={cn("px-3 py-2 rounded-2xl text-[13px] leading-relaxed whitespace-pre-wrap",
           side === "me" ? "bg-primary text-primary-foreground rounded-br-sm"
             : side === "mech" ? "bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-bl-sm"
               : "bg-card border border-border rounded-bl-sm")}>
@@ -244,31 +462,34 @@ function MessageBubble({ m }: { m: ConvMessage }) {
           <span className="font-medium text-foreground">{a.label}</span>
         </div>
       ))}
-      <p className={cn("text-[10px] text-muted-foreground mt-1 px-1", side === "me" && "text-right")}>{relTime(m.created_at)}</p>
+      <p className={cn("text-[10px] text-muted-foreground mt-1 px-1", side === "me" && "text-right")}>{m.created_at ? localizedRelTime(m.created_at, Date.now(), t, fmt.number) : ""}</p>
     </div>
   );
 }
 
 function MiniBubble({ role, name, body, date }: { role: string; name: string; body: string | null; date: string | null }) {
+  const { t, fmt } = useI18n();
   const side = bubbleSide(role);
   return (
     <div className={cn("max-w-[70%]", side === "me" ? "ml-auto" : "")}>
-      <span className={cn("text-[10px] font-bold px-1", side === "me" ? "text-primary" : roleColor(role))}>{name}</span>
+      <span className={cn("text-[10px] font-bold px-1", side === "me" ? "text-primary dark:text-blue-300" : roleColor(role))}>{name}</span>
       <div className={cn("px-3 py-1.5 rounded-xl text-[12.5px]",
         side === "me" ? "bg-primary text-primary-foreground" : side === "mech" ? "bg-emerald-50 border border-emerald-200 text-emerald-900" : "bg-card border border-border")}>
         {body ?? "—"}
       </div>
+      {conversationMessageTimestamp(date, Date.now(), t, fmt.number, cn("block text-[10px] text-muted-foreground mt-1 px-1", side === "me" && "text-right"))}
     </div>
   );
 }
 
 function EventLine({ icon, title, detail, date }: { icon: string; title: string; detail: string | null; date: string | null }) {
+  const { t, fmt } = useI18n();
   return (
     <div className="flex items-center gap-2 justify-center text-[11.5px] text-muted-foreground">
       <span className="text-sm">{icon}</span>
-      <span className="font-medium text-slate-600">{title}</span>
+      <span className="font-medium text-slate-600 dark:text-slate-300">{title}</span>
       {detail && <span>· {detail}</span>}
-      <span className="text-muted-foreground/70">· {relTime(date)}</span>
+      <span className="text-muted-foreground/70 dark:text-muted-foreground">· {date ? localizedRelTime(date, Date.now(), t, fmt.number) : ""}</span>
     </div>
   );
 }

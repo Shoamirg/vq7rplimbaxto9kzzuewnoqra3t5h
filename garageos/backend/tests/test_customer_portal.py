@@ -15,10 +15,12 @@ import uuid
 from urllib.parse import urlencode
 
 import pytest
+import pytest_asyncio
+from sqlalchemy import delete
 
 from app.core.config import settings
 from app.core.security import create_access_token
-from app.exceptions import InvalidToken
+from app.exceptions import InvalidToken, NotFoundError
 from app.models import Brand, Customer, ServiceCenter, Vehicle, VehicleModel
 from app.repositories.unit_of_work import UnitOfWork
 from app.schemas.customer_portal import RoadsideRequest
@@ -26,6 +28,24 @@ from app.services.customer_auth_service import CustomerAuthService, TelegramNotL
 from app.services.customer_portal_service import CustomerPortalService
 
 BOT = "test-bot:portal"
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _cleanup_committed_auth_fixtures(session):
+    # Session issuance deliberately commits before success. Remove ONLY this
+    # module's owned identities, including when a test fails after issuance.
+    try:
+        yield
+    finally:
+        await session.rollback()
+        centers = session.info.get("portal_fixture_centers", [])
+        brands = session.info.get("portal_fixture_brands", [])
+        if centers:
+            await session.execute(delete(ServiceCenter).where(ServiceCenter.id.in_(centers)))
+        if brands:
+            await session.execute(delete(VehicleModel).where(VehicleModel.brand_id.in_(brands)))
+            await session.execute(delete(Brand).where(Brand.id.in_(brands)))
+        await session.commit()
 
 
 @pytest.fixture(autouse=True)
@@ -49,6 +69,7 @@ async def _tenant(session, telegram_id: int | None, *, vehicles: int = 0) -> tup
                            tagline="We fix things", email=f"pg-{uuid.uuid4().hex}@t.local")
     session.add(center)
     await session.flush()
+    session.info.setdefault("portal_fixture_centers", []).append(center.id)
     customer = Customer(service_center_id=center.id, full_name="Ahmed Khan",
                         phone=f"+1555{uuid.uuid4().int % 10_000_000:07d}",
                         telegram_id=telegram_id)
@@ -58,6 +79,7 @@ async def _tenant(session, telegram_id: int | None, *, vehicles: int = 0) -> tup
         brand = Brand(name=f"B-{uuid.uuid4().hex[:8]}")
         session.add(brand)
         await session.flush()
+        session.info.setdefault("portal_fixture_brands", []).append(brand.id)
         model = VehicleModel(brand_id=brand.id, name="M", year_start=2015)
         session.add(model)
         await session.flush()
@@ -112,13 +134,13 @@ async def test_refresh_issues_new_pair(session):
 
 
 @pytest.mark.asyncio
-async def test_link_by_phone(session):
+async def test_link_by_phone_is_disabled_without_verified_invitation(session):
     _, customer = await _tenant(session, telegram_id=None)  # unlinked
     svc = _svc(session)
-    tokens = await svc.link_by_phone(_init_data(910004), customer.phone)
-    assert tokens["customer"]["id"] == str(customer.id)
+    with pytest.raises(NotFoundError):
+        await svc.link_by_phone(_init_data(910004), customer.phone)
     await session.refresh(customer)
-    assert customer.telegram_id == 910004
+    assert customer.telegram_id is None
 
 
 @pytest.mark.asyncio
@@ -144,6 +166,7 @@ async def _add_vehicle(session, center, customer) -> Vehicle:
     brand = Brand(name=f"B-{uuid.uuid4().hex[:8]}")
     session.add(brand)
     await session.flush()
+    session.info.setdefault("portal_fixture_brands", []).append(brand.id)
     model = VehicleModel(brand_id=brand.id, name="Land Cruiser", year_start=2015)
     session.add(model)
     await session.flush()
@@ -305,12 +328,12 @@ async def test_roadside_attachment_lands_in_thread(session):
     thread = await portal.thread(uuid.UUID(case.conversation_id))
     assert any(a.kind == "location" for m in thread.messages for a in m.attachments)
 
-    # A follow-up voice note attaches too.
+    # A follow-up location attachment uses real coordinates.
     await portal.add_roadside_attachment(uuid.UUID(case.id), RoadsideAttachmentRequest(
-        kind="voice", label="Voice note", note="Sending a voice message",
+        kind="location", label="Updated location", lat=40.2, lng=-74.3,
     ))
     thread2 = await portal.thread(uuid.UUID(case.conversation_id))
-    assert any(a.kind == "voice" for m in thread2.messages for a in m.attachments)
+    assert sum(a.kind == "location" for m in thread2.messages for a in m.attachments) == 2
 
 
 @pytest.mark.asyncio

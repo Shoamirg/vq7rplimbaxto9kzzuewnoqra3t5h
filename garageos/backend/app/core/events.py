@@ -34,6 +34,12 @@ class AppointmentConfirmed(DomainEvent):
 
 
 @dataclass(kw_only=True)
+class AppointmentStarted(DomainEvent):
+    appointment_id: UUID
+    service_center_id: UUID
+
+
+@dataclass(kw_only=True)
 class AppointmentCompleted(DomainEvent):
     appointment_id: UUID
     service_record_id: UUID | None = None
@@ -199,6 +205,8 @@ class PaymentReceived(DomainEvent):
     vehicle_id: UUID | None = None
     amount: float | None = None
     method: str | None = None
+    currency: str = "USD"
+    kind: str = "payment"
 
 
 @dataclass(kw_only=True)

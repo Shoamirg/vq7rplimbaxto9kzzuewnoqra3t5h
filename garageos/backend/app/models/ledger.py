@@ -28,8 +28,8 @@ class LedgerEntryType:
 
 
 class LedgerDirection:
-    DEBIT = "debit"    # customer owes us (e.g. invoice issued)
-    CREDIT = "credit"  # customer paid / we owe them (payment, refund, credit)
+    DEBIT = "debit"    # increases customer debt (invoice issued, refunded payment)
+    CREDIT = "credit"  # reduces customer debt (payment, credit applied)
 
 
 class LedgerEntry(BaseModelMixin, ServiceCenterMixin, Base):

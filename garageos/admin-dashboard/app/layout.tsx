@@ -4,7 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 
 // Body font — Cyrillic subset added so RU/UZ render in Inter, not a fallback.
-const inter = Inter({ subsets: ["latin", "cyrillic"], variable: "--font-sans" });
+const inter = Inter({ subsets: ["latin", "cyrillic"], variable: "--font-inter" });
 // Brand / display font — the wordmark and headings.
 const manrope = Manrope({ subsets: ["latin", "cyrillic"], weight: ["600", "700", "800"], variable: "--font-brand" });
 
@@ -18,14 +18,14 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#F8FAFC" },
-    { media: "(prefers-color-scheme: dark)", color: "#0B1220" },
+    { media: "(prefers-color-scheme: light)", color: "#F5F6F8" },
+    { media: "(prefers-color-scheme: dark)", color: "#111315" },
   ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${manrope.variable}`}>
+    <html lang="uz" suppressHydrationWarning className={`${inter.variable} ${manrope.variable}`}>
       <body className={inter.className}>
         <ThemeProvider>{children}</ThemeProvider>
       </body>

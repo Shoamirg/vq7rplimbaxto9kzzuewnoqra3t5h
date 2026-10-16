@@ -2,8 +2,8 @@
 
 Covers the two authentication guardrails added for public exposure:
 
-  * Rate limiting — the per-IP auth ceiling returns 429 with Retry-After, and
-    degrades open when the backing store errors (never locks users out).
+  * Rate limiting — the per-IP auth ceiling returns 429 with Retry-After;
+    local development degrades open while deployments fail closed.
   * Audit trail — both successful and failed logins leave an append-only record,
     including provenance, even though a failed login's request ends in a 401.
 """
@@ -20,7 +20,7 @@ from app.core.database import async_session_factory, engine
 from app.main import app
 from app.models.audit_log import AuditLog
 
-PRIMARY_ADMIN = ("admin@demo.garageos.app", "demo1234")
+PRIMARY_ADMIN = ("admin@demo.garageos.app", "parol12345")
 BOGUS_EMAIL = "attacker-test@example.com"
 
 
@@ -82,7 +82,7 @@ async def test_successful_login_is_audited(client):
 async def test_rate_limit_returns_429_with_retry_after(client, monkeypatch):
     monkeypatch.setattr(settings, "RATE_LIMIT_ENABLED", True)
     # Force the limiter's store to report "over limit" without needing Redis.
-    async def _over(_key, _limit, _window):
+    async def _over(_key, _limit, _window, *, fail_closed=False):
         return False, 7
     monkeypatch.setattr(rate_limit, "_hit", _over)
 
@@ -96,6 +96,7 @@ async def test_rate_limit_returns_429_with_retry_after(client, monkeypatch):
 
 async def test_rate_limit_degrades_open_on_store_error(client, monkeypatch):
     monkeypatch.setattr(settings, "RATE_LIMIT_ENABLED", True)
+    monkeypatch.setattr(settings, "ENVIRONMENT", "development")
     # Simulate Redis being down: the limiter must ALLOW rather than lock out.
     monkeypatch.setattr(rate_limit, "_client", None)
 

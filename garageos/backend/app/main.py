@@ -15,13 +15,13 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError
 
 from app.api.system import router as system_router
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.database import engine
 from app.core.event_handlers import register_event_handlers
-from app.core.notification_handlers import register_notification_handlers
 from app.core.logging import setup_logging
 from app.core.demo_mode import DemoReadOnlyMiddleware
 from app.core.observability import init_sentry
@@ -40,7 +40,6 @@ async def lifespan(app: FastAPI):
     """
     setup_logging()
     register_event_handlers()
-    register_notification_handlers()
     logger.info(
         "Starting %s v%s (env=%s, debug=%s)",
         settings.APP_NAME,
@@ -58,6 +57,22 @@ async def lifespan(app: FastAPI):
 
 
 def _register_exception_handlers(app: FastAPI) -> None:
+    @app.exception_handler(IntegrityError)
+    async def handle_integrity_error(request: Request, exc: IntegrityError) -> JSONResponse:
+        # asyncpg exposes a stable constraint name on the original cause. Match
+        # only our identity indexes; unrelated FK/not-null failures stay errors.
+        cause = getattr(exc.orig, "__cause__", None)
+        constraint = getattr(cause, "constraint_name", None)
+        conflicts = {
+            "uq_customers_center_phone_active": ("DUPLICATE_CUSTOMER_PHONE", "A customer with this phone already exists"),
+            "uq_vehicles_center_plate_active": ("DUPLICATE_VEHICLE", "A vehicle with this plate or VIN already exists"),
+            "uq_vehicles_center_vin_active": ("DUPLICATE_VEHICLE", "A vehicle with this plate or VIN already exists"),
+        }
+        if getattr(exc.orig, "sqlstate", None) == "23505" and constraint in conflicts:
+            code, detail = conflicts[constraint]
+            return JSONResponse(status_code=409, content={"error": {"code": code, "detail": detail}})
+        return await handle_unexpected_error(request, exc)
+
     @app.exception_handler(GarageException)
     async def handle_garage_exception(request: Request, exc: GarageException) -> JSONResponse:
         headers = None
@@ -73,7 +88,12 @@ def _register_exception_handlers(app: FastAPI) -> None:
     async def handle_validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
         return JSONResponse(
             status_code=422,
-            content={"error": {"code": "VALIDATION_ERROR", "detail": exc.errors()}},
+            # Pydantic can attach NaN/Infinity inputs or ValueError instances.
+            # Return the field/message contract without non-JSON-safe context.
+            content={"error": {"code": "VALIDATION_ERROR", "detail": [
+                {key: error[key] for key in ("type", "loc", "msg") if key in error}
+                for error in exc.errors()
+            ]}},
         )
 
     @app.exception_handler(Exception)

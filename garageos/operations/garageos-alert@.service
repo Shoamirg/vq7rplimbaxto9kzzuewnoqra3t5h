@@ -1,0 +1,6 @@
+[Unit]
+Description=GarageOS operator failure alert for %i
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/logger -p daemon.err -t GarageOS "Operation failed: %i. Inspect the service journal."

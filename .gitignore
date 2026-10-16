@@ -5,6 +5,9 @@
 !.env.prod.example
 *.pem
 *.key
+/garageos/backend/garage.local.json
+/garageos/backend/platform.local.json
+/garageos/operations/operations.env
 
 # ---- Backups / runtime data ----
 backups/
@@ -16,6 +19,7 @@ __pycache__/
 *.so
 .Python
 .venv/
+.audit-venv/
 venv/
 env/
 ENV/
@@ -37,6 +41,8 @@ node_modules/
 .next/
 out/
 .turbo/
+.netlify/
+.vercel/
 .pnpm-store/
 npm-debug.log*
 yarn-debug.log*
@@ -71,3 +77,6 @@ logs/
 **/test-results/
 **/playwright-report/
 **/.playwright/
+# Local Jenkins build evidence and fixture state (credentials stay outside Git).
+ci-evidence/
+ci-state/

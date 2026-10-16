@@ -1,12 +1,18 @@
 import { test, expect } from "@playwright/test";
+import { prepareMini } from './support/mini-auth';
 
-// Customer journey — the Telegram Mini App in a browser (dev sign-in, no
-// Telegram). Walks Home → Vehicles → Passport → Billing → Messages → Roadside.
+// Synthetic signed Telegram launch through production authentication.
+// Walks Home → Vehicles → Passport → Billing → Messages → Roadside.
+test.use({ trace: 'off' }); // Launch data and cookies must not enter failure traces.
+
+test.beforeEach(async ({ page, baseURL }) => {
+  await prepareMini(page, baseURL);
+});
 
 test("mini home authenticates and renders the essentials", async ({ page }) => {
   await page.goto("/mini", { waitUntil: "networkidle" });
   // SOS is the anchor of Home; its presence means auth + data both worked.
-  await expect(page.locator('a[href="/mini/roadside"]')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('a[href="/mini/roadside"]')).toBeVisible({ timeout: 30_000 });
   // Bottom tab bar is the persistent chrome.
   await expect(page.locator('a[href="/mini/vehicles"]')).toBeVisible();
 });
@@ -14,13 +20,14 @@ test("mini home authenticates and renders the essentials", async ({ page }) => {
 test("vehicles list shows cars and opens a passport", async ({ page }) => {
   await page.goto("/mini", { waitUntil: "networkidle" });
   await page.locator('a[href="/mini/vehicles"]').click();
+  await expect(page).toHaveURL(/\/mini\/vehicles$/);
   const cards = page.locator('a[href^="/mini/vehicles/"]');
   await expect(cards.first()).toBeVisible({ timeout: 20_000 });
   expect(await cards.count(), "linked customer should have vehicles").toBeGreaterThanOrEqual(1);
 
   await cards.first().click();
   await expect(page).toHaveURL(/\/mini\/vehicles\/[0-9a-f-]{36}/);
-  // Passport hero — the "Certified Passport" wording (mini vehicle detail).
+  // Passport hero — the service-record wording (mini vehicle detail).
   await expect(page.getByText(/passport/i).first()).toBeVisible();
 });
 
@@ -33,12 +40,12 @@ test("billing and messages render", async ({ page }) => {
   await expect(page.locator("body")).not.toContainText(/something went wrong/i);
 });
 
-test("roadside request transforms into live tracking", async ({ page }) => {
+test("roadside request is acknowledged without claiming live tracking or media upload", async ({ page }) => {
   await page.goto("/mini/roadside", { waitUntil: "networkidle" });
   await page.locator("#roadside-problem").fill("[E2E] Flat tyre on the highway");
   await page.getByRole("button", { name: /request assistance/i }).click();
-  // The form transforms in place into the tracking view (a real case is opened).
-  await expect(page.getByText(/help is on the way/i)).toBeVisible({ timeout: 20_000 });
-  // The status stepper is present.
-  await expect(page.getByText(/reported/i).first()).toBeVisible();
+  await expect(page.getByText("Your request was sent to the dispatcher.")).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("link", { name: /message dispatcher/i })).toBeVisible();
+  await expect(page.getByText(/technician is on the way/i)).toHaveCount(0);
+  await expect(page.locator('input[type="file"]')).toHaveCount(0);
 });

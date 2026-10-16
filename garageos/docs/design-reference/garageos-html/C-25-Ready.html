@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="uz"><head><style>
+    .sc-placeholder{background:color-mix(in srgb,currentColor 8%,transparent);
+      border:1px solid color-mix(in srgb,currentColor 50%,transparent);
+      border-radius:2px;box-sizing:border-box;overflow:hidden}
+    @keyframes sc-shine{0%{background-position:100% 50%}100%{background-position:0% 50%}}
+    html.sc-dc-streaming .sc-placeholder,
+    html.sc-dc-streaming .sc-interp.sc-missing{position:relative;
+      background:color-mix(in srgb,currentColor 5%,transparent);
+      border-color:transparent}
+    html.sc-dc-streaming .sc-placeholder::before,
+    html.sc-dc-streaming .sc-interp.sc-missing::before{content:'';
+      position:absolute;inset:0;pointer-events:none;
+      background:linear-gradient(90deg,rgba(217,119,87,0) 25%,rgba(247,225,211,.95) 37%,rgba(217,119,87,0) 63%);
+      background-size:400% 100%;animation:sc-shine 1.4s ease infinite}
+    html.sc-dc-streaming .sc-placeholder:nth-child(n+9 of .sc-placeholder)::before,
+    html.sc-dc-streaming .sc-interp.sc-missing:nth-child(n+9 of .sc-interp.sc-missing)::before{animation:none;
+      background:color-mix(in srgb,currentColor 8%,transparent)}
+    .sc-placeholder-error{padding:4px 8px;font:11px/1.4 ui-monospace,monospace;
+      color:color-mix(in srgb,currentColor 70%,transparent);word-break:break-word}
+    .sc-interp.sc-missing{display:inline-block;width:2em;height:1em;overflow:hidden;
+      vertical-align:text-bottom;background:rgba(255,255,255,.3);border:1px solid rgba(0,0,0,.5);
+      border-radius:2px;box-sizing:border-box;color:transparent;
+      user-select:none}
+    .sc-interp.sc-unresolved{font-family:ui-monospace,monospace;font-size:.85em;
+      color:color-mix(in srgb,currentColor 50%,transparent);
+      background:color-mix(in srgb,currentColor 10%,transparent);border-radius:3px;
+      padding:0 3px}
+    .sc-host.sc-has-error{position:relative}
+    .sc-logic-error{position:absolute;top:8px;left:8px;z-index:2147483647;max-width:60ch;
+      padding:6px 10px;background:#b00020;color:#fff;font:12px/1.4 ui-monospace,monospace;
+      border-radius:4px;white-space:pre-wrap;pointer-events:none}
+    /* Mirrors PRINT_BASELINE_CSS in apps/web deck-stage-export.ts — keep both
+       in sync until dc-runtime regains a build step. */
+    @media print {
+      @page { margin: 0.5cm; }
+      figure, table { break-inside: avoid; }
+      #dc-root, #dc-root > .sc-host { height: auto; }
+      *, *::before, *::after {
+        print-color-adjust: exact; -webkit-print-color-adjust: exact;
+        backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+        animation-delay: -99s !important; animation-duration: .001s !important;
+        animation-iteration-count: 1 !important; animation-fill-mode: both !important;
+        animation-play-state: running !important; transition-duration: 0s !important;
+      }
+    }
+  </style>
+<meta charset="utf-8">
+<title>C-25 Ready for pickup</title>
+<style>x-dc{display:none!important}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com" data-dc-tpl="1"><link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&amp;display=swap" rel="stylesheet" data-dc-tpl="2"><style data-dc-tpl="3">
+body{margin:0}
+.gx{font-family:'Golos Text',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.lt{--bg:#F2F4F6;--sf:#FFFFFF;--sf2:#F7F8FA;--sf3:#ECEFF2;--line:#E2E5E9;--line2:#C9CFD6;--tx:#1B2025;--tx2:#4A535E;--tx3:#646D78;--br:#C94A04;--onbr:#FFFFFF;--ok:#1B7A4B;--oks:#E4F3EA;--plate:#FFFFFF;--sh2:0 -1px 0 rgba(20,25,30,.04),0 -8px 24px rgba(20,25,30,.10);background:var(--bg);color:var(--tx)}
+.dk{--bg:#0F1214;--sf:#171B1F;--sf2:#1D2227;--sf3:#252B31;--line:#2A3036;--line2:#3B434B;--tx:#E9ECEF;--tx2:#AEB5BD;--tx3:#8C949D;--br:#DB7A47;--onbr:#1A120D;--ok:#6CCB97;--oks:#123323;--plate:#ECEEF0;--sh2:0 -1px 0 rgba(255,255,255,.05),0 -8px 24px rgba(0,0,0,.5);background:var(--bg);color:var(--tx)}
+.tn{font-variant-numeric:tabular-nums}
+.t-d{font-size:28px;line-height:34px;font-weight:600;letter-spacing:-.01em}
+.t-h{font-size:18px;line-height:24px;font-weight:600}
+.t-b{font-size:16px;line-height:24px;font-weight:400}
+.t-s{font-size:14px;line-height:20px;font-weight:400}
+.t-c{font-size:12px;line-height:16px;font-weight:500}
+.c2{color:var(--tx2)}.c3{color:var(--tx3)}
+.phone{width:360px;height:800px;position:relative;overflow:hidden;border-radius:16px;box-shadow:0 0 0 1px rgba(0,0,0,.08);display:flex;flex-direction:column;box-sizing:border-box}
+.top{height:56px;display:flex;align-items:center;gap:4px;padding:0 4px;flex:none}
+.ib{width:48px;height:48px;border:0;border-radius:8px;background:transparent;color:var(--tx);display:grid;place-items:center;cursor:pointer;padding:0;flex:none}
+.btn{height:48px;padding:0 20px;border:0;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;font-size:16px;line-height:24px;font-weight:600;cursor:pointer;box-sizing:border-box;white-space:nowrap;text-decoration:none}
+.b-pri{background:var(--br);color:var(--onbr)}
+.b-sec{background:var(--sf);color:var(--tx);box-shadow:inset 0 0 0 1px var(--line2)}
+.ph{width:72px;height:72px;border-radius:8px;background:repeating-linear-gradient(135deg,var(--sf3) 0 6px,var(--sf2) 6px 12px);display:grid;place-items:center;color:var(--tx3);flex:none}
+.av{width:32px;height:32px;border-radius:50%;background:var(--sf3);color:var(--tx2);font-size:12px;line-height:32px;font-weight:600;text-align:center;flex:none}
+.pl{display:inline-flex;align-items:stretch;background:var(--plate);color:#111417;border:2px solid #111417;border-radius:4px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1;white-space:nowrap;box-sizing:border-box;flex:none;font-family:'Golos Text',system-ui,sans-serif}
+.pl .r{display:flex;align-items:center;justify-content:center;border-right:2px solid #111417}
+.pl .n{display:flex;align-items:center;letter-spacing:.03em}
+.pl .u{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-weight:600}
+.pl .f{display:flex;flex-direction:column;outline:.5px solid rgba(0,0,0,.3)}
+.pl .f b{flex:1;display:block}
+.pl .f .b1{background:#0099B5}.pl .f .w{background:#fff;border-top:1px solid #CE1126;border-bottom:1px solid #CE1126}.pl .f .g{background:#1EB53A}
+.pl-m{height:34px;font-size:18px;border-width:1.5px;border-radius:3px}.pl-m .r{width:30px;border-right-width:1.5px}.pl-m .n{padding:0 6px 0 8px}.pl-m .u{padding:0 5px 0 0;font-size:7px;gap:1px}.pl-m .f{width:14px;height:9px}
+@keyframes pulse{0%{transform:scale(.8);opacity:.6}100%{transform:scale(1.5);opacity:0}}
+.ring{position:absolute;inset:0;border-radius:50%;box-shadow:0 0 0 2px var(--ok);animation:pulse 1.2s cubic-bezier(.2,0,0,1) 1 forwards}
+</style></head>
+<body>
+<div id="dc-root"><div class="sc-host" data-sc-name="C-25-Ready"><div data-dc-tpl="4" class="gx" style="width: 440px; height: 1776px; box-sizing: border-box; padding: 40px; display: flex; flex-direction: column; gap: 40px; background: rgb(228, 231, 234);"><div data-dc-tpl="6" style="display: flex; flex-direction: column; gap: 12px;"><span data-dc-tpl="7" class="t-c" style="color: rgb(74, 83, 94);"><span class="sc-interp">C-25 Ready for pickup · Light</span></span><div data-dc-tpl="8" class="gx lt phone"><div data-dc-tpl="9" class="top"><button data-dc-tpl="10" class="ib" aria-label="Yopish"><svg data-dc-tpl="11" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path data-dc-tpl="12" d="M18 6 6 18M6 6l12 12"></path></svg></button></div><div data-dc-tpl="13" style="padding: 24px 16px 0px;"><div data-dc-tpl="14" style="position: relative; width: 64px; height: 64px;"><span data-dc-tpl="15" style="position: absolute; inset: -14px; border-radius: 50%; box-shadow: 0 0 0 1px var(--oks);"></span><span data-dc-tpl="16" class="ring"></span><span data-dc-tpl="17" style="position: absolute; inset: 0px; border-radius: 50%; background: var(--ok); color: var(--sf); display: grid; place-items: center;"><svg data-dc-tpl="18" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path data-dc-tpl="19" d="M20 6 9 17l-5-5"></path></svg></span></div><h1 data-dc-tpl="20" class="t-d" style="margin: 28px 0px 0px;">Cobalt tayyor</h1><p data-dc-tpl="21" class="t-b c2 tn" style="margin: 4px 0px 0px;">Avtoservis Turon · 20:00 gacha ochiq</p><div data-dc-tpl="22" style="margin-top: 12px;"><span data-dc-tpl="23" class="pl pl-m"><span data-dc-tpl="24" class="r">01</span><span data-dc-tpl="25" class="n">A 123 BC</span><span data-dc-tpl="26" class="u"><i data-dc-tpl="27" class="f"><b data-dc-tpl="28" class="b1"></b><b data-dc-tpl="29" class="w"></b><b data-dc-tpl="30" class="g"></b></i><span data-dc-tpl="31">UZ</span></span></span></div><div data-dc-tpl="32" style="margin-top: 24px; padding: 14px; border-radius: 12px; background: var(--sf); box-shadow: inset 0 0 0 1px var(--line); display: flex; gap: 12px;"><span data-dc-tpl="33" class="av">SR</span><div data-dc-tpl="34" style="flex: 1 1 0%;"><div data-dc-tpl="35" class="t-s" style="font-weight: 600;">Sherzod Rahimov</div><div data-dc-tpl="36" class="t-s c2">Kolodkalar yangi. Birinchi 200 km yumshoq tormozlang.</div></div></div><div data-dc-tpl="37" class="t-s c2" style="margin-top: 20px; font-weight: 600;">Ish rasmlari</div><div data-dc-tpl="38" style="display: flex; gap: 8px; margin-top: 8px;"><span data-dc-tpl="39" class="ph"><svg data-dc-tpl="40" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path data-dc-tpl="41" d="M3 5h18v14H3zM8.5 11a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM21 15l-5-5L6 19"></path></svg></span><span data-dc-tpl="42" class="ph"><svg data-dc-tpl="43" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path data-dc-tpl="44" d="M3 5h18v14H3zM8.5 11a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM21 15l-5-5L6 19"></path></svg></span><span data-dc-tpl="45" class="ph t-c">+5</span></div></div><div data-dc-tpl="46" style="margin-top: auto; background: var(--sf); box-shadow: var(--sh2); padding: 12px 16px 16px;"><div data-dc-tpl="47" style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px;"><span data-dc-tpl="48" class="t-s c2">Toʻlanadi</span><span data-dc-tpl="49" class="tn"><span data-dc-tpl="50" class="t-h">1 180 000</span> <span data-dc-tpl="51" class="t-s c2">soʻm</span></span></div><div data-dc-tpl="52" style="display: flex; gap: 8px;"><button data-dc-tpl="53" class="btn b-sec" aria-label="Yoʻnalish" style="width: 56px; padding: 0px;"><svg data-dc-tpl="54" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path data-dc-tpl="55" d="M3 11l18-8-8 18-2-8z"></path></svg></button><a data-dc-tpl="56" href="C-28-Pay.html" class="btn b-pri tn" style="flex: 1 1 0%;">Toʻlash 1 180 000 soʻm</a></div></div></div></div><div data-dc-tpl="6" style="display: flex; flex-direction: column; gap: 12px;"><span data-dc-tpl="7" class="t-c" style="color: rgb(74, 83, 94);"><span class="sc-interp">C-25 Ready for pickup · Dark</span></span><div data-dc-tpl="8" class="gx dk phone"><div data-dc-tpl="9" class="top"><button data-dc-tpl="10" class="ib" aria-label="Yopish"><svg data-dc-tpl="11" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path data-dc-tpl="12" d="M18 6 6 18M6 6l12 12"></path></svg></button></div><div data-dc-tpl="13" style="padding: 24px 16px 0px;"><div data-dc-tpl="14" style="position: relative; width: 64px; height: 64px;"><span data-dc-tpl="15" style="position: absolute; inset: -14px; border-radius: 50%; box-shadow: 0 0 0 1px var(--oks);"></span><span data-dc-tpl="16" class="ring"></span><span data-dc-tpl="17" style="position: absolute; inset: 0px; border-radius: 50%; background: var(--ok); color: var(--sf); display: grid; place-items: center;"><svg data-dc-tpl="18" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path data-dc-tpl="19" d="M20 6 9 17l-5-5"></path></svg></span></div><h1 data-dc-tpl="20" class="t-d" style="margin: 28px 0px 0px;">Cobalt tayyor</h1><p data-dc-tpl="21" class="t-b c2 tn" style="margin: 4px 0px 0px;">Avtoservis Turon · 20:00 gacha ochiq</p><div data-dc-tpl="22" style="margin-top: 12px;"><span data-dc-tpl="23" class="pl pl-m"><span data-dc-tpl="24" class="r">01</span><span data-dc-tpl="25" class="n">A 123 BC</span><span data-dc-tpl="26" class="u"><i data-dc-tpl="27" class="f"><b data-dc-tpl="28" class="b1"></b><b data-dc-tpl="29" class="w"></b><b data-dc-tpl="30" class="g"></b></i><span data-dc-tpl="31">UZ</span></span></span></div><div data-dc-tpl="32" style="margin-top: 24px; padding: 14px; border-radius: 12px; background: var(--sf); box-shadow: inset 0 0 0 1px var(--line); display: flex; gap: 12px;"><span data-dc-tpl="33" class="av">SR</span><div data-dc-tpl="34" style="flex: 1 1 0%;"><div data-dc-tpl="35" class="t-s" style="font-weight: 600;">Sherzod Rahimov</div><div data-dc-tpl="36" class="t-s c2">Kolodkalar yangi. Birinchi 200 km yumshoq tormozlang.</div></div></div><div data-dc-tpl="37" class="t-s c2" style="margin-top: 20px; font-weight: 600;">Ish rasmlari</div><div data-dc-tpl="38" style="display: flex; gap: 8px; margin-top: 8px;"><span data-dc-tpl="39" class="ph"><svg data-dc-tpl="40" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path data-dc-tpl="41" d="M3 5h18v14H3zM8.5 11a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM21 15l-5-5L6 19"></path></svg></span><span data-dc-tpl="42" class="ph"><svg data-dc-tpl="43" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path data-dc-tpl="44" d="M3 5h18v14H3zM8.5 11a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM21 15l-5-5L6 19"></path></svg></span><span data-dc-tpl="45" class="ph t-c">+5</span></div></div><div data-dc-tpl="46" style="margin-top: auto; background: var(--sf); box-shadow: var(--sh2); padding: 12px 16px 16px;"><div data-dc-tpl="47" style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px;"><span data-dc-tpl="48" class="t-s c2">Toʻlanadi</span><span data-dc-tpl="49" class="tn"><span data-dc-tpl="50" class="t-h">1 180 000</span> <span data-dc-tpl="51" class="t-s c2">soʻm</span></span></div><div data-dc-tpl="52" style="display: flex; gap: 8px;"><button data-dc-tpl="53" class="btn b-sec" aria-label="Yoʻnalish" style="width: 56px; padding: 0px;"><svg data-dc-tpl="54" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path data-dc-tpl="55" d="M3 11l18-8-8 18-2-8z"></path></svg></button><a data-dc-tpl="56" href="C-28-Pay.html" class="btn b-pri tn" style="flex: 1 1 0%;">Toʻlash 1 180 000 soʻm</a></div></div></div></div></div></div></div>
+
+
+
+</body></html>

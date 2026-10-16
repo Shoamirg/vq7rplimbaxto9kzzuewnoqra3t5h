@@ -6,9 +6,11 @@ so the client shows the phone-linking screen, which posts to ``/link``.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 
 from app.api.customer_deps import get_customer_auth_service
+from app.api.logout_proof import logout_proof
+from app.schemas.auth import LogoutRequest, LogoutResponse
 from app.core.config import settings
 from app.core.rate_limit import auth_rate_limit
 from app.exceptions import NotFoundError
@@ -22,6 +24,13 @@ from app.schemas.customer_portal import (
 from app.services.customer_auth_service import CustomerAuthService
 
 router = APIRouter()
+
+
+@router.post("/logout", response_model=LogoutResponse, summary="Revoke this customer session")
+async def logout(request: Request, body: LogoutRequest | None = None,
+                 auth: CustomerAuthService = Depends(get_customer_auth_service)) -> LogoutResponse:
+    await auth.logout(logout_proof(request, body))
+    return LogoutResponse()
 
 
 @router.post(
@@ -47,6 +56,8 @@ async def link_account(
     body: LinkRequest,
     auth: CustomerAuthService = Depends(get_customer_auth_service),
 ) -> TokenResponse:
+    if not settings.TELEGRAM_PHONE_LINKING_ENABLED:
+        raise NotFoundError("Not found")
     return TokenResponse(**await auth.link_by_phone(body.init_data, body.phone))
 
 
@@ -70,6 +81,12 @@ async def dev_sign_in(
 ) -> TokenResponse:
     # Never expose this outside development — 404 so it's indistinguishable
     # from a route that doesn't exist.
-    if not settings.DEBUG:
+    if settings.ENVIRONMENT != "development" or not settings.DEBUG or not settings.DEV_AUTH_ENABLED:
         raise NotFoundError("Not found")
     return TokenResponse(**await auth.dev_authenticate(body.telegram_id if body else None))
+
+from app.schemas.customer_account import CustomerPasswordLogin
+
+@router.post('/login', response_model=TokenResponse, dependencies=[Depends(auth_rate_limit)])
+async def password_login(body: CustomerPasswordLogin, auth: CustomerAuthService = Depends(get_customer_auth_service)):
+    return await auth.authenticate_password(str(body.email), body.password)

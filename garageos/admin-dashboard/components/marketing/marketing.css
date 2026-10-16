@@ -1,20 +1,20 @@
-/* GarageOS marketing site — bespoke dark-premium styling.
+/* GarageOS marketing site — dark content pages (the light landing lives in landing/landing.css).
    Scoped with the `mkt-` prefix so it never collides with the app/design system.
-   Palette + type come from the brand system (Garage Black / Electric Blue / Gold,
-   Manrope display + Inter body). Motion is CSS-only so the page ships zero JS. */
+   Palette + type come from the brand system (Obsidian / Emerald,
+   Manrope display + Inter body). Marketing interactions use the shared locale provider. */
 
 .mkt {
-  --mkt-bg: #0b1220;
-  --mkt-bg-2: #0e1526;
-  --mkt-panel: #111c31;
+  --mkt-bg: #111315;
+  --mkt-bg-2: #15181c;
+  --mkt-panel: #1a1d22;
   --mkt-ink: #f8fafc;
-  --mkt-muted: #97a6bd;
+  --mkt-muted: #9aa1a8;
   --mkt-faint: #64748b;
-  --mkt-line: rgba(148, 163, 184, 0.14);
-  --mkt-line-strong: rgba(148, 163, 184, 0.26);
-  --mkt-blue: #2563eb;
-  --mkt-blue-soft: #3b82f6;
-  --mkt-gold: #d9a322;
+  --mkt-line: rgba(160, 168, 164, 0.14);
+  --mkt-line-strong: rgba(160, 168, 164, 0.26);
+  --mkt-blue: #0c8059; /* brand emerald (AA with white text) */
+  --mkt-blue-soft: #2fa97c;
+  --mkt-gold: #66c4a0;
   --mkt-radius: 18px;
   --mkt-shell: 1200px;
   --mkt-ease: cubic-bezier(0.16, 1, 0.3, 1);
@@ -51,11 +51,11 @@
   border: 1px solid transparent; cursor: pointer;
   transition: transform 0.18s var(--mkt-ease), background 0.18s var(--mkt-ease), border-color 0.18s var(--mkt-ease);
 }
-.mkt-btn--primary { background: var(--_bg); color: #fff; box-shadow: 0 10px 30px -12px rgba(37, 99, 235, 0.9); }
+.mkt-btn--primary { background: var(--_bg); color: #fff; box-shadow: 0 10px 30px -12px rgba(16, 152, 104, 0.7); }
 .mkt-btn--ghost { background: transparent; color: var(--mkt-ink); border-color: var(--mkt-line-strong); }
 .mkt-btn--lg { padding: 15px 26px; font-size: 16px; }
 @media (hover: hover) {
-  .mkt-btn--primary:hover { background: #1d4ed8; transform: translateY(-2px); }
+  .mkt-btn--primary:hover { background: #096645; transform: translateY(-2px); }
   .mkt-btn--ghost:hover { border-color: var(--mkt-ink); transform: translateY(-2px); }
 }
 
@@ -67,13 +67,35 @@
   border-bottom: 1px solid var(--mkt-line);
 }
 .mkt-nav__row { display: flex; align-items: center; justify-content: space-between; height: 68px; gap: 24px; }
+.mkt-nav__brand { flex: 0 0 auto; }
 .mkt-nav__links { display: none; gap: 30px; }
 .mkt-nav__links a { color: var(--mkt-muted); font-size: 15px; font-weight: 500; transition: color 0.15s; }
 .mkt-nav__links a:hover { color: var(--mkt-ink); }
-.mkt-nav__cta { display: flex; align-items: center; gap: 12px; }
-.mkt-nav__signin { color: var(--mkt-muted); font-size: 15px; font-weight: 500; }
+.mkt-nav__cta { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
+.mkt-nav__signin { color: var(--mkt-muted); font-size: 15px; font-weight: 500; white-space: nowrap; flex: 0 0 auto; }
 .mkt-nav__signin:hover { color: var(--mkt-ink); }
+.mkt-nav__cta .mkt-btn { white-space: nowrap; flex: 0 0 auto; }
+.mkt-nav__cta-label--compact { display: none; }
 @media (min-width: 900px) { .mkt-nav__links { display: flex; } }
+@media (max-width: 600px) {
+  .mkt-shell { padding-inline: 16px; }
+  .mkt-nav__row { height: 64px; gap: 8px; }
+  .mkt-nav__cta { gap: 8px; }
+  .mkt-nav__signin { font-size: 14px; }
+  .mkt-nav__cta .mkt-btn { padding: 10px 12px; font-size: 13px; }
+  .mkt-nav__logo { gap: 8px !important; }
+  .mkt-nav__logo > svg { width: 30px !important; height: 30px !important; }
+  .mkt-nav__logo > span { font-size: 20px !important; }
+}
+@media (max-width: 360px) {
+  .mkt-shell { padding-inline: 12px; }
+  .mkt-nav__row, .mkt-nav__cta { gap: 6px; }
+  .mkt-nav__logo > svg { width: 27px !important; height: 27px !important; }
+  .mkt-nav__logo > span { font-size: 18px !important; }
+  .mkt-nav__cta-label { display: none; }
+  .mkt-nav__cta-label--compact { display: inline; }
+  .mkt-nav__cta .mkt-btn { padding: 9px 10px; }
+}
 
 /* ---- Section scaffolding --------------------------------------------- */
 .mkt-section { position: relative; padding: clamp(64px, 8vw, 128px) 0; }
@@ -81,8 +103,8 @@
   display: inline-flex; align-items: center; gap: 8px;
   padding: 6px 14px; border-radius: 999px;
   border: 1px solid var(--mkt-line-strong);
-  background: rgba(37, 99, 235, 0.08);
-  font-size: 13px; font-weight: 600; letter-spacing: 0.02em; color: #cdd8ea;
+  background: rgba(16, 152, 104, 0.1);
+  font-size: 13px; font-weight: 600; letter-spacing: 0.02em; color: #d3dbd7;
 }
 .mkt-eyebrow__dot { width: 6px; height: 6px; border-radius: 999px; background: var(--mkt-gold); }
 .mkt-h2 { font-size: clamp(30px, 4vw, 48px); margin: 20px 0 0; max-width: 18ch; }
@@ -94,8 +116,8 @@
 .mkt-hero__glow {
   position: absolute; inset: -20% 0 auto 0; height: 720px; pointer-events: none; z-index: 0;
   background:
-    radial-gradient(60% 50% at 30% 0%, rgba(37, 99, 235, 0.28), transparent 70%),
-    radial-gradient(45% 40% at 82% 8%, rgba(217, 163, 34, 0.16), transparent 70%);
+    radial-gradient(60% 50% at 30% 0%, rgba(16, 152, 104, 0.24), transparent 70%),
+    radial-gradient(45% 40% at 82% 8%, rgba(16, 152, 104, 0.1), transparent 70%);
 }
 .mkt-grid-overlay {
   position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0.5;
@@ -119,11 +141,11 @@
 }
 .mkt-frame::before {
   content: ""; display: block; height: 38px;
-  background: linear-gradient(180deg, #16223a, #101a2e);
+  background: linear-gradient(180deg, #1a201d, #141816);
   border-bottom: 1px solid var(--mkt-line);
 }
 .mkt-frame__dots { position: absolute; top: 15px; left: 16px; display: flex; gap: 7px; z-index: 2; }
-.mkt-frame__dots i { width: 10px; height: 10px; border-radius: 999px; background: #2c3a55; display: block; }
+.mkt-frame__dots i { width: 10px; height: 10px; border-radius: 999px; background: #2b322f; display: block; }
 .mkt-frame img { display: block; width: 100%; height: auto; }
 
 /* ---- Logos / positioning strip --------------------------------------- */
@@ -136,15 +158,15 @@
 .mkt-bento { display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; margin-top: 52px; }
 .mkt-card {
   grid-column: span 6; padding: 26px; border-radius: var(--mkt-radius);
-  border: 1px solid var(--mkt-line); background: linear-gradient(180deg, var(--mkt-panel), #0e1728);
+  border: 1px solid var(--mkt-line); background: linear-gradient(180deg, var(--mkt-panel), #141816);
   transition: border-color 0.2s var(--mkt-ease), transform 0.2s var(--mkt-ease);
 }
 @media (hover: hover) { .mkt-card:hover { border-color: var(--mkt-line-strong); transform: translateY(-3px); } }
 .mkt-card__icon {
   width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center;
-  background: rgba(37, 99, 235, 0.12); color: #7aa5ff; border: 1px solid rgba(37, 99, 235, 0.25);
+  background: rgba(16, 152, 104, 0.12); color: #5cc79c; border: 1px solid rgba(16, 152, 104, 0.25);
 }
-.mkt-card__icon--gold { background: rgba(217, 163, 34, 0.12); color: var(--mkt-gold); border-color: rgba(217, 163, 34, 0.3); }
+.mkt-card__icon--gold { background: rgba(102, 196, 160, 0.12); color: var(--mkt-gold); border-color: rgba(102, 196, 160, 0.3); }
 .mkt-card h3 { font-family: var(--font-brand, "Manrope"), sans-serif; font-weight: 700; font-size: 19px; margin: 18px 0 8px; letter-spacing: -0.01em; }
 .mkt-card p { color: var(--mkt-muted); font-size: 15px; line-height: 1.55; margin: 0; }
 @media (min-width: 720px) { .mkt-card { grid-column: span 3; } }
@@ -156,7 +178,7 @@
 .mkt-spot__body h3 { font-family: var(--font-brand, "Manrope"), sans-serif; font-weight: 800; letter-spacing: -0.02em; font-size: clamp(26px, 3vw, 36px); margin: 16px 0 0; }
 .mkt-spot__body p { color: var(--mkt-muted); font-size: 17px; line-height: 1.6; margin: 16px 0 0; }
 .mkt-spot__list { list-style: none; margin: 22px 0 0; padding: 0; display: grid; gap: 12px; }
-.mkt-spot__list li { display: flex; gap: 10px; align-items: flex-start; color: #cbd5e6; font-size: 15px; }
+.mkt-spot__list li { display: flex; gap: 10px; align-items: flex-start; color: #d3d9d6; font-size: 15px; }
 .mkt-spot__list svg { flex: none; margin-top: 2px; color: var(--mkt-gold); }
 .mkt-shot { border: 1px solid var(--mkt-line-strong); border-radius: 14px; overflow: hidden; background: var(--mkt-panel); box-shadow: 0 30px 80px -40px rgba(0, 0, 0, 0.85); }
 .mkt-shot img { display: block; width: 100%; height: auto; }
@@ -166,7 +188,7 @@
 }
 
 /* ---- Platform band ---------------------------------------------------- */
-.mkt-band { border-top: 1px solid var(--mkt-line); background: radial-gradient(70% 100% at 50% 0%, rgba(37, 99, 235, 0.1), transparent 70%), var(--mkt-bg-2); }
+.mkt-band { border-top: 1px solid var(--mkt-line); background: radial-gradient(70% 100% at 50% 0%, rgba(16, 152, 104, 0.1), transparent 70%), var(--mkt-bg-2); }
 .mkt-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-top: 44px; }
 .mkt-stat__n { font-family: var(--font-brand, "Manrope"), sans-serif; font-weight: 800; font-size: clamp(30px, 4vw, 44px); letter-spacing: -0.02em; }
 .mkt-stat__l { color: var(--mkt-muted); font-size: 14px; margin-top: 6px; }
@@ -175,16 +197,16 @@
 /* ---- Pricing ---------------------------------------------------------- */
 .mkt-tiers { display: grid; grid-template-columns: 1fr; gap: 18px; margin-top: 52px; }
 .mkt-tier { padding: 30px; border-radius: var(--mkt-radius); border: 1px solid var(--mkt-line); background: var(--mkt-panel); display: flex; flex-direction: column; }
-.mkt-tier--featured { border-color: rgba(37, 99, 235, 0.55); background: linear-gradient(180deg, #12203c, #0e1728); box-shadow: 0 30px 80px -46px rgba(37, 99, 235, 0.7); }
+.mkt-tier--featured { border-color: rgba(16, 152, 104, 0.55); background: linear-gradient(180deg, #16231e, #121614); box-shadow: 0 30px 80px -46px rgba(16, 152, 104, 0.7); }
 .mkt-tier__name { font-family: var(--font-brand, "Manrope"), sans-serif; font-weight: 700; font-size: 18px; }
 .mkt-tier__price { font-family: var(--font-brand, "Manrope"), sans-serif; font-weight: 800; font-size: 34px; letter-spacing: -0.02em; margin: 14px 0 2px; }
 .mkt-tier__price span { font-size: 15px; font-weight: 500; color: var(--mkt-muted); }
 .mkt-tier__desc { color: var(--mkt-muted); font-size: 14px; min-height: 40px; }
 .mkt-tier__list { list-style: none; padding: 0; margin: 20px 0 26px; display: grid; gap: 11px; }
-.mkt-tier__list li { display: flex; gap: 9px; align-items: flex-start; font-size: 14px; color: #cbd5e6; }
+.mkt-tier__list li { display: flex; gap: 9px; align-items: flex-start; font-size: 14px; color: #d3d9d6; }
 .mkt-tier__list svg { flex: none; margin-top: 2px; color: var(--mkt-blue-soft); }
 .mkt-tier .mkt-btn { justify-content: center; width: 100%; margin-top: auto; }
-.mkt-tier__badge { align-self: flex-start; margin-bottom: 10px; padding: 4px 10px; border-radius: 999px; background: rgba(37, 99, 235, 0.16); color: #9bbcff; font-size: 12px; font-weight: 600; }
+.mkt-tier__badge { align-self: flex-start; margin-bottom: 10px; padding: 4px 10px; border-radius: 999px; background: rgba(16, 152, 104, 0.16); color: #7fd8b3; font-size: 12px; font-weight: 600; }
 .mkt-price-note { text-align: center; color: var(--mkt-faint); font-size: 14px; margin-top: 22px; }
 @media (min-width: 860px) { .mkt-tiers { grid-template-columns: repeat(3, 1fr); } }
 
@@ -194,12 +216,12 @@
   border: 1px solid var(--mkt-line-strong); border-radius: 24px;
   padding: clamp(48px, 7vw, 88px) 24px;
   background:
-    radial-gradient(60% 120% at 50% 0%, rgba(37, 99, 235, 0.35), transparent 70%),
-    radial-gradient(50% 120% at 80% 100%, rgba(217, 163, 34, 0.18), transparent 70%),
-    linear-gradient(180deg, #101c33, #0c1424);
+    radial-gradient(60% 120% at 50% 0%, rgba(16, 152, 104, 0.35), transparent 70%),
+    radial-gradient(50% 120% at 80% 100%, rgba(102, 196, 160, 0.18), transparent 70%),
+    linear-gradient(180deg, #151a17, #111513);
 }
 .mkt-cta h2 { font-size: clamp(30px, 4.5vw, 52px); margin: 0 auto; max-width: 20ch; }
-.mkt-cta p { color: #c3d0e4; font-size: 18px; margin: 18px auto 0; max-width: 48ch; }
+.mkt-cta p { color: #c9d1cd; font-size: 18px; margin: 18px auto 0; max-width: 48ch; }
 .mkt-footer { border-top: 1px solid var(--mkt-line); padding: 56px 0 40px; margin-top: clamp(64px, 8vw, 120px); }
 .mkt-footer__grid { display: grid; grid-template-columns: 1fr; gap: 36px; }
 .mkt-footer__brandcol p { color: var(--mkt-muted); font-size: 14px; line-height: 1.6; margin: 16px 0 0; max-width: 34ch; }
@@ -218,16 +240,16 @@
 .mkt-page-sub { color: var(--mkt-muted); font-size: clamp(16px, 1.7vw, 20px); line-height: 1.55; max-width: 60ch; margin: 18px auto 0; }
 
 /* Prose (legal + docs body) */
-.mkt-prose { max-width: 760px; margin: 0 auto; color: #c3d0e4; font-size: 16px; line-height: 1.7; }
+.mkt-prose { max-width: 760px; margin: 0 auto; color: #c9d1cd; font-size: 16px; line-height: 1.7; }
 .mkt-prose h2 { font-family: var(--font-brand, "Manrope"), sans-serif; font-weight: 700; letter-spacing: -0.01em; color: var(--mkt-ink); font-size: 24px; margin: 44px 0 14px; scroll-margin-top: 90px; }
 .mkt-prose h3 { font-weight: 700; color: var(--mkt-ink); font-size: 18px; margin: 28px 0 10px; }
 .mkt-prose p { margin: 0 0 14px; }
 .mkt-prose ul { margin: 0 0 16px; padding-left: 22px; }
 .mkt-prose li { margin: 7px 0; }
-.mkt-prose a { color: #8fb2ff; text-decoration: underline; text-underline-offset: 2px; }
+.mkt-prose a { color: #7fd8b3; text-decoration: underline; text-underline-offset: 2px; }
 .mkt-prose strong { color: var(--mkt-ink); }
 .mkt-prose__meta { color: var(--mkt-faint); font-size: 14px; margin-bottom: 8px; }
-.mkt-callout { border: 1px solid var(--mkt-line-strong); border-left: 3px solid var(--mkt-gold); background: rgba(217,163,34,0.06); border-radius: 12px; padding: 16px 18px; font-size: 14.5px; color: #cbd5e6; margin: 24px 0; }
+.mkt-callout { border: 1px solid var(--mkt-line-strong); border-left: 3px solid var(--mkt-gold); background: rgba(102, 196, 160, 0.06); border-radius: 12px; padding: 16px 18px; font-size: 14.5px; color: #d3d9d6; margin: 24px 0; }
 
 /* Pricing comparison table */
 .mkt-table-wrap { overflow-x: auto; margin-top: 40px; border: 1px solid var(--mkt-line); border-radius: var(--mkt-radius); }
@@ -235,7 +257,7 @@
 .mkt-table th, .mkt-table td { text-align: left; padding: 14px 18px; border-bottom: 1px solid var(--mkt-line); }
 .mkt-table thead th { color: var(--mkt-ink); font-family: var(--font-brand, "Manrope"), sans-serif; font-weight: 700; background: var(--mkt-bg-2); }
 .mkt-table tbody th { color: var(--mkt-muted); font-weight: 500; }
-.mkt-table td { color: #cbd5e6; text-align: center; }
+.mkt-table td { color: #d3d9d6; text-align: center; }
 .mkt-table td:first-child, .mkt-table th:first-child { text-align: left; }
 .mkt-table tr:last-child td, .mkt-table tr:last-child th { border-bottom: none; }
 .mkt-table svg { color: var(--mkt-blue-soft); }
@@ -252,8 +274,8 @@
 
 /* Security trust grid */
 .mkt-trust-grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 48px; }
-.mkt-trust { padding: 24px; border-radius: var(--mkt-radius); border: 1px solid var(--mkt-line); background: linear-gradient(180deg, var(--mkt-panel), #0e1728); }
-.mkt-trust__icon { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; background: rgba(37,99,235,0.12); color: #7aa5ff; border: 1px solid rgba(37,99,235,0.25); }
+.mkt-trust { padding: 24px; border-radius: var(--mkt-radius); border: 1px solid var(--mkt-line); background: linear-gradient(180deg, var(--mkt-panel), #141816); }
+.mkt-trust__icon { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; background: rgba(16, 152, 104, 0.12); color: #5cc79c; border: 1px solid rgba(16, 152, 104, 0.25); }
 .mkt-trust h3 { font-family: var(--font-brand, "Manrope"), sans-serif; font-weight: 700; font-size: 17px; margin: 16px 0 8px; }
 .mkt-trust p { color: var(--mkt-muted); font-size: 14.5px; line-height: 1.55; margin: 0; }
 @media (min-width: 680px) { .mkt-trust-grid { grid-template-columns: repeat(2, 1fr); } }
@@ -281,3 +303,7 @@
   .mkt-rise { animation: none; opacity: 1; }
   .mkt-btn, .mkt-card { transition: none; }
 }
+
+
+.mkt-language { min-width: 54px; min-height: 44px; padding: 0 6px; border: 1px solid #58636b; border-radius: 10px; background: #242a2f; color: #fff; font: inherit; font-size: 12px; cursor: pointer; }
+.mkt :is(button, select, a, [tabindex]):focus-visible { outline: 3px solid #087951; outline-offset: 4px; }

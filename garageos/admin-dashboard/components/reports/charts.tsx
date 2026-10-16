@@ -1,10 +1,12 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n/context";
+
 // Hand-built SVG/CSS chart primitives — no charting dependency, full styling
 // control, and a lean bundle. Enough for almost every GarageOS report.
 
-export function money(n: number): string {
-  return "$" + Math.round(n).toLocaleString("en-US");
+export function money(n: number, currency = "USD", locale = "en-US"): string {
+  return new Intl.NumberFormat(locale, { style: "currency", currency }).format(n);
 }
 export function moneyK(n: number): string {
   return n >= 1000 ? "$" + (n / 1000).toFixed(1) + "k" : money(n);
@@ -25,7 +27,8 @@ export function Sparkline({ values, tone = "blue" }: { values: number[]; tone?: 
 
 // Area/line chart for a labelled series.
 export function AreaChart({ series }: { series: { label: string; value: number }[] }) {
-  if (series.length === 0) return <div className="h-[150px] grid place-items-center text-xs text-muted-foreground">No data</div>;
+  const { t } = useI18n();
+  if (series.length === 0) return <div className="h-[150px] grid place-items-center text-xs text-muted-foreground">{t("reports.no_data")}</div>;
   const max = Math.max(1, ...series.map((s) => s.value));
   const W = 400, H = 150;
   const step = series.length > 1 ? W / (series.length - 1) : W;
@@ -35,9 +38,9 @@ export function AreaChart({ series }: { series: { label: string; value: number }
   return (
     <div>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="w-full h-[150px] border-b border-border">
-        <defs><linearGradient id="rev" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#2563EB" stopOpacity="0.25" /><stop offset="1" stopColor="#2563EB" stopOpacity="0" /></linearGradient></defs>
+        <defs><linearGradient id="rev" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#109868" stopOpacity="0.25" /><stop offset="1" stopColor="#109868" stopOpacity="0" /></linearGradient></defs>
         <path d={area} fill="url(#rev)" />
-        <path d={line} fill="none" stroke="#2563EB" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
+        <path d={line} fill="none" stroke="#109868" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
       </svg>
       <div className="flex justify-between text-[10px] text-muted-foreground mt-1.5">
         {series.map((s) => <span key={s.label}>{s.label}</span>)}
@@ -52,6 +55,7 @@ const BAND_COLOR: Record<string, string> = {
 
 // Donut for a 4-band distribution.
 export function Donut({ dist, center }: { dist: Record<string, number>; center?: string }) {
+  const { t } = useI18n();
   const bands = ["excellent", "good", "fair", "poor"];
   const total = bands.reduce((s, b) => s + (dist[b] || 0), 0) || 1;
   let acc = 0;
@@ -65,14 +69,14 @@ export function Donut({ dist, center }: { dist: Record<string, number>; center?:
     <div className="flex flex-col items-center">
       <div className="relative size-[120px] rounded-full" style={{ background: `conic-gradient(${stops})` }}>
         <div className="absolute inset-[22px] bg-card rounded-full grid place-items-center text-center">
-          {center && <div><div className="text-xl font-extrabold">{center}</div><div className="text-[10px] text-muted-foreground">avg</div></div>}
+          {center && <div><div className="text-xl font-extrabold">{center}</div><div className="text-[10px] text-muted-foreground">{t("reports.average")}</div></div>}
         </div>
       </div>
       <div className="mt-3 w-full space-y-1">
         {bands.map((b) => (
           <div key={b} className="flex items-center gap-2 text-[11.5px]">
             <span className="size-2.5 rounded" style={{ background: BAND_COLOR[b] }} />
-            <span className="capitalize">{b}</span>
+            <span className="capitalize">{t("band." + b)}</span>
             <span className="ml-auto font-bold">{Math.round(((dist[b] || 0) / total) * 100)}%</span>
           </div>
         ))}
@@ -84,7 +88,7 @@ export function Donut({ dist, center }: { dist: Record<string, number>; center?:
 // Funnel of stages.
 export function Funnel({ stages }: { stages: { stage: string; count: number }[] }) {
   const max = Math.max(1, ...stages.map((s) => s.count));
-  const colors = ["#2563EB", "#3B82F6", "#60A5FA", "#059669", "#4338CA"];
+  const colors = ["#109868", "#2FA97C", "#66C4A0", "#0E7490", "#64748B"];
   return (
     <div className="space-y-2 mt-1">
       {stages.map((s, i) => (
@@ -99,7 +103,7 @@ export function Funnel({ stages }: { stages: { stage: string; count: number }[] 
 }
 
 // Horizontal bars (aging / distribution / revenue-by-service).
-export function BarRows({ rows, color = "#2563EB", fmt = (n: number) => String(n), bandColors = false }: {
+export function BarRows({ rows, color = "#109868", fmt = (n: number) => String(n), bandColors = false }: {
   rows: { label: string; value: number }[];
   color?: string;
   fmt?: (n: number) => string;
@@ -116,7 +120,7 @@ export function BarRows({ rows, color = "#2563EB", fmt = (n: number) => String(n
           <span className="flex-1 h-2.5 rounded-full bg-muted overflow-hidden">
             <span className="block h-full rounded-full" style={{ width: `${(r.value / max) * 100}%`, background: bandColors ? bandFill[i % 4] : color }} />
           </span>
-          <span className="w-16 text-right font-bold font-mono">{fmt(r.value)}</span>
+          <span className="max-w-[45%] text-right font-bold font-mono wrap-break-word">{fmt(r.value)}</span>
         </div>
       ))}
     </div>

@@ -14,6 +14,7 @@ from app.core.events import (
     AppointmentCompleted,
     AppointmentConfirmed,
     AppointmentCreated,
+    AppointmentStarted,
     MaintenanceDue,
     event_bus,
 )
@@ -30,6 +31,10 @@ def _on_created(e: AppointmentCreated) -> None:
 def _on_confirmed(e: AppointmentConfirmed) -> None:
     # TODO(telegram): send "appointment confirmed" message to the customer.
     logger.info("NOTIFY confirmed appt=%s customer=%s", e.appointment_id, e.customer_id)
+
+
+def _on_started(e: AppointmentStarted) -> None:
+    logger.info("AppointmentStarted appt=%s", e.appointment_id)
 
 
 def _on_cancelled(e: AppointmentCancelled) -> None:
@@ -55,6 +60,7 @@ def register_event_handlers() -> None:
         return
     event_bus.register(AppointmentCreated, _on_created)
     event_bus.register(AppointmentConfirmed, _on_confirmed)
+    event_bus.register(AppointmentStarted, _on_started)
     event_bus.register(AppointmentCancelled, _on_cancelled)
     event_bus.register(AppointmentCompleted, _on_completed)
     event_bus.register(MaintenanceDue, _on_maintenance_due)

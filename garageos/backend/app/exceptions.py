@@ -39,6 +39,30 @@ class RateLimitExceeded(GarageException):
         self.retry_after = retry_after
 
 
+class RateLimitUnavailable(GarageException):
+    status_code = 503
+    code = "RATE_LIMIT_UNAVAILABLE"
+    detail = "Request throttling is temporarily unavailable"
+
+
+class IdempotencyKeyRequired(ValidationError):
+    code = "IDEMPOTENCY_KEY_REQUIRED"
+    detail = "Idempotency-Key header is required for this operation"
+
+    def __init__(self, detail: str | None = None):
+        if detail:
+            self.detail = detail
+
+
+class IdempotencyKeyReuse(ConflictError):
+    code = "IDEMPOTENCY_KEY_REUSED"
+    detail = "This Idempotency-Key was already used for a different request"
+
+    def __init__(self, detail: str | None = None):
+        if detail:
+            self.detail = detail
+
+
 # Domain-specific exceptions
 
 class VehicleNotFound(NotFoundError):
@@ -69,11 +93,22 @@ class UserNotFound(NotFoundError):
     detail = "User not found"
 
 
+class StaffEmailUnavailable(ConflictError):
+    code = "STAFF_EMAIL_UNAVAILABLE"
+    detail = "Login email is unavailable"
+
+
+class StaffRoleUnavailable(ValidationError):
+    code = "STAFF_ROLE_UNAVAILABLE"
+    detail = "Selected employee role is unavailable"
+
+
 class BrandNotFound(NotFoundError):
     detail = "Brand not found"
 
 
 class AppointmentConflict(ConflictError):
+    code = "APPOINTMENT_CONFLICT"
     detail = "Time slot is already booked"
 
 

@@ -9,7 +9,10 @@ load balancers can probe them without knowing the API version.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
+import os
+import re
 
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
@@ -24,6 +27,7 @@ router = APIRouter(tags=["system"])
 
 # Bound dependency probes so a readiness check never hangs.
 _CONNECT_TIMEOUT_SECONDS = 2
+_COMMIT_SHA = re.compile(r"^[0-9a-fA-F]{7,40}$")
 
 
 @router.get("/health", summary="Liveness probe")
@@ -38,9 +42,14 @@ async def health() -> dict:
 
 @router.get("/version", summary="Build and runtime metadata")
 async def version() -> dict:
+    build_sha = next((candidate for candidate in (
+        os.environ.get("BUILD_SHA"),
+        os.environ.get("RAILWAY_GIT_COMMIT_SHA"),
+    ) if candidate and _COMMIT_SHA.fullmatch(candidate)), "unknown")
     return {
         "name": settings.APP_NAME,
         "version": settings.APP_VERSION,
+        "build_sha": build_sha.lower(),
         "environment": settings.ENVIRONMENT,
         "debug": settings.DEBUG,
     }
@@ -48,12 +57,13 @@ async def version() -> dict:
 
 async def _check_database() -> tuple[bool, str | None]:
     try:
-        async with engine.connect() as conn:
-            await conn.execute(text("SELECT 1"))
+        async with asyncio.timeout(_CONNECT_TIMEOUT_SECONDS):
+            async with engine.connect() as conn:
+                await conn.execute(text("SELECT 1"))
         return True, None
     except Exception as exc:  # noqa: BLE001 — report any failure as not-ready
-        logger.warning("Readiness: database check failed: %s", exc)
-        return False, str(exc)
+        logger.warning("Readiness: database check failed (%s)", type(exc).__name__)
+        return False, "unavailable"
 
 
 async def _check_redis() -> tuple[bool, str | None]:
@@ -67,20 +77,21 @@ async def _check_redis() -> tuple[bool, str | None]:
             settings.REDIS_URL, socket_connect_timeout=_CONNECT_TIMEOUT_SECONDS
         )
         try:
-            await client.ping()
+            async with asyncio.timeout(_CONNECT_TIMEOUT_SECONDS):
+                await client.ping()
         finally:
             await client.aclose()
         return True, None
     except Exception as exc:  # noqa: BLE001
-        logger.warning("Readiness: redis check failed: %s", exc)
-        return False, str(exc)
+        logger.warning("Readiness: redis check failed (%s)", type(exc).__name__)
+        return False, "unavailable"
 
 
 @router.get("/ready", summary="Readiness probe")
 async def ready() -> JSONResponse:
     """Readiness: every backing dependency the app needs to serve traffic is up.
 
-    Returns 200 only when all checks pass; otherwise 503 with per-check detail.
+    Returns 200 only when all checks pass; otherwise 503 with safe categories.
     """
     db_ok, db_err = await _check_database()
     redis_ok, redis_err = await _check_redis()

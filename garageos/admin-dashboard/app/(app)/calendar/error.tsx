@@ -1,12 +1,15 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n/context";
+
 import { ErrorState } from "@/components/states/error-state";
 
 export default function CalendarError({ reset }: { error: Error; reset: () => void }) {
+  const { t } = useI18n();
   return (
     <ErrorState
-      title="The calendar couldn't load"
-      description="We couldn't pull the schedule, mechanics, and appointments for this range. Retry, or check that the API is reachable — nothing was changed."
+      title={t("feedback.calendar_error")}
+      description={t("feedback.calendar_error_description")}
       onRetry={reset}
     />
   );

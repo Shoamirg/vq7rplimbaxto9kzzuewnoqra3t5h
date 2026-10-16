@@ -15,12 +15,12 @@ _NOW = datetime.now(timezone.utc)
 _FEED = [
     (6, "appointment", "info", "Service completed", "Ford Fiesta — health recalculated to 97.", "/calendar", False),
     (34, "vehicle", "high", "Overdue: Brake Pad Replacement", "BMW X5 (GSX3967) needs attention.", "/vehicles", False),
-    (58, "passport", "info", "Passport certified", "Toyota Land Cruiser — certified passport issued.", "/vehicles", False),
+    (58, "passport", "info", "Service record available", "Toyota Land Cruiser — vehicle service record is ready to share.", "/vehicles", False),
     (95, "customer", "info", "New customer added", "Michelle Martin was added with 5 vehicles.", "/customers", True),
     (180, "appointment", "low", "Appointment confirmed", "Tomorrow · 10:00 with Dmitri Volkov.", "/calendar", True),
     (320, "vehicle", "medium", "Due soon: Cabin filter", "Honda CR-V is approaching its service window.", "/vehicles", True),
     (1500, "appointment", "medium", "Appointment cancelled", "Customer cancelled — slot freed.", "/calendar", True),
-    (1900, "passport", "info", "Passport shared", "A certified passport link was opened.", "/vehicles", True),
+    (1900, "passport", "info", "Service record shared", "A vehicle service record link was opened.", "/vehicles", True),
 ]
 
 

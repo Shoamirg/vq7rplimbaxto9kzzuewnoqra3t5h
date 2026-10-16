@@ -208,6 +208,9 @@ async def test_complete_creates_record_recalcs_health_and_emits_event(session):
         customer_id=t.customer.id, vehicle_id=t.vehicle.id, slot_id=slot.id,
         maintenance_rule_id=rule.id,
     )
+    await svc.confirm_appointment(uuid.UUID(booked["id"]))
+    await svc.assign_mechanic(uuid.UUID(booked["id"]), "Demo mechanic")
+    await svc.start_appointment(uuid.UUID(booked["id"]))
 
     result = await svc.complete_appointment(
         uuid.UUID(booked["id"]), odometer_km=60000, total_cost=99.0

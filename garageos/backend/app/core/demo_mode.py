@@ -19,7 +19,7 @@ from app.core.security import decode_token
 
 _WRITE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 # Establishing / refreshing a demo session must still work.
-_EXEMPT_SUFFIXES = ("/auth/demo", "/auth/refresh", "/auth/login")
+_EXEMPT_SUFFIXES = ("/auth/demo", "/auth/refresh", "/auth/login", "/auth/logout")
 
 
 class DemoReadOnlyMiddleware(BaseHTTPMiddleware):

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header
 
 from app.api.customer_deps import get_current_customer, get_customer_uow
 from app.models.customer import Customer
@@ -41,6 +41,7 @@ async def post_message(
     conversation_id: uuid.UUID,
     body: PostMessageRequest,
     customer: Customer = Depends(get_current_customer),
-    uow: UnitOfWork = Depends(get_customer_uow),
+    uow: UnitOfWork = Depends(get_customer_uow, scope="function"),
+    idempotency_key: uuid.UUID | None = Header(default=None),
 ) -> ThreadMessage:
-    return await CustomerPortalService(uow, customer).post_message(conversation_id, body.body)
+    return await CustomerPortalService(uow, customer).post_message(conversation_id, body.body, idempotency_key=idempotency_key)

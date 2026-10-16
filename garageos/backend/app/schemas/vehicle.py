@@ -1,4 +1,8 @@
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+import re
+import uuid
+from datetime import date
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from datetime import datetime
 from typing import Optional
 
@@ -17,6 +21,49 @@ class VehicleCreate(BaseModel):
     notes: str | None = None
 
 
+class StaffVehicleCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    customer_id: uuid.UUID
+    vehicle_model_id: uuid.UUID
+    year: int = Field(ge=1900)
+    license_plate: str | None = Field(None, max_length=20)
+    vin: str | None = Field(None, min_length=11, max_length=17)
+    current_km: int = Field(default=0, ge=0)
+
+    @field_validator("year")
+    @classmethod
+    def validate_year(cls, value: int) -> int:
+        if value > date.today().year + 1:
+            raise ValueError("Vehicle year cannot be more than one year in the future")
+        return value
+
+    @field_validator("license_plate", "vin")
+    @classmethod
+    def normalize_identifiers(cls, value: str | None) -> str | None:
+        return re.sub(r"[\s-]", "", value).upper() if value else None
+
+    @field_validator("vin")
+    @classmethod
+    def validate_vin(cls, value: str | None) -> str | None:
+        if value and not re.fullmatch(r"[A-HJ-NPR-Z0-9]{11,17}", value):
+            raise ValueError("VIN must contain 11 to 17 valid letters and digits")
+        return value
+
+    @field_validator("license_plate")
+    @classmethod
+    def validate_plate(cls, value: str | None) -> str | None:
+        if value and (len(value) < 2 or not value.isalnum()):
+            raise ValueError("License plate must contain letters and digits")
+        return value
+
+    @model_validator(mode="after")
+    def require_identifier(self):
+        if not self.license_plate and not self.vin:
+            raise ValueError("Provide a license plate or VIN")
+        return self
+
+
 class VehicleUpdate(BaseModel):
     year: int | None = Field(None, ge=1900, le=2030)
     license_plate: str | None = Field(None, max_length=20)
@@ -33,7 +80,7 @@ class MileageUpdate(BaseModel):
 
 
 class VehicleResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
 
     id: str
     customer_id: str

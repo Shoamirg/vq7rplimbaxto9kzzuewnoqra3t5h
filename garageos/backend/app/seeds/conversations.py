@@ -146,6 +146,9 @@ async def generate_conversations(session, center: ServiceCenter, vehicles, mecha
         conv.unread_messages = unread if status != ConvStatus.RESOLVED else 0
         # A couple of threads have unseen *activity* (assignment/sign-off) with no new message.
         conv.unread_activity = 1 if status == ConvStatus.WAITING_TECHNICIAN else 0
+        conv.message_generation = conv.unread_messages
+        conv.activity_generation = conv.unread_activity
+        conv.acknowledged_message_generation = conv.acknowledged_activity_generation = 0
         last_msg = thread[-1]
         conv.last_message_preview = (last_msg[2] or (last_msg[3][1] if last_msg[3] else ""))[:300] or None
         created += 1

@@ -4,5 +4,13 @@
   "workspaces": [
     "admin-dashboard",
     "packages/*"
-  ]
+  ],
+  "overrides": {
+    "next": {
+      "postcss": "8.5.29"
+    },
+    "@next/eslint-plugin-next@15.5.27": {
+      "fast-glob": "npm:tinyglobby@0.2.17"
+    }
+  }
 }
