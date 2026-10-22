@@ -1,4 +1,5 @@
 "use client";
+import { VehicleSchematic } from "@/components/vehicles/vehicle-telemetry-blueprint";
 
 import Link from "next/link";
 import {
@@ -31,8 +32,8 @@ export default function HomePage() {
   return (
     <div className="space-y-5">
       <header className="px-1">
-        <p className="text-sm font-medium text-slate-600">{home.garage.name}</p>
-        <h1 className="text-[28px] font-bold tracking-tight text-slate-900">
+        <p className="text-sm font-medium text-muted-foreground">{home.garage.name}</p>
+        <h1 className="text-[28px] font-bold tracking-tight text-foreground">
           {t("mini.home.greeting", { name: home.greeting })} 👋
         </h1>
       </header>
@@ -64,7 +65,7 @@ export default function HomePage() {
             <p className="font-semibold text-white">{t("mini.home.book_service")}</p>
             <p className="text-sm text-slate-300">{t("mini.home.book_service_sub")}</p>
           </div>
-          <ChevronRight className="size-5 text-slate-600" aria-hidden />
+          <ChevronRight className="size-5 text-muted-foreground" aria-hidden />
         </div>
       </Card>
 
@@ -74,14 +75,14 @@ export default function HomePage() {
           <SectionLabel>{t("mini.home.upcoming")}</SectionLabel>
           <Card>
             <div className="flex items-center gap-3">
-              <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-blue-50 text-blue-600">
+              <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-primary-50 text-primary-600">
                 <CalendarClock className="size-6" aria-hidden />
               </div>
               <div className="flex-1">
-                <p className="font-semibold text-slate-900">
+                <p className="font-semibold text-foreground">
                   {home.next_appointment.service_type ?? t("mini.home.appointment_default")}
                 </p>
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-muted-foreground">
                   {fmt.date(home.next_appointment.local_date || home.next_appointment.date, DAY_DATE)}
                   {home.next_appointment.time ? ` · ${home.next_appointment.time}` : ""}
                   {home.next_appointment.vehicle_label ? ` · ${home.next_appointment.vehicle_label}` : ""}
@@ -94,20 +95,20 @@ export default function HomePage() {
 
       {/* Outstanding invoice */}
       {Object.values(home.balances_by_currency ?? { [home.balance_currency ?? "USD"]: home.outstanding_balance }).some((amount) => amount > 0.005) ? (
-        <Card href="/mini/billing" className="bg-amber-50! ring-amber-200/60!">
+        <Card href="/mini/billing" className="bg-status-warning/10! border-status-warning/20!">
           <div className="flex items-center gap-3">
             <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-amber-100 text-amber-700">
               <Receipt className="size-6" aria-hidden />
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-slate-900">{t("mini.home.balance_due")}</p>
-              <p className="text-sm text-amber-700">
+              <p className="font-semibold text-foreground">{t("mini.home.balance_due")}</p>
+              <p className="text-sm text-status-warning">
                 {home.outstanding_invoice
                   ? t("mini.home.invoice_n", { code: home.outstanding_invoice.code })
                   : t("mini.home.tap_to_pay")}
               </p>
             </div>
-            <p className="text-lg font-bold text-slate-900">{Object.entries(home.balances_by_currency ?? { [home.balance_currency ?? "USD"]: home.outstanding_balance }).filter(([, amount]) => amount > 0.005).map(([currency, amount]) => fmt.money(amount, currency)).join(" · ")}</p>
+            <p className="text-lg font-bold text-foreground">{Object.entries(home.balances_by_currency ?? { [home.balance_currency ?? "USD"]: home.outstanding_balance }).filter(([, amount]) => amount > 0.005).map(([currency, amount]) => fmt.money(amount, currency)).join(" · ")}</p>
           </div>
         </Card>
       ) : null}
@@ -116,19 +117,19 @@ export default function HomePage() {
       {home.latest_message ? (
         <Card href={`/mini/messages/${home.latest_message.id}`}>
           <div className="flex items-center gap-3">
-            <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-slate-100 text-slate-500">
+            <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-muted text-muted-foreground">
               <MessageSquare className="size-6" aria-hidden />
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <p className="truncate font-semibold text-slate-900">
+                <p className="truncate font-semibold text-foreground">
                   {home.latest_message.subject ?? t("mini.home.conversation")}
                 </p>
                 {home.latest_message.awaiting_you ? (
-                  <span className="size-2 shrink-0 rounded-full bg-blue-500" />
+                  <span className="size-2 shrink-0 rounded-full bg-primary-500" />
                 ) : null}
               </div>
-              <p className="truncate text-sm text-slate-500">
+              <p className="truncate text-sm text-muted-foreground">
                 {home.latest_message.preview ?? t("mini.home.open_thread")}
               </p>
             </div>
@@ -141,12 +142,12 @@ export default function HomePage() {
       {v ? (
         <div>
           <SectionLabel>{t("mini.home.your_vehicle")}</SectionLabel>
-          <Card href={`/mini/vehicles/${v.id}`}>
+          <Card href={`/mini/vehicles/${v.id}`}><div className="rounded-tile mb-3" style={{ background: "var(--hero-stage)" }}><VehicleSchematic /></div>
             <div className="flex items-center gap-4">
               <HealthRing score={v.health_score} band={v.band} size={60} />
               <div className="flex-1">
-                <p className="font-semibold text-slate-900">{v.label}</p>
-                <p className="text-sm text-slate-500">
+                <p className="font-semibold text-foreground">{v.label}</p>
+                <p className="text-sm text-muted-foreground">
                   {tier ? `${t("mini.home.certified", { tier })} · ` : ""}
                   {t("mini.home.health_label", { band: t(`mini.band.${v.band}`) })}
                 </p>
@@ -165,13 +166,13 @@ export default function HomePage() {
             <ul className="divide-y divide-slate-100">
               {home.activity.map((a, i) => (
                 <li key={i} className="flex items-start gap-3 px-2 py-3">
-                  <div className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-600">
+                  <div className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
                     <Bell className="size-4" aria-hidden />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-slate-800">{a.title}</p>
-                    {a.detail ? <p className="text-sm text-slate-500">{a.detail}</p> : null}
-                    <p className="mt-0.5 text-xs text-slate-600">{fmt.date(a.date, DAY_DATE)}</p>
+                    <p className="text-sm font-medium text-foreground">{a.title}</p>
+                    {a.detail ? <p className="text-sm text-muted-foreground">{a.detail}</p> : null}
+                    <p className="mt-0.5 text-xs text-muted-foreground">{fmt.date(a.date, DAY_DATE)}</p>
                   </div>
                 </li>
               ))}

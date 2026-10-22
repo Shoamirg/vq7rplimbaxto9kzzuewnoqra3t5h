@@ -1,0 +1,133 @@
+/* GarageOS v2. Shared surfaces, independent of tenant identity colours. */
+:root {
+  --canvas: #E4E6E9;
+  --surface-elevated: #FFFFFF;
+  --surface-glass: rgba(245, 247, 249, .78);
+  --blueprint-paper: #F8F9FA;
+  --blueprint-grid: #ECEEF1;
+  --hero-stage: radial-gradient(circle at 50% 42%, #F5F7F9 0%, #D8DCDF 100%);
+  --glass-shadow: 0 20px 40px -12px rgb(17 19 21 / .10), inset 0 1px 0 rgb(255 255 255 / .8);
+  --bento-gap: 18px;
+  --status-success: #086344;
+  --status-warning: #80500A;
+  --status-danger: #BE312B;
+}
+.dark {
+  --canvas: #111315;
+  --surface-elevated: #262A30;
+  --surface-glass: rgba(24, 27, 32, .86);
+  --blueprint-paper: #181B20;
+  --blueprint-grid: #262A30;
+  --hero-stage: radial-gradient(circle at 50% 42%, #343A42 0%, #181B20 100%);
+  --glass-shadow: 0 20px 40px -12px rgb(0 0 0 / .2), inset 0 1px 0 rgb(255 255 255 / .08);
+  --status-success: #75D5A3;
+  --status-warning: #EDB55A;
+  --status-danger: #F08A82;
+}
+
+@layer base {
+  body { font-size: .9375rem; line-height: 1.5; }
+  h1 { letter-spacing: -.025em; }
+  svg.lucide { stroke-width: 1.5; }
+  :focus-visible { outline: 2px solid var(--color-foreground); outline-offset: 3px; }
+  button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+}
+
+/* Native controls also appear outside the shared React primitives. */
+button:is(.rounded-md, .rounded-lg, .rounded-sm),
+input:not([type=checkbox], [type=radio], [type=range], [type=file], .peer), select {
+  border-radius: 9999px;
+}
+input:not([type=checkbox], [type=radio], [type=range], [type=file], .peer), select {
+  min-height: 52px;
+  padding-inline: 22px;
+  background-color: var(--color-input);
+  color: var(--color-foreground);
+}
+input:not([type=checkbox], [type=radio], [type=range], [type=file], .peer):focus, select:focus {
+  background-color: var(--surface-elevated);
+  border-color: var(--color-foreground);
+}
+textarea { border-radius: 18px; }
+.glass-panel { background: var(--surface-glass); backdrop-filter: blur(20px) saturate(160%); box-shadow: var(--glass-shadow); border-radius: 28px; }
+.bento-panel { background: var(--color-card); border: 1px solid rgb(255 255 255 / .65); border-radius: 28px; box-shadow: var(--shadow-bento); }
+.dark .bento-panel { border-color: var(--color-border); }
+.telemetry-label { font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.garage-shell { gap: 18px; padding: 18px; background: var(--canvas); }
+.garage-shell > div { min-width: 0; }
+.garage-content { background: var(--canvas); }
+.garage-content > div { max-width: 1440px; margin-inline: auto; }
+.garage-dock { border: 1px solid rgb(255 255 255 / .65); border-radius: 24px; box-shadow: var(--shadow-bento); }
+.garage-dock nav { padding-inline: 8px; overflow-x: hidden; scrollbar-width: none; }
+.garage-dock > .border-t { padding-inline: 8px; }
+.garage-dock a { border-radius: 14px; }
+.garage-dock a[aria-current=page] { background: var(--surface-elevated); box-shadow: var(--shadow-bento); }
+.garage-topbar { border-radius: 24px; border: 1px solid rgb(255 255 255 / .65); background: var(--surface-glass); }
+.garage-segments { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: thin; }
+.garage-segments a, .garage-segments button { flex: none; padding: 10px 22px; border-radius: 16px; background: var(--color-muted); color: var(--color-muted-foreground); min-height: 44px; font-size: 13px; }
+.garage-segments [aria-current=page], .garage-segments [aria-pressed=true] { background: #D4D7DC; color: #111315; font-weight: 600; }
+.dark .garage-segments [aria-current=page], .dark .garage-segments [aria-pressed=true] { background: #3D4249; color: #FFFFFF; }
+.garage-topbar .garage-segments { display: none; }
+.garage-dashboard { display: grid; gap: 18px; }
+.garage-dashboard > * { margin-top: 0; }
+.garage-dashboard > .grid { gap: 18px; }
+.garage-dashboard [data-kpi] { font-size: clamp(1.75rem, 2.5vw, 2.375rem); line-height: 1.05; letter-spacing: -.03em; }
+.operations-hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 380px); gap: 18px; }
+.operations-stage { position: relative; overflow: hidden; min-height: 300px; padding: 28px; border-radius: 28px; background: var(--hero-stage); }
+.operations-stage h2 { font-size: clamp(1.875rem, 3vw, 2.75rem); line-height: 1.12; max-width: 20ch; }
+.operations-stage .vehicle-schematic { margin: 0 auto; max-width: 620px; }
+.operations-shortcuts { padding: 24px; display: flex; flex-direction: column; justify-content: space-between; gap: 18px; }
+.operations-shortcuts nav { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.operations-shortcuts nav a { display: flex; flex-direction: column; gap: 12px; padding: 18px; min-height: 100px; border-radius: 18px; background: var(--color-card); font-size: 13px; font-weight: 600; }
+.operations-shortcuts nav svg { width: 24px; height: 24px; }
+.vehicle-blueprint { border-radius: 28px; padding: 24px; color: var(--color-foreground); background-color: var(--blueprint-paper); background-image: linear-gradient(var(--blueprint-grid) 1px, transparent 1px), linear-gradient(90deg,var(--blueprint-grid) 1px, transparent 1px); background-size: 24px 24px; border: 1px solid var(--color-border); }
+.vehicle-schematic { width: 100%; height: auto; color: var(--color-foreground); }
+.vehicle-schematic .vehicle-ground { fill: #111315; opacity: .14; }
+.telemetry-systems { display: grid; grid-template-columns: repeat(auto-fit,minmax(100px,1fr)); gap: 12px; }
+.telemetry-system { min-width: 0; padding: 12px; border: 1px solid var(--color-border); border-radius: 18px; background: var(--color-card); text-align: center; }
+.telemetry-system[aria-pressed=true] { border-color: var(--color-foreground); background: var(--surface-elevated); }
+.telemetry-gauge { position: relative; display: grid; place-items: center; width: 84px; height: 84px; margin: 0 auto 10px; }
+.telemetry-gauge > span { position: absolute; font-family: var(--font-mono); font-size: 22px; letter-spacing: -.04em; }
+.telemetry-gauge small { font-size: 10px; }
+.telemetry-system .telemetry-label { display: block; overflow-wrap: anywhere; font-size: 10px; }
+.platform-workspace > header { max-width: 1440px; margin: 18px auto 0; border-radius: 24px; background: var(--surface-glass); box-shadow: var(--shadow-bento); }
+.platform-workspace main { max-width: 1440px; }
+.platform-dock { display: flex; gap: 8px; overflow-x: auto; padding: 8px; background: var(--surface-glass); }
+.platform-dock button { display: flex; flex: none; align-items: center; gap: 10px; min-height: 48px; padding: 12px; border-radius: 14px; font-size: 13px; }
+.platform-dock button[aria-pressed=true] { background: var(--surface-elevated); box-shadow: var(--shadow-bento); }
+@media (min-width: 1024px) {
+  .platform-workspace { padding-left: 100px; padding-right: 18px; }
+  .platform-dock { position: fixed; left: 18px; top: 18px; bottom: 18px; width: 64px; flex-direction: column; overflow-x: hidden; }
+  .platform-dock button { justify-content: center; padding: 10px; }
+  .platform-dock button span { display: none; }
+}
+.platform-workspace form > label { min-width: 0; }
+.platform-workspace input, .platform-workspace select { min-width: 0; max-width: 100%; }
+.platform-stats { display: grid; grid-template-columns: repeat(auto-fit,minmax(130px,1fr)); gap: 18px; }
+.platform-stats > div { padding: 18px; background: var(--color-card); border-radius: 24px; box-shadow: var(--shadow-bento); }
+.platform-stats dd { font-size: 32px; letter-spacing: -.03em; }
+.platform-records { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px; }
+.platform-records > li { padding: 24px; border: 1px solid var(--color-border); border-radius: 28px; background: var(--color-card); box-shadow: var(--shadow-bento); }
+.platform-records h3, .platform-records p { overflow-wrap: anywhere; }
+.platform-records > li { min-width: 0; }
+.payment-vault { background: linear-gradient(135deg,#23272F,#14171C); color: #fff; border-radius: 18px; padding: 18px; }
+@media (min-width: 1440px) { .garage-topbar .garage-segments { display: flex; } .garage-topbar .garage-breadcrumbs { display: none; } }
+@media (max-width: 1023px) {
+  .garage-shell { gap: 0; padding: 0; }
+  .garage-dock { border-radius: 0 24px 24px 0; }
+  .garage-topbar { border-radius: 0 0 24px 24px; }
+  .operations-hero { grid-template-columns: 1fr; }
+  .operations-shortcuts nav { grid-template-columns: repeat(4,minmax(0,1fr)); }
+}
+@media (max-width: 639px) {
+  .operations-stage, .operations-shortcuts, .vehicle-blueprint { padding: 18px; }
+  .operations-stage { min-height: 240px; }
+  .operations-shortcuts nav, .platform-records { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .platform-records { grid-template-columns: 1fr; }
+  .garage-dashboard { padding: 20px; }
+  .garage-topbar { gap: 8px; }
+  .platform-workspace > header { margin-top: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}

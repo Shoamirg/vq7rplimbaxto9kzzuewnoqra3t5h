@@ -89,12 +89,12 @@ export function ConversationList({
                   </span>
                 )}
                 {c.ai_summary && (
-                  <span className="inline-flex max-w-full min-w-0 items-center gap-1 [overflow-wrap:anywhere] text-[10.5px] font-semibold px-2 py-px rounded-full border border-indigo-200 bg-linear-to-r from-indigo-50 to-violet-50 text-indigo-700">
+                  <span className="inline-flex max-w-full min-w-0 items-center gap-1 [overflow-wrap:anywhere] text-[10.5px] font-semibold px-2 py-px rounded-full border border-primary-200 bg-linear-to-r from-primary-50 to-primary-50 text-primary-700">
                     {t("inbox.stored_summary")} · {c.ai_summary}
                   </span>
                 )}
                 {slaLive != null && c.sla_tracking_active === true && (
-                  <span className={cn("ml-auto text-[11px] font-mono font-bold", c.sla_breached ? "text-red-700 dark:text-red-400" : "text-amber-700 dark:text-amber-400")}>
+                  <span className={cn("ml-auto text-[11px] font-mono font-bold", c.sla_breached ? "text-red-700 dark:text-red-400" : "text-warning")}>
                     {fmtTimer(slaLive, t, fmt.number)}
                   </span>
                 )}

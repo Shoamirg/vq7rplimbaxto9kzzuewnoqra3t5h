@@ -1,8 +1,9 @@
 // ─── GarageOS Design Tokens: Typography ───────────────────────
 
 export const fontFamily = {
-  sans: ["Inter", "system-ui", "sans-serif"],
-  mono: ["JetBrains Mono", "Menlo", "monospace"],
+  sans: ["Plus Jakarta Sans", "Inter", "system-ui", "sans-serif"],
+  display: ["Archivo", "Space Grotesk", "sans-serif"],
+  mono: ["IBM Plex Mono", "JetBrains Mono", "monospace"],
 } as const;
 
 export const fontSize = {

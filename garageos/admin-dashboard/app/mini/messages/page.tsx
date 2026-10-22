@@ -30,33 +30,33 @@ export default function MessagesPage() {
           note={t("mini.messages.empty_hint")}
         />
       ) : (
-        <div className="overflow-hidden rounded-3xl bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06),0_8px_24px_-12px_rgba(15,23,42,0.12)] ring-1 ring-slate-900/4">
+        <div className="overflow-hidden rounded-3xl bg-card shadow-[0_1px_3px_rgba(15,23,42,0.06),0_8px_24px_-12px_rgba(15,23,42,0.12)] ring-1 ring-slate-900/4">
           <ul>
             {data.conversations.map((c, i) => (
               <li key={c.id} className={i > 0 ? "border-t border-slate-100" : ""}>
                 <Link
                   href={`/mini/messages/${c.id}`}
                   onClick={() => haptic("light")}
-                  className="flex items-center gap-3 px-4 py-3.5 transition active:bg-slate-50 focus-visible:outline-hidden focus-visible:bg-slate-50"
+                  className="flex items-center gap-3 px-4 py-3.5 transition active:bg-background focus-visible:outline-hidden focus-visible:bg-background"
                 >
-                  <div className="grid size-12 shrink-0 place-items-center rounded-full bg-linear-to-br from-blue-500 to-indigo-600 text-white">
+                  <div className="grid size-12 shrink-0 place-items-center rounded-full bg-linear-to-br from-primary-500 to-primary-600 text-white">
                     <Headphones className="size-5" aria-hidden />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline justify-between gap-2">
-                      <p className={`truncate ${c.awaiting_you ? "font-bold" : "font-semibold"} text-slate-900`}>
+                      <p className={`truncate ${c.awaiting_you ? "font-bold" : "font-semibold"} text-foreground`}>
                         {c.subject ?? t("mini.home.conversation")}
                       </p>
-                      <span className="shrink-0 text-xs text-slate-400">
+                      <span className="shrink-0 text-xs text-muted-foreground">
                         {fmt.date(c.last_message_at, { month: "short", day: "numeric" })}
                       </span>
                     </div>
                     <div className="mt-0.5 flex items-center gap-2">
-                      <p className={`truncate text-sm ${c.awaiting_you ? "text-slate-600" : "text-slate-400"}`}>
+                      <p className={`truncate text-sm ${c.awaiting_you ? "text-muted-foreground" : "text-muted-foreground"}`}>
                         {c.preview ?? t("mini.home.open_thread")}
                       </p>
                       {c.awaiting_you ? (
-                        <span className="ml-auto size-2.5 shrink-0 rounded-full bg-blue-500" aria-label="unread" />
+                        <span className="ml-auto size-2.5 shrink-0 rounded-full bg-primary-500" aria-label="unread" />
                       ) : null}
                     </div>
                   </div>

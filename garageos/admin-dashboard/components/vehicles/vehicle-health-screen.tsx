@@ -44,7 +44,7 @@ const TABS = ["Overview", "Timeline", "Services & History", "Documents", "Insigh
 // Event-stream items (from the notification engine) tinted by severity.
 const EVENT_TINT: Record<string, string> = {
   critical: "bg-red-500/10 text-red-600", high: "bg-red-500/10 text-red-600",
-  medium: "bg-amber-500/10 text-amber-600", low: "bg-blue-500/10 text-blue-600",
+  medium: "bg-amber-500/10 text-amber-600", low: "bg-primary-500/10 text-primary-600",
   info: "bg-muted text-muted-foreground",
 };
 type Tab = (typeof TABS)[number];
@@ -291,7 +291,7 @@ function OverviewTab({
             <StatItem icon={AlertTriangle} value={String(health.urgent_count)} label={t("vehicleHealth.overdue")} tone="bg-danger/10 text-danger" />
             <StatItem icon={Clock} value={String(health.due_soon_count)} label={t("vehicleHealth.soon")} tone="bg-warning/10 text-warning" />
             <StatItem icon={DollarSign} value={`$${stats.totalSpent.toLocaleString("en-US", { maximumFractionDigits: 0 })}`} label={t("vehicleHealth.spent")} tone="bg-success/10 text-success" />
-            <StatItem icon={Activity} value={km(stats.kmSinceService)} label={t("vehicleHealth.sinceService")} tone="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" />
+            <StatItem icon={Activity} value={km(stats.kmSinceService)} label={t("vehicleHealth.sinceService")} tone="bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400" />
           </CardContent>
         </Card>
       </div>
@@ -461,7 +461,7 @@ function InsightsCard({ health }: { health: VehicleHealth }) {
   const currentCount = health.services.filter((service) => !service.is_due).length;
   return (
     <Card className="relative overflow-hidden">
-      <div className="absolute inset-0 bg-linear-to-br from-violet-500/5 to-transparent" />
+      <div className="absolute inset-0 bg-linear-to-br from-primary-500/5 to-transparent" />
       <CardHeader>
         <CardTitle>{t("vehicleHealth.summary")}</CardTitle>
       </CardHeader>

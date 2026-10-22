@@ -31,12 +31,12 @@ export function QueueRail({
         return (
           <button key={v.key} onClick={() => onView(v.key)} aria-current={active ? "page" : undefined}
             className={cn("min-h-11 min-w-11 focus-visible:outline-2 focus-visible:outline-primary flex items-center gap-2.5 mx-2 my-0.5 px-2.5 py-2 rounded-lg text-[13px] transition-colors",
-              active ? "bg-blue-600/20 text-white" : "text-slate-300 hover:bg-slate-800")}>
+              active ? "bg-primary-600/20 text-white" : "text-slate-300 hover:bg-slate-800")}>
             <span className="w-4 text-center text-[13px]">{v.icon}</span>
             <span className="flex-1 text-left break-words">{t(v.label)}</span>
             {n !== undefined ? (
               <span className={cn("min-w-[20px] text-center text-[11px] font-bold rounded-full px-1.5 py-px",
-                active ? "bg-blue-600 text-white" : alert && n > 0 ? "bg-red-600 text-white" : "bg-slate-950 text-slate-400")}>
+                active ? "bg-primary-600 text-white" : alert && n > 0 ? "bg-red-600 text-white" : "bg-slate-950 text-slate-400")}>
                 {fmt.number(n)}
               </span>
             ) : null}
@@ -49,7 +49,7 @@ export function QueueRail({
         {TYPE_FILTERS.map((item) => (
           <button key={item.key} onClick={() => onType(item.key)} aria-pressed={type === item.key}
             className={cn("min-h-11 min-w-11 focus-visible:outline-2 focus-visible:outline-primary px-2 py-0.5 rounded-full text-[11px] transition-colors",
-              type === item.key ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-300 hover:text-white")}>
+              type === item.key ? "bg-primary-600 text-white" : "bg-slate-800 text-slate-300 hover:text-white")}>
             {t(`inbox.type.${item.key}`)}
           </button>
         ))}
@@ -59,7 +59,7 @@ export function QueueRail({
       {CHANNEL_FILTERS.map((c) => (
         <button key={c.key} onClick={() => onChannel(channel === c.key ? null : c.key)} aria-pressed={channel === c.key}
           className={cn("min-h-11 min-w-11 focus-visible:outline-2 focus-visible:outline-primary flex items-center gap-2.5 mx-2 my-0.5 px-2.5 py-1.5 rounded-lg text-[13px] transition-colors",
-            channel === c.key ? "bg-blue-600/20 text-white" : "text-slate-300 hover:bg-slate-800")}>
+            channel === c.key ? "bg-primary-600/20 text-white" : "text-slate-300 hover:bg-slate-800")}>
           <span className="w-4 text-center">{c.icon}</span>
           <span className="flex-1 text-left">{t(`inbox.channel.${c.key}`)}</span>
         </button>

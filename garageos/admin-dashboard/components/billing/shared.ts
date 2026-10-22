@@ -11,19 +11,19 @@ export function money(n: number | null | undefined, currency = "USD"): string {
 // Status → label + pill styling. Estimate statuses lean blue/purple; invoice
 // statuses lean green/amber/red — so the two are instantly distinguishable.
 export const STATUS_META: Record<InvoiceStatus, { label: string; cls: string }> = {
-  draft: { label: "Draft", cls: "text-slate-500 bg-slate-100" },
-  sent: { label: "Sent", cls: "text-purple-600 bg-purple-50" },
-  viewed: { label: "Viewed", cls: "text-purple-600 bg-purple-50" },
-  approved: { label: "Approved", cls: "text-emerald-600 bg-emerald-50" },
-  rejected: { label: "Rejected", cls: "text-red-600 bg-red-50" },
-  changes_requested: { label: "Changes requested", cls: "text-amber-600 bg-amber-50" },
-  expired: { label: "Expired", cls: "text-slate-500 bg-slate-100" },
-  issued: { label: "Issued", cls: "text-blue-600 bg-blue-50" },
-  partial: { label: "Partial", cls: "text-amber-600 bg-amber-50" },
-  paid: { label: "Paid", cls: "text-emerald-600 bg-emerald-50" },
-  overdue: { label: "Overdue", cls: "text-red-600 bg-red-50" },
-  void: { label: "Void", cls: "text-slate-500 bg-slate-100" },
-  refunded: { label: "Refunded", cls: "text-slate-600 bg-slate-100" },
+  draft: { label: "Draft", cls: "text-muted-foreground bg-muted" },
+  sent: { label: "Sent", cls: "text-foreground bg-muted" },
+  viewed: { label: "Viewed", cls: "text-foreground bg-muted" },
+  approved: { label: "Approved", cls: "text-status-success bg-status-success/10" },
+  rejected: { label: "Rejected", cls: "text-status-danger bg-status-danger/10" },
+  changes_requested: { label: "Changes requested", cls: "text-status-warning bg-status-warning/10" },
+  expired: { label: "Expired", cls: "text-muted-foreground bg-muted" },
+  issued: { label: "Issued", cls: "text-foreground bg-muted" },
+  partial: { label: "Partial", cls: "text-status-warning bg-status-warning/10" },
+  paid: { label: "Paid", cls: "text-status-success bg-status-success/10" },
+  overdue: { label: "Overdue", cls: "text-status-danger bg-status-danger/10" },
+  void: { label: "Void", cls: "text-muted-foreground bg-muted" },
+  refunded: { label: "Refunded", cls: "text-muted-foreground bg-muted" },
 };
 
 export const LINE_ICON: Record<LineKind, string> = {

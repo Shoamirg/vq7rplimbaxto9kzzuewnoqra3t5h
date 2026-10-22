@@ -23,7 +23,7 @@ const BAND_TEXT: Record<HealthBand, string> = {
 };
 
 const TL_SEVERITY: Record<string, string> = {
-  critical: "bg-red-600", high: "bg-red-500", medium: "bg-amber-500", low: "bg-blue-500", info: "bg-slate-400",
+  critical: "bg-red-600", high: "bg-red-500", medium: "bg-amber-500", low: "bg-primary-500", info: "bg-slate-400",
 };
 
 const TABS = [
@@ -239,7 +239,7 @@ function DocList({ title, rows }: { title: string; rows: any[] }) {
               <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded capitalize",
                 d.status === "paid" ? "text-emerald-600 bg-emerald-50" : d.status === "overdue" ? "text-red-600 bg-red-50" :
                 d.status === "partial" ? "text-amber-600 bg-amber-50" : d.status === "approved" ? "text-emerald-600 bg-emerald-50" :
-                "text-blue-600 bg-blue-50")}>{t("public.status_" + d.status)}</span>
+                "text-primary-600 bg-primary-50")}>{t("public.status_" + d.status)}</span>
             </Link>
           ))}
         </div>

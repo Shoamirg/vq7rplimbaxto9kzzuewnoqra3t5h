@@ -91,7 +91,7 @@ export function ConversationPane({ detail, identity, actor, isAuthorized, canWri
       <label className="block text-sm"><span>{t("ops.message")}</span><textarea aria-label={t("ops.message")} maxLength={64 * 1024} rows={3} value={composer.text} disabled={!actor || !convo || !canWrite || !!thread.error} onChange={event => composer.edit(event.target.value)} onKeyDown={event => {
         if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); send(); }
       }} className="mt-1 min-h-11 w-full min-w-0 resize-y rounded-lg border border-border bg-background p-2 text-sm focus-visible:outline-2 focus-visible:outline-primary" /></label>
-      <button className={cn(operationControl, "w-full bg-primary text-primary-foreground hover:bg-primary/90")} disabled={!canWrite || composer.pending || !convo || thread.loading || !!thread.error || !!composer.intent || !!composer.storageError || !composer.text.trim()} onClick={send}>{composer.pending ? t("ops.sending") : t("ops.send")}</button>
+      <button className={cn(operationControl, "w-full bg-conversion text-white hover:bg-conversion/90")} disabled={!canWrite || composer.pending || !convo || thread.loading || !!thread.error || !!composer.intent || !!composer.storageError || !composer.text.trim()} onClick={send}>{composer.pending ? t("ops.sending") : t("ops.send")}</button>
     </div>
   </aside>;
 }

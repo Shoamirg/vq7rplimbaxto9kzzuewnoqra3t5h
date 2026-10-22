@@ -75,19 +75,19 @@ export function LogoTile({ size = 96, radius = 0.25 }: { size?: number; radius?:
 /** Horizontal lockup: mark + wordmark. `theme` picks the palette. */
 export function Logo({
   size = 28,
-  theme = "light",
+  theme = "auto",
   showWordmark = true,
   className,
   style,
 }: {
   size?: number;
-  theme?: "light" | "dark";
+  theme?: "light" | "dark" | "auto";
   showWordmark?: boolean;
   className?: string;
   style?: CSSProperties;
 }) {
   const dark = theme === "dark";
-  const tone = dark ? GARAGE_WHITE : GARAGE_BLACK;
+  const tone = theme === "auto" ? "var(--color-foreground)" : dark ? GARAGE_WHITE : GARAGE_BLACK;
   const accent = BRAND_EMERALD;
   const osColor = BRAND_EMERALD;
   return (

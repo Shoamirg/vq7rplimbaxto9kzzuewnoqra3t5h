@@ -131,8 +131,8 @@ export default function BookPage() {
         <div className="mx-auto grid size-16 place-items-center rounded-full bg-emerald-100 text-emerald-600 mb-4">
           <Check className="size-8" />
         </div>
-        <h1 className="text-xl font-bold text-slate-900">{t("mini.booking.success")}</h1>
-        <p className="text-sm text-slate-500 mt-1">{result.vehicle_label} · {serviceLabel}</p>
+        <h1 className="text-xl font-bold text-foreground">{t("mini.booking.success")}</h1>
+        <p className="text-sm text-muted-foreground mt-1">{result.vehicle_label} · {serviceLabel}</p>
         <Card className="mt-5 text-left">
           <Row k={t("mini.booking.when")} v={`${prettyDate(result.local_date || result.date, locale)} · ${result.time}`} />
           <Row k={t("mini.booking.duration")} v={t("mini.booking.duration_min", { n: result.duration_minutes })} />
@@ -143,8 +143,8 @@ export default function BookPage() {
           <CalendarCheck className="size-4" /> {t("mini.booking.add_calendar")}
         </a>
         <div className="mt-3 grid grid-cols-2 gap-3">
-          <Link href="/mini/messages" className="rounded-2xl border border-slate-200 py-3 font-semibold text-slate-700 text-center">{t("mini.booking.message_advisor")}</Link>
-          <Link href="/mini" className="rounded-2xl border border-slate-200 py-3 font-semibold text-slate-700 text-center">{t("mini.booking.home")}</Link>
+          <Link href="/mini/messages" className="rounded-2xl border border-slate-200 py-3 font-semibold text-foreground text-center">{t("mini.booking.message_advisor")}</Link>
+          <Link href="/mini" className="rounded-2xl border border-slate-200 py-3 font-semibold text-foreground text-center">{t("mini.booking.home")}</Link>
         </div>
       </div>
     );
@@ -156,9 +156,9 @@ export default function BookPage() {
     <div className="px-4 pt-4 pb-28">
       <div className="flex items-center gap-3 mb-3">
         {step !== "vehicle" ? (
-          <button onClick={() => setStep(back(step))} disabled={outcomeUnknown} aria-label={t("mini.booking.back")} className="p-1.5 -ml-1.5 rounded-lg active:bg-slate-100 disabled:opacity-40"><ArrowLeft className="size-5 text-slate-600" /></button>
+          <button onClick={() => setStep(back(step))} disabled={outcomeUnknown} aria-label={t("mini.booking.back")} className="p-1.5 -ml-1.5 rounded-lg active:bg-muted disabled:opacity-40"><ArrowLeft className="size-5 text-muted-foreground" /></button>
         ) : (
-          <Link href="/mini" aria-label={t("mini.booking.home")} className="p-1.5 -ml-1.5 rounded-lg active:bg-slate-100"><ArrowLeft className="size-5 text-slate-600" /></Link>
+          <Link href="/mini" aria-label={t("mini.booking.home")} className="p-1.5 -ml-1.5 rounded-lg active:bg-muted"><ArrowLeft className="size-5 text-muted-foreground" /></Link>
         )}
         <div className="flex-1 flex gap-1.5">
           {[0, 1, 2, 3, 4].map((i) => (
@@ -179,8 +179,8 @@ export default function BookPage() {
                   <Card className="flex items-center gap-3">
                     <HealthRing score={v.health_score} band={v.band} size={48} />
                     <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-slate-900 truncate">{v.label}</div>
-                      <div className="text-xs text-slate-500">Health {Math.round(v.health_score)} · {v.band}</div>
+                      <div className="font-semibold text-foreground truncate">{v.label}</div>
+                      <div className="text-xs text-muted-foreground">Health {Math.round(v.health_score)} · {v.band}</div>
                     </div>
                     <ChevronRight className="size-5 text-slate-300" />
                   </Card>
@@ -205,9 +205,9 @@ export default function BookPage() {
               <button key={s.value} onClick={() => { haptic("selection"); setSubmitError(null); setOutcomeUnknown(false); setService(s); setStep("date"); }}
                 className="active:scale-[.98] transition-transform">
                 <Card className="flex flex-col items-start gap-2 h-full">
-                  <span className="grid size-9 place-items-center rounded-xl bg-slate-100 text-slate-700"><s.icon className="size-4" /></span>
-                  <span className="font-semibold text-slate-900 text-sm">{t(s.label)}</span>
-                  <span className="text-xs text-slate-400">{t("mini.booking.duration_min", { n: s.duration })}</span>
+                  <span className="grid size-9 place-items-center rounded-xl bg-muted text-foreground"><s.icon className="size-4" /></span>
+                  <span className="font-semibold text-foreground text-sm">{t(s.label)}</span>
+                  <span className="text-xs text-muted-foreground">{t("mini.booking.duration_min", { n: s.duration })}</span>
                 </Card>
               </button>
             ))}
@@ -223,8 +223,8 @@ export default function BookPage() {
               <button key={d.iso} onClick={() => { haptic("selection"); setSubmitError(null); setOutcomeUnknown(false); setDate(d); setStep("time"); }}
                 className="w-full active:scale-[.99] transition-transform">
                 <Card className="flex items-center justify-between">
-                  <span className="font-semibold text-slate-900">{d.label}</span>
-                  <span className="text-sm text-slate-400">{d.sub}</span>
+                  <span className="font-semibold text-foreground">{d.label}</span>
+                  <span className="text-sm text-muted-foreground">{d.sub}</span>
                 </Card>
               </button>
             ))}
@@ -239,7 +239,7 @@ export default function BookPage() {
             {TIMES.map((t) => (
               <button key={t} onClick={() => { haptic("selection"); setSubmitError(null); setOutcomeUnknown(false); setTime(t); setStep("review"); }}
                 className="active:scale-[.98] transition-transform">
-                <Card className="text-center font-semibold text-slate-900 py-4">{t}</Card>
+                <Card className="text-center font-semibold text-foreground py-4">{t}</Card>
               </button>
             ))}
           </div>
@@ -276,8 +276,8 @@ function back(step: Step): Step {
 function Row({ k, v }: { k: string; v: string }) {
   return (
     <div className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
-      <span className="text-sm text-slate-500">{k}</span>
-      <span className="text-sm font-semibold text-slate-900 text-right">{v}</span>
+      <span className="text-sm text-muted-foreground">{k}</span>
+      <span className="text-sm font-semibold text-foreground text-right">{v}</span>
     </div>
   );
 }

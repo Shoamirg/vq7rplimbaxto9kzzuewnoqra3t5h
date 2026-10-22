@@ -28,10 +28,11 @@ import { NewAppointmentModal } from "@/components/appointments/new-appointment-m
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useI18n } from "@/lib/i18n/context";
 import { clientFetch } from "@/lib/api/client";
+import { VehicleTelemetryBlueprint } from "./vehicle-telemetry-blueprint";
 import type { VehicleIntelligence } from "@/lib/api/types";
 
 const BAND_COLOR: Record<string, string> = {
-  excellent: "#16A34A", good: "#109868", fair: "#F59E0B", poor: "#DC2626",
+  excellent: "var(--status-success)", good: "var(--color-foreground)", fair: "var(--status-warning)", poor: "var(--status-danger)",
 };
 const bandColor = (b: string) => BAND_COLOR[b] ?? "#64748B";
 function useVehicleText() {
@@ -60,16 +61,6 @@ function remaining(remainingDays: number | null | undefined, remainingKm: number
   return t("vehicle.text.soon");
 }
 
-// subsystem → hotspot position (% of stage) + icon
-const SYS_POS: Record<string, { x: number; y: number }> = {
-  "Engine & Fluids": { x: 21, y: 44 },
-  Transmission: { x: 46, y: 28 },
-  General: { x: 63, y: 60 },
-  Brakes: { x: 31, y: 80 },
-  "Tires & Wheels": { x: 75, y: 80 },
-  Battery: { x: 72, y: 34 },
-  Electrical: { x: 72, y: 34 },
-};
 function sysIcon(name: string) {
   if (name.includes("Engine")) return Gauge;
   if (name.includes("Transmission")) return Cog;
@@ -80,7 +71,7 @@ function sysIcon(name: string) {
 }
 const PRED_ICON: Record<string, typeof Wrench> = { wrench: Wrench, activity: Activity, alert: AlertTriangle, shield: ShieldCheck };
 const PRED_TONE: Record<string, string> = {
-  info: "bg-blue-50 text-blue-600", warning: "bg-amber-50 text-amber-600",
+  info: "bg-primary-50 text-primary-600", warning: "bg-amber-50 text-amber-600",
   danger: "bg-red-50 text-red-600", success: "bg-green-50 text-green-600",
 };
 
@@ -97,13 +88,13 @@ function Ring({ score, band, size = 120 }: { score: number; band: string; size?:
   return (
     <div className="relative grid place-items-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,.09)" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--color-border)" strokeWidth={stroke} />
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={bandColor(band)} strokeWidth={stroke}
           strokeLinecap="round" strokeDasharray={c} strokeDashoffset={off}
           style={{ transition: "stroke-dashoffset 1.1s cubic-bezier(.22,1,.36,1)" }} />
       </svg>
       <div className="absolute text-center">
-        <b className="font-brand text-3xl font-extrabold leading-none text-white">{Math.round(score)}</b>
+        <b className="font-brand text-3xl font-extrabold leading-none text-foreground">{Math.round(score)}</b>
         <span className="mt-0.5 block text-[10px] uppercase tracking-[0.14em]" style={{ color: bandColor(band) }}>{t(`band.${band}`)}</span>
       </div>
     </div>
@@ -115,44 +106,9 @@ function CarStage({ subsystems, onPick, active }: {
   onPick: (s: { name: string; score: number }) => void;
   active: string | null;
 }) {
-  const { vt } = useVehicleText();
-  const extra = [{ x: 60, y: 62 }, { x: 40, y: 60 }, { x: 84, y: 48 }];
-  return (
-    <div className="relative mt-2 grid h-[240px] place-items-center">
-      <div className="twin-glow pointer-events-none absolute bottom-9 h-[110px] w-[380px] rounded-full"
-        style={{ background: "radial-gradient(closest-side, rgba(16,152,104,.4), transparent)", filter: "blur(8px)" }} />
-      <svg className="twin-float relative z-2 w-full max-w-[420px]" width="420" height="176" viewBox="0 0 440 180" fill="none">
-        <defs>
-          <linearGradient id="ic-body" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#dfe7f2" /><stop offset="1" stopColor="#8aa0c4" /></linearGradient>
-          <linearGradient id="ic-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#2b3c5c" /><stop offset="1" stopColor="#0f1a30" /></linearGradient>
-        </defs>
-        <path d="M22 120 C 26 98, 52 96, 74 94 C 96 74, 126 66, 168 66 L 250 66 C 286 66, 312 78, 344 96 C 372 98, 404 102, 416 112 C 424 118, 424 128, 414 132 L 30 132 C 20 130, 18 126, 22 120 Z" fill="url(#ic-body)" />
-        <path d="M96 92 C 112 78, 130 74, 162 74 L 210 74 L 210 92 Z" fill="url(#ic-glass)" />
-        <path d="M220 74 L 250 74 C 280 74, 300 82, 322 92 L 220 92 Z" fill="url(#ic-glass)" />
-        <rect x="30" y="126" width="384" height="6" rx="3" fill="#5b6b86" />
-        <circle cx="112" cy="134" r="28" fill="#111315" /><circle cx="112" cy="134" r="15" fill="#334155" /><circle cx="112" cy="134" r="6" fill="#94a3b8" />
-        <circle cx="330" cy="134" r="28" fill="#111315" /><circle cx="330" cy="134" r="15" fill="#334155" /><circle cx="330" cy="134" r="6" fill="#94a3b8" />
-      </svg>
-      {subsystems.map((s, i) => {
-        const pos = SYS_POS[s.name] ?? extra[i % extra.length];
-        const warn = s.score < 75;
-        const isActive = active === s.name;
-        return (
-          <button key={s.name} onClick={() => onPick(s)} data-testid="vic-hotspot"
-            className="absolute z-3 -translate-x-1/2 -translate-y-1/2"
-            style={{ left: `${pos.x}%`, top: `${pos.y}%` }} aria-label={`${vt(s.name)} ${Math.round(s.score)}`}>
-            <span className="relative grid place-items-center">
-              <span className={`absolute inline-flex h-6 w-6 rounded-full ${warn ? "bg-amber-400/40" : "bg-blue-500/40"} motion-safe:animate-ping`} />
-              <span className={`relative size-3.5 rounded-full ring-4 ${warn ? "bg-amber-400 ring-amber-400/25" : "bg-blue-500 ring-blue-500/25"} ${isActive ? "scale-125" : ""} transition`} />
-            </span>
-            <span className="pointer-events-none absolute bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-900 shadow-lg">
-              {vt(s.name)} <b style={{ color: bandColor(scoreBand(s.score)) }}>{Math.round(s.score)}</b>
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
+  const { t, vt } = useVehicleText();
+  return <VehicleTelemetryBlueprint title={t("calendar.health")} systems={subsystems.map(s => ({ ...s, label: vt(s.name) }))}
+    active={active} onSelect={name => { const system = subsystems.find(s => s.name === name); if (system) onPick(system); }} />;
 }
 
 function scoreBand(s: number): string {
@@ -184,10 +140,10 @@ export function VehicleIntelligenceCenter({ data }: { data: VehicleIntelligence 
         </div>
         <div className="flex flex-wrap gap-2">
           <Link href={`/passport/${v.id}`} target="_blank"
-            className="inline-flex items-center gap-1.5 rounded-xl bg-linear-to-br from-amber-400 to-amber-600 px-4 py-2 text-sm font-bold text-amber-950 transition hover:brightness-105">
+            className="inline-flex items-center gap-1.5 rounded-xl bg-muted px-5 min-h-11 py-2 text-sm font-semibold text-foreground transition hover:brightness-105">
             <Star className="size-4" /> {vt("View Passport")}
           </Link>
-          <button onClick={() => setBook(true)} className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white transition hover:bg-slate-800">
+          <button onClick={() => setBook(true)} className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-5 min-h-11 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90">
             <CalendarClock className="size-4" /> {vt("Book service")}
           </button>
           <button onClick={() => setDel(true)} className="inline-flex items-center gap-1.5 rounded-xl border border-border px-4 py-2 text-sm font-bold text-muted-foreground transition hover:text-red-600 hover:border-red-200">
@@ -228,7 +184,7 @@ export function VehicleIntelligenceCenter({ data }: { data: VehicleIntelligence 
 
       {tab === "overview" && (
         <>
-          <div className="grid gap-5 2xl:grid-cols-[280px_minmax(0,1fr)_280px]">
+          <div className="grid gap-[18px] xl:grid-cols-[240px_minmax(0,1fr)_260px]">
             {/* LEFT — identity, commercial, AI */}
             <div className="space-y-5">
               <IdentityCard v={v} tier={tier} />
@@ -237,19 +193,18 @@ export function VehicleIntelligenceCenter({ data }: { data: VehicleIntelligence 
             </div>
 
             {/* CENTER — the digital twin hero */}
-            <div data-testid="vic-hero" className="relative overflow-hidden rounded-3xl p-6 text-white shadow-xl"
-              style={{ background: "radial-gradient(120% 90% at 30% 0%, #1f2a26 0%, #15181c 45%, #111315 100%)" }}>
+            <div data-testid="vic-hero" className="bento-panel order-first xl:order-none relative overflow-hidden p-6 text-foreground">
               <div className="pointer-events-none absolute inset-0 opacity-50"
                 style={{ backgroundImage: "linear-gradient(rgba(148,163,184,.12) 1px,transparent 1px),linear-gradient(90deg,rgba(148,163,184,.12) 1px,transparent 1px)", backgroundSize: "34px 34px", maskImage: "radial-gradient(70% 60% at 50% 40%,#000,transparent)" }} />
               <div className="relative z-2 flex flex-wrap items-start justify-between gap-3">
                 <div>
                   {tier && (
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-400/10 px-2.5 py-1 font-brand text-[11px] font-bold uppercase tracking-[0.14em] text-amber-200">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-400/10 px-2.5 py-1 font-brand text-[11px] font-bold uppercase tracking-[0.14em] text-warning">
                       <Star className="size-3" /> {t("vehicle.maintenance_rating", { tier: vt(tier) })}
                     </span>
                   )}
                   <h1 className="font-brand mt-2 text-3xl font-extrabold tracking-tight">{v.brand} {v.model}</h1>
-                  <p className="mt-1 text-sm text-slate-400">
+                  <p className="mt-1 text-sm text-muted-foreground">
                     {[v.year, v.plate, v.engine, v.mileage != null ? `${fmt.number(v.mileage)} km` : null].filter(Boolean).join(" · ")}
                   </p>
                 </div>
@@ -262,17 +217,17 @@ export function VehicleIntelligenceCenter({ data }: { data: VehicleIntelligence 
               {active ? (
                 <div className="relative z-2 mt-1 flex items-center gap-4 rounded-2xl border border-white/10 bg-white/6 px-4 py-3">
                   <div className="grid size-11 place-items-center rounded-xl bg-white/10">
-                    {(() => { const I = sysIcon(active.name); return <I className="size-5 text-white" />; })()}
+                    {(() => { const I = sysIcon(active.name); return <I className="size-5 text-foreground" />; })()}
                   </div>
                   <div className="flex-1">
                     <p className="font-semibold">{vt(active.name)}</p>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-muted-foreground">
                       {vt(active.score < 75 ? "Inspect at the next visit — lowest-scoring system." : "In good condition. No action needed.")}
                     </p>
                   </div>
                   <div className="text-right">
                     <b className="font-brand text-2xl font-extrabold" style={{ color: bandColor(scoreBand(active.score)) }}>{Math.round(active.score)}</b>
-                    <span className="block text-[10px] uppercase tracking-wider text-slate-500">/ 100</span>
+                    <span className="block text-[10px] uppercase tracking-wider text-muted-foreground">/ 100</span>
                   </div>
                 </div>
               ) : (
@@ -324,9 +279,9 @@ function CardTitle({ children, right }: { children: React.ReactNode; right?: Rea
   return <div className="mb-3 flex items-center justify-between"><h3 className="font-brand text-[15px] font-extrabold text-foreground">{children}</h3>{right}</div>;
 }
 function Vital({ k, val }: { k: string; val: string }) {
-  return <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2">
-    <div className="text-[10px] uppercase tracking-wider text-slate-500">{k}</div>
-    <div className="font-brand mt-0.5 text-base font-bold text-white">{val}</div>
+  return <div className="rounded-xl border border-border bg-muted px-3 py-2">
+    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{k}</div>
+    <div className="font-brand mt-0.5 text-base font-bold text-foreground">{val}</div>
   </div>;
 }
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
@@ -395,7 +350,7 @@ function AiSummaryCard({ predictions }: { predictions: VehicleIntelligence["pred
   };
   return (
     <Card>
-      <CardTitle right={<Sparkles className="size-4 text-purple-600" />}>{vt("Service recommendations")}</CardTitle>
+      <CardTitle right={<Sparkles className="size-4 text-primary-600" />}>{vt("Service recommendations")}</CardTitle>
       <div className="space-y-3">
         {predictions.map((p, i) => {
           const I = PRED_ICON[p.icon] ?? Activity;
@@ -422,7 +377,7 @@ function TimelineCard({ events, compact, onHistory }: { events: VehicleIntellige
       <CardTitle right={compact && onHistory ? <button onClick={onHistory} className="text-xs font-semibold text-primary">{vt("History")} →</button> : undefined}>{vt("Timeline")}</CardTitle>
       <ol className="relative ml-1 border-l border-border">
         {list.map((e, i) => {
-          const dot = e.type?.includes("service") ? "bg-green-500" : e.severity === "info" ? "bg-blue-500" : "bg-slate-300";
+          const dot = e.type?.includes("service") ? "bg-green-500" : e.severity === "info" ? "bg-primary-500" : "bg-slate-300";
           return (
             <li key={i} className="mb-3.5 ml-4">
               <span className={`absolute left-[-5px] mt-1.5 size-2.5 rounded-full ${dot}`} />
@@ -444,7 +399,7 @@ function OwnerCard({ owner, commercial }: { owner: NonNullable<VehicleIntelligen
     <Card>
       <CardTitle>{vt("Owner")}</CardTitle>
       <div className="flex items-center gap-3">
-        <div className="grid size-11 place-items-center rounded-full bg-linear-to-br from-blue-500 to-indigo-600 font-bold text-white">
+        <div className="grid size-11 place-items-center rounded-full bg-primary font-bold text-primary-foreground">
           {(owner.name ?? "?").split(" ").map((p) => p[0]).slice(0, 2).join("")}
         </div>
         <div>
@@ -469,28 +424,28 @@ function OwnerLink({ href, icon, label }: { href: string; icon: React.ReactNode;
 function PassportCard({ passport, vehicleId, large }: { passport: VehicleIntelligence["passport"]; vehicleId: string; large?: boolean }) {
   const { t, vt } = useVehicleText();
   return (
-    <div className="relative overflow-hidden rounded-3xl p-5 text-white shadow-xl" style={{ background: "linear-gradient(150deg,#1b2420,#111315)" }}>
-      <div className="pointer-events-none absolute -right-8 -top-8 size-32 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(217,163,34,.25), transparent)" }} />
+    <div className="relative overflow-hidden rounded-3xl p-5 text-white shadow-xl" style={{ background: "linear-gradient(135deg,#23272F,#14171C)" }}>
+      <div className="pointer-events-none absolute -right-8 -top-8 size-32 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(255,255,255,.12), transparent)" }} />
       <div className="mb-3 flex items-center justify-between">
         <h3 className="font-brand text-[15px] font-extrabold">{vt("Certified Passport")}</h3>
-        {passport.tier && <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-200"><Star className="size-3" /> {t("vehicle.maintenance_rating", { tier: vt(passport.tier) })}</span>}
+        {passport.tier && <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white"><Star className="size-3" /> {t("vehicle.maintenance_rating", { tier: vt(passport.tier) })}</span>}
       </div>
       <div className="flex items-center gap-4">
         <div className="grid size-16 place-items-center rounded-xl bg-white text-slate-900"><FileText className="size-8" /></div>
         <div className="min-w-0">
-          <div className="font-mono text-[11px] tracking-[0.2em] text-slate-400">{passport.code}</div>
+          <div className="font-mono text-[11px] tracking-[0.2em] text-white/70">{passport.code}</div>
           <div className="mt-1.5 flex flex-wrap gap-1">
             {passport.highlights.filter((h) => h.ok).slice(0, 3).map((h) => (
               <span key={h.label} className="rounded-full bg-white/8 px-2 py-0.5 text-[10px] text-slate-300">{vt(h.label)}</span>
             ))}
           </div>
-          <Link href={`/passport/${vehicleId}`} target="_blank" className="mt-2 inline-block text-xs font-bold text-amber-300">{vt("Share & download")} →</Link>
+          <Link href={`/passport/${vehicleId}`} target="_blank" className="mt-2 inline-block text-xs font-bold text-white">{vt("Share & download")} →</Link>
         </div>
       </div>
       {large && (
         <div className="mt-4 grid grid-cols-2 gap-2 border-t border-white/10 pt-4 text-sm">
-          <div><span className="text-slate-500">{vt("Compliance")}</span><div className="font-brand font-bold">{passport.compliance}%</div></div>
-          <div><span className="text-slate-500">{vt("Services")}</span><div className="font-brand font-bold">{passport.vitals.services_completed}</div></div>
+          <div><span className="text-white/70">{vt("Compliance")}</span><div className="font-brand font-bold">{passport.compliance}%</div></div>
+          <div><span className="text-white/70">{vt("Services")}</span><div className="font-brand font-bold">{passport.vitals.services_completed}</div></div>
         </div>
       )}
     </div>

@@ -14,7 +14,7 @@ export const GUTTER_W = 64;
 const ROWS = (END_MIN - START_MIN) / SLOT_MIN;
 export const BOARD_H = ROWS * ROW_H;
 export const STATUS_STYLE: Record<string, string> = {
-  pending: "border-l-amber-500", confirmed: "border-l-blue-500", in_progress: "border-l-primary",
+  pending: "border-l-amber-500", confirmed: "border-l-primary-500", in_progress: "border-l-primary",
   completed: "border-l-emerald-500", cancelled: "border-l-red-500", rescheduled: "border-l-muted-foreground",
 };
 

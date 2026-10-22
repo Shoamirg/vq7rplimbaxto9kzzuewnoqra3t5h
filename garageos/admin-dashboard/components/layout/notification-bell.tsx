@@ -12,7 +12,7 @@ import type { NotificationFeed, NotificationItem, NotificationSeverity } from "@
 import { useI18n } from "@/lib/i18n/context";
 
 const SEVERITY_DOT: Record<NotificationSeverity, string> = {
-  critical: "bg-red-600", high: "bg-red-500", medium: "bg-amber-500", low: "bg-blue-500", info: "bg-slate-400",
+  critical: "bg-red-600", high: "bg-red-500", medium: "bg-amber-500", low: "bg-primary-500", info: "bg-slate-400",
 };
 
 const CATEGORY_ICON: Record<string, React.ElementType> = {

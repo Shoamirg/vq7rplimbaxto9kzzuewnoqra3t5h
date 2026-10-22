@@ -40,3 +40,6 @@ export const spacing = {
 } as const;
 
 export type SpacingKey = keyof typeof spacing;
+
+export const geometry = { card: "28px", tile: "18px", dock: "24px", icon: "14px", pill: "9999px", blueprint: "4px" } as const;
+export const layout = { maxWidth: "1440px", gap: "18px", cardPadding: "24px", tilePadding: "18px", mobilePadding: "20px" } as const;

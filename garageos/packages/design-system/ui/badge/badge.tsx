@@ -8,7 +8,7 @@ const variantClasses: Record<string, string> = {
   success: "bg-success/15 text-success border-success/25",
   warning: "bg-warning/15 text-warning border-warning/25",
   danger: "bg-danger/15 text-danger border-danger/25",
-  info: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800",
+  info: "bg-primary-100 text-primary-700 border-primary-200 dark:bg-primary-900/30 dark:text-primary-400 dark:border-primary-800",
   neutral: "bg-muted text-muted-foreground border-border",
 };
 
@@ -24,7 +24,7 @@ const dotColorClasses: Record<string, string> = {
   success: "bg-success",
   warning: "bg-warning",
   danger: "bg-danger",
-  info: "bg-blue-600 dark:bg-blue-400",
+  info: "bg-primary-600 dark:bg-primary-400",
   neutral: "bg-muted-foreground",
 };
 

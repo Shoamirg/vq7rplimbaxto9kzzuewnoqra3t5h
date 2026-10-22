@@ -12,16 +12,16 @@ import type {
 
 // ─── Card ─────────────────────────────────────────────────────
 const variantClasses: Record<string, string> = {
-  default: "bg-card text-card-foreground border border-border shadow-xs",
+  default: "bg-card text-card-foreground border border-white/65 shadow-bento dark:border-border",
   outline: "bg-background text-foreground border border-border",
-  elevated: "bg-card text-card-foreground border border-border shadow-md",
+  elevated: "bg-card text-card-foreground border border-white/65 shadow-bento dark:border-border",
   muted: "bg-muted/40 text-foreground border border-border/50",
 };
 
 const paddingClasses: Record<string, string> = {
   none: "p-0",
-  sm: "p-3",
-  md: "p-4",
+  sm: "p-[14px]",
+  md: "p-[18px]",
   lg: "p-6",
 };
 
@@ -46,7 +46,7 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
         <div
           ref={ref}
           className={cn(
-            "rounded-xl",
+            "rounded-bento",
             variantClasses[variant],
             className
           )}
@@ -64,7 +64,7 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
         <div
           ref={ref}
           className={cn(
-            "rounded-xl",
+            "rounded-bento",
             variantClasses[variant],
             className
           )}
@@ -85,7 +85,7 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
       <div
         ref={ref}
         className={cn(
-          "rounded-xl",
+          "rounded-bento",
           variantClasses[variant],
           onClick && "cursor-pointer select-none hover:shadow-md active:shadow-xs transition-all duration-150",
           className

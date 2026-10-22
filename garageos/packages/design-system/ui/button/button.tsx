@@ -5,7 +5,7 @@ import { Spinner } from "../spinner";
 import type { ButtonProps } from "./button.types";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all duration-150 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold transition-all duration-150 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
@@ -18,17 +18,17 @@ const buttonVariants = cva(
         ghost:
           "text-foreground hover:bg-muted active:bg-muted/70",
         danger:
-          "bg-danger text-white shadow-xs hover:bg-danger/90 active:bg-danger/80",
+          "bg-danger-action text-white shadow-xs hover:bg-danger-action/90 active:bg-danger-action/80",
         success:
-          "bg-success text-white shadow-xs hover:bg-success/90 active:bg-success/80",
+          "bg-conversion text-white shadow-xs hover:bg-conversion/90 active:bg-conversion/80",
         link:
           "text-primary underline-offset-4 hover:underline",
       },
       size: {
-        xs: "min-h-11 min-w-11 px-2.5 text-xs rounded-md gap-1.5",
-        sm: "min-h-11 min-w-11 px-3 text-sm rounded-md gap-1.5",
-        md: "min-h-11 min-w-11 px-4 py-2",
-        lg: "h-12 px-6 text-base",
+        xs: "min-h-11 min-w-11 px-2.5 text-xs rounded-full gap-1.5",
+        sm: "min-h-11 min-w-11 px-3 text-sm rounded-full gap-1.5",
+        md: "min-h-[52px] min-w-11 px-7 py-2",
+        lg: "min-h-[52px] px-7 text-base",
         icon: "h-11 w-11 min-w-[44px]",
       },
       fullWidth: {

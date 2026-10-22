@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import React, { useState, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
@@ -66,7 +67,7 @@ function Breadcrumbs() {
     ? t(SEGMENT_KEYS[first])
     : first.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   return (
-    <nav aria-label={t("menu.breadcrumb")} className="hidden md:flex items-center gap-1.5 text-sm">
+    <nav aria-label={t("menu.breadcrumb")} className="garage-breadcrumbs hidden md:flex items-center gap-1.5 text-sm">
       <span className="text-muted-foreground">{"GarageOS"}</span>
       <ChevronDown className="size-3 -rotate-90 text-muted-foreground/50" />
       <span className="text-foreground font-medium">{label}</span>
@@ -76,6 +77,7 @@ function Breadcrumbs() {
 
 // ─── TopBar ───────────────────────────────────────────────────
 export function TopBar({ user, authFingerprint }: { user?: ShellUser; authFingerprint: string | null }) {
+  const pathname = usePathname();
   const { resolvedTheme, toggleTheme } = useTheme();
   const { t } = useI18n();
   const router = useRouter();
@@ -91,7 +93,7 @@ export function TopBar({ user, authFingerprint }: { user?: ShellUser; authFinger
 
   return (
     <>
-    <header className="h-16 border-b border-border bg-background/95 backdrop-blur-xs flex items-center justify-between gap-4 pl-16 pr-4 lg:px-6 shrink-0 sticky top-0 z-30">
+    <header className="garage-topbar min-h-16 border-b border-border bg-background/95 backdrop-blur-xs flex items-center justify-between gap-4 pl-16 pr-4 lg:px-6 shrink-0 sticky top-0 z-30">
       {/* Left: Breadcrumbs + Search */}
       <div className="flex items-center gap-4 flex-1 min-w-0">
         <Breadcrumbs />
@@ -113,6 +115,9 @@ export function TopBar({ user, authFingerprint }: { user?: ShellUser; authFinger
         </button>
       </div>
 
+      <nav className="garage-segments" aria-label={t("section.workspace")}>
+        {[['/dashboard', 'nav.dashboard'], ['/calendar', 'nav.calendar'], ['/billing', 'nav.billing'], ['/inventory', 'nav.inventory']].map(([href, label]) => <Link key={href} href={href} aria-current={pathname === href ? 'page' : undefined}>{t(label)}</Link>)}
+      </nav>
       {/* Right: Actions */}
       <div className="flex items-center gap-1.5">
         {/* Theme Toggle */}

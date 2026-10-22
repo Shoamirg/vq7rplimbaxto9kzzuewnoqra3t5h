@@ -24,7 +24,7 @@ export function ContextPanel({
 }) {
   const { t, fmt } = useI18n();
   return (
-    <aside className="w-[300px] max-w-full min-w-0 shrink-0 bg-card border-l border-border overflow-y-auto [overflow-wrap:anywhere]">
+    <aside className="glass-panel w-[380px] max-w-full min-w-0 shrink-0 bg-card border-l border-border overflow-y-auto [overflow-wrap:anywhere]">
       <div className="flex items-center px-4 h-12 border-b border-border">
         <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{t("inbox.context.title")}</span>
         <button onClick={onCollapse} className="ml-auto grid min-h-11 min-w-11 place-items-center text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary" aria-label={t("inbox.action.close_context")}>
@@ -83,7 +83,7 @@ export function ContextPanel({
                 const card = (
                   <>
                   <span className={cn("grid size-8 place-items-center rounded-lg text-sm shrink-0",
-                    c.kind === "case" ? "bg-red-50" : c.kind === "customer" ? "bg-purple-50" : "bg-amber-50")}>
+                    c.kind === "case" ? "bg-red-50" : c.kind === "customer" ? "bg-primary-50" : "bg-amber-50")}>
                     {CARD_ICON[c.kind]}
                   </span>
                   <div className="min-w-0 flex-1">

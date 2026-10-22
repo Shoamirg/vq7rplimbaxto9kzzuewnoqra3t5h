@@ -29,6 +29,7 @@ test("staff dashboard renders in Russian", async ({ context, page, baseURL }) =>
   await context.addCookies([{ name: "garageos_locale", value: "ru", url: baseURL! }]);
   await page.goto("/dashboard", { waitUntil: "networkidle" });
   // Sidebar nav + dashboard body localized.
-  await expect(page.locator('a[href="/vehicles"]').first()).toContainText("Автомобили");
+  // The floating dock starts with icons; its accessible label stays localized.
+  await expect(page.locator('a[href="/vehicles"]').first()).toHaveAccessibleName("Автомобили");
   await expect(page.locator("body")).not.toContainText(/dash\.[a-z_.]+/);
 });

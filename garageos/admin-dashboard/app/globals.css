@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import './design-system.css';
 @plugin 'tailwindcss-animate';
 
 @source '../../packages/**/*.{ts,tsx}';
@@ -35,28 +36,29 @@
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
 
-  --color-primary-50: #e9f7f1;
-  --color-primary-100: #cdeee0;
-  --color-primary-200: #9fdcc3;
-  --color-primary-300: #66c4a0;
-  --color-primary-400: #2fa97c;
-  --color-primary-500: #109868;
-  --color-primary-600: #0c8059;
-  --color-primary-700: #096645;
-  --color-primary-800: #074f36;
-  --color-primary-900: #053a28;
+  --color-primary-50: #F8F9FA;
+  --color-primary-100: #ECEEF1;
+  --color-primary-200: #DCDFE4;
+  --color-primary-300: #D0D5DD;
+  --color-primary-400: #949A9F;
+  --color-primary-500: #686E76;
+  --color-primary-600: #4C525A;
+  --color-primary-700: #2B3036;
+  --color-primary-800: #262A30;
+  --color-primary-900: #111315;
   --color-primary: hsl(var(--primary));
   --color-primary-foreground: hsl(var(--primary-foreground));
 
-  --color-success: #10b981;
-  --color-success-light: #d1fae5;
-  --color-success-dark: #065f46;
+  --color-success: var(--status-success);
+  --color-success-light: #DEEEE7;
+  --color-success-dark: #0B7E55;
 
-  --color-warning: #f59e0b;
+  --color-warning: var(--status-warning);
   --color-warning-light: #fef3c7;
   --color-warning-dark: #92400e;
 
-  --color-danger: #ef4444;
+  --color-danger: var(--status-danger);
+  --color-danger-action: #BE312B;
   --color-danger-light: #fee2e2;
   --color-danger-dark: #991b1b;
 
@@ -71,11 +73,20 @@
   --color-muted: hsl(var(--muted));
   --color-muted-foreground: hsl(var(--muted-foreground));
 
-  --radius-lg: var(--radius);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-sm: calc(var(--radius) - 4px);
+  --radius-lg: 18px;
+  --radius-md: 14px;
+  --radius-sm: 14px;
+  --radius-xl: 18px;
+  --radius-2xl: 28px;
+  --radius-3xl: 28px;
+  --radius-bento: 28px;
+  --radius-tile: 18px;
 
-  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-sans: var(--font-jakarta), var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-telemetry), monospace;
+  --color-elevated: var(--surface-elevated);
+  --color-conversion: #0B7E55;
+  --shadow-bento: 0 8px 24px -4px rgb(17 19 21 / .04), 0 2px 6px -1px rgb(17 19 21 / .02);
 
   --animate-fade-in: fade-in 0.3s ease-out;
   --animate-slide-in: slide-in 0.3s ease-out;
@@ -133,44 +144,45 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 210 10% 8%;
-    --card: 0 0% 100%;
-    --card-foreground: 210 10% 8%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 160 83% 27%;
-    --radius: 0.75rem;
+    --background: 216 10.2040816327% 90.3921568627%;
+    --foreground: 210 10.5263157895% 7.4509803922%;
+    --card: 220 17.6470588235% 96.6666666667%;
+    --card-foreground: 210 10.5263157895% 7.4509803922%;
+    --muted: 216 15.1515151515% 93.5294117647%;
+    /* Secondary text needs AA contrast on the darker canvas as well as cards. */
+    --muted-foreground: 216 7% 39%;
+    --border: 217.5 12.9032258065% 87.8431372549%;
+    --input: 216 12.1951219512% 91.9607843137%;
+    --ring: 210 10.5263157895% 7.4509803922%;
+    --radius: 28px;
 
-    --sidebar-background: 210 10% 8%;
-    --sidebar-foreground: 220 9% 88%;
-    --sidebar-muted: 216 12% 14%;
-    --sidebar-active: 158 58% 48%;
+    --sidebar-background: 220 17.6470588235% 96.6666666667%;
+    --sidebar-foreground: 210 10.5263157895% 7.4509803922%;
+    --sidebar-muted: 216 15.1515151515% 93.5294117647%;
+    --sidebar-active: 210 10.5263157895% 7.4509803922%;
 
-    --primary: 160 83% 27%;
+    --primary: 210 10.5263157895% 7.4509803922%;
     --primary-foreground: 0 0% 100%;
   }
 
   .dark {
-    --background: 216 12% 8%;
-    --foreground: 220 14% 96%;
-    --card: 216 12% 12%;
-    --card-foreground: 220 14% 96%;
-    --muted: 216 10% 17%;
-    --muted-foreground: 215 9% 65%;
-    --border: 216 10% 24%;
-    --input: 216 10% 24%;
-    --ring: 158 58% 48%;
+    --background: 220 14% 8%;
+    --foreground: 220 18% 97%;
+    --card: 218 14% 12%;
+    --card-foreground: 220 18% 97%;
+    --muted: 218 12% 18%;
+    --muted-foreground: 216 9% 72%;
+    --border: 218 10% 27%;
+    --input: 218 12% 18%;
+    --ring: 220 18% 97%;
 
-    --sidebar-background: 216 12% 6%;
-    --sidebar-foreground: 220 9% 88%;
-    --sidebar-muted: 216 12% 13%;
-    --sidebar-active: 158 58% 48%;
+    --sidebar-background: 218 14% 12%;
+    --sidebar-foreground: 220 18% 97%;
+    --sidebar-muted: 218 12% 18%;
+    --sidebar-active: 220 18% 97%;
 
-    --primary: 158 58% 48%;
-    --primary-foreground: 160 84% 8%;
+    --primary: 220 18% 97%;
+    --primary-foreground: 210 11% 7%;
   }
 }
 
@@ -191,7 +203,7 @@
 
 /* Appointment status badges */
 .status-pending { @apply bg-warning-light text-warning-dark; }
-.status-confirmed { @apply bg-sky-100 text-sky-800; }
+.status-confirmed { @apply bg-primary-100 text-primary-700; }
 .status-in_progress { @apply bg-primary-100 text-primary-700; }
 .status-completed { @apply bg-success-light text-success-dark; }
 .status-cancelled { @apply bg-danger-light text-danger-dark; }
@@ -222,8 +234,8 @@
   --brand-success: #16A34A;
   --brand-warning: #F59E0B;
   --brand-danger: #DC2626;
-  --brand-steel: #64748B;
-  --brand-cloud: #F1F5F9;
+  --brand-steel: #686E76;
+  --brand-cloud: #ECEEF1;
 
   /* motion — one easing + scale so the whole product feels like one product */
   --ease-brand: cubic-bezier(0.22, 1, 0.36, 1);

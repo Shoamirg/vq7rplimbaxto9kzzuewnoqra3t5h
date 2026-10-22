@@ -30,7 +30,7 @@
 .mkt *::after { box-sizing: border-box; }
 
 .mkt-display {
-  font-family: var(--font-brand, "Manrope", system-ui, sans-serif);
+  font-family: var(--font-brand, "Archivo", system-ui, sans-serif);
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.02;
@@ -135,9 +135,9 @@
 
 .mkt-frame {
   position: relative; margin: clamp(44px, 6vw, 80px) auto 0; max-width: 1080px;
-  border: 1px solid var(--mkt-line-strong); border-radius: 16px; overflow: hidden;
+  border: 1px solid var(--mkt-line-strong); border-radius: 28px; overflow: hidden;
   background: var(--mkt-panel);
-  box-shadow: 0 40px 120px -40px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+  box-shadow: var(--shadow-bento);
 }
 .mkt-frame::before {
   content: ""; display: block; height: 38px;
@@ -152,7 +152,7 @@
 .mkt-strip { border-top: 1px solid var(--mkt-line); border-bottom: 1px solid var(--mkt-line); background: var(--mkt-bg-2); }
 .mkt-strip__row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 14px 40px; padding: 30px 0; }
 .mkt-strip__label { color: var(--mkt-faint); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; }
-.mkt-strip__item { color: var(--mkt-muted); font-weight: 600; font-size: 16px; opacity: 0.85; }
+.mkt-strip__item { color: var(--mkt-muted); font-weight: 600; font-size: 16px; }
 
 /* ---- Bento of pillars ------------------------------------------------- */
 .mkt-bento { display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; margin-top: 52px; }
@@ -175,12 +175,12 @@
 /* ---- Spotlight rows --------------------------------------------------- */
 .mkt-spot { display: grid; gap: 40px; align-items: center; }
 .mkt-spot + .mkt-spot { margin-top: clamp(56px, 7vw, 104px); }
-.mkt-spot__body h3 { font-family: var(--font-brand, "Manrope"), sans-serif; font-weight: 800; letter-spacing: -0.02em; font-size: clamp(26px, 3vw, 36px); margin: 16px 0 0; }
+.mkt-spot__body h3 { font-family: var(--font-brand, "Archivo"), sans-serif; font-weight: 800; letter-spacing: -0.02em; font-size: clamp(26px, 3vw, 36px); margin: 16px 0 0; }
 .mkt-spot__body p { color: var(--mkt-muted); font-size: 17px; line-height: 1.6; margin: 16px 0 0; }
 .mkt-spot__list { list-style: none; margin: 22px 0 0; padding: 0; display: grid; gap: 12px; }
 .mkt-spot__list li { display: flex; gap: 10px; align-items: flex-start; color: #d3d9d6; font-size: 15px; }
 .mkt-spot__list svg { flex: none; margin-top: 2px; color: var(--mkt-gold); }
-.mkt-shot { border: 1px solid var(--mkt-line-strong); border-radius: 14px; overflow: hidden; background: var(--mkt-panel); box-shadow: 0 30px 80px -40px rgba(0, 0, 0, 0.85); }
+.mkt-shot { border: 1px solid var(--mkt-line-strong); border-radius: 28px; overflow: hidden; background: var(--mkt-panel); box-shadow: var(--shadow-bento); }
 .mkt-shot img { display: block; width: 100%; height: auto; }
 @media (min-width: 900px) {
   .mkt-spot { grid-template-columns: 1fr 1.15fr; }
@@ -190,7 +190,7 @@
 /* ---- Platform band ---------------------------------------------------- */
 .mkt-band { border-top: 1px solid var(--mkt-line); background: radial-gradient(70% 100% at 50% 0%, rgba(16, 152, 104, 0.1), transparent 70%), var(--mkt-bg-2); }
 .mkt-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-top: 44px; }
-.mkt-stat__n { font-family: var(--font-brand, "Manrope"), sans-serif; font-weight: 800; font-size: clamp(30px, 4vw, 44px); letter-spacing: -0.02em; }
+.mkt-stat__n { font-family: var(--font-brand, "Archivo"), sans-serif; font-weight: 800; font-size: clamp(30px, 4vw, 44px); letter-spacing: -0.02em; }
 .mkt-stat__l { color: var(--mkt-muted); font-size: 14px; margin-top: 6px; }
 @media (min-width: 820px) { .mkt-stats { grid-template-columns: repeat(4, 1fr); } }
 
@@ -255,7 +255,7 @@
 .mkt-table-wrap { overflow-x: auto; margin-top: 40px; border: 1px solid var(--mkt-line); border-radius: var(--mkt-radius); }
 .mkt-table { width: 100%; border-collapse: collapse; min-width: 640px; font-size: 14.5px; }
 .mkt-table th, .mkt-table td { text-align: left; padding: 14px 18px; border-bottom: 1px solid var(--mkt-line); }
-.mkt-table thead th { color: var(--mkt-ink); font-family: var(--font-brand, "Manrope"), sans-serif; font-weight: 700; background: var(--mkt-bg-2); }
+.mkt-table thead th { color: var(--mkt-ink); font-family: var(--font-brand, "Archivo"), sans-serif; font-weight: 700; background: var(--mkt-bg-2); }
 .mkt-table tbody th { color: var(--mkt-muted); font-weight: 500; }
 .mkt-table td { color: #d3d9d6; text-align: center; }
 .mkt-table td:first-child, .mkt-table th:first-child { text-align: left; }
@@ -265,7 +265,7 @@
 
 /* FAQ */
 .mkt-faq { max-width: 760px; margin: 48px auto 0; display: grid; gap: 12px; }
-.mkt-faq details { border: 1px solid var(--mkt-line); border-radius: 12px; background: var(--mkt-panel); padding: 4px 18px; }
+.mkt-faq details { border: 1px solid var(--mkt-line); border-radius: 18px; background: var(--mkt-panel); padding: 4px 18px; }
 .mkt-faq summary { cursor: pointer; padding: 14px 0; font-weight: 600; color: var(--mkt-ink); list-style: none; display: flex; justify-content: space-between; gap: 12px; }
 .mkt-faq summary::-webkit-details-marker { display: none; }
 .mkt-faq summary::after { content: "+"; color: var(--mkt-muted); font-size: 20px; line-height: 1; }

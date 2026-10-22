@@ -3,9 +3,9 @@ import type { HealthBand, Passport } from "@/lib/api/types";
 import { translate, type Locale } from "@/lib/i18n/dictionaries";
 
 const ACCENT: Record<HealthBand, { accent: string; soft: string }> = {
-  excellent: { accent: "#0E8A5F", soft: "#E8F2EC" },
-  good: { accent: "#1F6FEB", soft: "#E7EEFC" },
-  fair: { accent: "#B07A22", soft: "#F6EEDD" },
+  excellent: { accent: "#086344", soft: "#E8F2EC" },
+  good: { accent: "#2B3036", soft: "#ECEEF1" },
+  fair: { accent: "#80500A", soft: "#F6EEDD" },
   poor: { accent: "#B4442E", soft: "#F7E5E1" },
 };
 

@@ -7,11 +7,15 @@ abstract final class Space {
       page = 20.0,
       group = 24.0,
       section = 32.0;
-  static const contentWidth = 960.0, tablet = 720.0, buttonHeight = 56.0;
+  static const contentWidth = 960.0, tablet = 720.0, buttonHeight = 52.0;
 }
 
 abstract final class Radii {
-  static const card = 16.0, control = 8.0, plate = 4.0;
+  static const card = 28.0,
+      tile = 18.0,
+      dock = 24.0,
+      control = 9999.0,
+      plate = 9999.0;
 }
 
 @immutable
@@ -52,44 +56,44 @@ class Palette extends ThemeExtension<Palette> {
       dangerSoft,
       info,
       infoSoft;
-  static const action = Color(0xFFC2410C), onAction = Color(0xFFFFFFFF);
+  static const action = Color(0xFF111315), onAction = Color(0xFFFFFFFF);
   static const light = Palette(
-    background: Color(0xFFF7F9FC),
-    surface: Color(0xFFFFFFFF),
-    muted: Color(0xFFF2F4F7),
-    border: Color(0xFFE4E7EC),
-    text: Color(0xFF1D2939),
-    secondary: Color(0xFF667085),
-    brand: Color(0xFFC2410C),
-    brandSoft: Color(0xFFFFF3EB),
+    background: Color(0xFFE4E6E9),
+    surface: Color(0xFFF5F6F8),
+    muted: Color(0xFFECEEF1),
+    border: Color(0xFFDCDFE4),
+    text: Color(0xFF111315),
+    secondary: Color(0xFF5D636B),
+    brand: Color(0xFF111315),
+    brandSoft: Color(0xFFECEEF1),
     onBrand: Color(0xFFFFFFFF),
-    success: Color(0xFF157347),
+    success: Color(0xFF0B7E55),
     successSoft: Color(0xFFE4F3EA),
     warning: Color(0xFF94560A),
     warningSoft: Color(0xFFFFF2D9),
     danger: Color(0xFFBE312B),
     dangerSoft: Color(0xFFFCEBEA),
-    info: Color(0xFF1D5FC0),
-    infoSoft: Color(0xFFE7EFFB),
+    info: Color(0xFF2B3036),
+    infoSoft: Color(0xFFECEEF1),
   );
   static const dark = Palette(
-    background: Color(0xFF101828),
-    surface: Color(0xFF182230),
-    muted: Color(0xFF223044),
-    border: Color(0xFF344054),
-    text: Color(0xFFF2F4F7),
+    background: Color(0xFF111315),
+    surface: Color(0xFF181B20),
+    muted: Color(0xFF262A30),
+    border: Color(0xFF3D4249),
+    text: Color(0xFFECEEF1),
     secondary: Color(0xFFB1BCCD),
-    brand: Color(0xFFFDBA74),
-    brandSoft: Color(0xFF34271F),
-    onBrand: Color(0xFF1A120D),
+    brand: Color(0xFFF5F6F8),
+    brandSoft: Color(0xFF2B3036),
+    onBrand: Color(0xFF111315),
     success: Color(0xFF75D5A3),
     successSoft: Color(0xFF123323),
     warning: Color(0xFFEDB55A),
     warningSoft: Color(0xFF372A12),
     danger: Color(0xFFF08A82),
     dangerSoft: Color(0xFF3B1A19),
-    info: Color(0xFF7AAAF2),
-    infoSoft: Color(0xFF172A44),
+    info: Color(0xFFD0D5DD),
+    infoSoft: Color(0xFF2B3036),
   );
   @override
   Palette copyWith() => this;
@@ -105,7 +109,7 @@ extension DesignContext on BuildContext {
 ThemeData garageTheme(Brightness brightness) {
   final p = brightness == Brightness.dark ? Palette.dark : Palette.light;
   TextStyle style(double size, double height, FontWeight weight) => TextStyle(
-    fontFamily: 'DM Sans',
+    fontFamily: 'Plus Jakarta Sans',
     fontFamilyFallback: const ['Golos Text'],
     fontSize: size,
     height: height / size,
@@ -118,12 +122,8 @@ ThemeData garageTheme(Brightness brightness) {
       28,
       34,
       FontWeight.w600,
-    ).copyWith(fontFamily: 'Plus Jakarta Sans'),
-    titleLarge: style(
-      22,
-      28,
-      FontWeight.w600,
-    ).copyWith(fontFamily: 'Plus Jakarta Sans'),
+    ).copyWith(fontFamily: 'Archivo'),
+    titleLarge: style(22, 28, FontWeight.w600).copyWith(fontFamily: 'Archivo'),
     titleMedium: style(
       18,
       24,
@@ -138,8 +138,8 @@ ThemeData garageTheme(Brightness brightness) {
   );
   final scheme =
       ColorScheme.fromSeed(seedColor: p.brand, brightness: brightness).copyWith(
-        primary: Palette.action,
-        onPrimary: Palette.onAction,
+        primary: p.brand,
+        onPrimary: p.onBrand,
         primaryContainer: p.brandSoft,
         onPrimaryContainer: p.brand,
         surface: p.surface,
@@ -168,7 +168,7 @@ ThemeData garageTheme(Brightness brightness) {
     useMaterial3: true,
     colorScheme: scheme,
     extensions: [p],
-    fontFamily: 'DM Sans',
+    fontFamily: 'Plus Jakarta Sans',
     fontFamilyFallback: const ['Golos Text'],
     textTheme: texts,
     scaffoldBackgroundColor: p.background,
@@ -181,10 +181,17 @@ ThemeData garageTheme(Brightness brightness) {
       centerTitle: false,
       toolbarHeight: 64,
       elevation: 0,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          bottom: Radius.circular(Radii.dock),
+        ),
+      ),
     ),
     cardTheme: CardThemeData(
       color: p.surface,
-      elevation: 0,
+      elevation: 2,
+      shadowColor: const Color(0x1A111315),
+      surfaceTintColor: Colors.transparent,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Radii.card),
@@ -213,7 +220,7 @@ ThemeData garageTheme(Brightness brightness) {
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: p.surface,
+      fillColor: p.muted,
       contentPadding: const EdgeInsets.all(16),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(Radii.control),
@@ -259,7 +266,12 @@ ThemeData garageTheme(Brightness brightness) {
         borderRadius: BorderRadius.circular(Radii.control),
       ),
     ),
-    dialogTheme: DialogThemeData(backgroundColor: p.surface),
+    dialogTheme: DialogThemeData(
+      backgroundColor: p.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Radii.card),
+      ),
+    ),
     popupMenuTheme: PopupMenuThemeData(color: p.surface),
     dividerTheme: DividerThemeData(color: p.border, space: Space.group),
     snackBarTheme: SnackBarThemeData(

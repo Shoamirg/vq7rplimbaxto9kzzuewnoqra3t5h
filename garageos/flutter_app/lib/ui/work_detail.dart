@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/api_client.dart';
 import '../data/repository.dart';
 import '../design/theme.dart';
+import '../design/vehicle_stage.dart';
 import '../l10n/l10n.dart';
 import '../design/widgets.dart';
 import '../domain/models.dart';
@@ -172,6 +173,8 @@ class _WorkScreenState extends State<WorkScreen> {
                 Text(work.car, style: Theme.of(context).textTheme.titleLarge),
                 SizedBox(height: 4),
                 Text(work.customerName),
+                SizedBox(height: 18),
+                const VehicleStage(blueprint: true),
                 Divider(),
                 Pair(
                   context.l10n.appointments,

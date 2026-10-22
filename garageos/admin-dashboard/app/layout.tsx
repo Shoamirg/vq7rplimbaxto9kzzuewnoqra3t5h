@@ -1,12 +1,14 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Manrope } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans, Archivo, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 
 // Body font — Cyrillic subset added so RU/UZ render in Inter, not a fallback.
 const inter = Inter({ subsets: ["latin", "cyrillic"], variable: "--font-inter" });
-// Brand / display font — the wordmark and headings.
-const manrope = Manrope({ subsets: ["latin", "cyrillic"], weight: ["600", "700", "800"], variable: "--font-brand" });
+// GarageOS v2: body, technical display and telemetry. Inter covers Cyrillic.
+const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-jakarta" });
+const archivo = Archivo({ subsets: ["latin"], variable: "--font-brand" });
+const telemetry = IBM_Plex_Mono({ subsets: ["latin", "cyrillic"], weight: ["400", "500", "600"], variable: "--font-telemetry" });
 
 export const metadata: Metadata = {
   title: "GarageOS — The operating system for modern garages",
@@ -18,15 +20,15 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#F5F6F8" },
-    { media: "(prefers-color-scheme: dark)", color: "#111315" },
+    { media: "(prefers-color-scheme: light)", color: "#E4E6E9" },
+    { media: "(prefers-color-scheme: dark)", color: "#181B20" },
   ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="uz" suppressHydrationWarning className={`${inter.variable} ${manrope.variable}`}>
-      <body className={inter.className}>
+    <html lang="uz" suppressHydrationWarning className={`${inter.variable} ${jakarta.variable} ${archivo.variable} ${telemetry.variable}`}>
+      <body>
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>

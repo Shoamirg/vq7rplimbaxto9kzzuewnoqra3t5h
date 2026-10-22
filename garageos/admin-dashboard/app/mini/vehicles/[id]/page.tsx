@@ -1,5 +1,6 @@
 "use client";
 
+import { VehicleTelemetryBlueprint } from "@/components/vehicles/vehicle-telemetry-blueprint";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, BadgeCheck, ExternalLink, FileText, Wrench } from "lucide-react";
@@ -21,7 +22,7 @@ export default function VehicleDetailPage() {
     <Link
       href="/mini/vehicles"
       onClick={() => haptic("light")}
-      className="inline-flex min-h-[44px] items-center gap-1 text-sm font-medium text-slate-500 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg"
+      className="inline-flex min-h-[44px] items-center gap-1 text-sm font-medium text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 rounded-lg"
     >
       <ArrowLeft className="size-4" aria-hidden /> {t("mini.tab.vehicles")}
     </Link>
@@ -48,17 +49,17 @@ export default function VehicleDetailPage() {
       {back}
 
       {/* Passport hero — the differentiator, led with identity */}
-      <div className="relative overflow-hidden rounded-3xl bg-linear-to-br from-slate-900 to-slate-700 p-5 text-white shadow-xl">
+      <div className="relative overflow-hidden rounded-3xl bg-card p-5 text-foreground shadow-bento">
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <FileText className="size-4 text-amber-300" aria-hidden />
-              <span className="text-xs font-semibold uppercase tracking-[0.14em] text-white/70">{passportTitle}</span>
+              <FileText className="size-4 text-muted-foreground" aria-hidden />
+              <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{passportTitle}</span>
             </div>
             <h1 className="mt-2 text-2xl font-bold leading-tight">
               {p.vehicle.brand} {p.vehicle.model}
             </h1>
-            <p className="text-sm text-white/70">
+            <p className="text-sm text-muted-foreground">
               {[p.vehicle.year, p.vehicle.license_plate].filter(Boolean).join(" · ")}
             </p>
           </div>
@@ -74,16 +75,20 @@ export default function VehicleDetailPage() {
           <Stat label={t("mini.vehicle.owned")} value={`${p.vitals.ownership_years}y`} />
         </div>
 
-        <div className="mt-4 font-mono text-[11px] tracking-widest text-white/50">{p.code}</div>
+        <div className="mt-4 font-mono text-[11px] tracking-widest text-muted-foreground">{p.code}</div>
       </div>
 
+      <VehicleTelemetryBlueprint title={t("mini.vehicle.view_passport")} systems={[
+        { name: "health", label: t(`band.${p.health.band}`), score: p.health.score },
+        { name: "compliance", label: t("mini.vehicle.compliance"), score: p.health.compliance },
+      ]} />
       {/* Highlights */}
       <Card className="p-2!">
         <ul className="divide-y divide-slate-100">
           {p.highlights.map((h, i) => (
             <li key={i} className="flex items-center gap-3 px-2 py-2.5">
               <BadgeCheck className={`size-5 ${h.ok ? "text-green-500" : "text-slate-300"}`} />
-              <span className={`text-sm ${h.ok ? "text-slate-700" : "text-slate-400 line-through"}`}>{h.label}</span>
+              <span className={`text-sm ${h.ok ? "text-foreground" : "text-muted-foreground line-through"}`}>{h.label}</span>
             </li>
           ))}
         </ul>
@@ -97,13 +102,13 @@ export default function VehicleDetailPage() {
             <ul className="divide-y divide-slate-100">
               {p.upcoming.map((u, i) => (
                 <li key={i} className="flex items-center gap-3 px-2 py-3">
-                  <div className="grid size-8 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-400">
+                  <div className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
                     <Wrench className="size-4" aria-hidden />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-slate-800">{u.service_type}</p>
+                    <p className="text-sm font-medium text-foreground">{u.service_type}</p>
                     {u.remaining_km != null ? (
-                      <p className="text-xs text-slate-400">{t("mini.vehicle.in_km", { km: fmt.number(u.remaining_km) })}</p>
+                      <p className="text-xs text-muted-foreground">{t("mini.vehicle.in_km", { km: fmt.number(u.remaining_km) })}</p>
                     ) : null}
                   </div>
                   <Chip tone={STATUS_TONE[u.status] ?? "slate"}>{t(`mini.status.${u.status}`)}</Chip>
@@ -123,10 +128,10 @@ export default function VehicleDetailPage() {
               {p.history.map((h, i) => (
                 <li key={i} className="flex items-center justify-between px-2 py-3">
                   <div>
-                    <p className="text-sm font-medium text-slate-800">{h.service_type}</p>
-                    <p className="text-xs text-slate-400">{fmt.date(h.date) || "—"}</p>
+                    <p className="text-sm font-medium text-foreground">{h.service_type}</p>
+                    <p className="text-xs text-muted-foreground">{fmt.date(h.date) || "—"}</p>
                   </div>
-                  {h.cost != null && h.currency ? <span className="text-sm font-semibold text-slate-700">{fmt.money(h.cost, h.currency)}</span> : null}
+                  {h.cost != null && h.currency ? <span className="text-sm font-semibold text-foreground">{fmt.money(h.cost, h.currency)}</span> : null}
                 </li>
               ))}
             </ul>
@@ -137,7 +142,7 @@ export default function VehicleDetailPage() {
       <Link
         href={`/passport/${p.vehicle.id}`}
         onClick={() => haptic("light")}
-        className="flex min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-slate-900 py-3.5 text-sm font-semibold text-white transition motion-safe:active:scale-[0.99] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50"
+        className="flex min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-primary py-3.5 text-sm font-semibold text-primary-foreground transition motion-safe:active:scale-[0.99] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50"
       >
         <ExternalLink className="size-4" aria-hidden /> {t("mini.vehicle.view_passport")}
       </Link>
@@ -147,9 +152,9 @@ export default function VehicleDetailPage() {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-white/10 py-2">
+    <div className="rounded-2xl bg-muted py-2">
       <p className="text-sm font-bold">{value}</p>
-      <p className="text-[10px] uppercase tracking-wider text-white/60">{label}</p>
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
     </div>
   );
 }

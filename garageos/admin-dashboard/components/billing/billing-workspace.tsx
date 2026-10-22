@@ -238,10 +238,10 @@ export function BillingWorkspace({ canVoid = false }: { canVoid?: boolean }) {
             return (
               <button key={v.key} aria-pressed={active} onClick={() => { setView(v.key); setPage(1); selectDocument(null); }}
                 className={cn("min-h-11 min-w-11 flex shrink-0 items-center gap-2.5 mx-2 my-0.5 px-2.5 py-2 rounded-lg text-[13px] transition-colors focus-visible:outline-2 focus-visible:outline-primary",
-                  active ? "bg-blue-600/20 text-white" : "hover:bg-slate-800")}>
+                  active ? "bg-primary-600/20 text-white" : "hover:bg-slate-800")}>
                 <span className="w-4 text-center">{v.icon}</span>
                 <span className="flex-1 text-left truncate">{t(`billing.${v.key}`)}</span>
-                {n ? <span className={cn("text-[11px] font-bold rounded-full px-1.5", active ? "bg-blue-600 text-white" : alert && n > 0 ? "bg-red-600 text-white" : "bg-slate-950 text-slate-400")}>{n}</span> : null}
+                {n ? <span className={cn("text-[11px] font-bold rounded-full px-1.5", active ? "bg-primary-600 text-white" : alert && n > 0 ? "bg-red-600 text-white" : "bg-slate-950 text-slate-400")}>{n}</span> : null}
               </button>
             );
           })}
@@ -266,7 +266,7 @@ export function BillingWorkspace({ canVoid = false }: { canVoid?: boolean }) {
                   className={cn("min-h-11 min-w-0 w-full text-left px-4 py-3 break-words border-b border-border/70 border-l-[3px] transition-colors focus-visible:outline-2 focus-visible:outline-primary",
                     active ? "bg-primary/5 border-l-primary" : "border-l-transparent hover:bg-muted/40")}>
                   <div className="flex items-center gap-2">
-                    <span className={cn("text-[9px] font-extrabold uppercase tracking-wide px-1.5 py-px rounded", d.kind === "estimate" ? "text-purple-600 bg-purple-50" : "text-blue-600 bg-blue-50")}>{t(`public.${d.kind}`)}</span>
+                    <span className={cn("text-[9px] font-extrabold uppercase tracking-wide px-1.5 py-px rounded", d.kind === "estimate" ? "text-primary-600 bg-primary-50" : "text-primary-600 bg-primary-50")}>{t(`public.${d.kind}`)}</span>
                     <span className="font-mono text-[11.5px] font-bold text-slate-600 dark:text-slate-300">{d.code}</span>
                     <span className="ml-auto font-mono text-[14px] font-extrabold">{money(d.total, d.currency)}</span>
                   </div>

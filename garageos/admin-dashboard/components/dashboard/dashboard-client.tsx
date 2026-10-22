@@ -1,5 +1,6 @@
 "use client";
 
+import { OperationsHero } from "./operations-hero";
 import React from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -131,7 +132,7 @@ function StatCard({
         <div className="flex items-start justify-between">
           <div className="space-y-1">
             <p className="text-sm text-muted-foreground">{title}</p>
-            <p className="text-2xl font-bold text-foreground tracking-tight">{value}</p>
+            <p data-kpi className="text-2xl font-bold text-foreground tracking-tight">{value}</p>
             <p className="text-xs text-muted-foreground">{subtitle}</p>
           </div>
           <div className={cn("p-3 rounded-xl", color)}>
@@ -159,7 +160,7 @@ export function DashboardClient({ userName, authFingerprint, stats, today, fleet
   }
 
   return (
-    <div className="p-4 lg:p-6 space-y-6 animate-fade-in">
+    <div className="garage-dashboard p-4 lg:p-6 animate-fade-in">
       {logoutError && <p role="alert" className="text-sm">{t(logoutError)}</p>}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -175,10 +176,12 @@ export function DashboardClient({ userName, authFingerprint, stats, today, fleet
         </div>
       </div>
 
+      <OperationsHero appointment={today.find(a => a.status === "in_progress") ?? today[0]} />
+
       {/* Stat Cards — live from /appointments/stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title={t("dash.stat.active")} value={activeCount} subtitle={t("dash.stat.active_sub")} icon={Calendar} color="bg-primary/10 text-primary" />
-        <StatCard title={t("dash.stat.today")} value={stats.today_count} subtitle={t("dash.stat.today_sub")} icon={Clock} color="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" />
+        <StatCard title={t("dash.stat.today")} value={stats.today_count} subtitle={t("dash.stat.today_sub")} icon={Clock} color="bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400" />
         <StatCard title={t("dash.stat.completed")} value={stats.completed_count} subtitle={t("dash.stat.completed_sub")} icon={CheckCircle2} color="bg-success/10 text-success" />
         <StatCard title={t("dash.stat.cancelled")} value={stats.cancelled_count} subtitle={t("dash.stat.cancelled_sub")} icon={XCircle} color="bg-danger/10 text-danger" />
       </div>
