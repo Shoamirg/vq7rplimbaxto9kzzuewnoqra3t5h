@@ -152,6 +152,7 @@ class CustomerPortalService:
             greeting=self.customer.full_name.split()[0] if self.customer.full_name else "there",
             garage=self._garage(center),
             sos_available=True,
+            loyalty_points=self.customer.loyalty_points or 0,
             **(await self._outstanding_card()),
             next_appointment=await self._next_appointment(),
             latest_message=await self._latest_message(),

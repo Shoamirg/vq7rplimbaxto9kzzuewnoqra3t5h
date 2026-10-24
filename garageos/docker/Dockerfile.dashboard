@@ -1,13 +1,24 @@
 FROM node:20-alpine
 
-WORKDIR /app
+# The admin-dashboard is an npm workspace that depends on the sibling
+# @garageos/design-system package, so the image is built from the monorepo
+# root and installed as a whole. That creates the hoisted workspace symlink
+# (node_modules/@garageos/design-system -> packages/design-system) that Next's
+# transpilePackages resolves at runtime.
+WORKDIR /workspace
 
-COPY package.json pnpm-lock.yaml* ./
+# Copy just the manifests first for a cacheable install layer.
+COPY package.json package-lock.json* ./
+COPY admin-dashboard/package.json ./admin-dashboard/package.json
+COPY packages/design-system/package.json ./packages/design-system/package.json
 
-RUN corepack enable && pnpm install
+RUN npm install
 
+# Copy the rest of the monorepo source (node_modules/.next excluded via .dockerignore).
 COPY . .
+
+WORKDIR /workspace/admin-dashboard
 
 EXPOSE 3000
 
-CMD ["pnpm", "dev"]
+CMD ["npm", "run", "dev"]

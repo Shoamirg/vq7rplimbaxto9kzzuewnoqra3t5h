@@ -2,10 +2,12 @@ from __future__ import annotations
 import uuid
 import re
 from typing import Optional, Sequence
-from sqlalchemy import select, or_, func
+from sqlalchemy import select, update, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from app.models.customer import Customer
+from app.models.vehicle import Vehicle
+from app.models.vehicle_model import VehicleModel
 from app.repositories.base import TenantScopedRepository
 
 
@@ -85,15 +87,24 @@ class CustomerRepository(TenantScopedRepository[Customer]):
                 Customer.id == customer_id,
                 Customer.is_active == True,
             )
-        ).options(selectinload(Customer.vehicles))
+        ).options(
+            # Eager-load the full chain the serializer walks
+            # (customer -> vehicles -> vehicle_model -> brand); otherwise
+            # accessing v.vehicle_model.brand.name triggers a lazy load in the
+            # async context and raises MissingGreenlet.
+            selectinload(Customer.vehicles)
+            .selectinload(Vehicle.vehicle_model)
+            .selectinload(VehicleModel.brand)
+        )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def add_loyalty_points(self, customer_id: uuid.UUID, points: int) -> Optional[Customer]:
-        customer = await self.get_by_id(customer_id)  # tenant-scoped
-        if not customer:
-            return None
-        customer.loyalty_points = (customer.loyalty_points or 0) + points
-        await self.session.flush()
-        await self.session.refresh(customer)
-        return customer
+        # Different appointments for one customer may finish concurrently.
+        # Increment in PostgreSQL so both completions retain their rewards.
+        return await self.session.scalar(update(Customer).where(
+            Customer.id == customer_id,
+            Customer.service_center_id == self.service_center_id,
+            Customer.is_active.is_(True),
+        ).values(loyalty_points=func.coalesce(Customer.loyalty_points, 0) + points)
+          .returning(Customer).execution_options(populate_existing=True))

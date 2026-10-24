@@ -2,6 +2,7 @@
 
 import { forwardRef, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   ArrowUpRight, CalendarPlus, Camera, Check, Download, MapPin, Megaphone, Moon, PanelRightOpen, Phone, Pin, Receipt, Send, Share2, Siren,
 } from "lucide-react";
@@ -455,11 +456,17 @@ function MessageBubble({ m }: { m: ConvMessage }) {
         </div>
       )}
       {m.attachments.map((a) => (
-        <div key={a.id} className={cn("mt-1 inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-[12.5px]", side === "me" && "ml-auto")}>
+        <div key={a.id} className={cn("mt-1 flex w-fit max-w-full flex-wrap items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-[12.5px]", side === "me" && "ml-auto")}>
           <span className="grid size-7 place-items-center rounded-lg bg-muted text-sm">
             {a.kind === "photo" ? "📷" : a.kind === "location" ? "📍" : a.kind === "voice" ? "🎤" : "📄"}
           </span>
-          <span className="font-medium text-foreground">{a.label}</span>
+          <span className="min-w-0 break-words font-medium text-foreground">{a.label}</span>
+          {a.url && /^\/api\/media\/telegram\/[A-Za-z0-9_-]+$/.test(a.url) && (
+            a.kind === "photo" ? <a href={a.url} target="_blank" rel="noreferrer" aria-label={a.label} className="min-w-0 max-w-full">
+              <Image src={a.url} alt={a.label} width={320} height={240} unoptimized className="max-h-60 max-w-full rounded-lg object-contain" />
+            </a> : a.kind === "voice" ? <audio controls preload="none" src={a.url} aria-label={a.label} className="max-w-full" />
+              : <a href={a.url} download className="underline">{a.label}</a>
+          )}
         </div>
       ))}
       <p className={cn("text-[10px] text-muted-foreground mt-1 px-1", side === "me" && "text-right")}>{m.created_at ? localizedRelTime(m.created_at, Date.now(), t, fmt.number) : ""}</p>

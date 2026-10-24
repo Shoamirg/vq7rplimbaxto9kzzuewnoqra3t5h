@@ -15,8 +15,12 @@ def test_receptionist_can_record_normal_payments_but_not_financial_controls():
 
 def test_manager_and_admin_have_financial_controls():
     required = {"financial.refund", "financial.invoice.void", "financial.reports.read"}
-    for role in ("admin", "manager", "super_admin"):
+    for role in ("admin", "manager"):
         assert required <= set(staff_permissions(user(role)))
+
+
+def test_platform_role_does_not_inherit_tenant_financial_controls():
+    assert set(staff_permissions(user("super_admin"))) == {"staff.read", "staff.write"}
 
 
 def test_mechanic_only_has_assigned_work_and_inactive_role_has_none():

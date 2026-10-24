@@ -6,13 +6,15 @@ import { WifiOff } from "lucide-react";
 
 import { haptic } from "@/lib/mini/telegram";
 import { useI18n } from "@/lib/i18n/context";
+import type { Locale } from "@/lib/i18n/dictionaries";
+import { formatMoney } from "@/lib/i18n/format";
 
 // Shared visual primitives for the Mini App. Kept self-contained (its own
 // tokens) so the customer surface reads as an intentional, branded product —
 // not a recoloured admin screen.
 
-export function money(n: number): string {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n || 0);
+export function money(n: number, locale: Locale = "en"): string {
+  return formatMoney(locale, n, "USD");
 }
 
 const BAND_COLOR: Record<string, string> = {

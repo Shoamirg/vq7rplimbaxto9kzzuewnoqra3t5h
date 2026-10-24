@@ -370,6 +370,10 @@ class AppointmentService:
         )
         await self.uow.flush()
 
+        # Award once, atomically with the locked appointment completion.
+        points_earned = max(10, round((appointment.total_cost or 0) * 0.10))
+        await self.customer_repo.add_loyalty_points(appointment.customer_id, points_earned)
+
         # Recalculate vehicle health; surface any maintenance-due events.
         health_score = None
         if vehicle:

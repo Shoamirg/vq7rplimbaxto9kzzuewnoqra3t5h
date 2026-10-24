@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     # Telegram
     TELEGRAM_BOT_TOKEN: Optional[str] = None
     TELEGRAM_WEBHOOK_URL: Optional[str] = None
+    TELEGRAM_WEBHOOK_SECRET: Optional[str] = None
     DEV_AUTH_ENABLED: bool = False
     TELEGRAM_PHONE_LINKING_ENABLED: bool = False
 

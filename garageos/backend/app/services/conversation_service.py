@@ -19,6 +19,7 @@ from sqlalchemy.orm import noload
 from app.core.events import ConversationStarted, MessagePosted
 from app.exceptions import NotFoundError, UnauthorizedAction, ValidationError
 from app.models.conversation import (
+    _OPEN_STATUSES,
     Attachment,
     Channel,
     Conversation,
@@ -160,6 +161,41 @@ class ConversationService:
             subject=subject, customer_id=customer_id, vehicle_id=vehicle_id, case_id=case_id,
         ))
         return await self.serialize_row(conv)
+
+    async def find_or_create_customer_thread(
+        self, *, customer_id: uuid.UUID, display_name: str
+    ) -> uuid.UUID:
+        """The customer's live conversation for inbound channel messages.
+
+        Reuses their most recent still-open thread so a Telegram chat stays one
+        continuous conversation instead of spawning a new inbox row per message;
+        only opens a fresh one when nothing is open. Returns the conversation id.
+        """
+        stmt = (
+            select(Conversation)
+            .where(
+                *safe_conversation(self.sc),
+                Conversation.customer_id == customer_id,
+                Conversation.status.in_(tuple(_OPEN_STATUSES)),
+            )
+            .order_by(Conversation.last_activity_at.desc().nullslast())
+            .limit(1)
+        )
+        existing = (await self.session.execute(stmt)).scalar_one_or_none()
+        if existing is not None:
+            return existing.id
+
+        created = await self.create_conversation(
+            subject=display_name,
+            conv_type=ConvType.GENERAL,
+            customer_id=customer_id,
+            participants=[{
+                "role": ParticipantRole.CUSTOMER,
+                "display_name": display_name,
+                "customer_id": customer_id,
+            }],
+        )
+        return uuid.UUID(created["id"])
 
     def _default_participants(self, customer_id: uuid.UUID | None) -> list[dict]:
         return []

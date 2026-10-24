@@ -5,6 +5,17 @@
 // This is intentionally dependency-free — a full library (next-intl) can replace
 // it later without changing call sites, since components only touch `t("nav.x")`.
 
+import { REPORTS_DICT } from "./dicts/reports";
+import { LEAF_DICT } from "./dicts/leaf";
+import { OPERATIONS_DICT } from "./dicts/operations";
+import { INBOX_DICT } from "./dicts/inbox";
+import { BILLING_DICT } from "./dicts/billing";
+import { VEHICLES_DICT } from "./dicts/vehicles";
+import { SCHEDULING_DICT } from "./dicts/scheduling";
+import { CUSTOMERS_DICT } from "./dicts/customers";
+import { LAYOUT_DICT } from "./dicts/layout";
+import { PASSPORT_DICT } from "./dicts/passport";
+import { WORKSHOP_DICT } from "./dicts/workshop";
 import { MINI_DICTIONARY } from "./mini-dictionary";
 import { STAFF_DICTIONARY } from "./staff-dictionary";
 import { DAILY_DICTIONARY } from "./daily-dictionary";
@@ -218,5 +229,5 @@ export function textDirection(locale: Locale): "ltr" | "rtl" {
 // Fold the Mini App strings into the main dictionaries so `t()` resolves them
 // the same way (kept in a separate file only to keep this module readable).
 for (const locale of LOCALES) {
-  Object.assign(DICTIONARIES[locale], MINI_DICTIONARY[locale], STAFF_DICTIONARY[locale], DAILY_DICTIONARY[locale], ACCOUNTS_DICTIONARY[locale], PLATFORM_DICTIONARY[locale], CALENDAR_DICTIONARY[locale], QUEUE_DICTIONARY[locale], OPERATIONS_DICTIONARY[locale], MESSAGES_DICTIONARY[locale], INBOX_DICTIONARY[locale], PASSPORT_DICTIONARY[locale], VEHICLE_HEALTH_DICTIONARY[locale]);
+  Object.assign(DICTIONARIES[locale], REPORTS_DICT[locale], LEAF_DICT[locale], OPERATIONS_DICT[locale], INBOX_DICT[locale], BILLING_DICT[locale], VEHICLES_DICT[locale], SCHEDULING_DICT[locale], CUSTOMERS_DICT[locale], LAYOUT_DICT[locale], PASSPORT_DICT[locale], WORKSHOP_DICT[locale], MINI_DICTIONARY[locale], STAFF_DICTIONARY[locale], DAILY_DICTIONARY[locale], ACCOUNTS_DICTIONARY[locale], PLATFORM_DICTIONARY[locale], CALENDAR_DICTIONARY[locale], QUEUE_DICTIONARY[locale], OPERATIONS_DICTIONARY[locale], MESSAGES_DICTIONARY[locale], INBOX_DICTIONARY[locale], PASSPORT_DICTIONARY[locale], VEHICLE_HEALTH_DICTIONARY[locale]);
 }
