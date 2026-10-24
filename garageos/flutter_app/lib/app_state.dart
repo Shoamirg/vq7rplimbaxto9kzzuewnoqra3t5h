@@ -1,39 +1,72 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'data/accounts.dart';
 import 'data/session.dart';
 import 'data/customer_repository.dart';
 import 'data/demo_repository.dart';
 import 'data/repository.dart';
 import 'data/api_client.dart';
 
+enum Role { customer, staff }
+
+enum DemoRole { reception, mechanic, customer }
+
 class AppState extends ChangeNotifier {
   GarageRepository? repository;
-  CustomerRepository? customerRepository;
+  CustomerPortal? customerRepository;
   String name = '', garageName = '';
   ThemeMode themeMode = ThemeMode.system;
   Locale locale = const Locale('uz');
+
+  /// Pre-sign-in sample mode: account flows and sign-in use demo data.
+  bool demoMode = false;
+
+  /// Null until the person answers the notifications prompt.
+  bool? notificationsAllowed;
   int _localeRevision = 0;
   bool _disposed = false;
   int _sessionRevision = 0;
   String? sessionNotice;
   Future<void> _preferenceWrites = Future.value();
   void Function()? onExpired;
+
+  AccountSource get accounts =>
+      demoMode ? DemoAccountSource() : const LiveAccountSource();
+
   Future<void> restoreLocale() async {
     if (_localeRevision != 0) return;
     try {
       final preferences = await SharedPreferences.getInstance();
       final code = preferences.getString('garageos.language');
-      if (!_disposed &&
-          _localeRevision == 0 &&
-          ['uz', 'en', 'ru'].contains(code)) {
+      final theme = preferences.getString('garageos.theme');
+      final notify = preferences.getBool('garageos.notifications');
+      if (_disposed) return;
+      if (_localeRevision == 0 && ['uz', 'en', 'ru'].contains(code)) {
         locale = Locale(code!);
-        notifyListeners();
       }
+      final mode = ThemeMode.values.where((m) => m.name == theme);
+      if (mode.isNotEmpty) themeMode = mode.first;
+      notificationsAllowed = notify;
+      notifyListeners();
     } catch (_) {
       // Preferences are optional. Native plugin and browser storage failures
-      // both keep the default language; neither should break app startup.
+      // both keep the defaults; neither should break app startup.
     }
+  }
+
+  Future<bool> _write(Future<bool> Function(SharedPreferences) save) {
+    final write = _preferenceWrites.then((_) async {
+      try {
+        return await save(await SharedPreferences.getInstance());
+      } catch (_) {
+        // Browser security/quota errors are not PlatformException. Complete
+        // the queue normally so a later selection can retry saving.
+        return false;
+      }
+    });
+    _preferenceWrites = write.then((_) {});
+    return write;
   }
 
   Future<bool> setLocale(Locale value) {
@@ -43,37 +76,53 @@ class AppState extends ChangeNotifier {
     _localeRevision++;
     locale = value;
     notifyListeners();
-    final write = _preferenceWrites.then((_) async {
-      try {
-        final preferences = await SharedPreferences.getInstance();
-        return await preferences.setString(
-          'garageos.language',
-          value.languageCode,
-        );
-      } catch (_) {
-        // Browser security/quota errors are not PlatformException. Complete
-        // the queue normally so a later language selection can retry saving.
-        return false;
-      }
-    });
-    _preferenceWrites = write.then((_) {});
-    return write;
+    return _write((p) => p.setString('garageos.language', value.languageCode));
   }
 
-  void toggleTheme(Brightness current) {
-    themeMode = current == Brightness.dark ? ThemeMode.light : ThemeMode.dark;
+  Future<bool> setThemeMode(ThemeMode value) {
+    themeMode = value;
+    notifyListeners();
+    return _write((p) => p.setString('garageos.theme', value.name));
+  }
+
+  void toggleTheme(Brightness current) => setThemeMode(
+    current == Brightness.dark ? ThemeMode.light : ThemeMode.dark,
+  );
+
+  Future<bool> setNotifications(bool allowed) {
+    notificationsAllowed = allowed;
+    notifyListeners();
+    return _write((p) => p.setBool('garageos.notifications', allowed));
+  }
+
+  void setDemoMode(bool value) {
+    demoMode = value;
     notifyListeners();
   }
 
-  void demo() {
+  void demo([DemoRole role = DemoRole.reception]) {
     _sessionRevision++;
     sessionNotice = null;
     repository?.close();
     customerRepository?.close();
+    repository = null;
     customerRepository = null;
-    repository = DemoRepository();
-    name = 'Demo xodim';
-    garageName = 'Turon avtoservis';
+    demoMode = true;
+    switch (role) {
+      case DemoRole.customer:
+        final portal = DemoCustomerPortal();
+        customerRepository = portal;
+        name = portal.name;
+        garageName = portal.garageName;
+      case DemoRole.mechanic:
+        repository = DemoRepository(mechanicMode: true);
+        name = 'Sherzod Rahimov';
+        garageName = 'Turon avtoservis';
+      case DemoRole.reception:
+        repository = DemoRepository();
+        name = 'Demo xodim';
+        garageName = 'Turon avtoservis';
+    }
     notifyListeners();
   }
 
@@ -83,6 +132,10 @@ class AppState extends ChangeNotifier {
     String password, {
     bool customer = false,
   }) async {
+    if (demoMode) {
+      demo(customer ? DemoRole.customer : DemoRole.reception);
+      return;
+    }
     final revision = ++_sessionRevision;
     if (customer) {
       final session = await CustomerRepository.login(

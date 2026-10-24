@@ -5,8 +5,30 @@ import 'package:garageos_staff/app_state.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_platform_interface.dart';
 
+import 'support/dock.dart';
+
+const promise = {
+  'uz': 'Mashinangiz servisi — bir qarashda.',
+  'en': 'Your car’s service, at a glance.',
+  'ru': 'Сервис вашего авто — с одного взгляда.',
+};
+
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  /// Settings tab language pills, then back to [returnTo].
+  Future<void> switchInSettings(
+    WidgetTester tester,
+    String settingsTab,
+    String language,
+    String returnTo,
+  ) async {
+    await tester.tap(dockTab(settingsTab));
+    await tester.pumpAndSettle();
+    await tapSegment(tester, language);
+    await tester.tap(dockTab(returnTo));
+    await tester.pumpAndSettle();
+  }
 
   testWidgets('screen readers receive plate labels in the selected language', (
     tester,
@@ -20,19 +42,30 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(GarageApp(state: state));
     await tester.pumpAndSettle();
-    for (final (language, prefix) in [
-      ('English', 'License plate:'),
-      ('Русский', 'Госномер:'),
-    ]) {
-      await tester.tap(find.byKey(const ValueKey('language-menu')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text(language));
-      await tester.pumpAndSettle();
-      expect(
-        find.bySemanticsLabel(RegExp('$prefix 01 A 123 BC')),
-        findsOneWidget,
+    Future<void> showAziz() async {
+      await tester.scrollUntilVisible(
+        find.text('Aziz Karimov'),
+        180,
+        scrollable: find.byWidgetPredicate(
+          (w) => w is Scrollable && w.axisDirection == AxisDirection.down,
+        ),
       );
+      await tester.ensureVisible(find.text('Aziz Karimov'));
+      await tester.pumpAndSettle();
     }
+
+    await switchInSettings(tester, 'Sozlamalar', 'English', 'Jobs');
+    await showAziz();
+    expect(
+      find.bySemanticsLabel(RegExp('License plate: 01 A 777 AA')),
+      findsOneWidget,
+    );
+    await switchInSettings(tester, 'Settings', 'Русский', 'Работы');
+    await showAziz();
+    expect(
+      find.bySemanticsLabel(RegExp('Госномер: 01 A 777 AA')),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
     semantics.dispose();
   });
@@ -46,25 +79,19 @@ void main() {
     addTearDown(() => SharedPreferencesStorePlatform.instance = original);
     await tester.pumpWidget(const GarageApp());
     await tester.pumpAndSettle();
-    expect(find.text('Xush kelibsiz'), findsOneWidget);
+    expect(find.text(promise['uz']!), findsOneWidget);
     store.failReads = false;
-    await tester.tap(find.byKey(const ValueKey('language-menu')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('English'));
-    await tester.pumpAndSettle();
-    expect(find.text('Welcome back'), findsOneWidget);
+    await tapSegment(tester, 'EN');
+    expect(find.text(promise['en']!), findsOneWidget);
     expect(find.byType(SnackBar), findsOneWidget);
     expect(tester.takeException(), isNull);
     store.failWrites = false;
-    await tester.tap(find.byKey(const ValueKey('language-menu')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Русский'));
-    await tester.pumpAndSettle();
+    await tapSegment(tester, 'RU');
     await tester.pumpWidget(const SizedBox.shrink());
     SharedPreferences.resetStatic();
     await tester.pumpWidget(const GarageApp());
     await tester.pumpAndSettle();
-    expect(find.text('Добро пожаловать'), findsOneWidget);
+    expect(find.text(promise['ru']!), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -100,7 +127,8 @@ void main() {
     }
 
     await select('English');
-    expect(find.text('General service'), findsOneWidget);
+    // The requested service is the customer's data and is never translated.
+    expect(find.text('Tormoz kolodkalari'), findsOneWidget);
     await tester.enterText(find.byType(TextFormField).first, 'Custom service');
     await select('Русский');
     expect(find.text('Custom service'), findsOneWidget);
@@ -134,6 +162,9 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(const GarageApp());
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Xodim sifatida kirish'));
+    await tester.tap(find.text('Xodim sifatida kirish'));
+    await tester.pumpAndSettle();
     await tester.enterText(
       find.byType(TextFormField).first,
       'staff@example.com',
@@ -142,7 +173,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('English'));
     await tester.pumpAndSettle();
-    expect(find.text('Welcome back'), findsOneWidget);
+    expect(find.text('Sign in as staff'), findsOneWidget);
     expect(find.text('Sign in'), findsOneWidget);
     expect(find.text('staff@example.com'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -151,16 +182,13 @@ void main() {
   testWidgets('language selection survives a new app session', (tester) async {
     await tester.pumpWidget(const GarageApp());
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('language-menu')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Русский'));
-    await tester.pumpAndSettle();
-    expect(find.text('Добро пожаловать'), findsOneWidget);
+    await tapSegment(tester, 'RU');
+    expect(find.text(promise['ru']!), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();
     await tester.pumpWidget(const GarageApp());
     await tester.pumpAndSettle();
-    expect(find.text('Добро пожаловать'), findsOneWidget);
+    expect(find.text(promise['ru']!), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -175,26 +203,14 @@ void main() {
       addTearDown(state.dispose);
       await tester.pumpWidget(GarageApp(state: state));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('language-menu')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('English'));
-      await tester.pumpAndSettle();
-      await tester.tap(
-        find.descendant(
-          of: find.byType(NavigationBar),
-          matching: find.text('Customers'),
-        ),
-      );
-      await tester.pumpAndSettle();
+      await switchInSettings(tester, 'Sozlamalar', 'English', 'Customers');
       await tester.enterText(find.byType(TextField), 'Aziz');
       await tester.pumpAndSettle(const Duration(milliseconds: 400));
       expect(find.text('Aziz Karimov'), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('language-menu')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Русский'));
-      await tester.pumpAndSettle();
-      expect(find.text('Поиск клиентов'), findsOneWidget);
+      await switchInSettings(tester, 'Settings', 'Русский', 'Клиенты');
+      expect(find.text('Клиенты'), findsWidgets);
       expect(find.text('Aziz'), findsOneWidget);
+      expect(find.text('Aziz Karimov'), findsOneWidget);
       await tester.tap(find.widgetWithText(FilledButton, 'Новый клиент'));
       await tester.pumpAndSettle();
       await tester.enterText(
@@ -215,7 +231,7 @@ void main() {
       expect(find.text('Unsaved changes'), findsOneWidget);
       await tester.tap(find.text('Leave without saving'));
       await tester.pumpAndSettle();
-      expect(find.text('Search customers'), findsOneWidget);
+      expect(find.text('Customers'), findsWidgets);
       expect(find.text('Aziz'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },

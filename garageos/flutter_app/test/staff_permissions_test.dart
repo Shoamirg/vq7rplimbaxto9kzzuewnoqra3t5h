@@ -6,6 +6,8 @@ import 'package:garageos_staff/data/demo_repository.dart';
 import 'package:garageos_staff/main.dart';
 import 'package:garageos_staff/domain/models.dart';
 
+import 'support/dock.dart';
+
 class ReadOnlyRepository extends DemoRepository {
   @override
   bool get canWrite => false;
@@ -59,17 +61,24 @@ void main() {
       addTearDown(state.dispose);
       await tester.pumpWidget(GarageApp(state: state));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Mijozlar'));
+      await tester.tap(dockTab('Mijozlar'));
       await tester.pumpAndSettle();
       expect(find.text('Yangi mijoz'), findsNothing);
       await tester.tap(find.text('Aziz Karimov'));
       await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('Chevrolet Cobalt'),
+        200,
+        scrollable: find.byWidgetPredicate(
+          (w) => w is Scrollable && w.axisDirection == AxisDirection.down,
+        ).last,
+      );
       expect(find.text('Mashina qoʻshish'), findsNothing);
       expect(find.text('Navbat yaratish'), findsNothing);
       expect(find.text('Chevrolet Cobalt'), findsOneWidget);
       await tester.tap(find.byType(BackButton));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Navbat'));
+      await tester.tap(dockTab('Ishlar'));
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(
         find.text('Bekzod Aliyev'),

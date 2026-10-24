@@ -11,10 +11,12 @@ import 'package:garageos_staff/data/demo_repository.dart';
 import 'package:garageos_staff/data/repository.dart';
 import 'package:garageos_staff/l10n/generated/app_localizations.dart';
 import 'package:garageos_staff/main.dart';
+import 'package:garageos_staff/ui/mechanic/jobs.dart';
 import 'package:garageos_staff/ui/staff_home.dart';
 
+import 'support/dock.dart';
 import 'support/fonts.dart';
-import 'ongoing_work_test.dart' show oldJob, OngoingServer;
+import 'ongoing_work_test.dart' show oldJob, OngoingServer, selectedFilter;
 
 class AwaitingServer extends OngoingServer {
   @override
@@ -78,18 +80,8 @@ void main() {
           );
           await tester.pumpWidget(GarageApp(state: state));
           await tester.pumpAndSettle();
-          final chip = find.widgetWithText(
-            FilterChip,
-            strings.awaitingInvoiceWork,
-          );
-          await tester.scrollUntilVisible(
-            chip,
-            200,
-            scrollable: find.byType(Scrollable).first,
-          );
-          await tester.tap(chip);
-          await tester.pumpAndSettle();
-          expect(tester.widget<FilterChip>(chip).selected, isTrue);
+          await tapSegment(tester, strings.awaitingInvoiceShort);
+          expect(selectedFilter(tester), JobFilter.awaitingInvoice);
           final tile = find.widgetWithText(WorkTile, 'Bekzod Aliyev');
           expect(
             find.descendant(
@@ -108,8 +100,9 @@ void main() {
           await tester.ensureVisible(price);
           await tester.pumpAndSettle();
           await tester.enterText(price, '100000');
+          await tester.pumpAndSettle();
           await tester.tap(
-            find.widgetWithText(FilledButton, strings.createInvoice),
+            find.widgetWithText(FilledButton, strings.sendToCustomer),
           );
           await tester.pumpAndSettle();
           await tester.tap(find.byType(BackButton).first);
@@ -118,9 +111,8 @@ void main() {
           await tester.tap(find.byType(BackButton).first);
           await tester.pumpAndSettle();
           expect(find.byType(WorkTile), findsNothing);
-          expect(tester.widget<FilterChip>(chip).selected, isTrue);
-          await tester.tap(chip);
-          await tester.pumpAndSettle();
+          expect(selectedFilter(tester), JobFilter.awaitingInvoice);
+          await tapSegment(tester, strings.all);
           await tester.scrollUntilVisible(
             tile,
             200,
@@ -139,7 +131,10 @@ void main() {
           await tester.pumpAndSettle();
           await tester.tap(find.text(strings.openInvoice));
           await tester.pumpAndSettle();
-          expect((await repo.bills()).total, 1);
+          expect(
+            (await repo.bills()).items.where((b) => b.appointmentId == 'w3'),
+            hasLength(1),
+          );
           expect(tester.takeException(), isNull);
         },
       );
@@ -162,14 +157,7 @@ void main() {
       final strings = await AppLocalizations.delegate.load(const Locale('uz'));
       await tester.pumpWidget(GarageApp(state: state));
       await tester.pumpAndSettle();
-      final chip = find.widgetWithText(FilterChip, strings.awaitingInvoiceWork);
-      await tester.scrollUntilVisible(
-        chip,
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.tap(chip);
-      await tester.pumpAndSettle();
+      await tapSegment(tester, strings.awaitingInvoiceShort);
       expect(server.requests.last.queryParameters['awaiting_invoice'], 'true');
       expect(server.requests.last.queryParameters['status'], 'completed');
       expect(
@@ -178,11 +166,10 @@ void main() {
       );
       expect(find.text(strings.newAppointment), findsNothing);
       await tester.scrollUntilVisible(
-        find.byTooltip(strings.nextPage),
+        find.text('Old customer 30'),
         600,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.tap(find.byTooltip(strings.nextPage));
       await tester.pumpAndSettle();
       expect(server.requests.last.queryParameters['page'], '2');
       final failed = Completer<http.Response>();
@@ -232,11 +219,9 @@ void main() {
     addTearDown(state.dispose);
     await tester.pumpWidget(GarageApp(state: state));
     await tester.pumpAndSettle();
-    expect(
-      find.widgetWithText(FilterChip, strings.awaitingInvoiceWork),
-      findsNothing,
-    );
-    expect(find.byType(WorkTile), findsOneWidget);
+    expect(segment(strings.awaitingInvoiceShort), findsNothing);
+    expect(find.text(strings.awaitingInvoiceWork), findsNothing);
+    expect(find.byType(MechanicJobCard), findsOneWidget);
     expect(tester.takeException(), isNull);
     await expectLater(
       repo.works(awaitingInvoice: true),

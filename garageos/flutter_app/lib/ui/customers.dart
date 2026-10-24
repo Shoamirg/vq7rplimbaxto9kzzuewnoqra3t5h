@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../data/api_client.dart';
 import '../data/repository.dart';
 import '../design/theme.dart';
-import '../l10n/l10n.dart';
 import '../design/widgets.dart';
 import '../domain/models.dart';
+import '../domain/portal.dart';
+import '../l10n/l10n.dart';
+import 'billing.dart';
 import 'booking.dart';
-import 'staff_home.dart' show Pager;
+import 'chat.dart' show Initials;
+import 'work_detail.dart';
 
 class CustomerList extends StatefulWidget {
   const CustomerList({
@@ -25,7 +29,7 @@ class CustomerList extends StatefulWidget {
 
 class _CustomerListState extends State<CustomerList> {
   String query = '';
-  int page = 1;
+  int localRefresh = 0;
   final search = TextEditingController();
   @override
   void dispose() {
@@ -35,69 +39,74 @@ class _CustomerListState extends State<CustomerList> {
 
   void updateSearch(String value) {
     if (query == value) return;
-    setState(() {
-      query = value;
-      page = 1;
-    });
+    setState(() => query = value);
+  }
+
+  Future<void> create() async {
+    final customer = await openPage<Customer>(
+      context,
+      CustomerForm(repository: widget.repository),
+    );
+    if (!mounted) return;
+    if (widget.pick && customer != null) {
+      Navigator.pop(context, customer);
+    } else {
+      setState(() => localRefresh++);
+    }
   }
 
   @override
   Widget build(BuildContext context) => Center(
     child: ConstrainedBox(
       constraints: BoxConstraints(maxWidth: Space.contentWidth),
-      child: ListLoadView<PageData<Customer>>(
+      child: InfiniteList<Customer>(
         storageKey: widget.pick ? 'customer-picker' : 'staff-customer-list',
-        filterKey: (query, page),
-        loadKey: (widget.repository, query, page, widget.refreshKey),
-        load: () => widget.repository.customers(query: query, page: page),
+        filterKey: query,
+        refreshKey: (widget.repository, widget.refreshKey, localRefresh),
+        load: (page) =>
+            widget.repository.customers(query: query, page: page),
         header: (data, reload, loading) => [
-          Wrap(
-            spacing: 16,
-            runSpacing: 12,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          Row(
             children: [
-              Text(
-                widget.pick
-                    ? context.l10n.selectCustomer
-                    : context.l10n.customers,
-                style: Theme.of(context).textTheme.titleLarge,
+              Expanded(
+                child: Semantics(
+                  header: true,
+                  child: Text(
+                    widget.pick
+                        ? context.l10n.selectCustomer
+                        : context.l10n.customers,
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                ),
               ),
               if (widget.repository.canWrite)
-                FilledButton.icon(
-                  onPressed: () async {
-                    final customer = await openPage<Customer>(
-                      context,
-                      CustomerForm(repository: widget.repository),
-                    );
-                    if (!context.mounted) return;
-                    if (widget.pick && customer != null) {
-                      Navigator.pop(context, customer);
-                    } else {
-                      reload();
-                    }
-                  },
-                  icon: Icon(Icons.person_add_alt),
-                  label: Text(context.l10n.newCustomer),
+                Flexible(
+                  child: PillButton(
+                    label: context.l10n.newCustomer,
+                    icon: Icons.person_add_alt,
+                    onPressed: create,
+                  ),
                 ),
             ],
           ),
-          SizedBox(height: 24),
+          const SizedBox(height: Space.grid),
           ListSearchField(
             controller: search,
             label: context.l10n.searchCustomers,
             hint: context.l10n.customerSearchHint,
             onSearch: updateSearch,
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: Space.md),
           Row(
             children: [
               Expanded(
                 child: Text(
-                  loading
+                  loading && data == null
                       ? context.l10n.customersLoading
                       : data == null
                       ? context.l10n.customersFailed
                       : context.l10n.customerCount(data.total),
+                  style: TextStyle(color: context.colors.secondary),
                 ),
               ),
               IconButton(
@@ -108,79 +117,78 @@ class _CustomerListState extends State<CustomerList> {
             ],
           ),
         ],
-        items: (data, reload) => [
-          if (data.items.isEmpty)
-            EmptyNotice(
-              context.l10n.noCustomerFound,
-              query.isEmpty
-                  ? context.l10n.newCustomerHint
-                  : context.l10n.searchCustomersHint,
-              action: query.isEmpty
-                  ? null
-                  : OutlinedButton.icon(
-                      onPressed: () {
-                        search.clear();
-                        updateSearch('');
-                      },
-                      icon: Icon(Icons.search_off),
-                      label: Text(context.l10n.clearSearch),
-                    ),
-            ),
-          for (final customer in data.items)
-            Padding(
-              padding: EdgeInsets.only(bottom: 12),
-              child: Card(
-                child: ListTile(
-                  contentPadding: EdgeInsets.all(16),
-                  leading: ExcludeSemantics(
-                    child: CircleAvatar(
-                      backgroundColor: context.colors.muted,
-                      foregroundColor: context.colors.secondary,
-                      child: Text(
-                        customer.name.trim().isEmpty
-                            ? '—'
-                            : customer.name
-                                  .trim()
-                                  .split(RegExp(r'\s+'))
-                                  .take(2)
-                                  .map((word) => word.characters.first)
-                                  .join()
-                                  .toUpperCase(),
-                        style: Theme.of(context).textTheme.labelMedium,
-                      ),
-                    ),
-                  ),
-                  title: Text(customer.name),
-                  titleTextStyle: Theme.of(context).textTheme.titleMedium,
-                  subtitle: Text(
-                    '${customer.phone}\n${context.l10n.vehicleCount(customer.vehicleCount)}',
-                  ),
-                  trailing: Icon(Icons.chevron_right),
-                  onTap: () async {
-                    if (widget.pick) {
-                      Navigator.pop(context, customer);
-                      return;
-                    }
-                    await openPage(
-                      context,
-                      CustomerScreen(
-                        repository: widget.repository,
-                        customer: customer,
-                      ),
-                    );
-                    if (mounted) reload();
+        empty: (reload) => EmptyNotice(
+          context.l10n.noCustomerFound,
+          query.isEmpty
+              ? context.l10n.newCustomerHint
+              : context.l10n.searchCustomersHint,
+          icon: Icons.person_search_outlined,
+          action: query.isEmpty
+              ? null
+              : PillButton(
+                  label: context.l10n.clearSearch,
+                  icon: Icons.search_off,
+                  kind: PillKind.secondary,
+                  onPressed: () {
+                    search.clear();
+                    updateSearch('');
                   },
                 ),
-              ),
-            ),
-          Pager(
-            page: page,
-            total: data.total,
-            hasNext: data.hasNext,
-            onPage: (p) => setState(() => page = p),
-          ),
-        ],
+        ),
+        item: (customer, reload) => CustomerTile(
+          customer: customer,
+          onTap: () async {
+            if (widget.pick) {
+              Navigator.pop(context, customer);
+              return;
+            }
+            await openPage(
+              context,
+              CustomerScreen(repository: widget.repository, customer: customer),
+            );
+            await reload();
+          },
+        ),
       ),
+    ),
+  );
+}
+
+class CustomerTile extends StatelessWidget {
+  const CustomerTile({super.key, required this.customer, required this.onTap});
+  final Customer customer;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => BentoCard(
+    padding: const EdgeInsets.all(Space.tile),
+    onTap: onTap,
+    child: Row(
+      children: [
+        Initials(customer.name),
+        const SizedBox(width: Space.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(customer.name, style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                formatPhone(customer.phone),
+                style: context.mono(color: context.colors.secondary),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: Space.sm),
+        StatusBadge(
+          '${customer.vehicleCount}',
+          icon: Icons.directions_car_outlined,
+          tone: 'neutral',
+        ),
+        Semantics(
+          label: context.l10n.vehicleCount(customer.vehicleCount),
+          child: const Icon(Icons.chevron_right),
+        ),
+      ],
     ),
   );
 }
@@ -196,7 +204,8 @@ class CustomerPicker extends StatelessWidget {
   );
 }
 
-class CustomerScreen extends StatelessWidget {
+/// Reception customer card.
+class CustomerScreen extends StatefulWidget {
   const CustomerScreen({
     super.key,
     required this.repository,
@@ -205,96 +214,320 @@ class CustomerScreen extends StatelessWidget {
   final GarageRepository repository;
   final Customer customer;
   @override
-  Widget build(BuildContext context) => PageFrame(
-    title: customer.name,
-    demo: repository.isDemo,
-    readOnly: !repository.canWrite,
-    body: LoadView<List<Car>>(
-      loadKey: (repository, customer.id),
-      load: () => repository.cars(customer.id),
-      builder: (cars, reload) => ListView(
-        padding: EdgeInsets.all(Space.page),
-        children: [
-          Panel(
+  State<CustomerScreen> createState() => _CustomerScreenState();
+}
+
+class _CustomerScreenState extends State<CustomerScreen> {
+  int refresh = 0;
+
+  Future<void> openLogin(CustomerFile file) async {
+    final email = await textSheet(
+      context,
+      title: context.l10n.openAppLogin,
+      message: context.l10n.openAppLoginHint,
+      label: context.l10n.email,
+      confirmLabel: context.l10n.openAppLogin,
+      maxLength: 255,
+    );
+    if (email == null || email.isEmpty || !mounted) return;
+    try {
+      final login = await widget.repository.openAppLogin(
+        file.customer.id,
+        email,
+      );
+      if (!mounted) return;
+      setState(() => refresh++);
+      await showModalBottomSheet<void>(
+        context: context,
+        builder: (context) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(Space.page, 0, Space.page, Space.page),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconSquare(Icons.key_outlined, tone: 'success'),
+                ),
+                const SizedBox(height: Space.md),
                 Text(
-                  customer.name,
+                  context.l10n.appLoginReady,
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
-                SizedBox(height: 8),
-                SelectableText(customer.phone),
+                const SizedBox(height: Space.md),
+                Pair(context.l10n.email, login.email, mono: true),
+                Pair(
+                  context.l10n.temporaryPassword,
+                  login.temporaryPassword,
+                  mono: true,
+                ),
+                const SizedBox(height: Space.md),
+                PillButton(
+                  label: context.l10n.copyPassword,
+                  icon: Icons.copy,
+                  expand: true,
+                  onPressed: () => copyText(
+                    context,
+                    login.temporaryPassword,
+                    context.l10n.copied,
+                  ),
+                ),
               ],
             ),
           ),
-          SizedBox(height: 24),
-          Wrap(
-            spacing: 16,
-            runSpacing: 12,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Text(
-                context.l10n.vehicles,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              if (repository.canWrite)
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    await openPage(
-                      context,
-                      CarForm(repository: repository, customer: customer),
-                    );
-                    if (context.mounted) reload();
-                  },
-                  icon: Icon(Icons.add),
-                  label: Text(context.l10n.addVehicle),
+        ),
+      );
+    } catch (e) {
+      if (mounted) toast(context, context.message(failureText(e)));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final repository = widget.repository;
+    return PageFrame(
+      title: widget.customer.name,
+      demo: repository.isDemo,
+      readOnly: !repository.canWrite,
+      body: LoadView<CustomerFile>(
+        loadKey: (repository, widget.customer.id, refresh),
+        load: () => repository.customerFile(widget.customer),
+        builder: (file, reload) {
+          final p = context.colors;
+          final customer = file.customer;
+          return RefreshIndicator(
+            onRefresh: reload,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.all(Space.page),
+              children: [
+                BentoCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Initials(customer.name, size: 56),
+                          const SizedBox(width: Space.md),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  customer.name,
+                                  style: Theme.of(context).textTheme.titleLarge,
+                                ),
+                                SelectableText(
+                                  formatPhone(customer.phone),
+                                  style: context.mono(color: p.secondary),
+                                ),
+                                if (file.email != null)
+                                  Text(
+                                    file.email!,
+                                    style: TextStyle(color: p.secondary),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          if (customer.phone.isNotEmpty)
+                            IconButton.filledTonal(
+                              tooltip: context.l10n.callCustomer,
+                              style: IconButton.styleFrom(
+                                minimumSize: const Size(52, 52),
+                              ),
+                              onPressed: () => callNumber(context, customer.phone),
+                              icon: const Icon(Icons.call_outlined),
+                            ),
+                        ],
+                      ),
+                      if (file.appLogin != null) ...[
+                        const SizedBox(height: Space.md),
+                        file.appLogin!
+                            ? StatusBadge(
+                                context.l10n.appLoginActive,
+                                tone: 'success',
+                                icon: Icons.phone_iphone,
+                              )
+                            : StatusBadge(
+                                context.l10n.appLoginNone,
+                                tone: 'neutral',
+                                icon: Icons.phonelink_off,
+                              ),
+                      ],
+                    ],
+                  ),
                 ),
-            ],
-          ),
-          SizedBox(height: 16),
-          if (cars.isEmpty)
-            EmptyNotice(
-              context.l10n.noVehicles,
-              context.l10n.addVehicleHint,
-              icon: Icons.directions_car_outlined,
-            ),
-          for (final car in cars)
-            Padding(
-              padding: EdgeInsets.only(bottom: 12),
-              child: Panel(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                const SizedBox(height: Space.grid),
+                BentoGrid(
+                  square: false,
                   children: [
-                    Plate(car.plate),
-                    SizedBox(height: 12),
-                    Text(
-                      car.modelLabel,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    Text('${car.year} · ${car.km} km'),
-                    SizedBox(height: 12),
-                    if (repository.canWrite)
-                      FilledButton.icon(
-                        onPressed: () => openPage(
-                          context,
-                          BookingScreen(
-                            repository: repository,
-                            customer: customer,
-                            car: car,
+                    if (file.lifetimeValue != null)
+                      BentoTile(
+                        icon: Icons.savings_outlined,
+                        tone: 'success',
+                        label: context.l10n.lifetimeValue,
+                        valueWidget: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            context.money(file.lifetimeValue!),
+                            style: context.numeral(20),
                           ),
                         ),
-                        icon: Icon(Icons.event_available_outlined),
-                        label: Text(context.l10n.createAppointment),
+                      ),
+                    BentoTile(
+                      icon: Icons.directions_car_outlined,
+                      label: context.l10n.vehicles,
+                      value: '${file.cars.length}',
+                    ),
+                    if (file.jobs != null)
+                      BentoTile(
+                        icon: Icons.build_outlined,
+                        label: context.l10n.pastJobs,
+                        value: '${file.jobs!.length}',
+                      ),
+                    if (file.bills != null)
+                      BentoTile(
+                        icon: Icons.receipt_long_outlined,
+                        label: context.l10n.invoices,
+                        value: '${file.bills!.length}',
                       ),
                   ],
                 ),
-              ),
+                SectionTitle(
+                  context.l10n.vehicles,
+                  trailing: repository.canWrite
+                      ? IconButton.filledTonal(
+                          tooltip: context.l10n.addVehicle,
+                          style: IconButton.styleFrom(
+                            minimumSize: const Size(48, 48),
+                          ),
+                          onPressed: () async {
+                            await openPage(
+                              context,
+                              CarForm(repository: repository, customer: customer),
+                            );
+                            await reload();
+                          },
+                          icon: const Icon(Icons.add),
+                        )
+                      : null,
+                ),
+                if (file.cars.isEmpty)
+                  EmptyNotice(
+                    context.l10n.noVehicles,
+                    context.l10n.addVehicleHint,
+                    icon: Icons.directions_car_outlined,
+                  ),
+                for (final car in file.cars)
+                  Padding(
+                    padding: EdgeInsets.only(bottom: Space.md),
+                    child: BentoCard(
+                      padding: const EdgeInsets.all(Space.tile),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  car.modelLabel,
+                                  style: Theme.of(context).textTheme.titleMedium,
+                                ),
+                              ),
+                              Plate(car.plate),
+                            ],
+                          ),
+                          Text(
+                            '${car.year} · ${context.km(car.km)}',
+                            style: context.mono(size: 13, color: p.secondary),
+                          ),
+                          if (car.vin != null)
+                            Text(
+                              'VIN ${car.vin}',
+                              style: context.mono(size: 12, color: p.secondary),
+                            ),
+                          if (repository.canWrite) ...[
+                            SizedBox(height: Space.md),
+                            PillButton(
+                              label: context.l10n.createAppointment,
+                              icon: Icons.event_available_outlined,
+                              onPressed: () => openPage(
+                                context,
+                                BookingScreen(
+                                  repository: repository,
+                                  customer: customer,
+                                  car: car,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                if (file.jobs != null && file.jobs!.isNotEmpty) ...[
+                  SectionTitle(context.l10n.pastJobs),
+                  BentoCard(
+                    padding: const EdgeInsets.symmetric(vertical: Space.sm),
+                    child: Column(
+                      children: [
+                        for (final job in file.jobs!)
+                          ListTile(
+                            minTileHeight: 64,
+                            title: Text(job.serviceLabel ?? job.car),
+                            subtitle: Text(
+                              '${context.date(job.date)} · ${job.time}',
+                              style: context.mono(size: 12, color: p.secondary),
+                            ),
+                            trailing: WorkStatusChip(job.status),
+                            onTap: () async {
+                              await openPage(
+                                context,
+                                WorkScreen(repository: repository, work: job),
+                              );
+                              await reload();
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+                if (file.bills != null && file.bills!.isNotEmpty) ...[
+                  SectionTitle(context.l10n.invoices),
+                  for (final bill in file.bills!)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: Space.md),
+                      child: BillTile(
+                        bill: bill,
+                        onTap: () async {
+                          await openPage(
+                            context,
+                            BillScreen(repository: repository, bill: bill),
+                          );
+                          await reload();
+                        },
+                      ),
+                    ),
+                ],
+                if (repository.canWrite && file.appLogin != true) ...[
+                  const SizedBox(height: Space.group),
+                  PillButton(
+                    label: context.l10n.openAppLogin,
+                    icon: Icons.key_outlined,
+                    kind: PillKind.secondary,
+                    expand: true,
+                    onPressed: () => openLogin(file),
+                  ),
+                ],
+              ],
             ),
-        ],
+          );
+        },
       ),
-    ),
-  );
+    );
+  }
 }
 
 String? requiredText(String? s) =>
@@ -340,7 +573,9 @@ class _CustomerFormState extends State<CustomerForm> {
         name.text.trim(),
         phone.text.trim(),
       );
-      if (mounted) Navigator.pop(context, customer);
+      if (!mounted) return;
+      toast(context, context.l10n.saved);
+      Navigator.pop(context, customer);
     } catch (e) {
       if (mounted) setState(() => error = failureText(e));
     } finally {
@@ -367,17 +602,25 @@ class _CustomerFormState extends State<CustomerForm> {
             enabled: !busy,
             maxLength: 255,
             autofillHints: [AutofillHints.name],
-            decoration: InputDecoration(labelText: context.l10n.fullName),
+            textCapitalization: TextCapitalization.words,
+            decoration: InputDecoration(
+              labelText: context.l10n.fullName,
+              prefixIcon: const Icon(Icons.person_outline),
+            ),
             validator: (value) => context.validation(requiredText(value)),
             textInputAction: TextInputAction.next,
           ),
-          SizedBox(height: 16),
+          SizedBox(height: Space.md),
           TextFormField(
             controller: phone,
             enabled: !busy,
             keyboardType: TextInputType.phone,
             autofillHints: [AutofillHints.telephoneNumber],
-            decoration: InputDecoration(labelText: context.l10n.phone),
+            style: context.mono(size: 16),
+            decoration: InputDecoration(
+              labelText: context.l10n.phone,
+              prefixIcon: const Icon(Icons.phone_outlined),
+            ),
             validator: (value) => context.validation(phoneError(value)),
           ),
         ],
@@ -385,9 +628,10 @@ class _CustomerFormState extends State<CustomerForm> {
     ),
     footer: Row(
       children: [
-        TextButton(
+        PillButton(
+          label: context.l10n.cancel,
+          kind: PillKind.secondary,
           onPressed: busy ? null : () => Navigator.maybePop(context),
-          child: Text(context.l10n.cancel),
         ),
         SizedBox(width: 8),
         Expanded(
@@ -402,6 +646,15 @@ class _CustomerFormState extends State<CustomerForm> {
   );
 }
 
+/// Plates: digits and Latin letters only, upper case.
+class _PlateFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) => newValue.copyWith(text: newValue.text.toUpperCase());
+}
+
 class CarForm extends StatefulWidget {
   const CarForm({super.key, required this.repository, required this.customer});
   final GarageRepository repository;
@@ -413,6 +666,7 @@ class CarForm extends StatefulWidget {
 class _CarFormState extends State<CarForm> {
   final form = GlobalKey<FormState>();
   final plate = TextEditingController(),
+      vin = TextEditingController(),
       year = TextEditingController(text: '${DateTime.now().year}'),
       km = TextEditingController(text: '0');
   late Future<List<CarModel>> models = widget.repository.catalog();
@@ -421,6 +675,7 @@ class _CarFormState extends State<CarForm> {
   @override
   void dispose() {
     plate.dispose();
+    vin.dispose();
     year.dispose();
     km.dispose();
     super.dispose();
@@ -439,8 +694,11 @@ class _CarFormState extends State<CarForm> {
         'license_plate': plate.text.trim(),
         'year': int.parse(year.text),
         'current_km': int.parse(km.text),
+        if (vin.text.trim().isNotEmpty) 'vin': vin.text.trim().toUpperCase(),
       });
-      if (mounted) Navigator.pop(context, car);
+      if (!mounted) return;
+      toast(context, context.l10n.saved);
+      Navigator.pop(context, car);
     } catch (e) {
       if (mounted) setState(() => error = failureText(e));
     } finally {
@@ -459,7 +717,7 @@ class _CarFormState extends State<CarForm> {
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return ListView(
-            padding: EdgeInsets.all(20),
+            padding: EdgeInsets.all(Space.page),
             children: [
               ErrorNotice(
                 failureText(snapshot.error!),
@@ -471,12 +729,13 @@ class _CarFormState extends State<CarForm> {
           );
         }
         if (!snapshot.hasData) {
-          return Center(child: CircularProgressIndicator());
+          return const SkeletonPage(layout: SkeletonLayout.detail);
         }
         if (snapshot.data!.isEmpty) {
           return EmptyNotice(
             context.l10n.noVehicleModels,
             context.l10n.modelsHint,
+            icon: Icons.directions_car_outlined,
           );
         }
         return Form(
@@ -486,19 +745,32 @@ class _CarFormState extends State<CarForm> {
           child: ListView(
             padding: EdgeInsets.all(Space.page),
             children: [
-              Text(
-                widget.customer.name,
-                style: Theme.of(context).textTheme.titleMedium,
+              BentoCard(
+                padding: const EdgeInsets.all(Space.tile),
+                child: Row(
+                  children: [
+                    Initials(widget.customer.name, size: 40),
+                    const SizedBox(width: Space.md),
+                    Expanded(
+                      child: Text(
+                        widget.customer.name,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              SizedBox(height: 24),
+              SizedBox(height: Space.group),
               if (error != null) ErrorNotice(error!),
               DropdownButtonFormField<String>(
                 isExpanded: true,
                 initialValue: modelId,
                 decoration: InputDecoration(
                   labelText: context.l10n.makeAndModel,
+                  prefixIcon: const Icon(Icons.directions_car_outlined),
                 ),
                 menuMaxHeight: 360,
+                borderRadius: BorderRadius.circular(Radii.tile),
                 items: snapshot.data!
                     .map(
                       (m) =>
@@ -508,15 +780,18 @@ class _CarFormState extends State<CarForm> {
                 onChanged: busy ? null : (v) => setState(() => modelId = v),
                 validator: (value) => context.validation(requiredText(value)),
               ),
-              SizedBox(height: 16),
+              SizedBox(height: Space.md),
               TextFormField(
                 controller: plate,
                 enabled: !busy,
                 textCapitalization: TextCapitalization.characters,
+                inputFormatters: [_PlateFormatter()],
                 maxLength: 20,
+                style: context.mono(size: 18),
                 decoration: InputDecoration(
                   labelText: context.l10n.licensePlate,
-                  hintText: '01 A 123 BC',
+                  hintText: '01 A 777 AA',
+                  prefixIcon: const Icon(Icons.pin_outlined),
                 ),
                 validator: (v) =>
                     RegExp(r'^[A-Za-z0-9]{2,20}$')
@@ -524,36 +799,70 @@ class _CarFormState extends State<CarForm> {
                     ? null
                     : context.l10n.plateError,
               ),
-              SizedBox(height: 16),
+              SizedBox(height: Space.md),
               TextFormField(
-                controller: year,
+                controller: vin,
                 enabled: !busy,
-                keyboardType: TextInputType.number,
+                textCapitalization: TextCapitalization.characters,
+                inputFormatters: [_PlateFormatter()],
+                maxLength: 17,
+                style: context.mono(),
                 decoration: InputDecoration(
-                  labelText: context.l10n.manufactureYear,
+                  labelText: context.l10n.vinOptional,
+                  prefixIcon: const Icon(Icons.qr_code_2),
                 ),
                 validator: (v) {
-                  final y = int.tryParse(v ?? '');
-                  return y != null && y >= 1900 && y <= DateTime.now().year + 1
+                  final text = v?.trim() ?? '';
+                  return text.isEmpty ||
+                          RegExp(r'^[A-HJ-NPR-Z0-9]{11,17}$', caseSensitive: false)
+                              .hasMatch(text)
                       ? null
-                      : context.l10n.yearError;
+                      : context.l10n.vinError;
                 },
               ),
-              SizedBox(height: 16),
-              TextFormField(
-                controller: km,
-                enabled: !busy,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: context.l10n.odometer,
-                  suffixText: 'km',
-                ),
-                validator: (v) {
-                  final n = int.tryParse(v ?? '');
-                  return n != null && n >= 0 && n <= 2147483647
-                      ? null
-                      : context.l10n.odometerError;
-                },
+              SizedBox(height: Space.md),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: year,
+                      enabled: !busy,
+                      keyboardType: TextInputType.number,
+                      style: context.mono(size: 16),
+                      decoration: InputDecoration(
+                        labelText: context.l10n.manufactureYear,
+                      ),
+                      validator: (v) {
+                        final y = int.tryParse(v ?? '');
+                        return y != null &&
+                                y >= 1900 &&
+                                y <= DateTime.now().year + 1
+                            ? null
+                            : context.l10n.yearError;
+                      },
+                    ),
+                  ),
+                  SizedBox(width: Space.md),
+                  Expanded(
+                    child: TextFormField(
+                      controller: km,
+                      enabled: !busy,
+                      keyboardType: TextInputType.number,
+                      style: context.mono(size: 16),
+                      decoration: InputDecoration(
+                        labelText: context.l10n.odometer,
+                        suffixText: 'km',
+                      ),
+                      validator: (v) {
+                        final n = int.tryParse(v ?? '');
+                        return n != null && n >= 0 && n <= 2147483647
+                            ? null
+                            : context.l10n.odometerError;
+                      },
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -564,9 +873,10 @@ class _CarFormState extends State<CarForm> {
       future: models,
       builder: (context, snapshot) => Row(
         children: [
-          TextButton(
+          PillButton(
+            label: context.l10n.cancel,
+            kind: PillKind.secondary,
             onPressed: busy ? null : () => Navigator.maybePop(context),
-            child: Text(context.l10n.cancel),
           ),
           SizedBox(width: 8),
           Expanded(

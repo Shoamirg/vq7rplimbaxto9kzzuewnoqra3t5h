@@ -7,13 +7,30 @@ import 'package:http/http.dart' as http;
 import '../domain/models.dart';
 
 class AppFailure implements Exception {
-  const AppFailure(this.message, {this.status = 0, this.uncertain = false});
+  const AppFailure(
+    this.message, {
+    this.status = 0,
+    this.uncertain = false,
+    this.offline = false,
+    this.unavailable = false,
+  });
+
+  /// A screen whose data source is not connected to the API yet.
+  const AppFailure.unavailable()
+    : this('Bu boʻlim hozircha servis orqali ishlaydi.', unavailable: true);
   final String message;
   final int status;
   final bool uncertain;
+
+  /// The request never reached the server; cached data stays readable.
+  final bool offline;
+  final bool unavailable;
   @override
   String toString() => message;
 }
+
+bool isOffline(Object error) => error is AppFailure && error.offline;
+bool isUnavailable(Object error) => error is AppFailure && error.unavailable;
 
 String failureText(Object error) => error is AppFailure
     ? error.message
@@ -216,11 +233,13 @@ class ApiClient {
       throw AppFailure(
         'Javob kelmadi. Ulanishni tekshirib qayta urinib koʻring.',
         uncertain: method != 'GET',
+        offline: true,
       );
     } on http.ClientException {
       throw AppFailure(
         'Serverga ulanib boʻlmadi. Internet va API manzilini tekshiring.',
         uncertain: method != 'GET',
+        offline: true,
       );
     }
   }

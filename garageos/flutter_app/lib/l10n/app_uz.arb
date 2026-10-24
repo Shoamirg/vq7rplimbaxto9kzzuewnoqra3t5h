@@ -308,5 +308,326 @@
   "customerIssued": "Hisob chiqarilgan",
   "customerPayment": "To‘lov",
   "customerRefund": "Qaytarish",
-  "customerDeposit": "Avans"
+  "customerDeposit": "Avans",
+  "allPaid": "Hammasi toʻlangan",
+  "allow": "Ruxsat berish",
+  "appLoginActive": "Ilovaga kira oladi",
+  "appLoginNone": "Ilovaga kirish yoʻq",
+  "appLoginReady": "Kirish ochildi",
+  "appVersion": "Versiya {version}",
+  "@appVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "approve": "Tasdiqlash",
+  "approved": "Tasdiqlandi",
+  "approximateLocation": "Taxminiy joylashuv · servis aniqlashtiradi",
+  "areaBrakes": "Tormozlar",
+  "areaEngine": "Dvigatel va suyuqliklar",
+  "areaGeneral": "Umumiy holat",
+  "areaTires": "Shina va gʻildiraklar",
+  "areaTransmission": "Transmissiya",
+  "askQuestion": "Savol berish",
+  "attachPhoto": "Rasm biriktirish",
+  "awaitingInvoiceShort": "Hisob kutilmoqda",
+  "billing": "Toʻlovlar",
+  "call": "Qoʻngʻiroq qilish",
+  "callCustomer": "Mijozga qoʻngʻiroq",
+  "callGarage": "Servisga qoʻngʻiroq",
+  "camera": "Kamera",
+  "carHealth": "Mashina holati",
+  "cars": "Mashinalar",
+  "changePassword": "Parolni almashtirish",
+  "chooseGarage": "Servisingizni tanlang",
+  "chooseGarageHint": "Bu raqam hali servisga bogʻlanmagan.",
+  "codeSentTo": "6 xonali kod yuborildi: {target}",
+  "@codeSentTo": {
+    "placeholders": {
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "completionNoteHint": "Ixtiyoriy: nima qilinganini qisqa yozing.",
+  "confirm": "Tasdiqlash",
+  "continueLabel": "Davom etish",
+  "copied": "Nusxalandi",
+  "copyPassword": "Parolni nusxalash",
+  "createAccount": "Hisob ochish",
+  "currentPassword": "Joriy parol",
+  "currentStep": "joriy bosqich",
+  "customerSignInHint": "Narx, holat va keyingi qadam doim koʻz oldingizda.",
+  "decline": "Rad etish",
+  "declineEstimateHint": "Servis ishni boshlamaydi. Keyin savol berib, yangi smeta soʻrashingiz mumkin.",
+  "declineEstimateTitle": "Smetani rad etasizmi?",
+  "declined": "Rad etildi",
+  "deleteAccount": "Hisobni oʻchirish",
+  "deleteAccountHint": "Ilovaga kirish yopiladi. Hisob-fakturalar va servis tarixi servisda saqlanib qoladi.",
+  "deleteAccountTitle": "Hisobni oʻchirasizmi?",
+  "demoMode": "Demo rejim",
+  "demoModeHint": "Namuna maʼlumotlar bilan sinab koʻring",
+  "demoSignInHint": "Demo: istalgan email va parol bilan kiring",
+  "done": "Tayyor",
+  "drafts": "Qoralamalar",
+  "dueAtKm": "Muddati: {km}",
+  "@dueAtKm": {
+    "placeholders": {
+      "km": {
+        "type": "String"
+      }
+    }
+  },
+  "dueBy": "Muddati: {date}",
+  "@dueBy": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "dueServices": "Navbatdagi xizmatlar",
+  "dueSoon": "Yaqinda",
+  "emailOrPhone": "Email yoki telefon",
+  "enterAsCustomer": "Mijoz sifatida kirish",
+  "enterAsStaff": "Xodim sifatida kirish",
+  "enterCode": "Kodni kiriting",
+  "estimate": "Smeta",
+  "estimateApproved": "Smeta tasdiqlandi",
+  "estimateDeclined": "Smeta rad etildi",
+  "estimatesToApprove": "Tasdiqingiz kerak",
+  "etaMinutes": "Taxminan {count} daqiqada yetib keladi",
+  "@etaMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "forgotPassword": "Parolni unutdingizmi?",
+  "gallery": "Galereya",
+  "garageNotes": "Servis izohi",
+  "healthByArea": "Tizimlar boʻyicha",
+  "healthSemantics": "Holat: 100 dan {score}",
+  "@healthSemantics": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  },
+  "helloName": "Salom, {name}",
+  "@helloName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "home": "Bosh sahifa",
+  "inbox": "Xabarlar",
+  "invoiceEditor": "Hisob tuzish",
+  "invoiceSent": "Hisob mijozga yuborildi",
+  "invoicesOpen": "{count} ta ochiq hisob",
+  "@invoicesOpen": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "issued": "Berilgan sana",
+  "issuedOn": "Berilgan: {date}",
+  "@issuedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "jobs": "Ishlar",
+  "lifetimeValue": "Umumiy toʻlov",
+  "lineCount": "{count} ta qator",
+  "@lineCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "linkCopied": "Havola nusxalandi",
+  "loadMore": "Yana koʻrsatish",
+  "mapSemantics": "Xaritadagi joylashuv: {address}",
+  "@mapSemantics": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "mechanicAccountMissing": "Usta akkaunti topilmadi.",
+  "message": "Yozish",
+  "messageGarage": "Servisga yozish",
+  "messages": "Xabarlar",
+  "myGarage": "Mening servisim",
+  "needsApproval": "Tasdiqingiz kerak",
+  "newCount": "{count} ta yangi",
+  "@newCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "newPassword": "Yangi parol",
+  "nextServiceLabel": "Navbatdagi: {service}",
+  "@nextServiceLabel": {
+    "placeholders": {
+      "service": {
+        "type": "String"
+      }
+    }
+  },
+  "nextVisit": "Keyingi tashrif",
+  "noAccount": "Hisobingiz yoʻqmi?",
+  "noCarsHint": "Mashinani servis qoʻshadi. Ularga yozing.",
+  "noCarsYet": "Hali mashina yoʻq",
+  "noMessagesYet": "Hali xabar yoʻq",
+  "noPastVisits": "Oldingi tashriflar yoʻq",
+  "noSlots": "Bu kunga boʻsh vaqt yoʻq",
+  "noUpcomingVisit": "Rejalashtirilgan tashrif yoʻq",
+  "noVisitsYet": "Hali tashrif yoʻq",
+  "notNow": "Hozir emas",
+  "notifications": "Bildirishnomalar",
+  "notificationsAsk": "Hali tanlanmagan",
+  "notificationsDetail": "Navbat tasdiqlansa, smeta kelsa yoki mashina tayyor boʻlsa, darhol bilasiz.",
+  "notificationsOff": "Oʻchirilgan",
+  "notificationsOn": "Bildirishnomalar yoqildi",
+  "notificationsTitle": "Mashinangiz tayyor boʻlganda xabar beraylikmi?",
+  "offlineBanner": "Internet yoʻq · saqlangan maʼlumot koʻrsatilmoqda",
+  "onTrack": "Joyida",
+  "ongoingShort": "Jarayonda",
+  "openAppLogin": "Ilovaga kirish ochish",
+  "openAppLoginHint": "Mijoz shu email va vaqtinchalik parol bilan kiradi.",
+  "openEstimate": "Smetani ochish",
+  "openMechanicDemo": "Usta demosini ochish",
+  "overallHealth": "Umumiy holat",
+  "passportQr": "Servis pasporti QR kodi",
+  "passwordRule": "Kamida 10 ta belgi",
+  "passwordUpdated": "Parol yangilandi",
+  "past": "Oʻtgan",
+  "pastJobs": "Oldingi ishlar",
+  "phoneCopied": "Raqam nusxalandi",
+  "photo": "Rasm",
+  "photoLimit": "Bir xabarda 5 tagacha rasm yuborish mumkin.",
+  "photoNumber": "Rasm {number}",
+  "@photoNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "pickDate": "Sanani tanlash",
+  "pickTimeError": "Vaqtni tanlang.",
+  "problemAccident": "Avariya",
+  "problemFlatTyre": "Shina teshildi",
+  "problemLabel": "Muammo yoki kerakli xizmat",
+  "problemOther": "Boshqa muammo",
+  "problemWontStart": "Oʻt olmayapti",
+  "profile": "Profil",
+  "receipts": "Toʻlov kvitansiyalari",
+  "refreshStatus": "Holatni yangilash",
+  "removePhoto": "Rasmni olib tashlash",
+  "requestHelp": "Yordam soʻrash",
+  "requestedAt": "Soʻrov vaqti: {time}",
+  "@requestedAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "resendCode": "Kodni qayta yuborish",
+  "resendIn": "Qayta yuborish: {time}",
+  "@resendIn": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "resetByGarage": "Parolni servisingiz tiklab beradi. Ularga qoʻngʻiroq qiling.",
+  "resetHint": "Email yoki telefonga tasdiqlash kodi yuboramiz.",
+  "resetPassword": "Parolni tiklash",
+  "roadsideHelp": "Yoʻlda yordam",
+  "roadsideHint": "Mashina va muammoni tanlang. Servis joylashuvingizni koʻradi va usta yuboradi.",
+  "roadsideTitle": "Favqulodda yordam",
+  "saveDraft": "Qoralama sifatida saqlash",
+  "saved": "Saqlandi",
+  "selected": "Tanlangan",
+  "send": "Yuborish",
+  "sendCode": "Kod yuborish",
+  "sendToCustomer": "Mijozga yuborish",
+  "serviceLog": "Servis jurnali",
+  "servicePassport": "Servis pasporti",
+  "settings": "Sozlamalar",
+  "shareLink": "Havolani ulashish",
+  "shareLocation": "Joylashuvni ulashish",
+  "sharePassport": "Servis pasportini ulashish",
+  "sharePdfLink": "PDF havolasini ulashish",
+  "signUpByGarage": "Ilovaga kirishni servisingiz ochib beradi. Ularga qoʻngʻiroq qiling.",
+  "signUpPasswordTitle": "Parol oʻylab toping",
+  "signUpPhoneHint": "Shu raqamga SMS kod yuboramiz.",
+  "signUpPhoneTitle": "Telefon va email",
+  "smsCode": "SMS kod",
+  "stageAcknowledged": "Servis qabul qildi",
+  "stageAssigned": "Usta tayinlandi",
+  "stageInProgress": "Ish bajarilmoqda",
+  "stageNew": "Soʻrov yuborildi",
+  "stageOnTheWay": "Usta yoʻlda",
+  "stageResolved": "Hal qilindi",
+  "statusTimeline": "Holat tarixi",
+  "stepOf": "{step}-qadam · {total} tadan",
+  "@stepOf": {
+    "placeholders": {
+      "step": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "temporaryPassword": "Vaqtinchalik parol",
+  "theme": "Koʻrinish",
+  "themeDark": "Toʻq",
+  "themeLight": "Yorugʻ",
+  "themeSystem": "Tizim",
+  "totalOwed": "Jami qarzingiz",
+  "typeMessage": "Xabar yozing",
+  "unavailableDetail": "Bu boʻlim hozircha servis orqali ishlaydi.",
+  "unavailableTitle": "Tez orada",
+  "unreadCount": "{count} ta oʻqilmagan",
+  "@unreadCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcoming": "Kelgusi",
+  "verified": "Tasdiqlangan",
+  "vinError": "VIN 11–17 ta lotin harf va raqamdan iborat.",
+  "vinOptional": "VIN (ixtiyoriy)",
+  "visitHistory": "Tashriflar tarixi",
+  "waitForReception": "Qabulxona tasdiqlashini kuting",
+  "welcomePromise": "Mashinangiz servisi — bir qarashda.",
+  "whatHappened": "Nima boʻldi?",
+  "whichCar": "Qaysi mashina?",
+  "wrongCode": "Kod notoʻgʻri. Qayta tekshiring.",
+  "yourLocation": "Joylashuvingiz",
+  "yourQuestion": "Savolingiz"
 }

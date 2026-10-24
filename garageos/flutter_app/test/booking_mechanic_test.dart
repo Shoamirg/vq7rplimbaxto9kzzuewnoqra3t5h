@@ -60,6 +60,8 @@ void main() {
           200,
           scrollable: find.byType(Scrollable).first,
         );
+        await tester.ensureVisible(find.text(strings.assignMechanic));
+        await tester.pumpAndSettle();
         await tester.tap(find.text(strings.assignMechanic));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 350));
@@ -100,6 +102,8 @@ void main() {
         200,
         scrollable: find.byType(Scrollable).first,
       );
+      await tester.ensureVisible(find.text(strings.assignMechanic));
+      await tester.pumpAndSettle();
       await tester.tap(find.text(strings.assignMechanic));
       await tester.pump();
       repo.roster.completeError(const AppFailure('Roster unavailable'));
@@ -133,6 +137,8 @@ void main() {
       200,
       scrollable: find.byType(Scrollable).first,
     );
+    await tester.ensureVisible(find.text(strings.assignMechanic));
+    await tester.pumpAndSettle();
     await tester.tap(find.text(strings.assignMechanic), warnIfMissed: false);
     await tester.pumpAndSettle();
     expect(find.byType(LinearProgressIndicator), findsNothing);

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../domain/models.dart';
+import '../domain/portal.dart';
 import 'api_client.dart';
 import 'pending_idempotency.dart';
 import 'payment_store.dart';
@@ -52,11 +53,45 @@ abstract class GarageRepository {
   Future<List<Car>> cars(String customerId);
   Future<List<CarModel>> catalog();
   Future<Car> createCar(Json data);
-  Future<PageData<Bill>> bills({String query = '', int page = 1});
+  Future<PageData<Bill>> bills({
+    String query = '',
+    int page = 1,
+    BillView view = BillView.all,
+  });
   Future<Bill> bill(String id);
   Future<Bill?> billForWork(String id);
-  Future<Bill> createBill(Work work, List<BillLine> lines, double taxRate);
+
+  /// [send] issues the invoice to the customer; otherwise it stays a draft
+  /// where the source supports drafts.
+  Future<Bill> createBill(
+    Work work,
+    List<BillLine> lines,
+    double taxRate, {
+    bool send = true,
+  });
+  Future<Bill> sendBill(String id) async =>
+      throw const AppFailure.unavailable();
   Future<Bill> pay(String id, Money amount, String method, String key);
+
+  /// Reception customer card. Sources fill what they can; null sections
+  /// are hidden rather than invented. [full] false skips history (job
+  /// detail only needs contact and cars).
+  Future<CustomerFile> customerFile(
+    Customer customer, {
+    bool full = true,
+  }) async => CustomerFile(customer: customer, cars: await cars(customer.id));
+  Future<AppLogin> openAppLogin(String customerId, String email) async =>
+      throw const AppFailure.unavailable();
+
+  // Reception inbox.
+  Future<List<Thread>> threads() async => throw const AppFailure.unavailable();
+  Future<List<ChatMessage>> messages(String threadId) async =>
+      throw const AppFailure.unavailable();
+  Future<ChatMessage> sendMessage(
+    String threadId,
+    String text, {
+    List<String> photos = const [],
+  }) async => throw const AppFailure.unavailable();
   Future<LogoutOutcome> logout() async => LogoutOutcome.none;
   void close() {}
 }
@@ -195,24 +230,76 @@ class LiveRepository extends GarageRepository {
     data['customer_id'],
   );
   @override
-  Future<PageData<Bill>> bills({String query = '', int page = 1}) async {
-    final data = await api.request(
+  Future<CustomerFile> customerFile(
+    Customer customer, {
+    bool full = true,
+  }) async {
+    final detail = await api.request('GET', '/customers/${customer.id}');
+    final cars = (detail['vehicles'] as List? ?? [])
+        .map((j) => Car.fromJson(j, customer.id))
+        .toList();
+    final contact = Customer(
+      customer.id,
+      detail['full_name'] ?? customer.name,
+      detail['phone'] ?? customer.phone,
+      vehicleCount: cars.length,
+    );
+    if (!full) {
+      return CustomerFile(customer: contact, cars: cars, email: detail['email']);
+    }
+    final invoices = await api.request(
       'GET',
       '/invoices',
       query: {
         'view': 'invoices',
+        'customer_id': customer.id,
+        'page': '1',
+        'page_size': '30',
+      },
+    );
+    final bills = (invoices['items'] as List)
+        .map((j) => Bill.fromJson(j))
+        .toList();
+    return CustomerFile(
+      customer: contact,
+      cars: cars,
+      email: detail['email'],
+      bills: bills,
+      lifetimeValue: Money(bills.fold(0, (sum, b) => sum + b.paid.cents)),
+    );
+  }
+
+  @override
+  Future<PageData<Bill>> bills({
+    String query = '',
+    int page = 1,
+    BillView view = BillView.all,
+  }) async {
+    final data = await api.request(
+      'GET',
+      '/invoices',
+      query: {
+        'view': switch (view) {
+          BillView.drafts => 'drafts',
+          BillView.unpaid => 'awaiting',
+          BillView.paid => 'payments',
+          BillView.all => 'invoices',
+        },
         'q': query,
         'page': '$page',
         'page_size': '30',
       },
     );
-    return PageData(
-      (data['items'] as List).map((j) => Bill.fromJson(j)).toList(),
-      data['total'],
-      data['page'],
-      size: data['page_size'],
-    );
+    var items = (data['items'] as List).map((j) => Bill.fromJson(j)).toList();
+    // The API's payments view includes part-paid invoices.
+    if (view == BillView.paid) items = items.where((b) => b.status == 'paid').toList();
+    return PageData(items, data['total'], data['page'], size: data['page_size']);
   }
+
+  /// Sharing an issued invoice leaves its balance and status unchanged.
+  @override
+  Future<Bill> sendBill(String id) async =>
+      Bill.fromJson(await api.request('POST', '/invoices/$id/send'));
 
   @override
   Future<Bill> bill(String id) async =>
@@ -231,25 +318,37 @@ class LiveRepository extends GarageRepository {
     }
   }
 
+  /// The API issues invoices on creation; [send] also notifies the customer.
   @override
   Future<Bill> createBill(
     Work work,
     List<BillLine> lines,
-    double taxRate,
-  ) async => Bill.fromJson(
-    await api.request(
-      'POST',
-      '/invoices',
-      body: {
-        'kind': 'invoice',
-        'customer_id': work.customerId,
-        'vehicle_id': work.vehicleId,
-        'appointment_id': work.id,
-        'tax_rate': taxRate,
-        'line_items': lines.map((l) => l.toJson()).toList(),
-      },
-    ),
-  );
+    double taxRate, {
+    bool send = true,
+  }) async {
+    final created = Bill.fromJson(
+      await api.request(
+        'POST',
+        '/invoices',
+        body: {
+          'kind': 'invoice',
+          'customer_id': work.customerId,
+          'vehicle_id': work.vehicleId,
+          'appointment_id': work.id,
+          'tax_rate': taxRate,
+          'line_items': lines.map((l) => l.toJson()).toList(),
+        },
+      ),
+    );
+    if (!send) return created;
+    try {
+      return await sendBill(created.id);
+    } catch (_) {
+      // The invoice exists; reporting a failure here would invite a
+      // duplicate. Sharing can be retried from the invoice screen.
+      return created;
+    }
+  }
   @override
   Future<Bill> pay(String id, Money amount, String method, String key) async {
     await payments.write(id, PendingPayment(amount, method, key));

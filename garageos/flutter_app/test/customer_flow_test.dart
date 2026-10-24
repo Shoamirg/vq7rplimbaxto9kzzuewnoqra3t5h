@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:garageos_staff/l10n/generated/app_localizations.dart';
 
+import 'support/dock.dart';
 import 'support/fonts.dart';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -162,17 +163,37 @@ void main() {
               }
 
               await settle();
+              expect(find.text(strings.helloName('Ali')), findsOneWidget);
+              await capture('home');
+              await tester.tap(dockTab(strings.cars));
+              await settle();
               expect(find.text('Cobalt'), findsOneWidget);
               await capture('vehicles');
               expect(find.text('Yangi navbat'), findsNothing);
+              await tester.tap(dockTab(strings.home));
+              await settle();
               await tester.tap(find.text(strings.myAppointments));
               await settle();
-              expect(find.text('2026-10-06 10:00'), findsOneWidget);
-              await tester.tap(find.text(strings.myInvoices));
+              await tapSegment(tester, strings.past);
+              await settle();
+              expect(find.text('10:00'), findsOneWidget);
+              expect(find.text(strings.workDone), findsOneWidget);
+              await tester.tap(find.byType(BackButton));
+              await settle();
+              await tester.tap(dockTab(strings.billing));
               await settle();
               await tester.tap(find.text('INV-1'));
               await settle();
               expect(find.text('Moy almashtirish'), findsOneWidget);
+              await tester.scrollUntilVisible(
+                find.textContaining(strings.customerDeposit),
+                200,
+                scrollable: find
+                    .byWidgetPredicate(
+                      (w) => w is Scrollable && w.axisDirection == AxisDirection.down,
+                    )
+                    .last,
+              );
               expect(
                 find.textContaining(strings.customerDeposit),
                 findsOneWidget,
