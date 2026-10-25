@@ -221,7 +221,7 @@ class InvoiceService:
         """Edit an estimate or UNPAID invoice — replace line items, update
         vehicle/tax/notes, and recompute totals. A document with recorded payments
         is refused (protects the ledger). For issued invoices the ledger debit is
-        kept in sync with the new total, so reports/reconciliation stay correct.
+        adjusted with an append-only correction, preserving the original posting.
         """
         inv = await self._get(invoice_id, for_update=True)
         if inv.status == InvoiceStatus.VOID:
@@ -234,6 +234,8 @@ class InvoiceService:
             )
         if _money(inv.amount_paid) > 0 or await self._has_payment_history(inv.id):
             raise InvoiceHasPayments()
+
+        previous_total = _money(inv.total)
 
         if vehicle_id is not None:
             await self._validate_vehicle_owner(vehicle_id, inv.customer_id)
@@ -265,14 +267,12 @@ class InvoiceService:
         self._recalc(inv, items)
         await self.session.flush()
 
-        # Keep the issued-invoice ledger debit equal to the new total.
-        if inv.kind == InvoiceKind.INVOICE:
-            led = (await self.session.execute(
-                select(LedgerEntry).where(
-                    LedgerEntry.invoice_id == inv.id,
-                    LedgerEntry.entry_type == "invoice_issued"))).scalar_one_or_none()
-            if led is not None:
-                led.amount = Decimal(str(_f(inv.total)))
+        # Posted entries remain immutable. Repeated identical edits add nothing.
+        if inv.kind == InvoiceKind.INVOICE and inv.status != InvoiceStatus.DRAFT:
+            delta = _money(inv.total) - previous_total
+            if delta:
+                self._ledger(inv, 'invoice_adjustment', 'debit' if delta > 0 else 'credit',
+                    abs(delta), f'Invoice corrected · {inv.code}')
                 await self.session.flush()
 
         return await self.get_document(inv.id)
@@ -318,6 +318,7 @@ class InvoiceService:
         due_date: date | None = None, notes: str | None = None,
         source_estimate_id: uuid.UUID | None = None,
         currency: str = "UZS",
+        draft: bool = False,
     ) -> dict:
         customer = await self.session.scalar(select(Customer.id).where(
             Customer.id == customer_id, Customer.service_center_id == self.sc,
@@ -368,14 +369,15 @@ class InvoiceService:
         code = await self._next_code(kind)
         inv = Invoice(
             service_center_id=self.sc, code=code, kind=kind,
-            status=InvoiceStatus.DRAFT if kind == InvoiceKind.ESTIMATE else InvoiceStatus.ISSUED,
+            created_by_user_id=self.uow.actor_user_id,
+            status=InvoiceStatus.DRAFT if kind == InvoiceKind.ESTIMATE or draft else InvoiceStatus.ISSUED,
             customer_id=customer_id, vehicle_id=vehicle_id, appointment_id=appointment_id,
             case_id=case_id, source_estimate_id=source_estimate_id,
             currency=currency,
             tax_rate=_money(tax_rate) if tax_rate is not None else _DEFAULT_TAX,
             due_date=due_date, notes=notes,
         )
-        if kind == InvoiceKind.INVOICE:
+        if kind == InvoiceKind.INVOICE and not draft:
             inv.issued_at = datetime.now(timezone.utc)
             if not inv.due_date:
                 inv.due_date = date.today() + timedelta(days=7)
@@ -392,7 +394,7 @@ class InvoiceService:
             self.uow.add_event(EstimateCreated(
                 service_center_id=self.sc, invoice_id=inv.id, code=code,
                 customer_id=customer_id, vehicle_id=vehicle_id, total=_f(inv.total)))
-        else:
+        elif not draft:
             self.uow.add_event(InvoiceIssued(
                 service_center_id=self.sc, invoice_id=inv.id, code=code,
                 customer_id=customer_id, vehicle_id=vehicle_id, total=_f(inv.total)))
@@ -430,6 +432,13 @@ class InvoiceService:
     # ── estimate lifecycle ────────────────────────────────────
     async def send(self, invoice_id: uuid.UUID) -> dict:
         inv = await self._get(invoice_id, for_update=True)
+        if not inv.is_estimate() and inv.status == InvoiceStatus.DRAFT:
+            inv.status = InvoiceStatus.ISSUED
+            inv.issued_at = datetime.now(timezone.utc)
+            self._ledger(inv, 'invoice_issued', 'debit', _f(inv.total), f'Invoice issued · {inv.code}')
+            self.uow.add_event(InvoiceIssued(service_center_id=self.sc, invoice_id=inv.id,
+                code=inv.code, customer_id=inv.customer_id, vehicle_id=inv.vehicle_id, total=_f(inv.total)))
+            await self.uow.flush()
         # Sending/sharing an invoice does not change whether money is owed.
         # SENT belongs to the estimate lifecycle only.
         if inv.is_estimate() and inv.status in {
@@ -551,7 +560,7 @@ class InvoiceService:
                         or existing.source != source or existing.reference != reference or existing.note != note):
                     raise PaymentRequestMismatch()
                 return await self.get_document(inv.id)
-        if inv.is_estimate():
+        if inv.is_estimate() or inv.status == InvoiceStatus.DRAFT:
             raise InvoiceFinancialStateError()
         if inv.status == InvoiceStatus.VOID:
             raise InvoiceFinancialStateError()
@@ -566,6 +575,7 @@ class InvoiceService:
         pay = Payment(
             service_center_id=self.sc, invoice_id=inv.id, kind=kind, method=method,
             source=source, amount=amt, reference=reference, note=note,
+            created_by_user_id=self.uow.actor_user_id,
             idempotency_key=idempotency_key,
             received_at=datetime.now(timezone.utc))
         self.session.add(pay)
@@ -601,6 +611,8 @@ class InvoiceService:
     # ── queue / list ──────────────────────────────────────────
     def _view_where(self, stmt, view: str):
         today = date.today()
+        if view == 'paid':
+            return stmt.where(Invoice.kind == InvoiceKind.INVOICE, Invoice.status == InvoiceStatus.PAID)
         if view == "invoices":
             return stmt.where(Invoice.kind == InvoiceKind.INVOICE)
         if view == "estimates":
@@ -751,6 +763,24 @@ class InvoiceService:
             for p in pays]
         data["timeline"] = await self._timeline(inv.id)
         return data
+
+    # Fields a holder of the unauthenticated share link may see. Everything else
+    # (customer contact details, staff notes, internal ids, payment references,
+    # the staff notification timeline) stays behind staff/customer auth.
+    _PUBLIC_FIELDS = (
+        "id", "code", "kind", "status", "currency", "tax_rate", "subtotal",
+        "discount_total", "tax_total", "total", "amount_paid", "balance",
+        "issued_at", "due_date", "approved_at", "paid_at", "created_at",
+        "is_overdue", "customer_name", "vehicle_label", "issuer", "line_items",
+    )
+    _PUBLIC_PAYMENT_FIELDS = ("kind", "method", "amount", "received_at")
+
+    async def get_public_document(self, invoice_id: uuid.UUID) -> dict:
+        data = await self.get_document(invoice_id)
+        public = {key: data[key] for key in self._PUBLIC_FIELDS if key in data}
+        public["payments"] = [{key: p[key] for key in self._PUBLIC_PAYMENT_FIELDS}
+                              for p in data["payments"]]
+        return public
 
     async def get_for_appointment(self, appointment_id: uuid.UUID) -> dict:
         appointment = (await self.session.execute(

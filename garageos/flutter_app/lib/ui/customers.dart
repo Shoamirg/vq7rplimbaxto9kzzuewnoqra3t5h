@@ -511,7 +511,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
                       ),
                     ),
                 ],
-                if (repository.canWrite && file.appLogin != true) ...[
+                if (repository.canManageAccounts && file.appLogin == false) ...[
                   const SizedBox(height: Space.group),
                   PillButton(
                     label: context.l10n.openAppLogin,

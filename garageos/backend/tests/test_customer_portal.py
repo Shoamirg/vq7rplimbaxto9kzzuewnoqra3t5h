@@ -24,10 +24,10 @@ from app.exceptions import InvalidToken, NotFoundError
 from app.models import Brand, Customer, ServiceCenter, Vehicle, VehicleModel
 from app.repositories.unit_of_work import UnitOfWork
 from app.schemas.customer_portal import RoadsideRequest
-from app.services.customer_auth_service import CustomerAuthService, TelegramNotLinked
+from app.services.customer_auth_service import CustomerAuthService
+from tests.support.auth_sessions import customer_tokens
 from app.services.customer_portal_service import CustomerPortalService
 
-BOT = "test-bot:portal"
 
 
 @pytest_asyncio.fixture(autouse=True)
@@ -46,22 +46,6 @@ async def _cleanup_committed_auth_fixtures(session):
             await session.execute(delete(VehicleModel).where(VehicleModel.brand_id.in_(brands)))
             await session.execute(delete(Brand).where(Brand.id.in_(brands)))
         await session.commit()
-
-
-@pytest.fixture(autouse=True)
-def _bot_token(monkeypatch):
-    monkeypatch.setattr(settings, "TELEGRAM_BOT_TOKEN", BOT)
-
-
-def _init_data(telegram_id: int) -> str:
-    fields = {
-        "auth_date": str(int(time.time())),
-        "user": json.dumps({"id": telegram_id, "username": "tg", "first_name": "Tg"}),
-    }
-    dcs = "\n".join(f"{k}={fields[k]}" for k in sorted(fields))
-    secret = hmac.new(b"WebAppData", BOT.encode(), hashlib.sha256).digest()
-    fields["hash"] = hmac.new(secret, dcs.encode(), hashlib.sha256).hexdigest()
-    return urlencode(fields)
 
 
 async def _tenant(session, telegram_id: int | None, *, vehicles: int = 0) -> tuple:
@@ -97,22 +81,26 @@ def _svc(session) -> CustomerAuthService:
 
 
 @pytest.mark.asyncio
-async def test_telegram_sign_in_and_resolve(session):
-    _, customer = await _tenant(session, telegram_id=910001)
-    svc = _svc(session)
-
-    tokens = await svc.authenticate_telegram(_init_data(910001))
+async def test_password_session_resolves_customer(session):
+    _, customer = await _tenant(session, telegram_id=None)
+    tokens = await customer_tokens(session, customer)
     assert tokens["customer"]["id"] == str(customer.id)
-
-    resolved = await svc.get_current_customer(tokens["access_token"])
+    resolved = await _svc(session).get_current_customer(tokens["access_token"])
     assert resolved.id == customer.id
 
 
 @pytest.mark.asyncio
-async def test_unlinked_telegram_user_is_rejected(session):
-    await _tenant(session, telegram_id=910002)
-    with pytest.raises(TelegramNotLinked):
-        await _svc(session).authenticate_telegram(_init_data(999999))  # no such link
+async def test_session_without_password_account_is_refused(session):
+    # Retired Telegram sessions carried no account claims: they no longer resolve.
+    _, customer = await _tenant(session, telegram_id=910002)
+    tokens = await customer_tokens(session, customer)
+    from app.core.security import decode_token
+    import jwt
+    claims = decode_token(tokens["access_token"])
+    claims.pop("account_id"); claims.pop("account_version")
+    stripped = jwt.encode(claims, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    with pytest.raises(InvalidToken):
+        await _svc(session).get_current_customer(stripped)
 
 
 @pytest.mark.asyncio
@@ -125,22 +113,12 @@ async def test_staff_token_is_refused(session):
 
 @pytest.mark.asyncio
 async def test_refresh_issues_new_pair(session):
-    _, customer = await _tenant(session, telegram_id=910003)
+    _, customer = await _tenant(session, telegram_id=None)
     svc = _svc(session)
-    tokens = await svc.authenticate_telegram(_init_data(910003))
+    tokens = await customer_tokens(session, customer)
     refreshed = await svc.refresh(tokens["refresh_token"])
     assert refreshed["customer"]["id"] == str(customer.id)
     assert await svc.get_current_customer(refreshed["access_token"])
-
-
-@pytest.mark.asyncio
-async def test_link_by_phone_is_disabled_without_verified_invitation(session):
-    _, customer = await _tenant(session, telegram_id=None)  # unlinked
-    svc = _svc(session)
-    with pytest.raises(NotFoundError):
-        await svc.link_by_phone(_init_data(910004), customer.phone)
-    await session.refresh(customer)
-    assert customer.telegram_id is None
 
 
 @pytest.mark.asyncio
@@ -277,6 +255,8 @@ async def _estimate(session, center, customer, vehicle) -> str:
         line_items=[{"kind": "labor", "description": "Brake job", "quantity": 1,
                      "unit_price": 376.0, "taxable": True}],
     )
+    # Customers only see estimates staff have sent; drafts stay internal.
+    await InvoiceService(uow).send(uuid.UUID(doc["id"]))
     return doc["id"]
 
 

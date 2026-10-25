@@ -16,6 +16,21 @@ def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
 
+_dummy_hash: Optional[str] = None
+
+
+def burn_password_check(password: str) -> None:
+    """Spend one bcrypt verification when no real hash exists.
+
+    Login paths call this for unknown or disabled identities so the response
+    time does not reveal which emails are registered.
+    """
+    global _dummy_hash
+    if _dummy_hash is None:
+        _dummy_hash = pwd_context.hash("garageos-timing-equalizer")
+    pwd_context.verify(password, _dummy_hash)
+
+
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))

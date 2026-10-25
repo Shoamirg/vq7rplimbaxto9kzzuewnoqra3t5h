@@ -24,6 +24,7 @@ class SignUpScreen extends StatefulWidget {
 class _SignUpScreenState extends State<SignUpScreen> {
   late final AccountSource source = widget.state.accounts;
   final form = GlobalKey<FormState>();
+  final fullName = TextEditingController();
   final phone = TextEditingController(text: '+998 '),
       email = TextEditingController(),
       code = TextEditingController(),
@@ -35,6 +36,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   @override
   void dispose() {
+    fullName.dispose();
     phone.dispose();
     email.dispose();
     code.dispose();
@@ -53,7 +55,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
     try {
       switch (step) {
         case 1:
-          await source.startSignUp(phone: phone.text, email: email.text.trim());
+          await source.startSignUp(
+            phone: phone.text,
+            email: email.text.trim(),
+            fullName: fullName.text.trim(),
+          );
         case 2:
           if (code.text.length != 6) throw const AppFailure(wrongCode);
           needsGarage = await source.verifySignUp(code.text);
@@ -83,7 +89,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
     if (!mounted) return;
     await openPage(context, NotificationsScreen(state: widget.state));
     if (!mounted) return;
-    widget.state.demo(DemoRole.customer);
+    if (source is LiveAccountSource) {
+      await widget.state.adoptCustomer(
+        await (source as LiveAccountSource).openSession(
+          onExpired: () => widget.state.onExpired?.call(),
+        ),
+      );
+    } else {
+      widget.state.demo(DemoRole.customer);
+    }
+    if (!mounted) return;
     enterApp(context);
   }
 
@@ -109,6 +124,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
             StepHeader(step: step, of: steps, title: title, detail: detail),
             if (error != null) ErrorNotice(error!),
             if (step == 1) ...[
+              if (!source.isDemo) ...[
+                TextFormField(
+                  controller: fullName,
+                  enabled: !busy,
+                  autofillHints: const [AutofillHints.name],
+                  decoration: InputDecoration(labelText: context.l10n.fullName),
+                  validator: (value) => value?.trim().isNotEmpty == true
+                      ? null
+                      : context.l10n.requiredField,
+                ),
+                const SizedBox(height: Space.md),
+              ],
               TextFormField(
                 controller: phone,
                 enabled: !busy,
@@ -123,8 +150,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   prefixIcon: const Icon(Icons.phone_outlined),
                 ),
                 validator: (value) => context.validation(
-                  value?.replaceAll(RegExp(r'\D'), '').startsWith('998') ==
-                          true
+                  value?.replaceAll(RegExp(r'\D'), '').startsWith('998') == true
                       ? phoneError(value)
                       : 'Toʻgʻri telefon raqamini kiriting.',
                 ),
@@ -140,7 +166,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   prefixIcon: const Icon(Icons.alternate_email),
                 ),
                 validator: (s) =>
-                    RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(s?.trim() ?? '')
+                    RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
+                        .hasMatch(s?.trim() ?? '')
                     ? null
                     : context.l10n.emailError,
               ),
@@ -179,9 +206,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                   ),
                 ),
-                validator: (s) => (s?.length ?? 0) >= 10
-                    ? null
-                    : context.l10n.passwordRule,
+                validator: (s) =>
+                    (s?.length ?? 0) >= 10 ? null : context.l10n.passwordRule,
               ),
             if (step == 4)
               for (final garage in garages ?? const <GarageChoice>[])
@@ -227,7 +253,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
         ),
       ),
       footer: SaveButton(
-        label: step == steps ? context.l10n.createAccount : context.l10n.continueLabel,
+        label: step == steps
+            ? context.l10n.createAccount
+            : context.l10n.continueLabel,
         icon: step == steps ? Icons.check : Icons.arrow_forward,
         busy: busy,
         onPressed: next,

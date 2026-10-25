@@ -28,18 +28,17 @@ async def test_owner_opens_customer_login_and_suspends_existing_session(client, 
     customer_headers = {'Authorization': 'Bearer ' + tokens['access_token']}
     me = await client.get('/api/v1/customer/me', headers=customer_headers)
     assert me.status_code == 200 and me.json()['id'] == customer_id
-    # Password principals cannot use legacy Telegram mutations or draft reads.
-    assert (await client.post(f'/api/v1/customer/billing/estimates/{uuid.uuid4()}/approve', headers=customer_headers)).status_code == 403
-    assert (await client.get('/api/v1/customer/billing', headers=customer_headers)).status_code == 403
-    assert (await client.get('/api/v1/customer/home', headers=customer_headers)).status_code == 403
+    # Mobile password principals use the full customer portal; ownership is per row.
+    assert (await client.post(f'/api/v1/customer/billing/estimates/{uuid.uuid4()}/approve', headers=customer_headers)).status_code == 404
+    assert (await client.get('/api/v1/customer/billing', headers=customer_headers)).status_code == 200
+    assert (await client.get('/api/v1/customer/home', headers=customer_headers)).status_code == 200
     legacy = {'Authorization': 'Bearer ' + create_access_token({
         'sub': customer_id, 'scid': str(identity['center']), 'type': 'customer_access'})}
     assert (await client.get('/api/v1/customer/billing', headers=legacy)).status_code == 401
-    # A real persisted non-password customer session retains Telegram policy.
-    telegram = {'Authorization': 'Bearer ' + await persisted_access({
+    # A second device on the same login: suspension must end it too.
+    second = {'Authorization': 'Bearer ' + await persisted_access({
         'sub': customer_id, 'scid': str(identity['center']), 'type': 'customer_access'})}
-    assert (await client.get('/api/v1/customer/billing', headers=telegram)).status_code == 200
-    assert (await client.post(f'/api/v1/customer/billing/estimates/{uuid.uuid4()}/approve', headers=telegram)).status_code == 404
+    assert (await client.get('/api/v1/customer/billing', headers=second)).status_code == 200
 
     assert (await client.get('/api/v1/customers', headers=customer_headers)).status_code == 401
     assert (await client.get('/api/v1/customer/me', headers=owner)).status_code == 401
@@ -47,12 +46,13 @@ async def test_owner_opens_customer_login_and_suspends_existing_session(client, 
                                    json={'is_active': False})
     assert suspended.status_code == 200
     assert (await client.get('/api/v1/customer/me', headers=customer_headers)).status_code == 401
-    assert (await client.get('/api/v1/customer/me', headers=telegram)).status_code == 200
+    assert (await client.get('/api/v1/customer/me', headers=second)).status_code == 401
     assert (await client.post('/api/v1/customer/auth/refresh', json={'refresh_token': tokens['refresh_token']})).status_code == 401
     assert (await client.post('/api/v1/customer/auth/login', json={'email': email, 'password': PASSWORD})).status_code == 401
     assert (await client.patch(f'/api/v1/customers/{customer_id}/account', headers=owner, json={'is_active': True})).status_code == 200
+    # Reactivation never revives old sessions; a fresh sign-in works.
     assert (await client.get('/api/v1/customer/me', headers=customer_headers)).status_code == 401
-    assert (await client.get('/api/v1/customer/me', headers=telegram)).status_code == 200
+    assert (await client.get('/api/v1/customer/me', headers=second)).status_code == 401
     assert (await client.post('/api/v1/customer/auth/login', json={'email': email, 'password': PASSWORD})).status_code == 200
 
 

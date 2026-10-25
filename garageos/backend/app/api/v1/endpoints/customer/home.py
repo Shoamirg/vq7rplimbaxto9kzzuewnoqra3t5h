@@ -12,6 +12,12 @@ from app.services.customer_portal_service import CustomerPortalService
 router = APIRouter()
 
 
+@router.get('/activity', summary='Customer-safe notification feed')
+async def activity(customer: Customer = Depends(get_current_customer),
+                   uow: UnitOfWork = Depends(get_customer_uow)):
+    return {'items': await CustomerPortalService(uow, customer)._activity(limit=30)}
+
+
 @router.get("", response_model=HomeResponse, summary="Home: SOS, appointment, invoice, messages, health")
 async def home(
     customer: Customer = Depends(get_current_customer),

@@ -1,5 +1,12 @@
 import 'package:flutter/material.dart';
 
+import 'dart:typed_data';
+
+import 'package:image_picker/image_picker.dart';
+
+import '../data/photo_access.dart';
+import '../design/foreground_polling.dart';
+
 import '../data/api_client.dart';
 import '../domain/portal.dart';
 import '../design/theme.dart';
@@ -75,9 +82,8 @@ class ThreadTile extends StatelessWidget {
                       const SizedBox(width: Space.sm),
                       Text(
                         context.stamp(thread.time),
-                        style: Theme.of(
-                          context,
-                        ).textTheme.bodySmall?.copyWith(color: p.secondary),
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: p.secondary),
                       ),
                     ],
                   ),
@@ -150,23 +156,33 @@ class ChatScreen extends StatefulWidget {
     this.contextLabel,
     this.phone,
     this.demo = false,
+    this.media,
   });
   final String title;
   final String? contextLabel, phone;
   final bool demo;
+  final PhotoAccess? media;
   final Future<List<ChatMessage>> Function() load;
   final Future<ChatMessage> Function(String text, List<String> photos) send;
   @override
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class _ChatScreenState extends State<ChatScreen> with ForegroundPolling {
   final text = TextEditingController();
   List<ChatMessage>? messages;
   final photos = <String>[];
   Object? error;
   String? sendError;
   bool sending = false;
+  bool uploading = false, _loading = false;
+  int _sendRevision = 0;
+  @override
+  bool get pollingEnabled => !widget.demo;
+  @override
+  Future<void> poll() async {
+    if (!sending && !uploading) await load(silent: true);
+  }
 
   @override
   void initState() {
@@ -180,17 +196,28 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
-  Future<void> load() async {
-    setState(() => error = null);
+  Future<void> load({bool silent = false}) async {
+    if (_loading) return;
+    _loading = true;
+    final revision = _sendRevision;
+    if (!silent) setState(() => error = null);
     try {
       final data = await widget.load();
-      if (mounted) setState(() => messages = data.toList());
+      if (mounted && revision == _sendRevision) {
+        setState(() {
+          messages = data.toList();
+          error = null;
+        });
+      }
     } catch (e) {
-      if (mounted) setState(() => error = e);
+      if (mounted && (!silent || messages == null)) setState(() => error = e);
+    } finally {
+      _loading = false;
     }
   }
 
   Future<void> attach() async {
+    if (uploading || sending) return;
     if (photos.length >= maxPhotos) {
       toast(context, context.l10n.photoLimit);
       return;
@@ -199,14 +226,20 @@ class _ChatScreenState extends State<ChatScreen> {
       context: context,
       builder: (context) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(Space.page, 0, Space.page, Space.page),
+          padding: const EdgeInsets.fromLTRB(
+            Space.page,
+            0,
+            Space.page,
+            Space.page,
+          ),
           child: Row(
             children: [
               for (final (icon, label) in [
                 (Icons.photo_camera_outlined, context.l10n.camera),
                 (Icons.photo_library_outlined, context.l10n.gallery),
               ]) ...[
-                if (label == context.l10n.gallery) const SizedBox(width: Space.grid),
+                if (label == context.l10n.gallery)
+                  const SizedBox(width: Space.grid),
                 Expanded(
                   child: BentoTile(
                     icon: icon,
@@ -225,13 +258,43 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
     );
     if (source != null && mounted) {
+      if (!widget.demo && widget.media != null) {
+        setState(() {
+          uploading = true;
+          sendError = null;
+        });
+        try {
+          final photo = await ImagePicker().pickImage(
+            source: source == context.l10n.camera
+                ? ImageSource.camera
+                : ImageSource.gallery,
+            maxWidth: 1600,
+            maxHeight: 1600,
+            imageQuality: 85,
+          );
+          if (photo == null) return;
+          final url = await widget.media!.uploadPhoto(
+            await photo.readAsBytes(),
+            photo.name,
+          );
+          if (mounted) setState(() => photos.add(url));
+        } catch (e) {
+          if (mounted) setState(() => sendError = failureText(e));
+        } finally {
+          if (mounted) setState(() => uploading = false);
+        }
+        return;
+      }
       setState(
-        () => photos.add('$source · ${context.l10n.photoNumber(photos.length + 1)}'),
+        () => photos.add(
+          '$source · ${context.l10n.photoNumber(photos.length + 1)}',
+        ),
       );
     }
   }
 
   Future<void> submit() async {
+    if (sending || uploading) return;
     final body = text.text.trim();
     if (body.isEmpty && photos.isEmpty) return;
     setState(() {
@@ -241,8 +304,12 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       final message = await widget.send(body, List.of(photos));
       if (!mounted) return;
+      _sendRevision++;
       setState(() {
-        messages = [...?messages, message];
+        messages = [
+          ...?messages?.where((row) => row.id != message.id),
+          message,
+        ];
         photos.clear();
         text.clear();
       });
@@ -274,7 +341,12 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           if (widget.contextLabel != null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(Space.page, Space.sm, Space.page, 0),
+              padding: const EdgeInsets.fromLTRB(
+                Space.page,
+                Space.sm,
+                Space.page,
+                0,
+              ),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: MonoBadge(
@@ -284,7 +356,7 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
           Expanded(
-            child: error != null
+            child: error != null && loaded == null
                 ? ListView(
                     padding: const EdgeInsets.all(Space.page),
                     children: [failureView(context, error!, retry: load)],
@@ -303,8 +375,10 @@ class _ChatScreenState extends State<ChatScreen> {
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.all(Space.page),
                       itemCount: loaded.length,
-                      itemBuilder: (context, index) =>
-                          _Bubble(loaded[loaded.length - 1 - index]),
+                      itemBuilder: (context, index) => _Bubble(
+                        loaded[loaded.length - 1 - index],
+                        media: widget.media,
+                      ),
                     ),
                   ),
           ),
@@ -342,11 +416,22 @@ class _ChatScreenState extends State<ChatScreen> {
                               Padding(
                                 padding: const EdgeInsets.only(right: Space.sm),
                                 child: InputChip(
-                                  avatar: const Icon(Icons.image_outlined, size: 18),
-                                  label: Text(photo),
+                                  avatar: const Icon(
+                                    Icons.image_outlined,
+                                    size: 18,
+                                  ),
+                                  label: Text(
+                                    widget.demo
+                                        ? photo
+                                        : context.l10n.photoNumber(
+                                            photos.indexOf(photo) + 1,
+                                          ),
+                                  ),
                                   onDeleted: sending
                                       ? null
-                                      : () => setState(() => photos.remove(photo)),
+                                      : () => setState(
+                                          () => photos.remove(photo),
+                                        ),
                                   deleteButtonTooltipMessage:
                                       context.l10n.removePhoto,
                                 ),
@@ -360,7 +445,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       children: [
                         IconButton(
                           tooltip: context.l10n.attachPhoto,
-                          onPressed: sending ? null : attach,
+                          onPressed: sending || uploading ? null : attach,
                           icon: Badge(
                             isLabelVisible: photos.isNotEmpty,
                             label: Text('${photos.length}/$maxPhotos'),
@@ -378,7 +463,8 @@ class _ChatScreenState extends State<ChatScreen> {
                             decoration: InputDecoration(
                               hintText: context.l10n.typeMessage,
                               labelText: context.l10n.typeMessage,
-                              floatingLabelBehavior: FloatingLabelBehavior.never,
+                              floatingLabelBehavior:
+                                  FloatingLabelBehavior.never,
                               counterText: '',
                               fillColor: p.elevated,
                               contentPadding: const EdgeInsets.symmetric(
@@ -398,7 +484,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             foregroundColor: p.onBrand,
                             minimumSize: const Size(52, 52),
                           ),
-                          onPressed: sending ? null : submit,
+                          onPressed: sending || uploading ? null : submit,
                           icon: sending
                               ? const SizedBox.square(
                                   dimension: 20,
@@ -419,8 +505,9 @@ class _ChatScreenState extends State<ChatScreen> {
 }
 
 class _Bubble extends StatelessWidget {
-  const _Bubble(this.message);
+  const _Bubble(this.message, {this.media});
   final ChatMessage message;
+  final PhotoAccess? media;
   @override
   Widget build(BuildContext context) {
     final p = context.colors;
@@ -444,9 +531,8 @@ class _Bubble extends StatelessWidget {
                   padding: const EdgeInsets.only(left: 6, bottom: 4),
                   child: Text(
                     message.author!,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(color: p.secondary),
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: p.secondary),
                   ),
                 ),
               Container(
@@ -468,14 +554,15 @@ class _Bubble extends StatelessWidget {
                     for (final photo in message.photos)
                       Padding(
                         padding: const EdgeInsets.only(bottom: Space.sm),
-                        child: _PhotoTile(photo, inverse: mine),
+                        child: media == null
+                            ? _PhotoTile(photo, inverse: mine)
+                            : ProtectedPhoto(url: photo, media: media!),
                       ),
                     if (message.text.isNotEmpty)
                       Text(
                         message.text,
-                        style: Theme.of(
-                          context,
-                        ).textTheme.bodyLarge?.copyWith(color: fg),
+                        style: Theme.of(context).textTheme.bodyLarge
+                            ?.copyWith(color: fg),
                       ),
                   ],
                 ),
@@ -493,6 +580,58 @@ class _Bubble extends StatelessWidget {
       ),
     );
   }
+}
+
+class ProtectedPhoto extends StatefulWidget {
+  const ProtectedPhoto({super.key, required this.url, required this.media});
+  final String url;
+  final PhotoAccess media;
+  @override
+  State<ProtectedPhoto> createState() => _ProtectedPhotoState();
+}
+
+class _ProtectedPhotoState extends State<ProtectedPhoto> {
+  late Future<List<int>> bytes = widget.media.photoBytes(widget.url);
+  @override
+  void didUpdateWidget(ProtectedPhoto oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.url != widget.url ||
+        !identical(oldWidget.media, widget.media)) {
+      bytes = widget.media.photoBytes(widget.url);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 220,
+    height: 140,
+    child: FutureBuilder<List<int>>(
+      key: ValueKey((widget.url, widget.media)),
+      future: bytes,
+      builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(Radii.icon),
+            child: Image.memory(
+              Uint8List.fromList(snapshot.data!),
+              fit: BoxFit.cover,
+              errorBuilder: (_, error, stack) =>
+                  const Icon(Icons.broken_image_outlined),
+            ),
+          );
+        }
+        if (snapshot.hasError) {
+          return IconButton(
+            tooltip: context.l10n.retry,
+            onPressed: () =>
+                setState(() => bytes = widget.media.photoBytes(widget.url)),
+            icon: const Icon(Icons.refresh),
+          );
+        }
+        return const Center(child: CircularProgressIndicator());
+      },
+    ),
+  );
 }
 
 /// Inspection photo placeholder with its caption.

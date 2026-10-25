@@ -19,8 +19,23 @@ from app.schemas.customer_portal import (
     BillingResponse,
 )
 from app.services.customer_portal_service import CustomerPortalService
+from app.exceptions import NotFoundError
+from app.models.invoice import Invoice, InvoiceStatus
+from app.services.invoice_service import InvoiceService
 
 router = APIRouter()
+
+
+@router.get('/documents/{document_id}', summary='Owned customer-safe invoice or estimate')
+async def document(document_id: uuid.UUID,
+                   customer: Customer = Depends(get_current_customer),
+                   uow: UnitOfWork = Depends(get_customer_uow)) -> dict:
+    doc = await uow.session.get(Invoice, document_id)
+    if (doc is None or not doc.is_active or doc.customer_id != customer.id
+            or doc.service_center_id != customer.service_center_id
+            or doc.status == InvoiceStatus.DRAFT):
+        raise NotFoundError('Document not found')
+    return await InvoiceService(uow).get_public_document(document_id)
 
 
 def _portal(customer: Customer, uow: UnitOfWork) -> CustomerPortalService:

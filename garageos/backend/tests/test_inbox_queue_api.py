@@ -225,7 +225,7 @@ async def test_combined_displayed_vehicle_label_is_literal_searchable(client, in
 async def test_missing_icu_fails_search_explicitly_and_restoration_recovers(client, inbox_rows):
     assert settings.ENVIRONMENT == 'test'
     async with async_session_factory() as session:
-        assert await session.scalar(text('SELECT current_database()')) == 'garage_test'
+        assert await session.scalar(text('SELECT current_database()')) in {'garage_test', 'garageos_mvp_tests'}
     temporary = 'inbox_qa_' + uuid.uuid4().hex
     renamed = False
     try:

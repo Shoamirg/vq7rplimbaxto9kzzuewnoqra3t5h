@@ -50,7 +50,9 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
-        # Release the connection pools cleanly on shutdown.
+        # Let in-flight push deliveries finish, then release the connection pools.
+        from app.services.push import drain
+        await drain()
         await close_rate_limiter()
         await engine.dispose()
         logger.info("Shutdown complete; database engine disposed")
@@ -78,9 +80,14 @@ def _register_exception_handlers(app: FastAPI) -> None:
         headers = None
         if isinstance(exc, RateLimitExceeded) and exc.retry_after:
             headers = {"Retry-After": str(exc.retry_after)}
+        error = {"code": exc.code, "detail": exc.detail}
+        # A few errors carry structured data the client must act on (e.g. the
+        # garages to choose from at sign-up).
+        if getattr(exc, "garages", None) is not None:
+            error["garages"] = exc.garages
         return JSONResponse(
             status_code=exc.status_code,
-            content={"error": {"code": exc.code, "detail": exc.detail}},
+            content={"error": error},
             headers=headers,
         )
 

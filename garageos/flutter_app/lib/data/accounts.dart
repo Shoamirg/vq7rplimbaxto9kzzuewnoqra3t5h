@@ -1,4 +1,6 @@
 import 'api_client.dart';
+import 'environment.dart';
+import 'customer_repository.dart';
 
 class GarageChoice {
   const GarageChoice(this.id, this.name, this.address);
@@ -10,7 +12,11 @@ abstract interface class AccountSource {
   bool get isDemo;
 
   /// Step 1: sends a 6-digit SMS code to [phone].
-  Future<void> startSignUp({required String phone, required String email});
+  Future<void> startSignUp({
+    required String phone,
+    required String email,
+    String? fullName,
+  });
 
   /// Step 2: returns true when the phone is not yet linked to a garage and
   /// the customer has to pick one (step 4).
@@ -31,33 +37,108 @@ const resetByGarage =
     'Parolni servisingiz tiklab beradi. Ularga qoʻngʻiroq qiling.';
 const wrongCode = 'Kod notoʻgʻri. Qayta tekshiring.';
 
-/// The API has no self-service account endpoints yet: garages open customer
-/// logins from the reception app.
+/// Server-verified signup and reset. Self-enrollment is a server capability;
+/// deployments may require an existing garage customer record.
 class LiveAccountSource implements AccountSource {
-  const LiveAccountSource();
+  LiveAccountSource({String? address, ApiClient? api})
+    : api =
+          api ??
+          ApiClient(
+            address ?? defaultApiAddress(),
+            refreshPath: '/customer/auth/refresh',
+          );
+  final ApiClient api;
+  String? _phone, _email, _code, _fullName, _garageId;
+  List<GarageChoice> _garages = [];
   @override
   bool get isDemo => false;
   @override
-  Future<void> startSignUp({required String phone, required String email}) =>
-      throw const AppFailure(signUpByGarage);
+  Future<void> startSignUp({
+    required String phone,
+    required String email,
+    String? fullName,
+  }) async {
+    _phone = phone;
+    _email = email.trim();
+    _fullName = fullName ?? _fullName;
+    _code = null;
+    _garageId = null;
+    _garages = [];
+    await api.request(
+      'POST',
+      '/customer/auth/signup/start',
+      authenticated: false,
+      body: {'phone': phone, 'email': _email},
+    );
+  }
+
   @override
-  Future<bool> verifySignUp(String code) =>
-      throw const AppFailure(signUpByGarage);
+  Future<bool> verifySignUp(String code) async {
+    final data = await api.request(
+      'POST',
+      '/customer/auth/signup/verify',
+      authenticated: false,
+      body: {'phone': _phone, 'email': _email, 'code': code},
+    );
+    _code = code;
+    _garages = [
+      for (final g in data['garages'])
+        GarageChoice(g['id'], g['name'], g['address'] ?? ''),
+    ];
+    _garageId = _garages.length == 1 ? _garages.first.id : null;
+    return data['needs_garage'] == true;
+  }
+
   @override
-  Future<List<GarageChoice>> garages() =>
-      throw const AppFailure(signUpByGarage);
+  Future<List<GarageChoice>> garages() async => List.unmodifiable(_garages);
   @override
-  Future<void> completeSignUp({required String password, String? garageId}) =>
-      throw const AppFailure(signUpByGarage);
+  Future<void> completeSignUp({
+    required String password,
+    String? garageId,
+  }) async {
+    final tokens = await api.request(
+      'POST',
+      '/customer/auth/signup/complete',
+      authenticated: false,
+      body: {
+        'phone': _phone,
+        'email': _email,
+        'code': _code,
+        'password': password,
+        'service_center_id': garageId ?? _garageId,
+        'full_name': _fullName,
+      },
+    );
+    api.accessToken = tokens['access_token'];
+    api.refreshToken = tokens['refresh_token'];
+    _code = null;
+  }
+
+  Future<CustomerRepository> openSession({
+    required void Function() onExpired,
+  }) => CustomerRepository.fromApi(api, onExpired: onExpired);
   @override
-  Future<void> requestReset(String identifier) =>
-      throw const AppFailure(resetByGarage);
+  Future<void> requestReset(String identifier) async => api.request(
+    'POST',
+    '/customer/auth/password/reset/start',
+    authenticated: false,
+    body: {identifier.contains('@') ? 'email' : 'phone': identifier.trim()},
+  );
   @override
   Future<void> confirmReset({
     required String identifier,
     required String code,
     required String password,
-  }) => throw const AppFailure(resetByGarage);
+  }) async => api.request(
+    'POST',
+    '/customer/auth/password/reset/complete',
+    authenticated: false,
+    body: {
+      identifier.contains('@') ? 'email' : 'phone': identifier.trim(),
+      'code': code,
+      'new_password': password,
+    },
+  );
 }
 
 /// Sample flow: any 6-digit code except 000000 is accepted. Aziz's number is
@@ -70,6 +151,7 @@ class DemoAccountSource implements AccountSource {
   Future<void> startSignUp({
     required String phone,
     required String email,
+    String? fullName,
   }) async => _phone = phone.replaceAll(RegExp(r'\D'), '');
   @override
   Future<bool> verifySignUp(String code) async {

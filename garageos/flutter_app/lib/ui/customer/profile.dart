@@ -30,8 +30,19 @@ class ProfileTab extends StatelessWidget {
       icon: Icons.delete_outline,
     );
     if (!yes || !context.mounted) return;
+    String? password;
+    if (!portal.isDemo) {
+      password = await showModalBottomSheet<String>(
+        context: context,
+        isScrollControlled: true,
+        builder: (_) => _DeleteAccountSheet(portal: portal),
+      );
+      if (password == null || !context.mounted) return;
+      onLogout();
+      return;
+    }
     try {
-      await portal.deleteAccount();
+      await portal.deleteAccount(password: password);
       onLogout();
     } catch (e) {
       if (context.mounted) toast(context, context.message(failureText(e)));
@@ -106,7 +117,11 @@ class ProfileTab extends StatelessWidget {
                 if (garage.address != null)
                   InfoLine(icon: Icons.place_outlined, text: garage.address!),
                 if (garage.hours != null)
-                  InfoLine(icon: Icons.schedule, text: garage.hours!, mono: true),
+                  InfoLine(
+                    icon: Icons.schedule,
+                    text: garage.hours!,
+                    mono: true,
+                  ),
                 if (garage.phone != null) ...[
                   InfoLine(
                     icon: Icons.call_outlined,
@@ -184,6 +199,77 @@ class ProfileTab extends StatelessWidget {
   );
 }
 
+class _DeleteAccountSheet extends StatefulWidget {
+  const _DeleteAccountSheet({required this.portal});
+  final CustomerPortal portal;
+  @override
+  State<_DeleteAccountSheet> createState() => _DeleteAccountSheetState();
+}
+
+class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
+  final password = TextEditingController();
+  bool busy = false;
+  Object? failure;
+  @override
+  void dispose() {
+    password.dispose();
+    super.dispose();
+  }
+
+  Future<void> remove() async {
+    if (busy || password.text.isEmpty) return;
+    setState(() {
+      busy = true;
+      failure = null;
+    });
+    try {
+      await widget.portal.deleteAccount(password: password.text);
+      if (mounted) Navigator.pop(context, 'deleted');
+    } catch (error) {
+      if (mounted) setState(() => failure = error);
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+    child: SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(Space.page),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              context.l10n.deleteAccountTitle,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: Space.md),
+            if (failure != null) failureView(context, failure!),
+            TextField(
+              controller: password,
+              obscureText: true,
+              enabled: !busy,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: context.l10n.currentPassword,
+              ),
+              onSubmitted: (_) => remove(),
+            ),
+            const SizedBox(height: Space.md),
+            SaveButton(
+              label: context.l10n.deleteAccount,
+              busy: busy,
+              onPressed: remove,
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
 
 class _Action extends StatelessWidget {
   const _Action({required this.icon, required this.label, required this.onTap});
@@ -243,7 +329,12 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
     padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
     child: SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(Space.page, 0, Space.page, Space.page),
+        padding: const EdgeInsets.fromLTRB(
+          Space.page,
+          0,
+          Space.page,
+          Space.page,
+        ),
         child: Form(
           key: form,
           child: Column(
@@ -263,10 +354,11 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                 controller: current,
                 obscureText: true,
                 enabled: !busy,
-                decoration: InputDecoration(labelText: context.l10n.currentPassword),
-                validator: (s) => (s?.isEmpty ?? true)
-                    ? context.l10n.requiredField
-                    : null,
+                decoration: InputDecoration(
+                  labelText: context.l10n.currentPassword,
+                ),
+                validator: (s) =>
+                    (s?.isEmpty ?? true) ? context.l10n.requiredField : null,
               ),
               const SizedBox(height: Space.md),
               TextFormField(
@@ -278,16 +370,11 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                   labelText: context.l10n.newPassword,
                   helperText: context.l10n.passwordRule,
                 ),
-                validator: (s) => (s?.length ?? 0) >= 10
-                    ? null
-                    : context.l10n.passwordRule,
+                validator: (s) =>
+                    (s?.length ?? 0) >= 10 ? null : context.l10n.passwordRule,
               ),
               const SizedBox(height: Space.group),
-              SaveButton(
-                label: context.l10n.save,
-                busy: busy,
-                onPressed: save,
-              ),
+              SaveButton(label: context.l10n.save, busy: busy, onPressed: save),
             ],
           ),
         ),

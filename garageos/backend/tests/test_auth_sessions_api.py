@@ -66,7 +66,11 @@ async def test_refresh_rotates_and_replay_durably_revokes_new_pair(client, princ
     second = changed.json()
     assert bool(first["refresh_token"] != second["refresh_token"])
     assert decode_token(first["refresh_token"])["sid"] == decode_token(second["refresh_token"])["sid"]
-    assert decode_token(first["refresh_token"])["exp"] == decode_token(second["refresh_token"])["exp"]
+    first_exp, second_exp = (decode_token(t["refresh_token"])["exp"] for t in (first, second))
+    if principal["kind"] == "staff":
+        assert first_exp == second_exp  # staff sessions keep a fixed lifetime
+    else:
+        assert second_exp >= first_exp  # mobile customer sessions slide forward on refresh
     assert (await client.get(principal["me"], headers=bearer(second))).status_code == 200
     replay = await client.post(principal["auth"] + "/refresh", json={"refresh_token": first["refresh_token"]})
     assert replay.status_code == 401
@@ -175,7 +179,7 @@ async def test_password_customer_cannot_remove_account_claims_to_gain_telegram_p
     claims.pop("account_version")
     altered = jwt.encode(claims, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     assert (await client.get("/api/v1/customer/billing", headers={"Authorization": "Bearer " + altered})).status_code == 401
-    assert (await client.get("/api/v1/customer/billing", headers=bearer(tokens))).status_code == 403
+    assert (await client.get("/api/v1/customer/billing", headers=bearer(tokens))).status_code == 200
     assert (await client.get(principal["me"], headers=bearer(tokens))).status_code == 200
 
 

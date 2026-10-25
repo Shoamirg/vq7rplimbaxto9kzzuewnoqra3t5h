@@ -17,6 +17,9 @@ def test_manager_and_admin_have_financial_controls():
     required = {"financial.refund", "financial.invoice.void", "financial.reports.read"}
     for role in ("admin", "manager"):
         assert required <= set(staff_permissions(user(role)))
+    # The platform support identity is read-only at the platform boundary and
+    # never a tenant finance administrator (see app/core/staff_access.py).
+    assert not {p for p in staff_permissions(user("super_admin")) if p.startswith(("financial.", "billing."))}
 
 
 def test_platform_role_does_not_inherit_tenant_financial_controls():

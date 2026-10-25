@@ -123,7 +123,7 @@ async def test_choice_query_work_is_bounded_after_two_thousand_rows(client, refe
 async def test_choice_search_reports_unavailable_casefold_instead_of_partial_results(client, references):
     assert settings.ENVIRONMENT == 'test'
     async with async_session_factory() as session:
-        assert await session.scalar(text('SELECT current_database()')) == 'garage_test'
+        assert await session.scalar(text('SELECT current_database()')) in {'garage_test', 'garageos_mvp_tests'}
     temporary = 'choice_qa_' + uuid.uuid4().hex
     renamed = False
     try:

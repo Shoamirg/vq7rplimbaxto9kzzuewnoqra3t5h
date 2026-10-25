@@ -1,20 +1,15 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../data/api_client.dart';
+import '../data/environment.dart';
+export '../data/environment.dart' show defaultApiAddress;
 import '../design/theme.dart';
 import '../design/widgets.dart';
 import '../l10n/l10n.dart';
 import 'forgot_password.dart';
 import 'settings.dart';
 import 'sign_up.dart';
-
-String defaultApiAddress() => const String.fromEnvironment('API_URL') != ''
-    ? const String.fromEnvironment('API_URL')
-    : !kIsWeb && defaultTargetPlatform == TargetPlatform.android
-    ? 'http://10.0.2.2:8000/api/v1'
-    : 'http://127.0.0.1:8000/api/v1';
 
 /// Leaves the pre-sign-in stack once a session exists; the app root shows
 /// the role's shell.
@@ -125,9 +120,8 @@ class _SignInScreenState extends State<SignInScreen> {
                       customer
                           ? context.l10n.customerSignInHint
                           : context.l10n.loginSubtitle,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodyLarge?.copyWith(color: p.secondary),
+                      style: Theme.of(context).textTheme.bodyLarge
+                          ?.copyWith(color: p.secondary),
                     ),
                     const SizedBox(height: Space.group),
                     if (widget.state.demoMode) ...[
@@ -154,9 +148,8 @@ class _SignInScreenState extends State<SignInScreen> {
                         prefixIcon: const Icon(Icons.alternate_email),
                       ),
                       validator: (s) =>
-                          RegExp(
-                            r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
-                          ).hasMatch(s?.trim() ?? '')
+                          RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
+                              .hasMatch(s?.trim() ?? '')
                           ? null
                           : context.l10n.emailError,
                     ),
@@ -260,9 +253,8 @@ class _SignInScreenState extends State<SignInScreen> {
                     Text(
                       context.l10n.demoExplanation,
                       textAlign: TextAlign.center,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.copyWith(color: p.secondary),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: p.secondary),
                     ),
                     if (!widget.state.demoMode) ...[
                       const SizedBox(height: Space.md),

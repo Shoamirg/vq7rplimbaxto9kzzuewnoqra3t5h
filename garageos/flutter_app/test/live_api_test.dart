@@ -22,6 +22,9 @@ class _DiagnosingApiClient extends ApiClient {
     Map<String, String>? query,
     String? idempotencyKey,
     bool authenticated = true,
+    List<int>? fileBytes,
+    String? fileName,
+    bool binary = false,
   }) async {
     try {
       return await super.request(
@@ -31,6 +34,9 @@ class _DiagnosingApiClient extends ApiClient {
         query: query,
         idempotencyKey: idempotencyKey,
         authenticated: authenticated,
+        fileBytes: fileBytes,
+        fileName: fileName,
+        binary: binary,
       );
     } on AppFailure catch (failure) {
       if (failure.message == 'Server javobini oʻqib boʻlmadi.') {

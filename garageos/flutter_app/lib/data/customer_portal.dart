@@ -63,7 +63,7 @@ abstract interface class CustomerPortal implements CustomerBookingSource {
   });
   Future<RoadsideCase> roadside(String id);
   Future<void> changePassword(String current, String next);
-  Future<void> deleteAccount();
+  Future<void> deleteAccount({String? password});
   Future<LogoutOutcome> logout();
   void close();
 }
@@ -580,7 +580,7 @@ class DemoCustomerPortal implements CustomerPortal {
   }
 
   @override
-  Future<void> deleteAccount() async {}
+  Future<void> deleteAccount({String? password}) async {}
 
   @override
   Future<List<CustomerPortalVehicle>> vehicles() async => [

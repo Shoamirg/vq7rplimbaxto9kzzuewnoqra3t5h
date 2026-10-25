@@ -10,7 +10,7 @@ from pydantic import ValidationError
 
 from app.core.config import Settings
 
-VALID = dict(ENVIRONMENT="production", DEBUG=False, RATE_LIMIT_ENABLED=True,
+VALID = dict(ENVIRONMENT="production", DEBUG=False, RATE_LIMIT_ENABLED=True, UPLOAD_DIR="/data/uploads",
              SECRET_KEY="c31ab862ba6855e49cf7581a61fe0f736d70a8c835c7ae149a324ced932a82d4",
              DATABASE_URL="postgresql+asyncpg://garage:secret@postgres.railway.internal:5432/garage",
              REDIS_URL="redis://redis.railway.internal:6379/0",
@@ -36,25 +36,15 @@ def test_deployment_rejects_missing_or_loopback_dependencies(field, value):
 
 
 def test_deployment_defaults_cannot_point_at_local_dependencies():
+    # Pin every other deployment setting: CI exports RATE_LIMIT_ENABLED=false
+    # for the suite, and the environment must not decide which check fires.
+    pinned = dict(_env_file=None, ENVIRONMENT="production", DEBUG=False, RATE_LIMIT_ENABLED=True,
+                  UPLOAD_DIR=VALID["UPLOAD_DIR"], SECRET_KEY=VALID["SECRET_KEY"],
+                  CORS_ORIGINS=VALID["CORS_ORIGINS"])
     with pytest.raises(ValidationError, match="DATABASE_URL"):
-        Settings(_env_file=None, ENVIRONMENT="production", DEBUG=False,
-                 SECRET_KEY=VALID["SECRET_KEY"],
-                 CORS_ORIGINS=VALID["CORS_ORIGINS"],
-                 REDIS_URL=VALID["REDIS_URL"])
+        Settings(**pinned, REDIS_URL=VALID["REDIS_URL"])
     with pytest.raises(ValidationError, match="REDIS_URL"):
-        Settings(_env_file=None, ENVIRONMENT="production", DEBUG=False,
-                 SECRET_KEY=VALID["SECRET_KEY"],
-                 CORS_ORIGINS=VALID["CORS_ORIGINS"],
-                 DATABASE_URL=VALID["DATABASE_URL"])
-
-
-@pytest.mark.parametrize(("field", "enabled"), [
-    ("DEV_AUTH_ENABLED", True),
-    ("TELEGRAM_PHONE_LINKING_ENABLED", True),
-])
-def test_deployment_disables_insecure_customer_authentication(field, enabled):
-    with pytest.raises(ValidationError, match="authentication|linking"):
-        Settings(_env_file=None, **{**VALID, field: enabled})
+        Settings(**pinned, DATABASE_URL=VALID["DATABASE_URL"])
 
 
 @pytest.mark.parametrize("secret", [

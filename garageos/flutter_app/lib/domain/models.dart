@@ -1,4 +1,6 @@
 // These models follow FastAPI contracts; design-only job states are not invented.
+import 'service_time.dart';
+
 typedef Json = Map<String, dynamic>;
 
 String dateKey(DateTime value) =>
@@ -141,6 +143,7 @@ class Work {
     final first = customerNotes?.trim().split('\n').first.trim();
     return first == null || first.isEmpty ? null : first;
   }
+
   bool get canCancel =>
       status == WorkStatus.pending || status == WorkStatus.confirmed;
   bool get canAssignMechanic => canCancel;
@@ -284,11 +287,11 @@ class Receipt {
     this.date, {
     this.kind = 'payment',
   });
-  factory Receipt.fromJson(Json j) => Receipt(
+  factory Receipt.fromJson(Json j, {String timeZone = 'UTC'}) => Receipt(
     j['id'],
     Money.fromApi(j['amount']),
     j['method'],
-    DateTime.tryParse(j['received_at'] ?? ''),
+    j['received_at'] == null ? null : serviceDate(j['received_at'], timeZone),
     kind: j['kind'],
   );
   final String id, method, kind;
@@ -303,15 +306,19 @@ String paymentLabel(String code) => switch (code) {
   'online' => 'Onlayn',
   _ => 'Boshqa',
 };
+
 /// Reception invoice tabs.
 enum BillView { all, drafts, unpaid, paid }
 
 bool billInView(Bill bill, BillView view) => switch (view) {
   BillView.all => true,
   BillView.drafts => bill.status == 'draft',
-  BillView.unpaid => ['issued', 'partial', 'overdue', 'sent'].contains(
-    bill.status,
-  ),
+  BillView.unpaid => [
+    'issued',
+    'partial',
+    'overdue',
+    'sent',
+  ].contains(bill.status),
   BillView.paid => bill.status == 'paid',
 };
 
@@ -347,7 +354,7 @@ class Bill {
     this.receipts = const [],
     this.dueDate,
   });
-  factory Bill.fromJson(Json j) => Bill(
+  factory Bill.fromJson(Json j, {String timeZone = 'UTC'}) => Bill(
     id: j['id'],
     code: j['code'],
     customerId: j['customer_id'],
@@ -366,7 +373,7 @@ class Bill {
         .map((v) => BillLine.fromJson(v))
         .toList(),
     receipts: (j['payments'] as List? ?? [])
-        .map((v) => Receipt.fromJson(v))
+        .map((v) => Receipt.fromJson(v, timeZone: timeZone))
         .toList(),
     dueDate: j['due_date'] == null ? null : civilDate(j['due_date']),
   );

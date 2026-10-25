@@ -6,6 +6,7 @@ import '../design/theme.dart';
 import '../design/widgets.dart';
 import '../l10n/l10n.dart';
 import 'chat.dart';
+import '../data/photo_access.dart';
 
 /// Reception inbox: customer threads with unread badge and linked car pill.
 class InboxTab extends StatelessWidget {
@@ -72,6 +73,7 @@ class InboxTab extends StatelessWidget {
                   contextLabel: thread.context,
                   phone: thread.phone,
                   demo: repository.isDemo,
+                  media: repository is PhotoAccess ? repository as PhotoAccess : null,
                   load: () => repository.messages(thread.id),
                   send: (text, photos) =>
                       repository.sendMessage(thread.id, text, photos: photos),

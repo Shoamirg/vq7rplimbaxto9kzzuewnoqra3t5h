@@ -105,7 +105,7 @@ async def list_inbox(
     view: Literal['all', 'needs_reply', 'assigned_me', 'mentions', 'waiting_customer',
                   'waiting_technician', 'waiting_approval', 'sla_breached', 'unread',
                   'resolved', 'snoozed'] = Query(default="needs_reply"),
-    channel: Literal['all', 'telegram', 'web', 'phone', 'email', 'sms', 'internal'] | None = Query(default=None),
+    channel: Literal['all', 'app', 'telegram', 'web', 'phone', 'email', 'sms', 'internal'] | None = Query(default=None),
     conv_type: Literal['all', 'general', 'emergency', 'support', 'warranty', 'vip'] | None = Query(default=None, alias="type"),
     q: str | None = Query(default=None, max_length=200),
     limit: int = Query(default=80, ge=1, le=100),

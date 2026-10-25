@@ -629,5 +629,13 @@
   "whichCar": "Qaysi mashina?",
   "wrongCode": "Kod notoʻgʻri. Qayta tekshiring.",
   "yourLocation": "Joylashuvingiz",
-  "yourQuestion": "Savolingiz"
+  "yourQuestion": "Savolingiz",
+  "locationServiceOff": "Joylashuv xizmatini yoqing.",
+  "locationPermissionRequired": "Joylashuvga ruxsat bering.",
+  "locationTimeout": "Joylashuv aniqlanmadi. Ochiq joyda qayta urinib ko‘ring.",
+  "accountExistsReset": "Hisob mavjud. Kiring yoki parolni tiklang.",
+  "smsUnavailable": "SMS xizmati vaqtincha ishlamayapti. Keyinroq qayta urinib koʻring.",
+  "sessionStorageClearFailed": "Serverdagi sessiya bekor qilindi, lekin qurilmadagi kirish maʼlumotini tozalab boʻlmadi.",
+  "sessionStorageAndRevocationFailed": "Qurilmadagi kirish maʼlumotini tozalab boʻlmadi va serverdan chiqish tasdiqlanmadi.",
+  "currentPasswordError": "Joriy parol notoʻgʻri."
 }

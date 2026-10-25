@@ -28,6 +28,8 @@ class UnitOfWork:
     def __init__(self, service_center_id: Optional[uuid.UUID] = None):
         self.session: AsyncSession | None = None
         self.service_center_id = service_center_id
+        self.actor_user_id: uuid.UUID | None = None
+        self.actor_customer_id: uuid.UUID | None = None
         self._events: List[DomainEvent] = []
         self._before_commit: list[Callable[[], Awaitable[None]]] = []
         # Repositories will be lazy-initialized once session is available
@@ -80,6 +82,24 @@ class UnitOfWork:
         from app.core.notification_handlers import persist_transactional_notifications
 
         await persist_transactional_notifications(self, self._events)
+        # Audit business outcomes in the same transaction. Store identifiers,
+        # never raw event payloads (which may contain customer text or secrets).
+        import re
+        from app.models.audit_log import AuditLog
+        for event in self._events:
+            resource_type, resource_id = None, None
+            for kind in ('invoice', 'appointment', 'case', 'conversation', 'vehicle', 'customer'):
+                target = getattr(event, kind + '_id', None)
+                if target is not None:
+                    resource_type, resource_id = kind, target
+                    break
+            action = re.sub(r'(?<!^)(?=[A-Z])', '_', type(event).__name__).lower()
+            context = {'event_id': event.event_id}
+            if self.actor_customer_id is not None:
+                context['actor_customer_id'] = str(self.actor_customer_id)
+            self.session.add(AuditLog(service_center_id=self.service_center_id,
+                actor_user_id=self.actor_user_id, action=('domain.' + action)[:64],
+                resource_type=resource_type, resource_id=resource_id, context=context))
 
     async def rollback(self) -> None:
         if self.session:

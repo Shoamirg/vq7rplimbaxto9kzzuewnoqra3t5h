@@ -64,5 +64,7 @@ def register_event_handlers() -> None:
     event_bus.register(AppointmentCancelled, _on_cancelled)
     event_bus.register(AppointmentCompleted, _on_completed)
     event_bus.register(MaintenanceDue, _on_maintenance_due)
+    from app.services.push import register_push_handlers
+    register_push_handlers()
     _registered = True
     logger.info("Domain event handlers registered")

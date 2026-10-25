@@ -5,6 +5,11 @@ import '../domain/portal.dart';
 import 'api_client.dart';
 import 'pending_idempotency.dart';
 import 'payment_store.dart';
+import 'photo_access.dart';
+import 'portal_mapper.dart';
+import 'notification_feed.dart';
+
+import 'dart:math';
 
 enum WorkAction { confirm, assign, start, complete, createInvoice, openInvoice }
 
@@ -12,6 +17,7 @@ abstract class GarageRepository {
   PaymentStore payments = MemoryPaymentStore();
   bool get isDemo;
   bool get canWrite => true;
+  bool get canManageAccounts => isDemo && canWrite;
   bool get isMechanic => false;
   bool get canPerformWork => canWrite || isMechanic;
   WorkAction? primaryWorkAction(Work work, {required bool hasInvoice}) {
@@ -96,20 +102,39 @@ abstract class GarageRepository {
   void close() {}
 }
 
-class LiveRepository extends GarageRepository {
+class LiveRepository extends GarageRepository
+    implements PhotoAccess, NotificationFeed {
+  Bill _bill(Json value) => Bill.fromJson(value, timeZone: api.serviceTimeZone);
   LiveRepository(
     this.api, {
     PaymentStore? paymentStore,
     this.canWrite = false,
     this.isMechanic = false,
+    this.canManageAccounts = false,
   }) {
     if (paymentStore != null) payments = paymentStore;
   }
   final ApiClient api;
   @override
+  Future<List<AppNotification>> notifications() async {
+    if (isMechanic) return const [];
+    final data = await api.request('GET', '/notifications');
+    return [
+      for (final item in data['items'])
+        AppNotification(
+          '${item['id']}',
+          item['title'] ?? '',
+          item['body'] ?? '',
+        ),
+    ];
+  }
+
+  @override
   final bool canWrite;
   @override
   final bool isMechanic;
+  @override
+  final bool canManageAccounts;
   String get workPath => isMechanic ? '/mechanic/work' : '/appointments';
   @override
   Future<List<Mechanic>> mechanics() async {
@@ -158,7 +183,7 @@ class LiveRepository extends GarageRepository {
     final entries = data.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
     final fingerprint = jsonEncode(Map.fromEntries(entries));
-    const scope = 'staff-work-order';
+    final scope = api.operationScope('staff-work-order');
     final key = await PendingIdempotency.getOrCreate(scope, fingerprint);
     try {
       final result = await api.request(
@@ -175,6 +200,7 @@ class LiveRepository extends GarageRepository {
       rethrow;
     }
   }
+
   @override
   Future<Work> changeWork(String id, String action, [Json? data]) async =>
       Work.fromJson(
@@ -245,7 +271,11 @@ class LiveRepository extends GarageRepository {
       vehicleCount: cars.length,
     );
     if (!full) {
-      return CustomerFile(customer: contact, cars: cars, email: detail['email']);
+      return CustomerFile(
+        customer: contact,
+        cars: cars,
+        email: detail['email'],
+      );
     }
     final invoices = await api.request(
       'GET',
@@ -257,15 +287,43 @@ class LiveRepository extends GarageRepository {
         'page_size': '30',
       },
     );
-    final bills = (invoices['items'] as List)
-        .map((j) => Bill.fromJson(j))
-        .toList();
+    final bills = (invoices['items'] as List).map((j) => _bill(j)).toList();
+    final account = canManageAccounts
+        ? await api.request('GET', '/customers/${customer.id}/account')
+        : null;
     return CustomerFile(
       customer: contact,
       cars: cars,
       email: detail['email'],
       bills: bills,
-      lifetimeValue: Money(bills.fold(0, (sum, b) => sum + b.paid.cents)),
+      jobs: [
+        for (final row in detail['appointments'] ?? const [])
+          Work(
+            id: row['id'],
+            customerId: contact.id,
+            customerName: contact.name,
+            vehicleId: row['vehicle_id'],
+            vehicleLabel:
+                cars
+                    .where((car) => car.id == row['vehicle_id'])
+                    .map((car) => car.label)
+                    .firstOrNull ??
+                '',
+            date: civilDate(row['local_date'] ?? row['date']),
+            time: row['time'] ?? '',
+            duration: row['duration'] ?? 60,
+            status: WorkStatus.parse(row['status']),
+            mechanic: row['mechanic_name'],
+          ),
+      ],
+      lifetimeValue: Money.fromApi(
+        detail['financial']?['lifetime_spend'] ??
+            detail['stats']?['lifetime_value'] ??
+            0,
+      ),
+      appLogin: canManageAccounts
+          ? (account != null && account['is_active'] == true)
+          : null,
     );
   }
 
@@ -282,7 +340,7 @@ class LiveRepository extends GarageRepository {
         'view': switch (view) {
           BillView.drafts => 'drafts',
           BillView.unpaid => 'awaiting',
-          BillView.paid => 'payments',
+          BillView.paid => 'paid',
           BillView.all => 'invoices',
         },
         'q': query,
@@ -290,35 +348,36 @@ class LiveRepository extends GarageRepository {
         'page_size': '30',
       },
     );
-    var items = (data['items'] as List).map((j) => Bill.fromJson(j)).toList();
-    // The API's payments view includes part-paid invoices.
-    if (view == BillView.paid) items = items.where((b) => b.status == 'paid').toList();
-    return PageData(items, data['total'], data['page'], size: data['page_size']);
+    var items = (data['items'] as List).map((j) => _bill(j)).toList();
+    return PageData(
+      items,
+      data['total'],
+      data['page'],
+      size: data['page_size'],
+    );
   }
 
   /// Sharing an issued invoice leaves its balance and status unchanged.
   @override
   Future<Bill> sendBill(String id) async =>
-      Bill.fromJson(await api.request('POST', '/invoices/$id/send'));
+      _bill(await api.request('POST', '/invoices/$id/send'));
 
   @override
   Future<Bill> bill(String id) async =>
-      Bill.fromJson(await api.request('GET', '/invoices/$id'));
+      _bill(await api.request('GET', '/invoices/$id'));
   @override
   Future<Bill?> billForWork(String id) async {
     // Assigned mechanics never enter the staff billing workflow.
     if (isMechanic) return null;
     try {
-      return Bill.fromJson(
-        await api.request('GET', '/appointments/$id/invoice'),
-      );
+      return _bill(await api.request('GET', '/appointments/$id/invoice'));
     } on AppFailure catch (e) {
       if (e.status == 404) return null;
       rethrow;
     }
   }
 
-  /// The API issues invoices on creation; [send] also notifies the customer.
+  /// Saving keeps a real draft; sending issues it and notifies the customer.
   @override
   Future<Bill> createBill(
     Work work,
@@ -326,7 +385,7 @@ class LiveRepository extends GarageRepository {
     double taxRate, {
     bool send = true,
   }) async {
-    final created = Bill.fromJson(
+    final created = _bill(
       await api.request(
         'POST',
         '/invoices',
@@ -337,6 +396,7 @@ class LiveRepository extends GarageRepository {
           'appointment_id': work.id,
           'tax_rate': taxRate,
           'line_items': lines.map((l) => l.toJson()).toList(),
+          if (!send) 'draft': true,
         },
       ),
     );
@@ -349,11 +409,12 @@ class LiveRepository extends GarageRepository {
       return created;
     }
   }
+
   @override
   Future<Bill> pay(String id, Money amount, String method, String key) async {
     await payments.write(id, PendingPayment(amount, method, key));
     try {
-      final result = Bill.fromJson(
+      final result = _bill(
         await api.request(
           'POST',
           '/invoices/$id/payments',
@@ -376,6 +437,111 @@ class LiveRepository extends GarageRepository {
 
   @override
   Future<LogoutOutcome> logout() => api.logout();
+
+  @override
+  Future<AppLogin> openAppLogin(String customerId, String email) async {
+    final random = Random.secure();
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!';
+    final password = List.generate(
+      18,
+      (_) => alphabet[random.nextInt(alphabet.length)],
+    ).join();
+    await api.request(
+      'POST',
+      '/customers/$customerId/account',
+      body: {'email': email.trim(), 'password': password},
+    );
+    return AppLogin(email.trim(), password);
+  }
+
+  @override
+  Future<List<Thread>> threads() async {
+    final data = await api.request(
+      'GET',
+      '/conversations',
+      query: {'view': 'all'},
+    );
+    return [
+      for (final item in data['items'] ?? const [])
+        portalThread(
+          Json.from(item),
+          staff: true,
+          timeZone: api.serviceTimeZone,
+        ),
+    ];
+  }
+
+  @override
+  Future<List<ChatMessage>> messages(String threadId) async {
+    final data = await api.request('GET', '/conversations/$threadId');
+    return [
+      for (final item in data['messages'] ?? const [])
+        portalMessage(
+          Json.from(item),
+          staff: true,
+          timeZone: api.serviceTimeZone,
+        ),
+    ];
+  }
+
+  @override
+  Future<ChatMessage> sendMessage(
+    String threadId,
+    String text, {
+    List<String> photos = const [],
+  }) async {
+    final body = <String, dynamic>{
+      'body': text.trim(),
+      'channel': 'app',
+      'attachments': [
+        for (final photo in photos)
+          {
+            'kind': 'photo',
+            'label': 'Photo',
+            'url': photo,
+            'meta': {'file_id': photo.split('/').last},
+          },
+      ],
+    };
+    final scope = api.operationScope('staff-message/$threadId');
+    final fingerprint = jsonEncode(body);
+    final key = await PendingIdempotency.getOrCreate(scope, fingerprint);
+    try {
+      final response = await api.request(
+        'POST',
+        '/conversations/$threadId/messages',
+        body: body,
+        idempotencyKey: key,
+      );
+      await PendingIdempotency.clear(scope, fingerprint);
+      return portalMessage(
+        Json.from(response),
+        staff: true,
+        timeZone: api.serviceTimeZone,
+      );
+    } on AppFailure catch (error) {
+      if (!error.uncertain) await PendingIdempotency.clear(scope, fingerprint);
+      rethrow;
+    }
+  }
+
+  @override
+  Future<String> uploadPhoto(List<int> bytes, String name) async {
+    final data = await api.request(
+      'POST',
+      '/files',
+      fileBytes: bytes,
+      fileName: name,
+    );
+    return data['url'];
+  }
+
+  @override
+  Future<List<int>> photoBytes(String url) async {
+    final path = Uri.parse(url).path.replaceFirst(api.base.path, '');
+    return List<int>.from(await api.request('GET', path, binary: true));
+  }
+
   @override
   void close() => api.close();
 }

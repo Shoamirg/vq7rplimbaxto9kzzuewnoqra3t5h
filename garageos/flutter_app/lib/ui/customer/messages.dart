@@ -6,6 +6,7 @@ import '../../design/theme.dart';
 import '../../design/widgets.dart';
 import '../../l10n/l10n.dart';
 import '../chat.dart';
+import '../../data/photo_access.dart';
 
 class MessagesTab extends StatelessWidget {
   const MessagesTab({
@@ -102,6 +103,7 @@ class CustomerChatScreen extends StatelessWidget {
     contextLabel: contextLabel,
     phone: phone,
     demo: portal.isDemo,
+    media: portal is PhotoAccess ? portal as PhotoAccess : null,
     load: () => portal.messages(thread),
     send: (text, photos) => portal.send(thread, text, photos: photos),
   );

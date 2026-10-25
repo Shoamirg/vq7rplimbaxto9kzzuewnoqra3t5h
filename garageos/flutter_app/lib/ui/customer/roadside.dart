@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../features/roadside/device_location.dart';
+
+import '../../design/foreground_polling.dart';
 
 import '../../data/api_client.dart';
 import '../../data/customer_portal.dart';
@@ -51,14 +54,17 @@ IconData problemIcon(RoadsideProblem problem) => switch (problem) {
 };
 
 class RoadsideScreen extends StatefulWidget {
-  const RoadsideScreen({super.key, required this.portal, this.active});
+  const RoadsideScreen({super.key, required this.portal, this.active,
+    this.locationSource = const DeviceLocationSource()});
   final CustomerPortal portal;
   final RoadsideCase? active;
+  final LocationSource locationSource;
   @override
   State<RoadsideScreen> createState() => _RoadsideScreenState();
 }
 
-class _RoadsideScreenState extends State<RoadsideScreen> {
+class _RoadsideScreenState extends State<RoadsideScreen>
+    with ForegroundPolling {
   late RoadsideCase? active = widget.active;
   List<PortalVehicle>? cars;
   CustomerProfile? profile;
@@ -67,6 +73,23 @@ class _RoadsideScreenState extends State<RoadsideScreen> {
   bool shareLocation = true, busy = false;
   int step = 1;
   Object? error;
+  GeoPoint? location;
+
+  Future<void> previewLocation() async {
+    setState(() { busy = true; error = null; });
+    try {
+      final point = widget.portal.isDemo ? garageArea : await widget.locationSource.current();
+      if (mounted) setState(() { location = point; step = 2; });
+    } catch (e) {
+      if (mounted) setState(() => error = e);
+    } finally { if (mounted) setState(() => busy = false); }
+  }
+  @override
+  bool get pollingEnabled => !widget.portal.isDemo;
+  @override
+  Future<void> poll() async {
+    if (active != null && !busy) await track(silent: true);
+  }
 
   @override
   void initState() {
@@ -98,10 +121,12 @@ class _RoadsideScreenState extends State<RoadsideScreen> {
       error = null;
     });
     try {
+      final point = location;
+      if (point == null || !shareLocation) throw const AppFailure('Joylashuvga ruxsat bering.');
       final created = await widget.portal.requestRoadside(
         vehicleId: vehicleId!,
         problem: problem!,
-        location: garageArea,
+        location: point,
       );
       if (mounted) setState(() => active = created);
     } catch (e) {
@@ -111,12 +136,12 @@ class _RoadsideScreenState extends State<RoadsideScreen> {
     }
   }
 
-  Future<void> track() async {
+  Future<void> track({bool silent = false}) async {
     try {
       final value = await widget.portal.roadside(active!.id);
       if (mounted) setState(() => active = value);
     } catch (e) {
-      if (mounted) toast(context, context.message(failureText(e)));
+      if (mounted && !silent) toast(context, context.message(failureText(e)));
     }
   }
 
@@ -161,7 +186,9 @@ class _RoadsideScreenState extends State<RoadsideScreen> {
           : ListView(
               padding: const EdgeInsets.all(Space.page),
               children: [
-                _EmergencyHeader(onCall: profile?.garage.phone == null ? null : callGarage),
+                _EmergencyHeader(
+                  onCall: profile?.garage.phone == null ? null : callGarage,
+                ),
                 const SizedBox(height: Space.grid),
                 if (error != null) ...[
                   failureView(
@@ -188,7 +215,9 @@ class _RoadsideScreenState extends State<RoadsideScreen> {
                       for (final car in cars!)
                         ChoiceChip(
                           avatar: const Icon(Icons.directions_car_outlined),
-                          label: Text('${car.label} · ${formatPlate(car.plate)}'),
+                          label: Text(
+                            '${car.label} · ${formatPlate(car.plate)}',
+                          ),
                           selected: vehicleId == car.id,
                           materialTapTargetSize: MaterialTapTargetSize.padded,
                           onSelected: (_) => setState(() => vehicleId = car.id),
@@ -219,16 +248,17 @@ class _RoadsideScreenState extends State<RoadsideScreen> {
                 if (step == 2) ...[
                   SectionTitle(context.l10n.yourLocation),
                   MapPinCard(
-                    latitude: garageArea.latitude,
-                    longitude: garageArea.longitude,
-                    address: garageArea.address,
+                    latitude: location!.latitude,
+                    longitude: location!.longitude,
+                    address: location!.address,
                     semanticLabel: context.l10n.mapSemantics(
-                      garageArea.address!,
+                      location!.address ?? '${location!.latitude.toStringAsFixed(4)}, ${location!.longitude.toStringAsFixed(4)}',
                     ),
                     footer: SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       value: shareLocation,
-                      onChanged: (value) => setState(() => shareLocation = value),
+                      onChanged: (value) =>
+                          setState(() => shareLocation = value),
                       title: Text(context.l10n.shareLocation),
                       subtitle: Text(context.l10n.approximateLocation),
                     ),
@@ -256,7 +286,9 @@ class _RoadsideScreenState extends State<RoadsideScreen> {
                       label: step == 1
                           ? context.l10n.continueLabel
                           : context.l10n.requestHelp,
-                      icon: step == 1 ? Icons.arrow_forward : Icons.emergency_outlined,
+                      icon: step == 1
+                          ? Icons.arrow_forward
+                          : Icons.emergency_outlined,
                       kind: PillKind.danger,
                       large: true,
                       expand: true,
@@ -264,7 +296,7 @@ class _RoadsideScreenState extends State<RoadsideScreen> {
                       onPressed: vehicleId == null || problem == null
                           ? null
                           : step == 1
-                          ? () => setState(() => step = 2)
+                          ? previewLocation
                           : request,
                     ),
                   ),
@@ -303,9 +335,8 @@ class _EmergencyHeader extends StatelessWidget {
             Expanded(
               child: Text(
                 context.l10n.roadsideTitle,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: const Color(0xFFECEEF1),
-                ),
+                style: Theme.of(context).textTheme.titleLarge
+                    ?.copyWith(color: const Color(0xFFECEEF1)),
               ),
             ),
           ],
@@ -313,9 +344,8 @@ class _EmergencyHeader extends StatelessWidget {
         const SizedBox(height: Space.md),
         Text(
           context.l10n.roadsideHint,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: const Color(0xFFB1BCCD),
-          ),
+          style: Theme.of(context).textTheme.bodyMedium
+              ?.copyWith(color: const Color(0xFFB1BCCD)),
         ),
         if (onCall != null) ...[
           const SizedBox(height: Space.md),
@@ -372,7 +402,10 @@ class _Tracker extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: Space.md),
-                Text(case_.vehicle, style: Theme.of(context).textTheme.titleLarge),
+                Text(
+                  case_.vehicle,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
                 if (case_.plate != null) ...[
                   const SizedBox(height: Space.xs),
                   Plate(case_.plate),
@@ -402,7 +435,8 @@ class _Tracker extends StatelessWidget {
                     reached: stage.index <= case_.stage.index,
                     current: stage == case_.stage,
                     last: stage == RoadsideStage.resolved,
-                    detail: stage == RoadsideStage.assigned &&
+                    detail:
+                        stage == RoadsideStage.assigned &&
                             case_.mechanic != null
                         ? case_.mechanic
                         : null,

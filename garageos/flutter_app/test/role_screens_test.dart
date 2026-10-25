@@ -145,7 +145,11 @@ void main() {
       await t.enterText(find.byType(TextFormField), 'Tormoz tekshiruvi');
       await settle();
       await capture('booking');
+      var bookingDay = DateTime.now().add(const Duration(days: 1));
+      if (bookingDay.weekday == DateTime.sunday) bookingDay = bookingDay.add(const Duration(days: 1));
+      await tap(find.text('${bookingDay.day}'));
       await tap(find.widgetWithText(FilledButton, s.sendBooking));
+      await capture('booking-result');
       expect(find.text(s.bookingWaitingConfirmation), findsOneWidget);
 
       // Roadside help: car + problem → map → live tracker.

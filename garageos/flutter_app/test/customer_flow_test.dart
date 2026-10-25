@@ -51,6 +51,16 @@ void main() {
                     'full_name': 'Ali',
                     'garage': {'name': 'Turon'},
                   };
+                } else if (request.uri.path.endsWith('/customer/home')) {
+                  result = {'greeting': 'Ali', 'garage': {'name': 'Turon'},
+                    'next_appointment': null, 'latest_message': null, 'primary_vehicle': null};
+                } else if (request.uri.path.endsWith('/customer/vehicles')) {
+                  result = {'vehicles': [{'id': 'car1', 'label': 'Cobalt',
+                    'plate': '01A123BC', 'health_score': 85}]};
+                } else if (request.uri.path.endsWith('/customer/billing')) {
+                  result = {'balance_due': 0, 'estimates': [], 'receipts': [],
+                    'invoices': [{'id': 'invoice1', 'code': 'INV-1', 'status': 'paid',
+                      'currency': 'UZS', 'total': 150000, 'balance': 0}]};
                 } else if (request.uri.path.endsWith('/history/vehicles')) {
                   result = {
                     'items': [

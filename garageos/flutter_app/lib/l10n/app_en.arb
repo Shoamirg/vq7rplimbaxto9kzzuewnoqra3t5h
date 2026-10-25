@@ -458,5 +458,13 @@
   "whichCar": "Which car?",
   "wrongCode": "Wrong code. Check it and try again.",
   "yourLocation": "Your location",
-  "yourQuestion": "Your question"
+  "yourQuestion": "Your question",
+  "locationServiceOff": "Turn on location services.",
+  "locationPermissionRequired": "Allow access to your location.",
+  "locationTimeout": "Location could not be determined. Try again outdoors.",
+  "accountExistsReset": "An account already exists. Sign in or reset your password.",
+  "smsUnavailable": "SMS is temporarily unavailable. Please try again later.",
+  "sessionStorageClearFailed": "The server session was revoked, but sign-in data could not be cleared from this device.",
+  "sessionStorageAndRevocationFailed": "Sign-in data could not be cleared from this device, and server sign-out was not confirmed.",
+  "currentPasswordError": "The current password is incorrect."
 }

@@ -44,4 +44,5 @@ async def post_message(
     uow: UnitOfWork = Depends(get_customer_uow, scope="function"),
     idempotency_key: uuid.UUID | None = Header(default=None),
 ) -> ThreadMessage:
-    return await CustomerPortalService(uow, customer).post_message(conversation_id, body.body, idempotency_key=idempotency_key)
+    return await CustomerPortalService(uow, customer).post_message(
+        conversation_id, body.body, attachments=body.attachments, idempotency_key=idempotency_key)

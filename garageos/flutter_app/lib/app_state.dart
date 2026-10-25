@@ -7,12 +7,114 @@ import 'data/customer_repository.dart';
 import 'data/demo_repository.dart';
 import 'data/repository.dart';
 import 'data/api_client.dart';
+import 'data/session_store.dart';
 
 enum Role { customer, staff }
 
 enum DemoRole { reception, mechanic, customer }
 
 class AppState extends ChangeNotifier {
+  AppState({SessionStore? sessionStore})
+    : sessionStore = sessionStore ?? SecureSessionStore();
+  final SessionStore sessionStore;
+  bool restoringSession = false;
+
+  ApiClient? get _sessionApi => customerRepository is CustomerRepository
+      ? (customerRepository as CustomerRepository).api
+      : repository is LiveRepository
+      ? (repository as LiveRepository).api
+      : null;
+
+  Future<void> _persistSession(ApiClient api, bool customer) async {
+    if (api.accessToken == null || api.refreshToken == null) return;
+    await sessionStore.write(
+      SavedSession(
+        api.base.toString(),
+        customer,
+        api.accessToken!,
+        api.refreshToken!,
+      ),
+    );
+  }
+
+  Future<void> _watchSession(ApiClient api, bool customer) async {
+    final revision = _sessionRevision;
+    api.onTokensChanged = () async {
+      if (!_disposed && revision == _sessionRevision) {
+        await _persistSession(api, customer);
+      }
+    };
+    await _persistSession(api, customer);
+  }
+
+  Future<void> restoreSession() async {
+    final revision = _sessionRevision;
+    restoringSession = true;
+    notifyListeners();
+    ApiClient? api;
+    try {
+      final saved = await sessionStore.read();
+      if (saved == null || _disposed || revision != _sessionRevision) return;
+      api = ApiClient(
+        saved.address,
+        refreshPath: saved.customer
+            ? '/customer/auth/refresh'
+            : '/auth/refresh',
+      );
+      api.accessToken = saved.access;
+      api.refreshToken = saved.refresh;
+      // Persist rotations during restoration too, before any next API request.
+      api.onTokensChanged = () => _persistSession(api!, saved.customer);
+      if (saved.customer) {
+        final session = await CustomerRepository.fromApi(
+          api,
+          onExpired: () => onExpired?.call(),
+        );
+        if (_disposed || revision != _sessionRevision) {
+          session.close();
+          return;
+        }
+        customerRepository = session;
+        name = session.name;
+        garageName = session.garageName;
+      } else {
+        final session = await GarageSession.fromApi(
+          api,
+          onExpired: () => onExpired?.call(),
+        );
+        if (_disposed || revision != _sessionRevision) {
+          session.repository.close();
+          return;
+        }
+        repository = session.repository;
+        name = session.name;
+        garageName = session.garageName;
+      }
+      await _watchSession(api, saved.customer);
+    } on AppFailure catch (error) {
+      api?.close();
+      if (error.status == 401 || error.status == 403) {
+        await sessionStore.clear();
+      }
+      if (!_disposed && revision == _sessionRevision) {
+        sessionNotice = error.message;
+      }
+    } catch (_) {
+      api?.close();
+      if (!_disposed && revision == _sessionRevision) {
+        repository = null;
+        customerRepository = null;
+        name = garageName = '';
+      }
+      // A device storage failure must leave the entry screen usable.
+    } finally {
+      if (!_disposed && revision == _sessionRevision) {
+        restoringSession = false;
+        notifyListeners();
+      }
+    }
+  }
+
   GarageRepository? repository;
   CustomerPortal? customerRepository;
   String name = '', garageName = '';
@@ -32,7 +134,26 @@ class AppState extends ChangeNotifier {
   void Function()? onExpired;
 
   AccountSource get accounts =>
-      demoMode ? DemoAccountSource() : const LiveAccountSource();
+      demoMode ? DemoAccountSource() : LiveAccountSource();
+
+  Future<void> adoptCustomer(CustomerRepository session) async {
+    final revision = ++_sessionRevision;
+    restoringSession = false;
+    await _watchSession(session.api, true);
+    if (_disposed || revision != _sessionRevision) {
+      session.close();
+      return;
+    }
+    repository?.close();
+    customerRepository?.close();
+    repository = null;
+    customerRepository = session;
+    name = session.name;
+    garageName = session.garageName;
+    demoMode = false;
+    sessionNotice = null;
+    notifyListeners();
+  }
 
   Future<void> restoreLocale() async {
     if (_localeRevision != 0) return;
@@ -101,6 +222,7 @@ class AppState extends ChangeNotifier {
   }
 
   void demo([DemoRole role = DemoRole.reception]) {
+    restoringSession = false;
     _sessionRevision++;
     sessionNotice = null;
     repository?.close();
@@ -108,6 +230,7 @@ class AppState extends ChangeNotifier {
     repository = null;
     customerRepository = null;
     demoMode = true;
+    sessionStore.clear();
     switch (role) {
       case DemoRole.customer:
         final portal = DemoCustomerPortal();
@@ -132,6 +255,7 @@ class AppState extends ChangeNotifier {
     String password, {
     bool customer = false,
   }) async {
+    restoringSession = false;
     if (demoMode) {
       demo(customer ? DemoRole.customer : DemoRole.reception);
       return;
@@ -144,6 +268,11 @@ class AppState extends ChangeNotifier {
         password,
         onExpired: () => onExpired?.call(),
       );
+      if (_disposed || revision != _sessionRevision) {
+        session.close();
+        return;
+      }
+      await _watchSession(session.api, true);
       if (_disposed || revision != _sessionRevision) {
         session.close();
         return;
@@ -168,6 +297,13 @@ class AppState extends ChangeNotifier {
       session.repository.close();
       return;
     }
+    if (session.repository is LiveRepository) {
+      await _watchSession((session.repository as LiveRepository).api, false);
+    }
+    if (_disposed || revision != _sessionRevision) {
+      session.repository.close();
+      return;
+    }
     repository?.close();
     customerRepository?.close();
     customerRepository = null;
@@ -179,7 +315,9 @@ class AppState extends ChangeNotifier {
   }
 
   void expire() {
+    restoringSession = false;
     _sessionRevision++;
+    sessionStore.clear();
     repository?.close();
     customerRepository?.close();
     customerRepository = null;
@@ -190,8 +328,12 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    restoringSession = false;
     final staff = repository, customer = customerRepository;
     final revision = ++_sessionRevision;
+    final oldApi = _sessionApi;
+    if (oldApi != null) oldApi.onTokensChanged = null;
+    final clearingSession = sessionStore.clear();
     // Detach immediately; pending UI and refresh callbacks own the old client.
     repository = null;
     customerRepository = null;
@@ -199,6 +341,12 @@ class AppState extends ChangeNotifier {
     sessionNotice = null;
     notifyListeners();
     LogoutOutcome outcome;
+    var storageFailed = false;
+    try {
+      await clearingSession;
+    } catch (_) {
+      storageFailed = true;
+    }
     try {
       outcome = customer != null
           ? await customer.logout()
@@ -212,7 +360,11 @@ class AppState extends ChangeNotifier {
       customer?.close();
     }
     if (_disposed || revision != _sessionRevision) return;
-    if (outcome == LogoutOutcome.unconfirmed) {
+    if (storageFailed) {
+      sessionNotice = outcome == LogoutOutcome.confirmed
+          ? 'Serverdagi sessiya bekor qilindi, lekin qurilmadagi kirish maʼlumotini tozalab boʻlmadi.'
+          : 'Qurilmadagi kirish maʼlumotini tozalab boʻlmadi va serverdan chiqish tasdiqlanmadi.';
+    } else if (outcome == LogoutOutcome.unconfirmed) {
       sessionNotice = 'Qurilmada hisobdan chiqildi. Serverdagi sessiya bekor qilingani tasdiqlanmadi.';
     }
     notifyListeners();

@@ -31,7 +31,7 @@ def _service(*, kind="invoice", status="issued", paid=0, total=100):
         paid_at=datetime.now(timezone.utc) if status == "paid" else None,
     )
     session = SimpleNamespace(add=Mock(), flush=AsyncMock())
-    uow = SimpleNamespace(session=session, service_center_id=invoice.service_center_id,
+    uow = SimpleNamespace(session=session, service_center_id=invoice.service_center_id, actor_user_id=None,
                           add_event=Mock())
     svc = InvoiceService(uow)
     svc._get = AsyncMock(return_value=invoice)
