@@ -80,3 +80,6 @@ logs/
 # Local Jenkins build evidence and fixture state (credentials stay outside Git).
 ci-evidence/
 ci-state/
+
+# Local downloaded development tools.
+garageos/tools/

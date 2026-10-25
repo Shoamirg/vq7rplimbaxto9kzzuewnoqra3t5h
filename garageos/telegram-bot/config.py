@@ -33,6 +33,11 @@ BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 MINI_APP_URL = os.environ.get("TELEGRAM_MINI_APP_URL", "").rstrip("/")
 BOT_NAME = os.environ.get("TELEGRAM_BOT_NAME", "GarageOS")
 
+# Backend (GarageOS API) — where customer chat messages are forwarded so they
+# land in staff's Inbox. INGEST_SECRET is the shared bot↔backend trust token.
+BACKEND_API = os.environ.get("API_BASE_URL", "http://backend:8000/api/v1").rstrip("/")
+INGEST_SECRET = os.environ.get("TELEGRAM_WEBHOOK_SECRET", "")
+
 API_BASE = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
 

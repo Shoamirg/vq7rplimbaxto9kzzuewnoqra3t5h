@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { makeFormatters } from "./formatters";
 
 import {
@@ -39,6 +40,8 @@ export function I18nProvider({
   initialLocale?: Locale;
   children: React.ReactNode;
 }) {
+  const router = useRouter();
+  const [isSwitching, startSwitch] = useTransition();
   const [locale, setLocaleState] = useState<Locale>(initialLocale);
   useEffect(() => {
     document.documentElement.lang = locale;
@@ -46,14 +49,19 @@ export function I18nProvider({
   }, [locale]);
 
   const setLocale = useCallback((l: Locale) => {
-    setLocaleState(l);
     if (typeof document !== "undefined") {
       // 1-year cookie so the server can pre-render the right language next visit.
       document.cookie = `${LOCALE_COOKIE}=${l}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
       document.documentElement.lang = l;
       document.documentElement.dir = textDirection(l);
     }
-  }, []);
+    startSwitch(() => { setLocaleState(l); router.refresh(); });
+  }, [router]);
+
+  useEffect(() => {
+    document.documentElement.toggleAttribute("data-locale-switching", isSwitching);
+    return () => { document.documentElement.removeAttribute("data-locale-switching"); };
+  }, [isSwitching]);
 
   const value = useMemo<I18nValue>(
     () => ({

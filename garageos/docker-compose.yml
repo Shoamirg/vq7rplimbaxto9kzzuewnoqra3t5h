@@ -66,22 +66,32 @@ services:
 
   admin-dashboard:
     build:
-      context: ./admin-dashboard
-      dockerfile: ../docker/Dockerfile.dashboard
+      # Build from the monorepo root so the @garageos/design-system workspace
+      # package is available and installed alongside the dashboard.
+      context: .
+      dockerfile: docker/Dockerfile.dashboard
     ports:
       - "3000:3000"
     env_file:
       - .env
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+      # Reached only server-side (Next.js route handlers / server components act
+      # as a BFF; the browser never calls the backend directly), so this is the
+      # in-network service address, not a host-published port.
+      - NEXT_PUBLIC_API_URL=http://backend:8000/api/v1
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-change-this-nextauth-secret}
       - NEXTAUTH_URL=http://localhost:3000
     depends_on:
       - backend
     volumes:
-      - ./admin-dashboard:/app
-      - /app/node_modules
-      - /app/.next
+      # Mount the dashboard and the workspace package for hot reload, while
+      # keeping the image-installed node_modules (with the hoisted @garageos
+      # symlink) and the .next cache as container-owned anonymous volumes.
+      - ./admin-dashboard:/workspace/admin-dashboard
+      - ./packages:/workspace/packages
+      - /workspace/node_modules
+      - /workspace/admin-dashboard/node_modules
+      - /workspace/admin-dashboard/.next
 
   nginx:
     image: nginx:alpine

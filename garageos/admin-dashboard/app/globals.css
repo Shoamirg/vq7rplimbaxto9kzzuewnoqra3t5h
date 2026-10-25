@@ -256,6 +256,12 @@ h1, h2, h3, .font-brand {
 .twin-glow  { animation: twin-glow 5.5s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .twin-float, .twin-glow { animation: none; } }
 
+/* Language switch — soft fade while server-rendered sections re-translate,
+   so the page never shows a half-old, half-new language mix. */
+main { transition: opacity 150ms ease-out; }
+html[data-locale-switching] main { opacity: 0.55; }
+@media (prefers-reduced-motion: reduce) { main { transition: none; } }
+
 /* ---- Print an invoice/estimate as a clean PDF (window.print) ---------- */
 @media print {
   html, body { height: auto !important; overflow: visible !important; }
