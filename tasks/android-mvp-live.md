@@ -27,12 +27,14 @@ acceptance are deferred. Never substitute demo data for a failed live request.
 - [x] Implement local notification delivery and Payme protocol preparation (acceptance pending).
 - [ ] Run Flutter/backend/migration/tenant/idempotency regressions.
 - [ ] Run and record every screen and end-to-end workflow on emulator.
-- [ ] Produce verified APK and architecture/setup/acceptance documentation.
+- [x] Produce a working Dev APK and architecture/setup/acceptance documentation.
 
 Current main.dart APK: GarageOS Dev 0.2.0+4, x86_64, 87,184,912 bytes. Installed,
 opened and restored a real local synthetic customer session. No embedded fixture
 material detected. Core API reauthentication and local customer read contracts
-passed. Final publishing and source pinning are being completed.
+passed. Primary source commit: `6101b86`; backend export commit: `11a5d46`.
+Full 31-screen acceptance remains deferred; this is a working implementation
+checkpoint. Artifact metadata and download entry are in `artifacts/android/`.
 
 ## Evidence rules
 
