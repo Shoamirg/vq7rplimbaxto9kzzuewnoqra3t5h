@@ -9,7 +9,7 @@ backendni tayyorlashni so'radi. Hozirgi scope faqat backend joylashga tayyorgarl
       regression RED -> GREEN.
 - [x] Backend rootida Railway auto-Dockerfile, dynamic PORT, nonroot runtime,
       bitta worker; private Variables va pre-deploy/healthcheck yo'riqnomasi.
-- [ ] Haqiqiy PostgreSQL16/Redis bilan yangi Docker image, migratsiya, custom
+- [x] Haqiqiy PostgreSQL16/Redis bilan yangi Docker image, migratsiya, custom
       PORT/auth/CORS/rate-limit/dependency-failure/cleanup rehearsal.
 - [ ] Backend regressiyalari, independent review va o'z branchimizga push.
 
