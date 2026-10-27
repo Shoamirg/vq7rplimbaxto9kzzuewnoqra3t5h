@@ -1,0 +1,17 @@
+{
+  "application": "GarageOS Dev",
+  "version": "0.2.0+4",
+  "package": "uz.garageos.garageos_staff.dev",
+  "source_commit": "6101b868340de3f76aa4ee4c19da157494281361",
+  "backend_export_commit": "11a5d46ddc35efa78bf809ce26640ea5205da229",
+  "file": "GarageOS-Dev-0.2.0+4-emulator.apk",
+  "sha256": "54f552a44e8bb44832c519f01813ab390537aa54bb25791b05214f66c5e20eb2",
+  "size_bytes": 87184912,
+  "entrypoint": "lib/main.dart",
+  "engine_abis": [
+    "x86_64"
+  ],
+  "api_url": "http://10.0.2.2:8000/api/v1",
+  "integration_fixture_included": false,
+  "acceptance": "Development checkpoint; complete 31-screen/API24/API33 acceptance deferred by user"
+}

@@ -10,10 +10,12 @@ import 'package:garageos_staff/app_state.dart';
 import 'package:garageos_staff/data/api_client.dart';
 import 'package:garageos_staff/data/demo_repository.dart';
 import 'package:garageos_staff/data/repository.dart';
+import 'package:garageos_staff/design/bento.dart';
 import 'package:garageos_staff/l10n/generated/app_localizations.dart';
 import 'package:garageos_staff/main.dart';
 import 'package:garageos_staff/ui/staff_home.dart';
 
+import 'support/dock.dart';
 import 'support/fonts.dart';
 
 Map<String, dynamic> oldJob(int index) => {
@@ -64,15 +66,14 @@ class OngoingServer {
   }
 }
 
+JobFilter selectedFilter(WidgetTester tester) => tester
+    .widget<PillSegments<JobFilter>>(find.byType(PillSegments<JobFilter>))
+    .selected;
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(loadGarageFonts);
   setUp(() => SharedPreferences.setMockInitialValues({}));
-  const labels = {
-    'uz': 'Davom etayotgan ishlar',
-    'en': 'Ongoing work',
-    'ru': 'Работы в процессе',
-  };
   for (final size in [const Size(390, 844), const Size(834, 1194)]) {
     for (final language in ['uz', 'en', 'ru']) {
       testWidgets(
@@ -95,16 +96,12 @@ void main() {
             ..name = 'Staff'
             ..garageName = 'Garage';
           addTearDown(state.dispose);
+          final strings = await AppLocalizations.delegate.load(
+            Locale(language),
+          );
           await tester.pumpWidget(GarageApp(state: state));
           await tester.pumpAndSettle();
-          final quick = find.widgetWithText(FilterChip, labels[language]!);
-          await tester.scrollUntilVisible(
-            quick,
-            200,
-            scrollable: find.byType(Scrollable).first,
-          );
-          await tester.tap(quick);
-          await tester.pumpAndSettle();
+          await tapSegment(tester, strings.ongoingShort);
           expect(server.requests.last.queryParameters['status'], 'in_progress');
           expect(
             server.requests.last.queryParameters.containsKey('date_from'),
@@ -115,13 +112,8 @@ void main() {
             isFalse,
           );
           expect(find.text('Old customer 0'), findsOneWidget);
-          expect(
-            find.text(
-              (await AppLocalizations.delegate.load(Locale(language)))
-                  .newAppointment,
-            ),
-            findsNothing,
-          );
+          // Read-only staff get no intake action.
+          expect(find.text(strings.newAppointment), findsNothing);
           await tester.enterText(find.byType(TextField), 'Old customer 30');
           await tester.pump(const Duration(milliseconds: 400));
           await tester.pumpAndSettle();
@@ -136,40 +128,27 @@ void main() {
           await tester.pumpAndSettle();
           await tester.tap(find.byType(BackButton).first);
           await tester.pumpAndSettle();
-          final strings = await AppLocalizations.delegate.load(
-            Locale(language),
-          );
-          Future<void> tab(String label) async {
-            final nav = size.width < 768
-                ? find.byType(NavigationBar)
-                : find.byType(NavigationRail);
-            await tester.tap(
-              find.descendant(of: nav, matching: find.text(label)),
-            );
-            await tester.pumpAndSettle();
-          }
-
-          await tab(strings.customers);
-          await tab(strings.appointments);
-          expect(tester.widget<FilterChip>(quick).selected, isTrue);
+          await tester.tap(dockTab(strings.customers));
+          await tester.pumpAndSettle();
+          await tester.tap(dockTab(strings.jobs));
+          await tester.pumpAndSettle();
+          expect(selectedFilter(tester), JobFilter.ongoing);
           expect(
             tester.widget<TextField>(find.byType(TextField)).controller!.text,
             'Old customer 30',
           );
           await state.setLocale(Locale(language == 'ru' ? 'en' : 'ru'));
           await tester.pumpAndSettle();
-          final changedQuick = find.widgetWithText(
-            FilterChip,
-            labels[language == 'ru' ? 'en' : 'ru']!,
+          final changed = await AppLocalizations.delegate.load(
+            Locale(language == 'ru' ? 'en' : 'ru'),
           );
-          expect(tester.widget<FilterChip>(changedQuick).selected, isTrue);
+          expect(selectedFilter(tester), JobFilter.ongoing);
           await tester.enterText(find.byType(TextField), 'missing');
           await tester.pump(const Duration(milliseconds: 400));
           await tester.pumpAndSettle();
           expect(server.requests.last.queryParameters['status'], 'in_progress');
           expect(find.byType(WorkTile), findsNothing);
-          await tester.tap(changedQuick);
-          await tester.pumpAndSettle();
+          await tapSegment(tester, changed.all);
           expect(
             server.requests.last.queryParameters.containsKey('status'),
             isFalse,
@@ -199,20 +178,13 @@ void main() {
       addTearDown(state.dispose);
       await tester.pumpWidget(GarageApp(state: state));
       await tester.pumpAndSettle();
-      final quick = find.widgetWithText(FilterChip, labels['uz']!);
+      await tapSegment(tester, 'Jarayonda');
+      // Scrolling to the end loads the next page.
       await tester.scrollUntilVisible(
-        quick,
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.tap(quick);
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.byTooltip('Keyingi sahifa'),
+        find.text('Old customer 30'),
         600,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.tap(find.byTooltip('Keyingi sahifa'));
       await tester.pumpAndSettle();
       expect(server.requests.last.queryParameters['page'], '2');
       expect(find.text('Old customer 30'), findsOneWidget);
@@ -229,9 +201,10 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Qayta urinish'));
       await tester.pumpAndSettle();
+      // Retry reloads every page the reader had loaded.
       expect(server.requests.last.queryParameters['page'], '2');
       expect(server.requests.last.queryParameters['status'], 'in_progress');
-      expect(tester.widget<FilterChip>(quick).selected, isTrue);
+      expect(selectedFilter(tester), JobFilter.ongoing);
     },
   );
 
@@ -243,14 +216,7 @@ void main() {
     addTearDown(state.dispose);
     await tester.pumpWidget(GarageApp(state: state));
     await tester.pumpAndSettle();
-    final quick = find.widgetWithText(FilterChip, labels['uz']!);
-    await tester.scrollUntilVisible(
-      quick,
-      200,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.tap(quick);
-    await tester.pumpAndSettle();
+    await tapSegment(tester, 'Jarayonda');
     expect(find.text('Dilnoza Saidova'), findsOneWidget);
     expect(find.text('Aziz Karimov'), findsNothing);
     expect(find.text('Bekzod Aliyev'), findsNothing);

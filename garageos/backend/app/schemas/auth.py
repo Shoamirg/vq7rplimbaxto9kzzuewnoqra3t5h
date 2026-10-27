@@ -43,6 +43,7 @@ class RegisterAdminResponse(BaseModel):
 
 
 class CurrentUserResponse(BaseModel):
+    timezone: str = 'UTC'
     id: str
     email: str
     full_name: str

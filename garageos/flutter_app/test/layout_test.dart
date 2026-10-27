@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garageos_staff/app_state.dart';
+import 'package:garageos_staff/design/bento.dart';
+import 'package:garageos_staff/design/theme.dart';
 import 'package:garageos_staff/main.dart';
 
 import 'support/fonts.dart';
@@ -85,40 +87,27 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
-        await tester.scrollUntilVisible(
-          find.widgetWithText(
-            FilledButton,
-            item.locale == 'uz'
-                ? 'Yangi navbat'
-                : item.locale == 'en'
-                ? 'New appointment'
-                : 'Новая запись',
-          ),
-          -200,
-          scrollable: find.byWidgetPredicate(
-            (w) => w is Scrollable && w.axisDirection == AxisDirection.down,
-          ),
+        final newJob = find.widgetWithText(
+          FloatingActionButton,
+          item.locale == 'uz'
+              ? 'Yangi navbat'
+              : item.locale == 'en'
+              ? 'New appointment'
+              : 'Новая запись',
         );
-        await tester.pumpAndSettle();
-        expect(
-          tester
-              .getSize(
-                find.widgetWithText(
-                  FilledButton,
-                  item.locale == 'uz'
-                      ? 'Yangi navbat'
-                      : item.locale == 'en'
-                      ? 'New appointment'
-                      : 'Новая запись',
-                ),
-              )
-              .height,
-          greaterThanOrEqualTo(48),
-        );
-        expect(
-          find.byType(NavigationRail),
-          item.size.width > 720 ? findsOneWidget : findsNothing,
-        );
+        expect(newJob, findsOneWidget);
+        expect(tester.getSize(newJob).height, greaterThanOrEqualTo(48));
+        // Every role uses the floating dock, phone or tablet.
+        expect(find.byType(FloatingDock), findsOneWidget);
+        expect(find.byType(NavigationRail), findsNothing);
+        for (final target in find.byType(InkWell).hitTestable().evaluate()) {
+          final size = (target.renderObject as RenderBox).size;
+          expect(
+            size.height,
+            greaterThanOrEqualTo(Touch.standard),
+            reason: '${target.widget} is shorter than a 48px touch target',
+          );
+        }
         if (const bool.fromEnvironment('WRITE_PREVIEWS')) {
           await tester.runAsync(() async {
             final boundary =

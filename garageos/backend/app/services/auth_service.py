@@ -5,6 +5,7 @@ from typing import Optional
 from sqlalchemy import select
 
 from app.core.security import (
+    burn_password_check,
     hash_password,
     verify_password,
     decode_token,
@@ -70,7 +71,10 @@ class AuthService:
         """Authenticate and return token pair."""
         user = await self.uow.session.scalar(select(User).where(User.email == email)
             .with_for_update(of=User).execution_options(populate_existing=True))
-        if not await self._is_enabled(user, lock=True) or not verify_password(password, user.password_hash):
+        if not await self._is_enabled(user, lock=True):
+            burn_password_check(password)  # same cost as a real miss
+            raise InvalidCredentials()
+        if not verify_password(password, user.password_hash):
             raise InvalidCredentials()
 
         # Password-based entry to the configured demo tenant must remain

@@ -7,7 +7,12 @@ import 'package:garageos_staff/app_state.dart';
 import 'package:garageos_staff/data/api_client.dart';
 import 'package:garageos_staff/data/demo_repository.dart';
 import 'package:garageos_staff/domain/models.dart';
+import 'package:garageos_staff/design/widgets.dart';
 import 'package:garageos_staff/main.dart';
+import 'package:garageos_staff/ui/staff_home.dart';
+
+import 'ongoing_work_test.dart' show selectedFilter;
+import 'support/dock.dart';
 
 class ListRepository extends DemoRepository {
   Completer<PageData<Customer>>? nextCustomers;
@@ -17,7 +22,11 @@ class ListRepository extends DemoRepository {
   final requests = <String>[];
 
   @override
-  Future<PageData<Bill>> bills({String query = '', int page = 1}) {
+  Future<PageData<Bill>> bills({
+    String query = '',
+    int page = 1,
+    BillView view = BillView.all,
+  }) {
     final pending = nextBills;
     nextBills = null;
     if (pending != null) return pending.future;
@@ -101,7 +110,7 @@ Future<AppState> openStaff(WidgetTester tester, ListRepository repo) async {
 
 Future<void> tab(WidgetTester tester, String label) async {
   await tester.tap(
-    find.descendant(of: find.byType(NavigationBar), matching: find.text(label)),
+    dockTab(label),
   );
   await tester.pumpAndSettle();
 }
@@ -125,14 +134,11 @@ void main() {
       await tester.pumpAndSettle();
       final offset = tester.state<ScrollableState>(scroll).position.pixels;
       expect(offset, greaterThan(600));
-      await tab(tester, 'Navbat');
+      await tab(tester, 'Ishlar');
       final pending = Completer<PageData<Bill>>();
       repo.nextBills = pending;
       await tester.tap(
-        find.descendant(
-          of: find.byType(NavigationBar),
-          matching: find.text('Hisoblar'),
-        ),
+        dockTab('Hisoblar'),
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
@@ -146,7 +152,7 @@ void main() {
         tester.state<ScrollableState>(scroll).position.pixels,
         closeTo(offset, 1),
       );
-      await tab(tester, 'Navbat');
+      await tab(tester, 'Ishlar');
       await tab(tester, 'Hisoblar');
       expect(
         tester.state<ScrollableState>(scroll).position.pixels,
@@ -185,7 +191,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
       await tester.pumpAndSettle();
       expect(find.text('1 ta navbat topildi'), findsOneWidget);
-      final confirmed = find.widgetWithText(ChoiceChip, 'Tasdiqlangan');
+      final confirmed = find.widgetWithText(CountPill, 'Tasdiqlangan');
       await tester.scrollUntilVisible(
         confirmed,
         160,
@@ -202,12 +208,12 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Navbat yoʻq'), findsOneWidget);
       await tab(tester, 'Mijozlar');
-      await tab(tester, 'Navbat');
+      await tab(tester, 'Ishlar');
       expect(
         tester.widget<TextField>(find.byType(TextField)).controller!.text,
         'Aziz',
       );
-      expect(tester.widget<ChoiceChip>(confirmed).selected, isTrue);
+      expect(tester.widget<CountPill>(confirmed).selected, isTrue);
       final clear = find.widgetWithText(OutlinedButton, 'Filtrlarni tozalash');
       await tester.ensureVisible(clear);
       await tester.pumpAndSettle();
@@ -218,12 +224,7 @@ void main() {
         tester.widget<TextField>(find.byType(TextField)).controller!.text,
         isEmpty,
       );
-      expect(
-        tester
-            .widget<SegmentedButton<bool>>(find.byType(SegmentedButton<bool>))
-            .selected,
-        {false},
-      );
+      expect(selectedFilter(tester), JobFilter.all);
       expect(tester.takeException(), isNull);
     },
   );
@@ -280,7 +281,7 @@ void main() {
       await state.setLocale(const Locale('uz'));
       await tester.pumpAndSettle();
       final customerFocus = FocusManager.instance.primaryFocus!;
-      await tab(tester, 'Navbat');
+      await tab(tester, 'Ishlar');
       expect(customerFocus.hasFocus, isFalse);
       await tab(tester, 'Mijozlar');
       expect(
@@ -314,14 +315,11 @@ void main() {
       final position = tester.state<ScrollableState>(scroll).position;
       final offset = position.pixels;
       expect(offset, greaterThan(600));
-      await tab(tester, 'Navbat');
+      await tab(tester, 'Ishlar');
       final pending = Completer<PageData<Customer>>();
       repo.nextCustomers = pending;
       await tester.tap(
-        find.descendant(
-          of: find.byType(NavigationBar),
-          matching: find.text('Mijozlar'),
-        ),
+        dockTab('Mijozlar'),
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
@@ -330,14 +328,11 @@ void main() {
       pending.complete(await repo.customers());
       await tester.pumpAndSettle();
       expect(position.pixels, closeTo(offset, 1));
-      await tab(tester, 'Navbat');
+      await tab(tester, 'Ishlar');
       final failure = Completer<PageData<Customer>>();
       repo.nextCustomers = failure;
       await tester.tap(
-        find.descendant(
-          of: find.byType(NavigationBar),
-          matching: find.text('Mijozlar'),
-        ),
+        dockTab('Mijozlar'),
       );
       await tester.pump();
       failure.completeError(const AppFailure('Sinov yangilash xatosi.'));
@@ -346,7 +341,7 @@ void main() {
         tester.state<ScrollableState>(scroll).position.pixels,
         closeTo(offset, 1),
       );
-      await tab(tester, 'Navbat');
+      await tab(tester, 'Ishlar');
       await tab(tester, 'Mijozlar');
       expect(
         tester.state<ScrollableState>(scroll).position.pixels,
@@ -369,7 +364,8 @@ void main() {
       await tester.pump();
       expect(find.byType(TextField), findsOneWidget);
       expect(find.text('Yangi mijoz'), findsOneWidget);
-      expect(find.byType(LinearProgressIndicator), findsOneWidget);
+      // A new search loads behind a layout-matching skeleton.
+      expect(find.byType(Skeleton), findsOneWidget);
       pending.completeError(const AppFailure('Sinov ulanish xatosi.'));
       await tester.pumpAndSettle();
       expect(find.text('Sinov ulanish xatosi.'), findsOneWidget);

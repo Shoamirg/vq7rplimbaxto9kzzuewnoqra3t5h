@@ -97,7 +97,7 @@ void main() {
     await tester.enterText(quantity, '1e308');
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-    await tester.tap(find.widgetWithText(FilledButton, 'Hisob yaratish'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Mijozga yuborish'));
     await tester.pumpAndSettle();
     expect(find.text('Musbat miqdorni kiriting.'), findsOneWidget);
     await tester.enterText(quantity, '2');
@@ -108,13 +108,16 @@ void main() {
     await tester.enterText(price, '99999999.99');
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-    await tester.tap(find.widgetWithText(FilledButton, 'Hisob yaratish'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Mijozga yuborish'));
     await tester.pumpAndSettle();
     expect(
       find.text('Qator summasi 100 million soʻmdan kam boʻlsin.'),
       findsOneWidget,
     );
-    expect((await repo.bills()).items, isEmpty);
+    expect(
+      (await repo.bills()).items.where((b) => b.appointmentId == 'w3'),
+      isEmpty,
+    );
   });
 
   testWidgets('unsaved customer survives Back until discard is confirmed', (

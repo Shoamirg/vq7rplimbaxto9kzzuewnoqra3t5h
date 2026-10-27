@@ -49,8 +49,9 @@ async def public_invoice(
     invoice_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    # Global lookup by unguessable UUID resolves the owning tenant; the customer's
-    # own billing document is safe to show them.
+    # Global lookup by unguessable UUID resolves the owning tenant. Share links
+    # get forwarded, so only the printable document leaves this route — never
+    # customer contact details, staff notes or payment references.
     result = await db.execute(
         select(Invoice.service_center_id).where(
             Invoice.id == invoice_id, Invoice.is_active.is_(True)
@@ -61,4 +62,4 @@ async def public_invoice(
         raise HTTPException(status_code=404, detail="Invoice not found")
 
     async with UnitOfWork(service_center_id=service_center_id) as uow:
-        return await InvoiceService(uow).get_document(invoice_id)
+        return await InvoiceService(uow).get_public_document(invoice_id)

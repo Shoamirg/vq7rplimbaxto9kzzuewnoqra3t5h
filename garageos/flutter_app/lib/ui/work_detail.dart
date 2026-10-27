@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import '../data/api_client.dart';
 import '../data/repository.dart';
 import '../design/theme.dart';
-import '../design/vehicle_stage.dart';
-import '../l10n/l10n.dart';
 import '../design/widgets.dart';
 import '../domain/models.dart';
+import '../domain/portal.dart';
+import '../l10n/l10n.dart';
 import 'billing.dart';
 import 'customers.dart' show requiredText;
 
@@ -21,6 +21,7 @@ class WorkScreen extends StatefulWidget {
 class _WorkScreenState extends State<WorkScreen> {
   late Work work = widget.work;
   Bill? linked;
+  CustomerFile? contact;
   bool busy = false;
   String? error;
   @override
@@ -44,6 +45,17 @@ class _WorkScreenState extends State<WorkScreen> {
           work = current;
           linked = invoice;
         });
+      }
+      if (contact == null && widget.repository.canWrite) {
+        // Phone and mileage live on the customer record; the job still
+        // works without them.
+        try {
+          final file = await widget.repository.customerFile(
+            Customer(current.customerId, current.customerName, ''),
+            full: false,
+          );
+          if (mounted) setState(() => contact = file);
+        } catch (_) {}
       }
     } catch (e) {
       if (mounted) setState(() => error = failureText(e));
@@ -78,9 +90,13 @@ class _WorkScreenState extends State<WorkScreen> {
   }
 
   Future<void> cancel() async {
-    final reason = await showDialog<String>(
-      context: context,
-      builder: (context) => const CancelDialog(),
+    final reason = await textSheet(
+      context,
+      title: context.l10n.cancelAppointment,
+      message: context.l10n.cancelAppointmentHint,
+      label: context.l10n.optionalReason,
+      confirmLabel: context.l10n.cancelAppointment,
+      destructive: true,
     );
     if (reason != null && mounted) await change('cancel', {'reason': reason});
   }
@@ -121,8 +137,14 @@ class _WorkScreenState extends State<WorkScreen> {
     }
   }
 
+  Car? get car {
+    final cars = contact?.cars.where((c) => c.id == work.vehicleId);
+    return cars == null || cars.isEmpty ? null : cars.first;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final p = context.colors;
     final canAssign = widget.repository.canWrite && work.canAssignMechanic;
     final action = widget.repository.primaryWorkAction(
       work,
@@ -137,6 +159,7 @@ class _WorkScreenState extends State<WorkScreen> {
       WorkAction.openInvoice => context.l10n.openInvoice,
       null => null,
     };
+    final phone = contact?.customer.phone;
     return PageFrame(
       title: context.l10n.serviceWork,
       demo: widget.repository.isDemo,
@@ -148,116 +171,174 @@ class _WorkScreenState extends State<WorkScreen> {
           icon: Icon(Icons.refresh),
         ),
       ],
-      body: ListView(
-        padding: EdgeInsets.all(Space.page),
-        children: [
-          if (busy) LinearProgressIndicator(),
-          if (busy) SizedBox(height: 16),
-          if (error != null) ErrorNotice(error!, retry: reload),
-          Panel(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    Plate(work.plate),
-                    StatusBadge(
-                      context.message(work.status.label),
-                      tone: workTone(work.status),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 16),
-                Text(work.car, style: Theme.of(context).textTheme.titleLarge),
-                SizedBox(height: 4),
-                Text(work.customerName),
-                SizedBox(height: 18),
-                const VehicleStage(blueprint: true),
-                Divider(),
-                Pair(
-                  context.l10n.appointments,
-                  '${context.date(work.date)} · ${work.time}',
-                ),
-                Pair(
-                  context.l10n.duration,
-                  context.l10n.minutes(work.duration),
-                ),
-                Pair(
-                  context.l10n.mechanic,
-                  work.mechanic ?? context.l10n.unassigned,
-                ),
-                if (canAssign)
-                  OutlinedButton.icon(
-                    onPressed: busy ? null : assign,
-                    icon: Icon(Icons.person_outline),
-                    label: Text(context.l10n.changeMechanic),
-                  ),
-              ],
-            ),
-          ),
-          SizedBox(height: 24),
-          Text(
-            context.l10n.customerConcern,
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          SizedBox(height: 12),
-          Panel(
-            child: Text(
-              work.customerNotes?.trim().isNotEmpty == true
-                  ? work.customerNotes!
-                  : context.l10n.noNotes,
-            ),
-          ),
-          if (work.serviceType != null) ...[
-            SizedBox(height: 16),
-            Pair(context.l10n.serviceType, work.serviceType!),
-          ],
-          if (work.notes?.trim().isNotEmpty == true) ...[
-            SizedBox(height: 24),
-            Text(
-              context.l10n.staffNotes,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            SizedBox(height: 12),
-            Panel(child: Text(work.notes!)),
-          ],
-          if (linked != null) ...[
-            SizedBox(height: 24),
-            Panel(
+      body: RefreshIndicator(
+        onRefresh: reload,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.all(Space.page),
+          children: [
+            if (busy) LinearProgressIndicator(minHeight: 2),
+            if (busy) SizedBox(height: Space.md),
+            if (error != null) ErrorNotice(error!, retry: reload),
+            BentoCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(linked!.code),
-                  Pair(
-                    context.l10n.total,
-                    context.money(linked!.total, linked!.currency),
-                    emphasis: true,
+                  Wrap(
+                    spacing: Space.sm,
+                    runSpacing: Space.sm,
+                    children: [
+                      Plate(work.plate),
+                      WorkStatusChip(work.status),
+                    ],
                   ),
-                  Pair(
-                    context.l10n.balance,
-                    context.money(linked!.balance, linked!.currency),
+                  SizedBox(height: Space.md),
+                  Text(work.car, style: Theme.of(context).textTheme.titleLarge),
+                  if (car != null)
+                    Text(
+                      '${car!.year} · ${context.km(car!.km)}',
+                      style: context.mono(color: p.secondary),
+                    ),
+                  Divider(),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              work.customerName,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            if (phone != null && phone.isNotEmpty)
+                              Text(
+                                formatPhone(phone),
+                                style: context.mono(color: p.secondary),
+                              ),
+                          ],
+                        ),
+                      ),
+                      if (phone != null && phone.isNotEmpty)
+                        IconButton.filledTonal(
+                          tooltip: context.l10n.callCustomer,
+                          style: IconButton.styleFrom(
+                            minimumSize: const Size(52, 52),
+                          ),
+                          onPressed: () => callNumber(context, phone),
+                          icon: const Icon(Icons.call_outlined),
+                        ),
+                    ],
                   ),
                 ],
               ),
             ),
-          ],
-          if (widget.repository.canWrite && work.canCancel) ...[
-            SizedBox(height: 24),
-            TextButton.icon(
-              onPressed: busy ? null : cancel,
-              icon: Icon(Icons.event_busy_outlined),
-              label: Text(context.l10n.cancelAppointment),
+            SizedBox(height: Space.grid),
+            DateSlotCard(
+              day: context.dayMonth(work.date),
+              time: work.time,
+              duration: context.l10n.minutes(work.duration),
+              title: context.l10n.appointments,
             ),
+            SizedBox(height: Space.grid),
+            BentoGrid(
+              square: false,
+              children: [
+                BentoTile(
+                  icon: Icons.build_outlined,
+                  label: context.l10n.serviceType,
+                  valueWidget: Text(
+                    work.serviceLabel ?? context.l10n.generalService,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                BentoTile(
+                  icon: Icons.engineering_outlined,
+                  tone: work.mechanic == null ? 'warning' : null,
+                  label: context.l10n.mechanic,
+                  valueWidget: Text(
+                    work.mechanic ?? context.l10n.unassigned,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  footer: canAssign
+                      ? TextButton(
+                          onPressed: busy ? null : assign,
+                          child: Text(context.l10n.changeMechanic),
+                        )
+                      : null,
+                ),
+              ],
+            ),
+            SectionTitle(context.l10n.customerConcern),
+            BentoCard(
+              child: Text(
+                work.customerNotes?.trim().isNotEmpty == true
+                    ? work.customerNotes!
+                    : context.l10n.noNotes,
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+            ),
+            if (work.notes?.trim().isNotEmpty == true) ...[
+              SectionTitle(context.l10n.staffNotes),
+              BentoCard(child: Text(work.notes!)),
+            ],
+            SectionTitle(context.l10n.statusTimeline),
+            BentoCard(child: StatusTimeline(status: work.status)),
+            if (linked != null) ...[
+              SizedBox(height: Space.grid),
+              BentoCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      spacing: Space.sm,
+                      runSpacing: Space.sm,
+                      children: [
+                        MonoBadge(linked!.code),
+                        BillStatusChip(linked!.status),
+                      ],
+                    ),
+                    Pair(
+                      context.l10n.total,
+                      context.money(linked!.total, linked!.currency),
+                      emphasis: true,
+                    ),
+                    Pair(
+                      context.l10n.balance,
+                      context.money(linked!.balance, linked!.currency),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            if (widget.repository.canWrite && work.canCancel) ...[
+              SizedBox(height: Space.group),
+              PillButton(
+                label: context.l10n.cancelAppointment,
+                icon: Icons.event_busy_outlined,
+                kind: PillKind.quiet,
+                expand: true,
+                onPressed: busy ? null : cancel,
+              ),
+            ],
           ],
-        ],
+        ),
       ),
       footer: label == null
           ? null
           : SaveButton(
               label: label,
               busy: busy,
+              icon: switch (action) {
+                WorkAction.confirm => Icons.check,
+                WorkAction.assign => Icons.engineering_outlined,
+                WorkAction.start => Icons.play_arrow_rounded,
+                WorkAction.complete => Icons.flag_outlined,
+                _ => Icons.receipt_long_outlined,
+              },
+              kind: action == WorkAction.createInvoice ||
+                      action == WorkAction.openInvoice
+                  ? PillKind.emerald
+                  : PillKind.primary,
               onPressed: () async {
                 switch (action) {
                   case WorkAction.confirm:
@@ -286,142 +367,161 @@ class _WorkScreenState extends State<WorkScreen> {
   }
 }
 
-class MechanicPicker extends StatefulWidget {
+/// Pending → confirmed → in the workshop → finished, with the cancelled and
+/// moved branches shown as a final state.
+class StatusTimeline extends StatelessWidget {
+  const StatusTimeline({super.key, required this.status});
+  final WorkStatus status;
+  @override
+  Widget build(BuildContext context) {
+    final p = context.colors;
+    const flow = [
+      WorkStatus.pending,
+      WorkStatus.confirmed,
+      WorkStatus.inProgress,
+      WorkStatus.completed,
+    ];
+    final off = !flow.contains(status);
+    final reachedIndex = off ? -1 : flow.indexOf(status);
+    final steps = [...flow, if (off) status];
+    return Column(
+      children: [
+        for (var i = 0; i < steps.length; i++)
+          Semantics(
+            label:
+                '${context.message(steps[i].label)}${steps[i] == status ? ', ${context.l10n.currentStep}' : ''}',
+            excludeSemantics: true,
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Column(
+                    children: [
+                      Builder(
+                        builder: (context) {
+                          final reached =
+                              steps[i] == status || i <= reachedIndex;
+                          final (fg, bg) = toneColors(
+                            context,
+                            workTone(steps[i]) == 'neutral'
+                                ? null
+                                : workTone(steps[i]),
+                          );
+                          return Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: reached ? bg : p.surface,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: reached ? fg : p.border,
+                                width: 2,
+                              ),
+                            ),
+                            child: Icon(
+                              workIcon(steps[i]),
+                              size: 16,
+                              color: reached ? fg : p.secondary,
+                            ),
+                          );
+                        },
+                      ),
+                      if (i < steps.length - 1)
+                        Expanded(child: Container(width: 2, color: p.border)),
+                    ],
+                  ),
+                  const SizedBox(width: Space.md),
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        top: 5,
+                        bottom: i < steps.length - 1 ? Space.md : 0,
+                      ),
+                      child: Text(
+                        context.message(steps[i].label),
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: steps[i] == status ? FontWeight.w700 : null,
+                          color: steps[i] == status || i <= reachedIndex
+                              ? p.text
+                              : p.secondary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class MechanicPicker extends StatelessWidget {
   const MechanicPicker({super.key, required this.repository, this.initial});
   final GarageRepository repository;
   final String? initial;
   @override
-  State<MechanicPicker> createState() => _MechanicPickerState();
-}
-
-class _MechanicPickerState extends State<MechanicPicker> {
-  @override
   Widget build(BuildContext context) => PageFrame(
     title: context.l10n.assignMechanic,
-    demo: widget.repository.isDemo,
-    body: Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: Space.contentWidth),
-        child: ListLoadView<List<Mechanic>>(
-          storageKey: 'mechanic-account-picker',
-          loadKey: widget.repository,
-          filterKey: widget.repository,
-          load: widget.repository.mechanics,
-          header: (data, reload, loading) => [
-            Text(context.l10n.mechanicAccountHint),
-            if (widget.initial != null)
-              Pair(context.l10n.mechanic, widget.initial!),
-            const SizedBox(height: Space.group),
-          ],
-          items: (data, reload) => [
-            if (data.isEmpty)
-              EmptyNotice(
-                context.l10n.noMechanics,
-                context.l10n.mechanicAccountHint,
-              ),
-            for (final mechanic in data)
-              ListTile(
-                title: Text(mechanic.name),
-                subtitle: Text(mechanic.email),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => Navigator.pop(context, mechanic),
-              ),
-          ],
+    demo: repository.isDemo,
+    body: ListLoadView<List<Mechanic>>(
+      storageKey: 'mechanic-account-picker',
+      loadKey: repository,
+      filterKey: repository,
+      load: repository.mechanics,
+      header: (data, reload, loading) => [
+        Text(
+          context.l10n.mechanicAccountHint,
+          style: TextStyle(color: context.colors.secondary),
         ),
-      ),
-    ),
-  );
-}
-
-class MechanicDialog extends StatefulWidget {
-  const MechanicDialog({super.key, this.initial});
-  final String? initial;
-  @override
-  State<MechanicDialog> createState() => _MechanicDialogState();
-}
-
-class _MechanicDialogState extends State<MechanicDialog> {
-  final form = GlobalKey<FormState>();
-  late final name = TextEditingController(text: widget.initial);
-  @override
-  void dispose() {
-    name.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: Text(context.l10n.assignMechanic),
-    content: Form(
-      key: form,
-      autovalidateMode: AutovalidateMode.onUserInteraction,
-      child: TextFormField(
-        controller: name,
-        autofocus: MediaQuery.sizeOf(context).width >= Space.tablet,
-        maxLength: 255,
-        decoration: InputDecoration(labelText: context.l10n.mechanicName),
-        validator: (value) => context.validation(requiredText(value)),
-      ),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: Text(context.l10n.cancel),
-      ),
-      FilledButton(
-        onPressed: () {
-          if (validateForm(form)) {
-            Navigator.pop(context, name.text.trim());
-          }
-        },
-        child: Text(context.l10n.assign),
-      ),
-    ],
-  );
-}
-
-class CancelDialog extends StatefulWidget {
-  const CancelDialog({super.key});
-  @override
-  State<CancelDialog> createState() => _CancelDialogState();
-}
-
-class _CancelDialogState extends State<CancelDialog> {
-  final reason = TextEditingController();
-  @override
-  void dispose() {
-    reason.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: Text(context.l10n.cancelAppointment),
-    content: SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(context.l10n.cancelAppointmentHint),
-          SizedBox(height: 16),
-          TextField(
-            controller: reason,
-            maxLength: 1000,
-            maxLines: 3,
-            decoration: InputDecoration(labelText: context.l10n.optionalReason),
+        if (initial != null) Pair(context.l10n.mechanic, initial!),
+        const SizedBox(height: Space.grid),
+        if (loading && data == null)
+          LinearProgressIndicator(
+            minHeight: 2,
+            semanticsLabel: context.l10n.loading,
           ),
-        ],
-      ),
+      ],
+      items: (data, reload) => [
+        if (data.isEmpty)
+          EmptyNotice(
+            context.l10n.noMechanics,
+            context.l10n.mechanicAccountHint,
+            icon: Icons.engineering_outlined,
+          ),
+        for (final mechanic in data)
+          Padding(
+            padding: const EdgeInsets.only(bottom: Space.md),
+            child: BentoCard(
+              padding: const EdgeInsets.all(Space.tile),
+              onTap: () => Navigator.pop(context, mechanic),
+              child: Row(
+                children: [
+                  IconSquare(Icons.engineering_outlined),
+                  const SizedBox(width: Space.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          mechanic.name,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        Text(
+                          mechanic.email,
+                          style: TextStyle(color: context.colors.secondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right),
+                ],
+              ),
+            ),
+          ),
+      ],
     ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: Text(context.l10n.stay),
-      ),
-      FilledButton(
-        onPressed: () => Navigator.pop(context, reason.text.trim()),
-        child: Text(context.l10n.cancel),
-      ),
-    ],
   );
 }
 
@@ -444,9 +544,10 @@ class _CompleteFormState extends State<CompleteForm> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!typeEdited && type.text != context.l10n.generalService) {
+    final fallback = widget.work.serviceLabel ?? context.l10n.generalService;
+    if (!typeEdited && type.text != fallback) {
       updatingDefault = true;
-      type.text = context.l10n.generalService;
+      type.text = fallback;
       updatingDefault = false;
     }
   }
@@ -500,10 +601,21 @@ class _CompleteFormState extends State<CompleteForm> {
       child: ListView(
         padding: EdgeInsets.all(Space.page),
         children: [
-          Plate(widget.work.plate),
-          SizedBox(height: 16),
-          Text(widget.work.car, style: Theme.of(context).textTheme.titleMedium),
-          SizedBox(height: 24),
+          BentoCard(
+            padding: const EdgeInsets.all(Space.tile),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    widget.work.car,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                Plate(widget.work.plate),
+              ],
+            ),
+          ),
+          SizedBox(height: Space.group),
           if (error != null) ErrorNotice(error!),
           TextFormField(
             controller: type,
@@ -515,21 +627,23 @@ class _CompleteFormState extends State<CompleteForm> {
               labelText: context.l10n.completedService,
             ),
           ),
-          SizedBox(height: 16),
+          SizedBox(height: Space.md),
           TextFormField(
             controller: notes,
             enabled: !busy,
             maxLines: 3,
             maxLength: 1000,
-            decoration: InputDecoration(
-              labelText: context.l10n.completionNotes,
+            decoration: areaDecoration(
+              context,
+              label: context.l10n.completionNotes,
             ),
           ),
-          SizedBox(height: 16),
+          SizedBox(height: Space.md),
           TextFormField(
             controller: km,
             enabled: !busy,
             keyboardType: TextInputType.number,
+            style: context.mono(size: 16),
             decoration: InputDecoration(
               labelText: context.l10n.optionalOdometer,
               suffixText: 'km',
@@ -542,25 +656,28 @@ class _CompleteFormState extends State<CompleteForm> {
                   : context.l10n.odometerError;
             },
           ),
-          SizedBox(height: 16),
+          SizedBox(height: Space.md),
           Text(
             widget.repository.isMechanic
                 ? context.l10n.mechanicCompleteHint
                 : context.l10n.completeWorkHint,
+            style: TextStyle(color: context.colors.secondary),
           ),
         ],
       ),
     ),
     footer: Row(
       children: [
-        TextButton(
+        PillButton(
+          label: context.l10n.back,
+          kind: PillKind.secondary,
           onPressed: busy ? null : () => Navigator.maybePop(context),
-          child: Text(context.l10n.back),
         ),
         SizedBox(width: 8),
         Expanded(
           child: SaveButton(
             label: context.l10n.workCompleted,
+            icon: Icons.flag_outlined,
             onPressed: save,
             busy: busy,
           ),

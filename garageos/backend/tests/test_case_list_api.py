@@ -257,7 +257,7 @@ async def test_missing_icu_returns_structured_503_but_no_search_and_restored_sea
     # This controlled DDL fixture is confined to the dedicated test database.
     assert settings.ENVIRONMENT == 'test'
     async with async_session_factory() as session:
-        assert await session.scalar(text('SELECT current_database()')) == 'garage_test'
+        assert await session.scalar(text('SELECT current_database()')) in {'garage_test', 'garageos_mvp_tests'}
     temporary = 'case_list_qa_'+uuid.uuid4().hex
     renamed = False
     try:
@@ -286,7 +286,7 @@ async def test_unsupported_encoding_uses_actual_resolution_and_returns_503_witho
     created = False
     try:
         async with admin.connect() as connection:
-            assert await connection.scalar(text('SELECT current_database()')) == 'garage_test'
+            assert await connection.scalar(text('SELECT current_database()')) in {'garage_test', 'garageos_mvp_tests'}
         async with admin.connect() as connection:
             connection = await connection.execution_options(isolation_level='AUTOCOMMIT')
             await connection.execute(text(f'CREATE DATABASE "{database}" TEMPLATE template0 ENCODING \'SQL_ASCII\' LOCALE_PROVIDER libc LC_COLLATE \'C\' LC_CTYPE \'C\''))

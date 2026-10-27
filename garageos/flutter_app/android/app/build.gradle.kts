@@ -105,6 +105,8 @@ android {
     }
 
     defaultConfig {
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        manifestPlaceholders["appLabel"] = "GarageOS"
         // Keep this identity stable: Android uses it together with the signing
         // certificate to decide whether an APK can update an installed app.
         applicationId = "uz.garageos.garageos_staff"
@@ -130,7 +132,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            applicationIdSuffix = ".dev"
+            manifestPlaceholders["appLabel"] = "GarageOS Dev"
+        }
         release {
+            manifestPlaceholders["appLabel"] = "GarageOS"
             signingConfig = signingConfigs.getByName("release")
         }
     }
@@ -144,4 +151,13 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // AGP 9 resolves test and app classpaths consistently. Flutter's integration
+    // plugin also exposes these helpers on the debug app classpath.
+    debugImplementation("androidx.test:runner:1.7.0")
+    debugImplementation("androidx.test:rules:1.7.0")
+    androidTestImplementation("androidx.test:runner:1.7.0")
+    androidTestImplementation("androidx.test:rules:1.7.0")
 }

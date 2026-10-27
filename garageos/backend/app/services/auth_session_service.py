@@ -23,6 +23,20 @@ def _digest(token):
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
+def _initial_expiry(kind):
+    now = datetime.now(timezone.utc)
+    if kind == "customer":
+        return now + timedelta(days=min(settings.CUSTOMER_REFRESH_IDLE_DAYS, settings.CUSTOMER_SESSION_MAX_DAYS))
+    return now + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+
+
+def _sliding_expiry(created_at):
+    """Staff sessions keep a fixed lifetime; customer (mobile) sessions slide."""
+    now = datetime.now(timezone.utc)
+    return min(now + timedelta(days=settings.CUSTOMER_REFRESH_IDLE_DAYS),
+               created_at + timedelta(days=settings.CUSTOMER_SESSION_MAX_DAYS))
+
+
 class AuthSessionService:
     def __init__(self, session):
         self.session = session
@@ -75,7 +89,7 @@ class AuthSessionService:
             service_center_id=center_id, demo=bool(claims.get("demo")),
             customer_account_id=_uuid(claims["account_id"]) if claims.get("account_id") else None,
             account_version=claims.get("account_version"),
-            expires_at=datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS))
+            expires_at=_initial_expiry(kind))
         tokens = self.tokens(row, claims)
         self.session.add(row)
         # This service must finish BEFORE the first HTTP success can be sent.
@@ -90,6 +104,8 @@ class AuthSessionService:
             # A later401 dependency rollback must not resurrect this family.
             await self.session.commit()
             raise InvalidToken()
+        if row.principal_kind == "customer":
+            row.expires_at = _sliding_expiry(row.created_at)
         tokens = self.tokens(row, claims)
         await self.session.commit()
         return tokens

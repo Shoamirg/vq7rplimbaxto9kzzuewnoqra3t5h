@@ -20,15 +20,14 @@ void runNativeSmokeTests(TargetPlatform platform, String device) {
     try {
       app.main();
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('language-menu')));
+      // Welcome's UZ | RU | EN pill picker.
+      await tester.tap(find.text('RU'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Русский'));
-      await tester.pumpAndSettle();
-      expect(find.text('Добро пожаловать'), findsOneWidget);
+      expect(find.text('Сервис вашего авто — с одного взгляда.'), findsOneWidget);
       await tester.pumpWidget(const SizedBox.shrink());
       app.main();
       await tester.pumpAndSettle();
-      expect(find.text('Добро пожаловать'), findsOneWidget);
+      expect(find.text('Сервис вашего авто — с одного взгляда.'), findsOneWidget);
     } finally {
       await preferences.remove('garageos.language');
       await tester.pumpWidget(const SizedBox.shrink());
@@ -70,6 +69,10 @@ void runNativeSmokeTests(TargetPlatform platform, String device) {
     expect(defaultTargetPlatform, platform);
     app.main();
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Xodim sifatida kirish'));
+    await tester.tap(find.text('Xodim sifatida kirish'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Demo rejimni ochish'));
     await tester.tap(find.text('Demo rejimni ochish'));
     await tester.pumpAndSettle();
     expect(find.text('Demo maʼlumotlar · chiqishda tiklanadi'), findsOneWidget);
@@ -85,7 +88,7 @@ void runNativeSmokeTests(TargetPlatform platform, String device) {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Navbatni tasdiqlash'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Usta tayinlash'));
+    await tester.tap(find.text('Usta tayinlash').last);
     await tester.pumpAndSettle();
     await tester.tap(find.text('sherzod@example.com'));
     await tester.pumpAndSettle();
@@ -102,8 +105,8 @@ void runNativeSmokeTests(TargetPlatform platform, String device) {
     final price = find.byType(TextFormField).at(2);
     await tester.ensureVisible(price);
     await tester.enterText(price, '300000');
-    final saveInvoice = find.widgetWithText(FilledButton, 'Hisob yaratish');
-    await tester.ensureVisible(saveInvoice);
+    await tester.pumpAndSettle();
+    final saveInvoice = find.widgetWithText(FilledButton, 'Mijozga yuborish');
     await tester.tap(saveInvoice);
     await tester.pumpAndSettle();
     expect(find.text('300 000 soʻm'), findsWidgets);
@@ -116,20 +119,24 @@ void runNativeSmokeTests(TargetPlatform platform, String device) {
     await tester.tap(find.text('Toʻlov yozish / tekshirish'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField), '100000');
+    await tester.pumpAndSettle();
     final savePayment = find.widgetWithText(
       FilledButton,
       'Toʻlovni qayd etish',
     );
-    await tester.ensureVisible(savePayment);
     await tester.tap(savePayment);
     await tester.pumpAndSettle();
+    // Receipt state: amber partly paid, then back to the invoice.
     expect(find.text('Qisman toʻlangan'), findsOneWidget);
+    await tester.tap(find.text('Tayyor'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Toʻlov yozish / tekshirish'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(savePayment);
     await tester.tap(savePayment);
     await tester.pumpAndSettle();
     expect(find.text('Toʻlangan'), findsWidgets);
+    await tester.tap(find.text('Tayyor'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Hisobni ochish'));
