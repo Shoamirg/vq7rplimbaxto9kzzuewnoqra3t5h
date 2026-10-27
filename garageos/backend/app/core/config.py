@@ -1,5 +1,5 @@
 import ipaddress
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from pydantic_settings import BaseSettings
 from pydantic import field_validator, model_validator
 from typing import List, Literal, Optional
@@ -173,7 +173,7 @@ class Settings(BaseSettings):
             raise ValueError("SMS_PROVIDER=eskiz requires ESKIZ_EMAIL and ESKIZ_PASSWORD")
         if self.PUSH_PROVIDER == "console":
             raise ValueError("PUSH_PROVIDER=console must not be used in staging and production")
-        if not Path(self.UPLOAD_DIR).is_absolute():
+        if not (Path(self.UPLOAD_DIR).is_absolute() or PurePosixPath(self.UPLOAD_DIR).is_absolute()):
             raise ValueError("UPLOAD_DIR must be an absolute path in staging and production")
         if "{code}" not in self.SMS_CODE_TEMPLATE:
             raise ValueError("SMS_CODE_TEMPLATE must contain {code}")
