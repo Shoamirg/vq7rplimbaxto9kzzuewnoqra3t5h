@@ -1,6 +1,12 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { translate, type Locale } from '../lib/i18n/dictionaries';
 import { assertAccessible } from './support/accessibility';
+
+async function openLogin(page: Page) {
+  await page.goto('/login');
+  await page.locator('#email').fill('admin@demo.garageos.app');
+  await page.locator('#password').fill('parol12345');
+}
 
 for (const locale of ['uz', 'en', 'ru'] as Locale[]) {
   for (const theme of ['light', 'dark'] as const) test(`login failure ${locale} ${theme} fits a short phone`, async ({ page, baseURL }, info) => {
@@ -9,7 +15,7 @@ for (const locale of ['uz', 'en', 'ru'] as Locale[]) {
     await page.context().addCookies([{ name: 'garageos_locale', value: locale, url: baseURL! }]);
     await page.route('**/api/auth/login', route => route.fulfill({ status: 503,
       contentType: 'application/json', body: JSON.stringify({ code: 'BACKEND_UNAVAILABLE' }) }));
-    await page.goto('/login');
+    await openLogin(page);
     await expect(page.locator('html')).toHaveClass(new RegExp(`(^|\\s)${theme}(\\s|$)`));
     await page.getByRole('button', { name: /^(Sign in|Kirish|Войти)$/ }).click();
     await expect(page.getByRole('alert').filter({ hasText: translate(locale, 'platform.login_unavailable') })).toBeVisible();
@@ -26,7 +32,7 @@ for (const locale of ['uz', 'en', 'ru'] as Locale[]) {
       posts++;
       return route.fulfill({ status: 429, headers: { 'Retry-After': '3' }, contentType: 'application/json', body: JSON.stringify({ code: 'RATE_LIMITED', error: 'private upstream response must not display' }) });
     });
-    await page.goto('/login');
+    await openLogin(page);
     const submit = page.getByRole('button', { name: /^(Sign in|Kirish|Войти)$/ });
     await submit.click();
     await expect(page.getByRole('alert').filter({ hasText: translate(locale, 'platform.login_rate_limited_wait', { seconds: 3 }) })).toBeVisible();
@@ -52,7 +58,7 @@ for (const locale of ['uz', 'en', 'ru'] as Locale[]) {
       posts++;
       return route.fulfill({ status: failure.status, contentType: 'application/json', body: JSON.stringify({ code: failure.code, error: 'private upstream response must not display' }) });
     });
-    await page.goto('/login');
+    await openLogin(page);
     await page.getByRole('button', { name: /^(Sign in|Kirish|Войти)$/ }).click();
     await expect(page.getByRole('alert').filter({ hasText: translate(locale, failure.key) })).toBeVisible();
     await expect(page.getByText(translate(locale, 'platform.login_credentials'), { exact: true })).toHaveCount(0);
@@ -66,7 +72,7 @@ for (const locale of ['uz', 'en', 'ru'] as Locale[]) {
     await page.context().addCookies([{ name: 'garageos_locale', value: locale, url: baseURL! }]);
     let posts = 0;
     await page.route('**/api/auth/login', route => { posts++; return route.abort('failed'); });
-    await page.goto('/login');
+    await openLogin(page);
     await page.getByRole('button', { name: /^(Sign in|Kirish|Войти)$/ }).click();
     await expect(page.getByRole('alert').filter({ hasText: translate(locale, 'platform.login_connection') })).toBeVisible();
     await expect(page.getByRole('button', { name: /^(Sign in|Kirish|Войти)$/ })).toBeEnabled();

@@ -34,7 +34,8 @@ export function MiniShell({ children }: { children: React.ReactNode }) {
     wa?.expand?.();
     // Uzbek is the default for everyone; a customer's own choice (cookie) is kept.
     verifySession();
-    return () => { verification.current++; };
+    const ver = verification;
+    return () => { ver.current++; };
   }, [verifySession]);
 
   if (state === "loading") {

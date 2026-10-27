@@ -88,8 +88,8 @@ export function Logo({
 }) {
   const dark = theme === "dark";
   const tone = theme === "auto" ? "var(--color-foreground)" : dark ? GARAGE_WHITE : GARAGE_BLACK;
-  const accent = BRAND_EMERALD;
-  const osColor = BRAND_EMERALD;
+  const accent = dark ? BRAND_EMERALD : "#0D7A53";
+  const osColor = dark ? BRAND_EMERALD : "#0D7A53";
   return (
     <span className={className} style={{ display: "inline-flex", alignItems: "center", gap: size * 0.42, ...style }}>
       <LogoMark size={size * 1.5} tone={tone} accent={accent} />

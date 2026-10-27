@@ -106,8 +106,8 @@ export function Sidebar({ user, branding }: { user?: ShellUser; branding?: Brand
     : NAV_SECTIONS.map((section) => ({
       ...section,
       items: section.items.filter((item) => {
-        if (item.href === "/billing") return user?.permissions?.includes("billing.read") ?? true;
-        if (item.href === "/reports") return user?.permissions?.includes("financial.reports.read") ?? true;
+        if (item.href === "/billing") return user?.role === "admin" || user?.role === "manager" || user?.role === "receptionist" || (user?.permissions?.includes("billing.read") ?? true);
+        if (item.href === "/reports") return user?.role === "admin" || user?.role === "manager" || (user?.permissions?.includes("financial.reports.read") ?? true);
         return true;
       }),
     })).filter((section) => section.items.length > 0);

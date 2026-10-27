@@ -88,7 +88,7 @@ for (const locale of ["en", "ru", "uz"] as const) {
   test(`vehicles surface: correct language, intact layout, working interactions (${locale})`, async ({ context, page, baseURL }) => {
     const L = VEH_LABELS[locale];
     const res = await page.request.post("/api/auth/login", {
-      data: { email: "admin@demo.garageos.app", password: "demo1234" },
+      data: { email: "admin@demo.garageos.app", password: "parol12345" },
     });
     expect(res.ok()).toBeTruthy();
     await context.addCookies([{ name: "garageos_locale", value: locale, url: baseURL! }]);
@@ -110,7 +110,7 @@ for (const locale of ["en", "ru", "uz"] as const) {
     await firstCard.click();
     await page.waitForURL(/\/vehicles\/[^/]+$/, { timeout: 20_000 });
     await page.waitForLoadState("networkidle");
-    await expect(page.locator('a[href="/vehicles"]').first()).toContainText(L.heading);
+    await expect(page.locator('a[href="/vehicles"]').first()).toHaveAccessibleName(L.heading);
     // Positively assert a real localized action label — catches English fallback.
     await expect(page.getByRole("button", { name: L.bookService })).toBeVisible();
     await expect(page.locator("body")).not.toContainText(/veh\.[a-z_.]+/);
