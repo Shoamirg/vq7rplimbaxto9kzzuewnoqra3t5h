@@ -25,7 +25,7 @@ async def test_platform_requires_explicit_role_and_flag(client, identity):
     assert records.status_code == 200, records.text
     assert str(identity['center']) in {row['id'] for row in records.json()['items']}
     profile = await client.get('/api/v1/auth/me', headers=headers)
-    assert profile.json()['platform_permissions'] == ['platform.read']
+    assert profile.json()['platform_permissions'] == ['platform.read', 'platform.write']
     await _as_role(identity, 'admin')
     assert (await client.get('/api/v1/platform/records/centers', headers=headers)).status_code == 403
     assert (await client.get('/api/v1/auth/me', headers=headers)).json()['platform_permissions'] == []

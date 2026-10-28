@@ -85,7 +85,7 @@ async def enroll(manifest: PlatformEnrollmentManifest, *, apply: bool) -> dict:
                 "full_name": manifest.full_name, "role": "super_admin", "is_super_admin": True,
                 "state": ("created" if created else "kept") if apply else ("create" if created else "keep"),
             },
-            "access": {"platform": ["platform.read"], "anchoring_garage": staff_permissions(identity)},
+            "access": {"platform": ["platform.read", "platform.write"], "anchoring_garage": staff_permissions(identity)},
         }
     return result
 

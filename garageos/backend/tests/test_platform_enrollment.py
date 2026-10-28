@@ -120,7 +120,7 @@ async def test_operator_enrollment_opens_platform_reads_without_promoting_an_own
     assert plan['account']['id'] is None
     assert plan['account']['role'] == 'super_admin' and plan['account']['is_super_admin'] is True
     assert plan['account']['service_center_id'] == config['service_center_id']
-    assert plan['access'] == {'platform': ['platform.read'], 'anchoring_garage': ['staff.read', 'staff.write']}
+    assert plan['access'] == {'platform': ['platform.read', 'platform.write'], 'anchoring_garage': ['staff.read', 'staff.write']}
     assert await _counts() == counts
     async with async_session_factory() as session:
         assert await session.scalar(select(User.id).where(User.email == config['email'])) is None
@@ -133,7 +133,7 @@ async def test_operator_enrollment_opens_platform_reads_without_promoting_an_own
         _, headers = await _login(client, config['email'])
         profile = (await client.get('/api/v1/auth/me', headers=headers)).json()
         assert profile['id'] == result['account']['id'] and profile['role'] == 'super_admin'
-        assert profile['platform_permissions'] == ['platform.read']
+        assert profile['platform_permissions'] == ['platform.read', 'platform.write']
         assert profile['permissions'] == ['staff.read', 'staff.write']
         assert (await client.get('/api/v1/invoices', headers=headers)).status_code == 403
         global_rows = await client.get('/api/v1/platform/records/customers', params={'q': ids['tag']}, headers=headers)

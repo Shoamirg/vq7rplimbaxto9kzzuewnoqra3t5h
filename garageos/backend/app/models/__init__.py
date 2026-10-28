@@ -1,4 +1,5 @@
 from app.models.base import BaseModelMixin, ServiceCenterMixin
+from app.models.network import Network
 from app.models.service_center import ServiceCenter
 from app.models.role import Role
 from app.models.user import User
@@ -34,6 +35,7 @@ from app.models.conversation_read_observation import ConversationReadObservation
 __all__ = [
     "BaseModelMixin",
     "ServiceCenterMixin",
+    "Network",
     "ServiceCenter",
     "Role",
     "User",

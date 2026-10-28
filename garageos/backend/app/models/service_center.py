@@ -1,4 +1,5 @@
-from sqlalchemy import String, Text
+from sqlalchemy import ForeignKey, String, Text
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 from app.models.base import BaseModelMixin
@@ -22,7 +23,13 @@ class ServiceCenter(BaseModelMixin, Base):
     accent_color: Mapped[str | None] = mapped_column(String(9), nullable=True)    # hex
     slug: Mapped[str | None] = mapped_column(String(60), nullable=True)
 
+    # Platform tree: the dealer network this workshop belongs to (null = independent).
+    network_id: Mapped[UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("networks.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+
     # Relationships
+    network = relationship("Network", back_populates="service_centers", lazy="selectin")
     users = relationship("User", back_populates="service_center", lazy="selectin")
     customers = relationship("Customer", back_populates="service_center", lazy="selectin")
     vehicles = relationship("Vehicle", back_populates="service_center", lazy="selectin")

@@ -146,3 +146,17 @@ class UnauthorizedAction(ForbiddenError):
 
 class DuplicateVehicle(ConflictError):
     detail = "A vehicle with this VIN already exists"
+
+
+class NetworkNotFound(NotFoundError):
+    detail = "Network not found"
+
+
+class NetworkSlugUnavailable(ConflictError):
+    code = "NETWORK_SLUG_UNAVAILABLE"
+    detail = "A network with this slug already exists"
+
+
+class WorkshopEmailUnavailable(ConflictError):
+    code = "WORKSHOP_EMAIL_UNAVAILABLE"
+    detail = "A workshop with this email already exists"

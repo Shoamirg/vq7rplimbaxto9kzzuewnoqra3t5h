@@ -10,7 +10,7 @@ from app.api.v1.endpoints import (
     invoices, mechanics, mechanic_work, notifications, public, reports, search, slots, staff, reference, telegram_gateway, workshop, vehicles,
 )
 from app.api.v1.endpoints import customer as customer_portal
-from app.api.v1.endpoints import platform
+from app.api.v1.endpoints import platform, platform_control
 
 api_router = APIRouter()
 
@@ -34,6 +34,7 @@ api_router.include_router(public.router, prefix="/public", tags=["public"])
 api_router.include_router(customer_portal.router, prefix="/customer")
 
 api_router.include_router(platform.router, prefix="/platform", tags=["platform"])
+api_router.include_router(platform_control.router, prefix="/platform", tags=["platform-control"])
 
 api_router.include_router(reference.router, prefix="/reference", tags=["reference"])
 api_router.include_router(telegram_gateway.router, prefix="/telegram", tags=["telegram"])

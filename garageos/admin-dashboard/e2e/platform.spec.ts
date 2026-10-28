@@ -2,9 +2,9 @@ import { expect, test } from '@playwright/test';
 
 const operator = { email: 'platform-browser@example.com', password: 'Platform-browser-only-2026!' };
 const labels = {
-  uz: { title: 'Platforma holati', records: 'Yozuvlar', search: 'Yozuvlarni qidirish', apply: 'Filtrni qo‘llash', all: 'Barcha avtoservislar', center: 'Avtoservisni ko‘rish', empty: 'Yozuv topilmadi.', logout: 'Chiqish' },
-  en: { title: 'Platform overview', records: 'Records', search: 'Search records', apply: 'Apply filters', all: 'All garages', center: 'View this garage', empty: 'No records found.', logout: 'Sign out' },
-  ru: { title: 'Обзор платформы', records: 'Записи', search: 'Поиск записей', apply: 'Применить фильтры', all: 'Все сервисы', center: 'Открыть этот сервис', empty: 'Записи не найдены.', logout: 'Выйти' },
+  uz: { control: 'Boshqaruv markazi', garages: 'Avtoservislar', title: 'Platforma holati', records: 'Yozuvlar', search: 'Yozuvlarni qidirish', apply: 'Filtrni qo‘llash', all: 'Barcha avtoservislar', center: 'Avtoservisni ko‘rish', empty: 'Yozuv topilmadi.', logout: 'Chiqish' },
+  en: { control: 'Control center', garages: 'Garages', title: 'Platform overview', records: 'Records', search: 'Search records', apply: 'Apply filters', all: 'All garages', center: 'View this garage', empty: 'No records found.', logout: 'Sign out' },
+  ru: { control: 'Центр управления', garages: 'Сервисы', title: 'Обзор платформы', records: 'Записи', search: 'Поиск записей', apply: 'Применить фильтры', all: 'Все сервисы', center: 'Открыть этот сервис', empty: 'Записи не найдены.', logout: 'Выйти' },
 };
 
 for (const width of [390, 1280]) {
@@ -18,6 +18,10 @@ for (const width of [390, 1280]) {
       await page.goto('/');
       await expect(page).toHaveURL(/\/platform$/);
       const text = labels[locale];
+      // The control center (network → workshop tree) is the landing view; records are one dock click away.
+      await expect(page.getByRole('heading', { level: 1, name: text.control })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Northside Auto (Tenant B)' })).toBeVisible();
+      await page.getByRole('button', { name: text.garages, exact: true }).click();
       await expect(page.getByRole('heading', { level: 1, name: text.title })).toBeVisible();
       const other = page.getByRole('listitem').filter({ has: page.getByRole('heading', { level: 3, name: 'Northside Auto (Tenant B)' }) });
       await expect(other).toBeVisible();

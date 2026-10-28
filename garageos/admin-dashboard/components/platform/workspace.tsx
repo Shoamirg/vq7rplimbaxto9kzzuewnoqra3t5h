@@ -1,14 +1,15 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@garageos/design-system';
-import { Building2, Users, Contact, Car, CalendarDays, Receipt, Wallet } from 'lucide-react';
+import { Building2, Users, Contact, Car, CalendarDays, Receipt, Wallet, GitFork } from 'lucide-react';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
 import { clientFetch, ClientApiError } from '@/lib/api/client';
 import { useI18n } from '@/lib/i18n/context';
 import { logoutMessageSession } from '@/lib/message-intents';
 import { authTransitionFailureKey, captureAuthOwnership } from '@/lib/auth-transition';
+import { ControlCenter } from './control-center';
 
 const kinds = ['centers', 'staff', 'customers', 'vehicles', 'appointments', 'invoices', 'payments'] as const;
 type Kind = typeof kinds[number];
@@ -21,6 +22,8 @@ export function PlatformWorkspace({ name, allowed, authFingerprint }: { name: st
   const { t, locale } = useI18n();
   const router = useRouter();
   const [denied, setDenied] = useState(!allowed);
+  const [view, setView] = useState<'control' | 'records'>('control');
+  const markDenied = useCallback(() => setDenied(true), []);
   const [filters, setFilters] = useState({ kind: 'centers' as Kind, q: '', start: '', end: '', page: 1, center: '', garage: '' });
   const [query, setQuery] = useState('');
   const [start, setStart] = useState('');
@@ -32,7 +35,7 @@ export function PlatformWorkspace({ name, allowed, authFingerprint }: { name: st
   const [logoutError, setLogoutError] = useState<string | null>(null);
   const [logoutOwner] = useState(captureAuthOwnership);
   useEffect(() => {
-    if (denied) return;
+    if (denied || view !== 'records') return;
     const abort = new AbortController();
     const params = new URLSearchParams();
     if (filters.center) params.set('center_id', filters.center);
@@ -51,7 +54,7 @@ export function PlatformWorkspace({ name, allowed, authFingerprint }: { name: st
         setError(err instanceof ClientApiError && err.status === 422 ? 'platform.invalid_dates' : 'platform.failed');
       }).finally(() => { if (!abort.signal.aborted) setLoading(false); });
     return () => abort.abort();
-  }, [filters, revision, denied]);
+  }, [filters, revision, denied, view]);
 
   async function logout() {
     setLogoutError(null);
@@ -76,16 +79,17 @@ export function PlatformWorkspace({ name, allowed, authFingerprint }: { name: st
   }
   return <div className="platform-workspace min-h-screen bg-background text-foreground">
     {!denied && <nav className="platform-dock garage-dock" aria-label={t('platform.records')}>
-      {kinds.map(kind => { const Icon = kindIcons[kind]; return <button key={kind} type="button" title={t(`platform.${kind}`)} aria-label={t(`platform.${kind}`)} aria-pressed={filters.kind === kind} onClick={() => { setQuery(''); setFilters(old => ({ ...old, kind, q: '', page: 1 })); }}><Icon size={22}/><span>{t(`platform.${kind}`)}</span></button>; })}
+      <button type="button" title={t('control.tab')} aria-label={t('control.tab')} aria-pressed={view === 'control'} onClick={() => setView('control')}><GitFork size={22}/><span>{t('control.tab')}</span></button>
+      {kinds.map(kind => { const Icon = kindIcons[kind]; return <button key={kind} type="button" title={t(`platform.${kind}`)} aria-label={t(`platform.${kind}`)} aria-pressed={view === 'records' && filters.kind === kind} onClick={() => { setView('records'); setQuery(''); setFilters(old => ({ ...old, kind, q: '', page: 1 })); }}><Icon size={22}/><span>{t(`platform.${kind}`)}</span></button>; })}
     </nav>}
     <header className="border-b border-border px-4 py-4 sm:px-8 flex flex-wrap items-center justify-between gap-3">
       <div><p className="font-semibold">{t('platform.brand')}</p><p className="text-sm text-muted-foreground">{name}</p></div>
       <div className="flex items-center gap-2"><LanguageSwitcher /><Button variant="secondary" onClick={logout}>{t('platform.logout')}</Button></div>
     </header>
     <main className="mx-auto max-w-6xl p-4 sm:p-8 space-y-6">
-      <div><h1 className="text-2xl font-semibold">{t('platform.title')}</h1><p className="mt-2 max-w-3xl text-muted-foreground">{t('platform.hint')}</p></div>
+      <div><h1 className="text-2xl font-semibold">{t(view === 'control' ? 'control.title' : 'platform.title')}</h1><p className="mt-2 max-w-3xl text-muted-foreground">{t(view === 'control' ? 'control.hint' : 'platform.hint')}</p></div>
       {logoutError && <p role="alert" className="text-destructive">{t(logoutError)}</p>}
-      {denied ? <p role="alert" className="rounded-lg border border-border p-4">{t('platform.denied')}</p> : <>
+      {denied ? <p role="alert" className="rounded-lg border border-border p-4">{t('platform.denied')}</p> : view === 'control' ? <ControlCenter onDenied={markDenied} /> : <>
         <form onSubmit={apply} className="bento-panel p-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5 items-end">
           <label className="space-y-1 text-sm"><span className="block">{t('platform.records')}</span><select value={filters.kind} onChange={(e) => { setQuery(''); setFilters((old) => ({ ...old, kind: e.target.value as Kind, q: '', page: 1 })); }} className="w-full rounded-lg border border-border bg-background px-3 py-2">{kinds.map((kind) => <option key={kind} value={kind}>{t(`platform.${kind}`)}</option>)}</select></label>
           <label className="space-y-1 text-sm"><span className="block">{t('platform.search')}</span><input value={query} onChange={(e) => setQuery(e.target.value)} maxLength={100} className="w-full rounded-lg border border-border bg-background px-3 py-2" /></label>
