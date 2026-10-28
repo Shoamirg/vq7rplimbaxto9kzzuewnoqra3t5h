@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:garageos_staff/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'support/dock.dart';
 import 'support/fonts.dart';
 
 void main() {
@@ -10,6 +11,7 @@ void main() {
   setUpAll(loadGarageFonts);
   setUp(() => SharedPreferences.setMockInitialValues({}));
   const translations = {
+    'Xodim sifatida kirish': ['Sign in as staff', 'Войти как сотрудник'],
     'Demo rejimni ochish': ['Open demo', 'Открыть демо'],
     'Demo maʼlumotlar · chiqishda tiklanadi': [
       'Demo data · resets on sign-out',
@@ -21,6 +23,7 @@ void main() {
     'Ishni tugatish': ['Complete work', 'Завершить работу'],
     'Ish tugadi': ['Work completed', 'Работа завершена'],
     'Hisob yaratish': ['Create invoice', 'Создать счёт'],
+    'Mijozga yuborish': ['Send to customer', 'Отправить клиенту'],
     '300 000 soʻm': ['300,000 UZS', '300 000 сум'],
     'Mijozga koʻrsatish': ['Show to customer', 'Показать клиенту'],
     'Mijoz uchun hisob': ['Customer invoice', 'Счёт для клиента'],
@@ -31,6 +34,7 @@ void main() {
     'Toʻlovni qayd etish': ['Record payment', 'Записать платёж'],
     'Qisman toʻlangan': ['Partially paid', 'Частично оплачен'],
     'Toʻlangan': ['Paid', 'Оплачен'],
+    'Tayyor': ['Done', 'Готово'],
     'Hisobni ochish': ['Open invoice', 'Открыть счёт'],
   };
   for (final language in ['uz', 'en', 'ru']) {
@@ -48,11 +52,12 @@ void main() {
         await tester.pumpWidget(const GarageApp());
         await tester.pumpAndSettle();
         if (language != 'uz') {
-          await tester.tap(find.byKey(const ValueKey('language-menu')));
-          await tester.pumpAndSettle();
-          await tester.tap(find.text(language == 'en' ? 'English' : 'Русский'));
-          await tester.pumpAndSettle();
+          await tapSegment(tester, language.toUpperCase());
         }
+        await tester.ensureVisible(find.text(label('Xodim sifatida kirish')));
+        await tester.tap(find.text(label('Xodim sifatida kirish')));
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text(label('Demo rejimni ochish')));
         await tester.tap(find.text(label('Demo rejimni ochish')));
         await tester.pumpAndSettle();
         expect(
@@ -71,7 +76,7 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.text(label('Navbatni tasdiqlash')));
         await tester.pumpAndSettle();
-        await tester.tap(find.text(label('Usta tayinlash')));
+        await tester.tap(find.text(label('Usta tayinlash')).last);
         await tester.pumpAndSettle();
         await tester.tap(find.text('sherzod@example.com'));
         await tester.pumpAndSettle();
@@ -88,8 +93,9 @@ void main() {
         final price = find.byType(TextFormField).at(2);
         await tester.ensureVisible(price);
         await tester.enterText(price, '300000');
+        await tester.pumpAndSettle();
         await tester.tap(
-          find.widgetWithText(FilledButton, label('Hisob yaratish')),
+          find.widgetWithText(FilledButton, label('Mijozga yuborish')),
         );
         await tester.pumpAndSettle();
         expect(find.text(label('300 000 soʻm')), findsWidgets);
@@ -102,11 +108,14 @@ void main() {
         await tester.tap(find.text(label('Toʻlov yozish / tekshirish')));
         await tester.pumpAndSettle();
         await tester.enterText(find.byType(TextFormField), '100000');
+        await tester.pumpAndSettle();
         await tester.tap(
           find.widgetWithText(FilledButton, label('Toʻlovni qayd etish')),
         );
         await tester.pumpAndSettle();
         expect(find.text(label('Qisman toʻlangan')), findsOneWidget);
+        await tester.tap(find.text(label('Tayyor')));
+        await tester.pumpAndSettle();
         await tester.tap(find.text(label('Toʻlov yozish / tekshirish')));
         await tester.pumpAndSettle();
         await tester.tap(
@@ -114,6 +123,8 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(find.text(label('Toʻlangan')), findsWidgets);
+        await tester.tap(find.text(label('Tayyor')));
+        await tester.pumpAndSettle();
         await tester.tap(find.byType(BackButton));
         await tester.pumpAndSettle();
         await tester.tap(find.text(label('Hisobni ochish')));

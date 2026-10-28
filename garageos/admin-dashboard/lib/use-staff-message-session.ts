@@ -56,7 +56,8 @@ export function useStaffMessageSession() {
     };
     window.addEventListener(MESSAGE_LOGOUT_EVENT, logout);
     void verify();
-    return () => { sequence.current++; window.removeEventListener(MESSAGE_LOGOUT_EVENT, logout); };
+    const seq = sequence;
+    return () => { seq.current++; window.removeEventListener(MESSAGE_LOGOUT_EVENT, logout); };
   }, [verify]);
   return { ...session, verify, suspend, isAuthorized: () => authorized.current };
 }

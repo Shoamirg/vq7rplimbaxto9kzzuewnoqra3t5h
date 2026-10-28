@@ -108,6 +108,19 @@ async def _hit(key: str, limit: int, window: int, *, fail_closed: bool = False) 
         return True, 0
 
 
+async def enforce_key_limit(scope: str, key: str, *, limit: int, window: int) -> None:
+    """Throttle by an application key (phone, email) rather than client IP —
+    mobile carriers put many users behind one address."""
+    if not settings.RATE_LIMIT_ENABLED:
+        return
+    allowed, retry_after = await _hit(
+        f"rl:{scope}:{key}", limit, window,
+        fail_closed=settings.ENVIRONMENT in {"staging", "production"},
+    )
+    if not allowed:
+        raise RateLimitExceeded(retry_after=retry_after)
+
+
 def rate_limit(*, limit: int, window: int, scope: str) -> Callable:
     """Build a dependency that enforces ``limit`` requests per ``window`` seconds,
     keyed by (scope, client IP). Different scopes count independently.

@@ -7,7 +7,8 @@ export const dynamic = "force-dynamic";
 // Reports — a decision center projecting over the ledger + event stream.
 export default async function ReportsPage() {
   const user = await getCurrentUser();
-  if (!user.permissions?.includes("financial.reports.read")) redirect("/dashboard");
+  const canViewReports = user.role === "admin" || user.role === "manager" || user.permissions?.includes("financial.reports.read");
+  if (!canViewReports) redirect("/dashboard");
   return (
     <div className="h-full">
       <ReportsWorkspace />

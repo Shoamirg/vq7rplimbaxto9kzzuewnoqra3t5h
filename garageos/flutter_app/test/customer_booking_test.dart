@@ -35,6 +35,10 @@ class FakeCustomerBookingRepository implements CustomerBookingSource {
   }
 
   @override
+  Future<List<String>> slots(DateTime date) async =>
+      const ['10:00', '10:30', '11:00'];
+
+  @override
   Future<List<CustomerPortalVehicle>> vehicles() async => const [
     CustomerPortalVehicle(id: "vehicle-1", label: "Cobalt · 01A123BC"),
     CustomerPortalVehicle(id: "vehicle-2", label: "Damas · 01B456CD"),

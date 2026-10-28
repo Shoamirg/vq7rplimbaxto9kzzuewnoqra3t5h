@@ -115,6 +115,7 @@ async def me(
     )
     center = result.scalar_one_or_none()
     return CurrentUserResponse(
+        timezone=center.timezone if center else 'UTC',
         id=str(current_user.id),
         email=current_user.email,
         full_name=current_user.full_name,

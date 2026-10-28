@@ -2,7 +2,7 @@
 
 ## Sozlash
 
-GitHub repository: `Shoamirg/garageos`, branch: `codex/service-work-demo`.
+GitHub repository: asosiy branch `main`.
 Railway project ichida backend, PostgreSQL va Redis alohida xizmat bo'ladi.
 PostgreSQL/Redis'ni bir xil environment'ga joylang; backend ularning private
 URL'larini reference variable orqali ishlatadi. Database'larni internetga

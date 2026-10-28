@@ -1,4 +1,6 @@
 // These models follow FastAPI contracts; design-only job states are not invented.
+import 'service_time.dart';
+
 typedef Json = Map<String, dynamic>;
 
 String dateKey(DateTime value) =>
@@ -132,6 +134,16 @@ class Work {
   String? get plate =>
       RegExp(r'\(([^)]+)\)\s*$').firstMatch(vehicleLabel)?.group(1);
   String get car => vehicleLabel.replaceFirst(RegExp(r'\s*\([^)]+\)\s*$'), '');
+
+  /// Requested service: the recorded type, else the first line of the
+  /// customer's request (direct bookings carry the service there).
+  String? get serviceLabel {
+    final type = serviceType?.trim();
+    if (type != null && type.isNotEmpty) return type;
+    final first = customerNotes?.trim().split('\n').first.trim();
+    return first == null || first.isEmpty ? null : first;
+  }
+
   bool get canCancel =>
       status == WorkStatus.pending || status == WorkStatus.confirmed;
   bool get canAssignMechanic => canCancel;
@@ -190,8 +202,9 @@ class Car {
     this.label,
     this.plate,
     this.year,
-    this.km,
-  );
+    this.km, {
+    this.vin,
+  });
   factory Car.fromJson(Json j, String customerId) => Car(
     j['id'],
     customerId,
@@ -199,9 +212,10 @@ class Car {
     j['license_plate'],
     j['year'] ?? 0,
     j['current_km'] ?? 0,
+    vin: j['vin'],
   );
   final String id, customerId, label;
-  final String? plate;
+  final String? plate, vin;
   final int year, km;
   String get modelLabel => label.replaceFirst(RegExp(r'\s*\([^)]+\)\s*$'), '');
 }
@@ -242,6 +256,29 @@ class BillLine {
   };
 }
 
+/// Invoice totals with discount lines subtracted before tax, as the API does.
+({int subtotal, int discount, int tax, int total}) invoiceTotals(
+  Iterable<BillLine?> lines,
+  double taxRate,
+) {
+  var subtotal = 0, discount = 0;
+  for (final line in lines.whereType<BillLine>()) {
+    if (line.kind == 'discount') {
+      discount += line.total.cents;
+    } else {
+      subtotal += line.total.cents;
+    }
+  }
+  final base = subtotal - discount < 0 ? 0 : subtotal - discount;
+  final tax = (base * taxRate / 100).round();
+  return (
+    subtotal: subtotal,
+    discount: discount,
+    tax: tax,
+    total: subtotal - discount + tax,
+  );
+}
+
 class Receipt {
   const Receipt(
     this.id,
@@ -250,11 +287,11 @@ class Receipt {
     this.date, {
     this.kind = 'payment',
   });
-  factory Receipt.fromJson(Json j) => Receipt(
+  factory Receipt.fromJson(Json j, {String timeZone = 'UTC'}) => Receipt(
     j['id'],
     Money.fromApi(j['amount']),
     j['method'],
-    DateTime.tryParse(j['received_at'] ?? ''),
+    j['received_at'] == null ? null : serviceDate(j['received_at'], timeZone),
     kind: j['kind'],
   );
   final String id, method, kind;
@@ -269,6 +306,22 @@ String paymentLabel(String code) => switch (code) {
   'online' => 'Onlayn',
   _ => 'Boshqa',
 };
+
+/// Reception invoice tabs.
+enum BillView { all, drafts, unpaid, paid }
+
+bool billInView(Bill bill, BillView view) => switch (view) {
+  BillView.all => true,
+  BillView.drafts => bill.status == 'draft',
+  BillView.unpaid => [
+    'issued',
+    'partial',
+    'overdue',
+    'sent',
+  ].contains(bill.status),
+  BillView.paid => bill.status == 'paid',
+};
+
 String billStatusLabel(String code) => switch (code) {
   'issued' => 'Toʻlanmagan',
   'partial' => 'Qisman toʻlangan',
@@ -301,7 +354,7 @@ class Bill {
     this.receipts = const [],
     this.dueDate,
   });
-  factory Bill.fromJson(Json j) => Bill(
+  factory Bill.fromJson(Json j, {String timeZone = 'UTC'}) => Bill(
     id: j['id'],
     code: j['code'],
     customerId: j['customer_id'],
@@ -320,7 +373,7 @@ class Bill {
         .map((v) => BillLine.fromJson(v))
         .toList(),
     receipts: (j['payments'] as List? ?? [])
-        .map((v) => Receipt.fromJson(v))
+        .map((v) => Receipt.fromJson(v, timeZone: timeZone))
         .toList(),
     dueDate: j['due_date'] == null ? null : civilDate(j['due_date']),
   );

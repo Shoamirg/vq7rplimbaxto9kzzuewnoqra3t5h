@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:intl/intl.dart';
 
 import '../domain/models.dart';
+import '../domain/service_time.dart';
 import 'generated/app_localizations.dart';
 import 'generated/app_localizations_uz.dart';
 
@@ -12,6 +13,28 @@ extension LocalizedContext on BuildContext {
 
   String date(DateTime value) =>
       DateFormat.yMMMMd(l10n.localeName).format(value);
+
+  /// "22-oktabr" / "22 октября" / "October 22".
+  String dayMonth(DateTime value) =>
+      DateFormat.MMMMd(l10n.localeName).format(value);
+
+  /// 24-hour clock everywhere: 14:30.
+  String clock(DateTime value) => DateFormat.Hm(l10n.localeName).format(value);
+
+  String weekday(DateTime value) => DateFormat.E(l10n.localeName).format(value);
+
+  String monthShort(DateTime value) =>
+      DateFormat.LLL(l10n.localeName).format(value);
+
+  /// "84 200 km" with plain-space grouping.
+  String km(int value) =>
+      '${NumberFormat.decimalPattern(l10n.localeName).format(value).replaceAll(' ', ' ').replaceAll(' ', ' ').replaceAll(',', ' ')} km';
+
+  /// Today shows the time; other days show the date.
+  String stamp(DateTime value) {
+    final now = serviceNowFor(value);
+    return dateKey(value) == dateKey(now) ? clock(value) : dayMonth(value);
+  }
 
   String money(Money value, [String currency = 'UZS']) {
     final decimals = currency != 'UZS' || value.cents % 100 != 0 ? 2 : 0;
@@ -30,6 +53,18 @@ extension LocalizedContext on BuildContext {
   // These are app-owned transport/domain labels; never translate customer
   // names, notes, line descriptions or other server-provided content.
   String message(String value) => switch (value) {
+    'Joylashuv xizmatini yoqing.' => l10n.locationServiceOff,
+    'Joriy parol notoʻgʻri.' => l10n.currentPasswordError,
+    'Serverdagi sessiya bekor qilindi, lekin qurilmadagi kirish maʼlumotini tozalab boʻlmadi.' =>
+      l10n.sessionStorageClearFailed,
+    'Qurilmadagi kirish maʼlumotini tozalab boʻlmadi va serverdan chiqish tasdiqlanmadi.' =>
+      l10n.sessionStorageAndRevocationFailed,
+    'Hisob mavjud. Kiring yoki parolni tiklang.' => l10n.accountExistsReset,
+    'SMS xizmati vaqtincha ishlamayapti. Keyinroq qayta urinib koʻring.' =>
+      l10n.smsUnavailable,
+    'Joylashuvga ruxsat bering.' => l10n.locationPermissionRequired,
+    'Joylashuv aniqlanmadi. Ochiq joyda qayta urinib ko‘ring.' =>
+      l10n.locationTimeout,
     "Email manzilini kiriting." ||
     "Enter a valid email address." ||
     "Введите корректный адрес электронной почты." => l10n.emailError,
@@ -196,6 +231,15 @@ extension LocalizedContext on BuildContext {
     "Language preference was not saved. Select it again next time." ||
     "Выбор языка не сохранён. Выберите его снова при следующем запуске." =>
       l10n.preferenceSaveError,
+    "Ilovaga kirishni servisingiz ochib beradi. Ularga qoʻngʻiroq qiling." =>
+      l10n.signUpByGarage,
+    "Parolni servisingiz tiklab beradi. Ularga qoʻngʻiroq qiling." =>
+      l10n.resetByGarage,
+    "Kod notoʻgʻri. Qayta tekshiring." => l10n.wrongCode,
+    "Kamida 10 ta belgi kiriting." => l10n.passwordRule,
+    "Bir xabarda 5 tagacha rasm yuborish mumkin." => l10n.photoLimit,
+    "Bu boʻlim hozircha servis orqali ishlaydi." => l10n.unavailableDetail,
+    "Usta akkaunti topilmadi." => l10n.mechanicAccountMissing,
     _ => value,
   };
 }

@@ -10,6 +10,45 @@ class GarageSession {
   final GarageRepository repository;
   final String name, garageName;
 
+  static Future<GarageSession> fromApi(
+    ApiClient api, {
+    required void Function() onExpired,
+  }) async {
+    final user = await api.request('GET', '/auth/me');
+    api.identityScope =
+        '${api.base}/staff/${user['id']}/${user['service_center_id']}';
+    api.serviceTimeZone = user['timezone'] ?? 'UTC';
+    final permissions = user['permissions'];
+    final mechanic =
+        user['role'] == 'mechanic' &&
+        permissions is List &&
+        permissions.contains('work.read.assigned') &&
+        permissions.contains('work.write.assigned');
+    if (permissions is! List ||
+        (!permissions.contains('staff.read') && !mechanic)) {
+      throw const AppFailure('Bu amal uchun ruxsat yoʻq.', status: 403);
+    }
+    api.onExpired = onExpired;
+    return GarageSession._(
+      LiveRepository(
+        api,
+        canWrite: permissions.contains('staff.write'),
+        canManageAccounts:
+            user['role'] == 'admin' && permissions.contains('staff.write'),
+        isMechanic: mechanic,
+        paymentStore: mechanic
+            ? null
+            : DevicePaymentStore(
+                Uri.encodeComponent(
+                  '${api.base}/${user['id']}/${user['service_center_id']}',
+                ),
+              ),
+      ),
+      user['full_name'],
+      user['branding']?['name'] ?? 'GarageOS',
+    );
+  }
+
   static Future<GarageSession> login(
     String address,
     String email,
@@ -27,6 +66,9 @@ class GarageSession {
       api.accessToken = tokens['access_token'];
       api.refreshToken = tokens['refresh_token'];
       final user = await api.request('GET', '/auth/me');
+      api.identityScope =
+          '${api.base}/staff/${user['id']}/${user['service_center_id']}';
+      api.serviceTimeZone = user['timezone'] ?? 'UTC';
       final permissions = user['permissions'];
       final mechanic =
           user['role'] == 'mechanic' &&
@@ -42,6 +84,8 @@ class GarageSession {
         LiveRepository(
           api,
           canWrite: permissions.contains('staff.write'),
+          canManageAccounts:
+              user['role'] == 'admin' && permissions.contains('staff.write'),
           isMechanic: mechanic,
           paymentStore: mechanic
               ? null

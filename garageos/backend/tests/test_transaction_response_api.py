@@ -31,7 +31,6 @@ from app.models.ledger import LedgerEntry
 from app.models.operational_case import OperationalCase
 from app.repositories.unit_of_work import UnitOfWork
 from tests.test_calendar_period_api import workshop  # noqa: F401
-from tests.test_customer_portal import BOT, _init_data
 from tests.test_mechanic_work_api import create_job, workshop as mechanic_workshop  # noqa: F401
 from tests.test_staff_access_lifecycle import PASSWORD, client, identity  # noqa: F401
 
@@ -207,27 +206,32 @@ async def test_failed_transaction_cannot_send_success_or_leave_partial_state(fam
 
 
 @pytest.mark.parametrize("fail", [False, True], ids=["success", "failed-commit"])
-async def test_customer_telegram_session_finishes_before_token_success(fail, client, workshop, identity, monkeypatch):
-    telegram_id = uuid.uuid4().int % 10**15
-    phone = "998" + str(uuid.uuid4().int)[:10]
+async def test_customer_session_finishes_before_token_success(fail, client, workshop, identity, monkeypatch):
+    from sqlalchemy import func, select
+    from app.core.security import hash_password
+    from app.models import AuthSession
+    from app.models.customer_account import CustomerAccount
+    email = f"txn-{uuid.uuid4().hex}@example.com"
     async with async_session_factory() as session:
         customer = Customer(service_center_id=identity["center"], full_name="Transaction customer",
-                            phone=phone, telegram_id=telegram_id, telegram_username="old")
+                            phone="998" + str(uuid.uuid4().int)[:9])
         session.add(customer)
+        await session.flush()
+        session.add(CustomerAccount(customer_id=customer.id, service_center_id=identity["center"],
+                                    email=email, password_hash=hash_password(PASSWORD)))
         await session.commit()
         customer_id = customer.id
     async def read():
         async with async_session_factory() as session:
-            row = await session.get(Customer, customer_id)
-            return row.telegram_id, row.telegram_username
-    body = {"init_data": _init_data(telegram_id)}
-    operation = Operation("customer-auth", "POST", "/api/v1/customer/auth/telegram", {}, body, read, 200)
+            return await session.scalar(select(func.count()).select_from(AuthSession)
+                                        .where(AuthSession.customer_id == customer_id))
+    body = {"email": email, "password": PASSWORD}
+    operation = Operation("customer-auth", "POST", "/api/v1/customer/auth/login", {}, body, read, 200)
     before = await read()
     observations, statuses = [], []
     async def failed_commit(session):
         raise RuntimeError("Controlled customer-auth precommit failure")
     with monkeypatch.context() as patch:
-        patch.setattr(settings, "TELEGRAM_BOT_TOKEN", BOT)
         if fail:
             patch.setattr(AsyncSession, "commit", failed_commit)
         response = await send_observed(operation, observations, statuses)
@@ -236,33 +240,7 @@ async def test_customer_telegram_session_finishes_before_token_success(fail, cli
         assert await read() == before
     else:
         assert response.status_code == 200 and statuses == [200]
-        assert observations == [(telegram_id, "tg")] and await read() == (telegram_id, "tg")
-
-
-async def test_disabled_phone_linking_does_not_issue_a_customer_session(client, identity, monkeypatch):
-    telegram_id = uuid.uuid4().int % 10**15
-    phone = "998" + str(uuid.uuid4().int)[:10]
-    async with async_session_factory() as session:
-        customer = Customer(service_center_id=identity["center"], full_name="Unlinked customer", phone=phone)
-        session.add(customer)
-        await session.commit()
-        customer_id = customer.id
-
-    async def read():
-        async with async_session_factory() as session:
-            row = await session.get(Customer, customer_id)
-            return row.telegram_id, row.telegram_username
-
-    before = await read()
-    with monkeypatch.context() as patch:
-        patch.setattr(settings, "TELEGRAM_BOT_TOKEN", BOT)
-        patch.setattr(settings, "TELEGRAM_PHONE_LINKING_ENABLED", False)
-        response = await client.post("/api/v1/customer/auth/link", json={
-            "init_data": _init_data(telegram_id), "phone": phone,
-        })
-    assert response.status_code == 404
-    assert "access_token" not in response.json()
-    assert await read() == before
+        assert observations == [before + 1] and await read() == before + 1
 
 
 async def slot_booking(client, workshop, identity):

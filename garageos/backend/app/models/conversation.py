@@ -47,6 +47,7 @@ _OPEN_STATUSES = {
 
 
 class Channel:
+    APP = "app"            # the customer mobile app
     TELEGRAM = "telegram"
     WEB = "web"
     PHONE = "phone"

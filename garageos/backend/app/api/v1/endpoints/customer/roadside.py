@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header
+from app.core.idempotency import execute_idempotent
 
 from app.api.customer_deps import get_current_customer, get_customer_uow
 from app.core.rate_limit import write_rate_limit
@@ -36,8 +37,13 @@ async def request_roadside(
     body: RoadsideRequest,
     customer: Customer = Depends(get_current_customer),
     uow: UnitOfWork = Depends(get_customer_uow, scope="function"),
+    idempotency_key: str | None = Header(default=None, alias='Idempotency-Key', max_length=128),
 ) -> RoadsideCase:
-    return await CustomerPortalService(uow, customer).create_roadside(body)
+    async def create():
+        return await CustomerPortalService(uow, customer).create_roadside(body)
+    return await execute_idempotent(uow, key=idempotency_key,
+        operation='customer.roadside.create.v1',
+        request={'customer_id': str(customer.id), 'body': body.model_dump(mode='json')}, execute=create)
 
 
 @router.post("/{case_id}/attachment", response_model=RoadsideCase, summary="Attach verified location coordinates to a case")

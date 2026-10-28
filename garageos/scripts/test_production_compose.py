@@ -1,6 +1,7 @@
 """Validate real Compose interpolation/profiles privately; never start services."""
 from pathlib import Path
 import secrets
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -34,6 +35,8 @@ class ProductionComposeTest(unittest.TestCase):
                     self.assertEqual(report["telegram_enabled"], telegram)
 
     def test_operator_units_validate_with_private_non_executable_install_modes(self):
+        if shutil.which("systemd-analyze") is None:
+            self.skipTest("systemd-analyze is not installed on this host (Linux systemd required)")
         # Copy to native Linux storage, as installation does; DrvFs reports 0777.
         with tempfile.TemporaryDirectory(prefix="garageos-units-verify-") as temporary:
             files = []

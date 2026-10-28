@@ -154,7 +154,7 @@ void main() {
               }
 
               await settle();
-              expect(find.text(strings.myWork), findsOneWidget);
+              expect(find.text(strings.myWork), findsWidgets);
               expect(find.byType(NavigationBar), findsNothing);
               expect(find.text(strings.newAppointment), findsNothing);
               expect(
@@ -172,10 +172,11 @@ void main() {
               await tester.tap(find.text(strings.completeWork));
               await settle();
               expect(find.text(strings.completeWorkHint), findsNothing);
-              expect(find.text(strings.mechanicCompleteHint), findsOneWidget);
+              expect(find.text(strings.completionNoteHint), findsOneWidget);
               await capture('complete');
-              await tester.ensureVisible(find.text(strings.workCompleted));
-              await tester.tap(find.text(strings.workCompleted));
+              await tester.tap(
+                find.widgetWithText(FilledButton, strings.completeWork).last,
+              );
               await settle();
               expect(status, 'completed');
               expect(find.text(strings.createInvoice), findsNothing);

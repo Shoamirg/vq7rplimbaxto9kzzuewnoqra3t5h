@@ -125,7 +125,11 @@ void main() {
       final bill = await repo.createBill(done, lines, 12);
       final duplicate = await repo.createBill(done, lines, 12);
       expect(duplicate.id, bill.id);
-      expect((await repo.bills()).items.length, 1);
+      // The demo seeds earlier invoices; this job gets exactly one.
+      expect(
+        (await repo.bills()).items.where((b) => b.appointmentId == done.id),
+        hasLength(1),
+      );
       expect(bill.total.cents, 33600000);
       final first = await repo.pay(
         bill.id,

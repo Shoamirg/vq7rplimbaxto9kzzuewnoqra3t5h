@@ -80,6 +80,7 @@ async def get_tenant_uow(
     if required not in permissions:
         raise UnauthorizedAction()
     async with UnitOfWork(service_center_id=current_user.service_center_id) as uow:
+        uow.actor_user_id = current_user.id
         path = request.url.path.rstrip("/")
         if required == "staff.write" and (path == "/api/v1/conversations" or path.startswith("/api/v1/conversations/")):
             from app.services.conversation_read_service import ConversationReadService
@@ -100,4 +101,5 @@ async def get_mechanic_uow(
     if required not in permissions:
         raise UnauthorizedAction()
     async with UnitOfWork(service_center_id=current_user.service_center_id) as uow:
+        uow.actor_user_id = current_user.id
         yield uow

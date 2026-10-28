@@ -38,7 +38,7 @@ export function OperationsConsole({ canWrite: initialCanWrite }: { canWrite: boo
     session.suspend(); suspendedSelection.current = selected.current?.id ?? suspendedSelection.current;
     deniedRef.current = true; selected.current = null; setSelection(null);
     setDenied(error instanceof ClientApiError && error.status === 401 ? 401 : 403);
-  }, [session.suspend]);
+  }, [session]);
   const select = useCallback((id: string | null, independent = false, focus = false) => {
     const version = ++selectionVersion.current;
     const value = id ? { id, independent, version } : null;

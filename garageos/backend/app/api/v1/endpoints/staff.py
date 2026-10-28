@@ -19,6 +19,7 @@ async def owner_uow(user: User = Depends(get_current_user), permissions=Depends(
     if user.role.name != 'admin' or 'staff.write' not in permissions:
         raise UnauthorizedAction()
     async with UnitOfWork(service_center_id=user.service_center_id) as uow:
+        uow.actor_user_id = user.id
         yield uow
 
 

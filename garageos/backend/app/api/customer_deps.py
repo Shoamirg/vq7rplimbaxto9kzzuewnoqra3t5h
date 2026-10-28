@@ -12,13 +12,12 @@ from __future__ import annotations
 
 from typing import AsyncIterator
 
-from fastapi import Depends, Request
+from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.security import decode_token
-from app.exceptions import UnauthorizedAction, UnauthorizedError
+from app.exceptions import UnauthorizedError
 from app.models.customer import Customer
 from app.repositories.unit_of_work import UnitOfWork
 from app.services.customer_auth_service import CustomerAuthService
@@ -48,33 +47,14 @@ async def get_current_customer(
     return await _customer_auth(db).get_current_customer(credentials.credentials)
 
 
-def password_customer_route_allowed(method: str, path: str) -> bool:
-    """Keep password customers on read-only portal routes plus self-booking."""
-    normalized_path = path.rstrip("/")
-    if method in {"GET", "HEAD", "OPTIONS"}:
-        return (
-            normalized_path == "/api/v1/customer/me"
-            or normalized_path.startswith("/api/v1/customer/history/")
-            or normalized_path == "/api/v1/customer/vehicles"
-            or normalized_path == "/api/v1/customer/appointments/today"
-        )
-    return method == "POST" and normalized_path == "/api/v1/customer/appointments"
-
-
 async def get_customer_uow(
-    request: Request,
     current_customer: Customer = Depends(get_current_customer),
-    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
 ) -> AsyncIterator[UnitOfWork]:
-    """Tenant-bound access; password customers get reads and owned-vehicle booking only."""
-    # Identity/credential validity is checked by get_current_customer first.
-    # The signed claim distinguishes owner-created credentials from Telegram.
-    payload = decode_token(credentials.credentials)
-    if payload is None:
-        raise UnauthorizedError()
-    if "account_id" in payload and not password_customer_route_allowed(
-        request.method, request.url.path
-    ):
-        raise UnauthorizedAction()
+    """Tenant-bound access for every verified customer principal.
+
+    Every customer session belongs to a password account; per-row
+    ownership is enforced by the customer portal services, not by route lists.
+    """
     async with UnitOfWork(service_center_id=current_customer.service_center_id) as uow:
+        uow.actor_customer_id = current_customer.id
         yield uow

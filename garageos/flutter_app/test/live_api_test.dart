@@ -7,6 +7,7 @@ import 'package:shared_preferences_platform_interface/in_memory_shared_preferenc
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 import 'package:garageos_staff/app_state.dart';
 import 'package:garageos_staff/data/api_client.dart';
+import 'package:garageos_staff/data/customer_repository.dart';
 import 'package:garageos_staff/data/repository.dart';
 import 'package:garageos_staff/domain/models.dart';
 
@@ -21,6 +22,9 @@ class _DiagnosingApiClient extends ApiClient {
     Map<String, String>? query,
     String? idempotencyKey,
     bool authenticated = true,
+    List<int>? fileBytes,
+    String? fileName,
+    bool binary = false,
   }) async {
     try {
       return await super.request(
@@ -30,6 +34,9 @@ class _DiagnosingApiClient extends ApiClient {
         query: query,
         idempotencyKey: idempotencyKey,
         authenticated: authenticated,
+        fileBytes: fileBytes,
+        fileName: fileName,
+        binary: binary,
       );
     } on AppFailure catch (failure) {
       if (failure.message == 'Server javobini oʻqib boʻlmadi.') {
@@ -292,7 +299,8 @@ void main() {
         customer: true,
       );
       expect(customerState.repository, isNull);
-      final customerRepo = customerState.customerRepository!;
+      final customerRepo =
+          customerState.customerRepository! as CustomerRepository;
       expect((await customerRepo.history('vehicles')).total, 1);
       expect(
         (await customerRepo.history('appointments')).items.map((w) => w['id']),
@@ -302,7 +310,7 @@ void main() {
         (await customerRepo.history('invoices')).items.single['id'],
         bill.id,
       );
-      final customerBill = await customerRepo.invoice(bill.id);
+      final customerBill = await customerRepo.invoiceJson(bill.id);
       expect(customerBill['balance'], 0);
       expect((customerBill['payments'] as List).length, 2);
       expect(customerBill.containsKey('notes'), isFalse);

@@ -28,6 +28,7 @@ class LineItemIn(BaseModel):
 
 
 class InvoiceCreate(BaseModel):
+    draft: bool = False
     kind: Literal["estimate", "invoice"] = "invoice"
     customer_id: uuid.UUID
     vehicle_id: uuid.UUID | None = None

@@ -12,11 +12,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:garageos_staff/app_state.dart';
 import 'package:garageos_staff/data/api_client.dart';
 import 'package:garageos_staff/data/repository.dart';
+import 'package:garageos_staff/design/bento.dart';
+import 'package:garageos_staff/design/theme.dart';
 import 'package:garageos_staff/main.dart';
 import 'package:garageos_staff/data/demo_repository.dart';
 import 'package:garageos_staff/domain/models.dart';
 import 'package:garageos_staff/ui/billing.dart';
 
+import 'support/dock.dart';
 import 'support/fonts.dart';
 
 Map<String, dynamic> document(int index) => {
@@ -85,6 +88,10 @@ class HistoryServer {
   }
 }
 
+final scroll = find.byWidgetPredicate(
+  (w) => w is Scrollable && w.axisDirection == AxisDirection.down,
+);
+
 Future<AppState> openHistory(WidgetTester tester, HistoryServer server) async {
   tester.view.physicalSize = const Size(390, 844);
   tester.view.devicePixelRatio = 1;
@@ -108,12 +115,7 @@ Future<AppState> openHistory(WidgetTester tester, HistoryServer server) async {
     ),
   );
   await tester.pumpAndSettle();
-  await tester.tap(
-    find.descendant(
-      of: find.byType(NavigationBar),
-      matching: find.text('Hisoblar'),
-    ),
-  );
+  await tester.tap(dockTab('Hisoblar'));
   await tester.pumpAndSettle();
   return state;
 }
@@ -128,11 +130,22 @@ void main() {
       final server = HistoryServer();
       await openHistory(tester, server);
       expect(server.requests.last.queryParameters['page_size'], '30');
+      expect(server.requests.last.queryParameters['view'], 'awaiting');
       expect(find.text('85 ta hisob topildi'), findsOneWidget);
-      await tester.tap(find.byTooltip('Keyingi sahifa'));
+      // Scrolling past the first page loads the next one.
+      await tester.scrollUntilVisible(
+        find.text('INV-55'),
+        400,
+        scrollable: scroll,
+      );
       await tester.pumpAndSettle();
       expect(server.requests.last.queryParameters['page'], '2');
       expect(find.text('INV-55'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.byType(TextField),
+        -1200,
+        scrollable: scroll,
+      );
       await tester.enterText(find.byType(TextField), 'inv-1');
       await tester.pump(const Duration(milliseconds: 400));
       await tester.pumpAndSettle();
@@ -161,11 +174,6 @@ void main() {
       await tester.enterText(find.byType(TextField), 'INV-');
       await tester.pump(const Duration(milliseconds: 400));
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Keyingi sahifa'));
-      await tester.pumpAndSettle();
-      final scroll = find.byWidgetPredicate(
-        (w) => w is Scrollable && w.axisDirection == AxisDirection.down,
-      );
       await tester.scrollUntilVisible(
         find.text('INV-45'),
         400,
@@ -173,24 +181,15 @@ void main() {
       );
       await tester.pumpAndSettle();
       final offset = tester.state<ScrollableState>(scroll).position.pixels;
-      await tester.tap(
-        find.descendant(
-          of: find.byType(NavigationBar),
-          matching: find.text('Navbat'),
-        ),
-      );
+      await tester.tap(dockTab('Ishlar'));
       await tester.pumpAndSettle();
-      await tester.tap(
-        find.descendant(
-          of: find.byType(NavigationBar),
-          matching: find.text('Hisoblar'),
-        ),
-      );
+      await tester.tap(dockTab('Hisoblar'));
       await tester.pumpAndSettle();
       expect(
         tester.state<ScrollableState>(scroll).position.pixels,
         closeTo(offset, 1),
       );
+      // Returning reloads every page the reader had loaded.
       expect(server.requests.last.queryParameters['q'], 'INV-');
       expect(server.requests.last.queryParameters['page'], '2');
       await Scrollable.ensureVisible(
@@ -221,7 +220,6 @@ void main() {
         tester.widget<TextField>(find.byType(TextField)).controller!.text,
         'INV-',
       );
-      expect(find.text('2 / 3'), findsOneWidget);
       expect(find.text('85 invoices found'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
@@ -274,6 +272,7 @@ void main() {
     'demo searches and pages its entire in-memory invoice history',
     () async {
       final repo = DemoRepository();
+      final seeded = (await repo.bills()).total;
       final bills = <Bill>[];
       for (var i = 0; i < 85; i++) {
         final work = await repo.createWork({
@@ -295,11 +294,14 @@ void main() {
           ], 0),
         );
       }
-      final pages = [for (var i = 1; i <= 3; i++) await repo.bills(page: i)];
-      expect(pages.map((p) => p.items.length), [30, 30, 25]);
-      expect(pages.first.total, 85);
-      expect(pages.last.items.last.id, bills.first.id);
-      expect(pages.expand((p) => p.items).map((b) => b.id).toSet().length, 85);
+      final total = 85 + seeded;
+      final pages = [
+        for (var i = 1; i <= (total / 30).ceil(); i++) await repo.bills(page: i),
+      ];
+      expect(pages.first.total, total);
+      expect(pages.expand((p) => p.items).map((b) => b.id).toSet().length, total);
+      // Newest first: the first created invoice follows the 84 newer ones.
+      expect(pages.expand((p) => p.items).elementAt(84).id, bills.first.id);
       expect(
         (await repo.bills(query: bills.first.code.toLowerCase()))
             .items
@@ -307,17 +309,22 @@ void main() {
             .id,
         bills.first.id,
       );
-      expect((await repo.bills(query: 'aZiZ')).total, 85);
-      expect((await repo.bills(query: 'cobalt')).total, 85);
-      expect((await repo.bills(query: '01a123bc')).total, 85);
+      final aziz = (await repo.bills(query: 'aZiZ')).total;
+      expect(aziz, greaterThanOrEqualTo(85));
+      expect((await repo.bills(query: 'cobalt')).total, aziz);
+      expect((await repo.bills(query: '01a777aa')).total, aziz);
       expect((await repo.bills(query: '%')).total, 0);
+      expect(
+        (await repo.bills(view: BillView.drafts)).items.map((b) => b.status),
+        everyElement('draft'),
+      );
     },
   );
 
   for (final locale in ['uz', 'en', 'ru']) {
     for (final width in [360.0, 1024.0]) {
       testWidgets(
-        'invoice search and pager fit $locale at ${width}dp and 130% text',
+        'invoice tabs, search and paging fit $locale at ${width}dp and 130% text',
         (tester) async {
           final server = HistoryServer();
           final state = await openHistory(tester, server);
@@ -326,7 +333,6 @@ void main() {
           addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
           await state.setLocale(Locale(locale));
           await tester.pumpAndSettle();
-          expect(find.text('1 / 3'), findsOneWidget);
           if (const bool.fromEnvironment('WRITE_PREVIEWS')) {
             await tester.runAsync(() async {
               final boundary = tester.renderObject<RenderRepaintBoundary>(
@@ -344,12 +350,23 @@ void main() {
               image.dispose();
             });
           }
-          final pager = find.widgetWithIcon(IconButton, Icons.chevron_right);
-          expect(tester.getSize(pager).width, greaterThanOrEqualTo(48));
-          expect(tester.getSize(pager).height, greaterThanOrEqualTo(48));
-          await tester.tap(pager);
+          final tabs = find.byType(PillSegments<BillView>);
+          expect(tabs, findsOneWidget);
+          for (final segment in find
+              .descendant(of: tabs, matching: find.byType(InkWell))
+              .evaluate()) {
+            expect(
+              (segment.renderObject as RenderBox).size.height,
+              greaterThanOrEqualTo(Touch.standard),
+            );
+          }
+          await tester.scrollUntilVisible(
+            find.text('INV-55'),
+            400,
+            scrollable: scroll,
+          );
           await tester.pumpAndSettle();
-          expect(find.text('2 / 3'), findsOneWidget);
+          expect(server.requests.last.queryParameters['page'], '2');
           expect(tester.takeException(), isNull);
         },
       );

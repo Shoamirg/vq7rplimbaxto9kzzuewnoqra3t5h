@@ -81,5 +81,8 @@ logs/
 ci-evidence/
 ci-state/
 
+# Android binaries are published as assets in the primary GitHub repository.
+artifacts/android/*.apk
+
 # Local downloaded development tools.
 garageos/tools/
