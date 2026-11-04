@@ -4,7 +4,7 @@ import { DocsContent } from "@/components/marketing/pages/docs-content";
 
 export const metadata: Metadata = {
   title: "Qoʻllanma — GarageOS",
-  description: "GarageOS’da servisni qanday yuritish: bronlar, mijozlar, avtomobillar, pasportlar, hisob-kitob, hisobotlar va Telegram ilovasi.",
+  description: "GarageOS’da servisni qanday yuritish: bronlar, mijozlar, avtomobillar, pasportlar, hisob-kitob, hisobotlar va mobil ilova.",
 };
 
 export default function DocsPage() {

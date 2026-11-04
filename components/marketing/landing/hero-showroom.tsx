@@ -3,8 +3,8 @@
 import { useState } from "react";
 import Image from "next/image";
 import {
-  ArrowRight, Bot, CalendarClock, Camera, CheckCheck, CircleDot, CreditCard, Droplets, FileCheck2,
-  Sparkles, Wrench,
+  ArrowRight, CalendarClock, Camera, CheckCheck, CircleDot, CreditCard, Droplets, FileCheck2,
+  Smartphone, Sparkles, Wrench,
 } from "lucide-react";
 
 import { useLanding } from "@/components/marketing/landing/use-landing";
@@ -96,7 +96,7 @@ function AssistantCard({ live, liveKey }: { live: string; liveKey: string }) {
   return (
     <aside className="lp-assistant" aria-labelledby="assistant-title">
       <div className="lp-assistant__head">
-        <span className="lp-assistant__icon"><Bot size={20} aria-hidden="true" /></span>
+        <span className="lp-assistant__icon"><Smartphone size={20} aria-hidden="true" /></span>
         <div>
           <h2 id="assistant-title">{t.assistant.title}</h2>
           <p>{t.assistant.subtitle}</p>
@@ -114,11 +114,11 @@ function AssistantCard({ live, liveKey }: { live: string; liveKey: string }) {
           );
         })}
       </ul>
-      <div className="lp-telegram" data-testid="shop-preview" aria-live="polite" aria-atomic="true">
-        <span className="lp-telegram__label"><span className="lp-dot" aria-hidden="true" />{t.assistant.live}</span>
-        <p key={liveKey} className="lp-telegram__bubble">
+      <div className="lp-feed" data-testid="shop-preview" aria-live="polite" aria-atomic="true">
+        <span className="lp-feed__label"><span className="lp-dot" aria-hidden="true" />{t.assistant.live}</span>
+        <p key={liveKey} className="lp-feed__bubble">
           <strong>{plate}</strong>{message}
-          <CheckCheck size={14} className="lp-telegram__ticks" aria-hidden="true" />
+          <CheckCheck size={14} className="lp-feed__ticks" aria-hidden="true" />
         </p>
       </div>
       <a href={MARKETING_LINKS.liveDemo} className="lp-btn lp-btn--emerald lp-btn--block">

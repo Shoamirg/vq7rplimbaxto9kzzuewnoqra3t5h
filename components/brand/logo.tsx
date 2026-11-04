@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 
 // GarageOS "Live G": a bold G ring whose open end carries an emerald status dot —
-// the same "live" dot used for bookings, Telegram and job status. The ring uses
+// the same "live" dot used for bookings, messages and job status. The ring uses
 // `tone`, the dot uses `accent`; the dot is a stroked ring so its centre stays
 // transparent on any surface.
 

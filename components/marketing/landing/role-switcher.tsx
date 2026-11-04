@@ -9,7 +9,7 @@ import { AdvisorView, MechanicView, OwnerView } from "@/components/marketing/lan
 import { useLanding } from "@/components/marketing/landing/use-landing";
 
 // `screen` = real app screenshot (public/marketing/screens/{screen}-{locale}.webp),
-// captured from the demo tenant. The car owner's Mini App needs Telegram sign-in,
+// captured from the demo tenant. The car owner's mobile app has no capture yet,
 // so that tab only has the interactive mock-up.
 const ROLES = [
   { id: "customer", icon: CarFront, View: CustomerView, screen: null, path: null },

@@ -8,14 +8,14 @@ import { RoleSwitcher } from "@/components/marketing/landing/role-switcher";
 import { useLanding } from "@/components/marketing/landing/use-landing";
 import { trialRequestHref } from "@/lib/marketing-i18n";
 
-export function LandingPage({ qrSvg }: { qrSvg: string }) {
+export function LandingPage() {
   const { locale, t } = useLanding();
   return (
     <main className="lp" data-testid="marketing-landing" lang={locale}>
       <HeroShowroom />
       <RoleSwitcher />
       <JobFlow />
-      <PassportStrip qrSvg={qrSvg} />
+      <PassportStrip />
       <PricingBento />
       <aside className="lp-sticky" data-testid="marketing-mobile-cta">
         <span>{t.sticky.label}</span>

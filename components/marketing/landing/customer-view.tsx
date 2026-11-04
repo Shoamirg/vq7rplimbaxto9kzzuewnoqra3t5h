@@ -9,7 +9,7 @@ const HEALTH_ICONS = [Disc3, Droplet, CircleDot, BatteryFull];
 const HEALTH_TONES = ["warn", "ok", "ok", "ok"];
 const PAY_ICONS = [CreditCard, Wallet, Banknote];
 
-/** Car owner: three Telegram Mini App screens in a swipeable phone carousel. */
+/** Car owner: three mobile app screens in a swipeable phone carousel. */
 export function CustomerView() {
   return (
     <div className="lp-scroller lp-phones">

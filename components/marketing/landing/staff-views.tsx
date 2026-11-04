@@ -32,7 +32,7 @@ export function AdvisorView() {
       </article>
       <article className="lp-card lp-card--remind">
         <header className="lp-card__head"><Bell size={18} aria-hidden="true" /><h4>{t.remind}</h4></header>
-        <p className="lp-telegram__bubble lp-telegram__bubble--small" data-sent={reminded}>{t.reminderPreview}</p>
+        <p className="lp-feed__bubble lp-feed__bubble--small" data-sent={reminded}>{t.reminderPreview}</p>
         <button type="button" className={`lp-btn lp-btn--block ${reminded ? "lp-btn--ghost" : "lp-btn--emerald"}`} aria-pressed={reminded} onClick={() => setReminded(!reminded)}>
           {reminded ? t.reminded : t.remind}
         </button>

@@ -169,7 +169,7 @@
 .lp-kpi__value { font-family: var(--lp-display); font-size: clamp(26px, 3vw, 36px); font-weight: 800; letter-spacing: -0.04em; line-height: 1; animation: lp-pop 360ms var(--lp-ease); }
 @media (min-width: 768px) { .lp-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
-/* Frosted glass Telegram & AI assistant */
+/* Frosted glass mobile app & AI assistant */
 .lp-assistant { display: grid; align-content: start; gap: 14px; min-width: 0; padding: 18px; border: 1px solid var(--lp-border); border-radius: var(--lp-r-card); background: var(--lp-glass); backdrop-filter: blur(22px) saturate(1.5); -webkit-backdrop-filter: blur(22px) saturate(1.5); box-shadow: var(--lp-shadow-float); }
 .lp-assistant__head { display: flex; gap: 12px; align-items: center; }
 .lp-assistant__head h2 { margin: 0; font-size: 17px; font-weight: 750; letter-spacing: -0.02em; }
@@ -180,13 +180,13 @@
 .lp-tile svg { color: var(--lp-emerald); margin-bottom: 4px; }
 .lp-tile strong { font-size: 13px; line-height: 1.25; }
 .lp-tile small { color: var(--lp-ink-2); font-size: 11px; }
-.lp-telegram { display: grid; gap: 8px; padding: 12px; border-radius: var(--lp-r-tile); background: var(--lp-elevated); }
-.lp-telegram__label { display: inline-flex; align-items: center; gap: 8px; color: var(--lp-ink-2); font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
-.lp-telegram__bubble { position: relative; margin: 0; padding: 10px 12px 18px; border-radius: 16px 16px 16px 4px; background: var(--lp-emerald-soft); font-size: 13px; line-height: 1.4; animation: lp-rise 360ms var(--lp-ease); }
-.lp-telegram__bubble strong { display: block; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
-.lp-telegram__ticks { position: absolute; right: 10px; bottom: 6px; color: var(--lp-emerald); }
-.lp-telegram__bubble--small { padding-bottom: 10px; margin-bottom: 12px; }
-.lp-telegram__bubble--small[data-sent="false"] { background: var(--lp-tile); color: var(--lp-ink-2); }
+.lp-feed { display: grid; gap: 8px; padding: 12px; border-radius: var(--lp-r-tile); background: var(--lp-elevated); }
+.lp-feed__label { display: inline-flex; align-items: center; gap: 8px; color: var(--lp-ink-2); font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.lp-feed__bubble { position: relative; margin: 0; padding: 10px 12px 18px; border-radius: 16px 16px 16px 4px; background: var(--lp-emerald-soft); font-size: 13px; line-height: 1.4; animation: lp-rise 360ms var(--lp-ease); }
+.lp-feed__bubble strong { display: block; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+.lp-feed__ticks { position: absolute; right: 10px; bottom: 6px; color: var(--lp-emerald); }
+.lp-feed__bubble--small { padding-bottom: 10px; margin-bottom: 12px; }
+.lp-feed__bubble--small[data-sent="false"] { background: var(--lp-tile); color: var(--lp-ink-2); }
 
 @media (min-width: 1024px) {
   .lp-hero { grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 24px; padding-top: 36px; align-items: start; }
@@ -344,17 +344,15 @@
 .lp-passport__copy h2 { font-size: clamp(24px, 3vw, 38px); max-width: 22ch; }
 .lp-kicker { color: var(--lp-emerald-ink); font: 700 11px/1.4 ui-monospace, Menlo, monospace; letter-spacing: 0.08em; }
 .lp-passport__gauges { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.lp-qr { display: grid; grid-template-columns: 96px 1fr; gap: 14px; align-items: center; padding: 14px; border-radius: var(--lp-r-tile); background: var(--lp-elevated); box-shadow: var(--lp-shadow); }
-.lp-qr__code { display: block; width: 96px; height: 96px; padding: 6px; border-radius: 12px; background: #fff; }
-.lp-qr__code svg { display: block; width: 100%; height: 100%; }
-.lp-qr small { color: var(--lp-ink-2); font-size: 13px; font-weight: 600; line-height: 1.4; }
-@media (hover: hover) { .lp-qr:hover { box-shadow: var(--lp-shadow-float); } }
+.lp-app-note { display: grid; grid-template-columns: 48px 1fr; gap: 14px; margin: 0; align-items: center; padding: 14px; border-radius: var(--lp-r-tile); background: var(--lp-elevated); box-shadow: var(--lp-shadow); }
+.lp-app-note__icon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 12px; background: var(--lp-emerald-soft); color: var(--lp-emerald-ink); }
+.lp-app-note small { color: var(--lp-ink-2); font-size: 13px; font-weight: 600; line-height: 1.4; }
 @media (min-width: 1024px) {
   .lp-passport { grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 24px; padding: 32px; align-items: center; }
   .lp-passport__copy { grid-column: span 5; }
   .lp-passport .lp-blueprint { grid-column: span 7; }
   .lp-passport__gauges { grid-column: span 7; }
-  .lp-qr { grid-column: span 5; }
+  .lp-app-note { grid-column: span 5; }
 }
 
 /* Pricing */

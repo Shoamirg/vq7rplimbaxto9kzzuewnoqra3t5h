@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { BellRing, Camera, CheckCheck, QrCode } from "lucide-react";
+import { BellRing, Camera, CheckCheck, Smartphone } from "lucide-react";
 
 import { useLanding } from "@/components/marketing/landing/use-landing";
 
-const STEP_ICONS = [QrCode, Camera, CheckCheck, BellRing];
+const STEP_ICONS = [Smartphone, Camera, CheckCheck, BellRing];
 
 /** Section 3: a clickable four-step status bar instead of a "how it works" paragraph. */
 export function JobFlow() {

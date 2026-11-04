@@ -9,13 +9,13 @@ const en = {
   hero: {
     badge: "Auto Repair · Detailing · Car Wash · Tire Shops",
     title: "Run Your Entire Garage From One System.",
-    subtitle: "Telegram bookings, 1-tap approvals, stock and a zero-leak ledger.",
+    subtitle: "App bookings, 1-tap approvals, stock and a zero-leak ledger.",
     shopLabel: "Choose your shop", sample: "Sample data", photoCredit: "Photo:",
     alt: "Studio photograph of a white Hyundai Sonata", inspect: "Tap to inspect",
   },
-  kpiLabels: ["Repeat cars via reminders", "Telegram self-booking", "Workshop bay utilization", "Unrecorded cash leaks"],
+  kpiLabels: ["Repeat cars via reminders", "App self-booking", "Workshop bay utilization", "Unrecorded cash leaks"],
   shops: [
-    { id: "repair", label: "Auto Repair", kpis: ["+24%", "15 sec", "98%", "0 UZS"], live: "01 A 123 BC: Client approved 680,000 UZS brake estimate in Telegram." },
+    { id: "repair", label: "Auto Repair", kpis: ["+24%", "15 sec", "98%", "0 UZS"], live: "01 A 123 BC: Client approved 680,000 UZS brake estimate in the app." },
     { id: "detailing", label: "Detailing", kpis: ["+31%", "12 sec", "92%", "0 UZS"], live: "01 A 123 BC: Client approved 1,200,000 UZS ceramic coating." },
     { id: "wash", label: "Car Wash", kpis: ["+42%", "8 sec", "96%", "0 UZS"], live: "01 A 123 BC: Car ready — pick up at bay 3." },
     { id: "tire", label: "Tire Shop", kpis: ["+36%", "10 sec", "99%", "0 UZS"], live: "01 A 123 BC: 4 tires checked into seasonal storage." },
@@ -26,13 +26,13 @@ const en = {
     { id: "tires", label: "Tires", finding: "Tread 6 mm · Good" },
   ],
   assistant: {
-    title: "Telegram & AI Assistant", subtitle: "Live bridge between bay and car owner",
-    tiles: [["Self-Booking", "Zero phone tag"], ["Approve Quote", "1-tap in Telegram"], ["Inspection", "Photos & findings"], ["Instant Pay", "Payme · Click · Cash"]],
-    live: "Live · Telegram", send: "Try Live Demo",
+    title: "Mobile App & AI Assistant", subtitle: "Live bridge between bay and car owner",
+    tiles: [["Self-Booking", "Zero phone tag"], ["Approve Quote", "1-tap in the app"], ["Inspection", "Photos & findings"], ["Instant Pay", "Payme · Click · Cash"]],
+    live: "Live · App", send: "Try Live Demo",
   },
   roles: {
     heading: "Four Screens. Built for Every Role.", label: "Choose a role",
-    tabs: ["Car Owner (Telegram)", "Service Advisor", "Mechanic (Tablet)", "Garage Owner"],
+    tabs: ["Car Owner (App)", "Service Advisor", "Mechanic (Tablet)", "Garage Owner"],
     modeLabel: "Preview mode", real: "Real screen", interactive: "Interactive", realCaption: "Real GarageOS screen · demo data",
     realAlt: ["", "GarageOS calendar: weekly bay schedule", "GarageOS vehicle passport", "GarageOS owner dashboard"],
   },
@@ -55,7 +55,7 @@ const en = {
   flow: {
     heading: "One Job. Four Taps.", label: "Job status",
     steps: [
-      { state: "Booked", title: "Mini App booking", caption: "QR check-in at the gate" },
+      { state: "Booked", title: "In-app booking", caption: "Confirmed by reception" },
       { state: "Inspected", title: "Photo + estimate", caption: "450,000 UZS sent to client" },
       { state: "Approved & Paid", title: "Client taps Approve", caption: "Payme · Click · Cash" },
       { state: "Returned", title: "Auto reminder", caption: "Back in 6 months" },
@@ -65,13 +65,13 @@ const en = {
     kicker: "DIGITAL VEHICLE PASSPORT // TELEMETRY",
     title: "Vehicle history lives in your garage—not just the mechanic's head.",
     gauge1: "System Health", gauge2: "Until Next Oil Service", km: "1,800 km",
-    qrLabel: "Scan QR to preview a live Vehicle Passport in Telegram", diagram: "Top view of a sedan with service callouts",
+    appLabel: "Customers see every service record in the GarageOS mobile app", diagram: "Top view of a sedan with service callouts",
   },
   pricing: {
     heading: "Two returning cars a month cover your entire subscription.", currencyLabel: "Price currency",
     currencies: { UZS: "UZS (Soʻm)", USD: "USD ($)" }, popular: "Most Popular", perMonth: "/ mo", cta: "Start Free",
     plans: [
-      { name: "Starter", sub: "1–3 Bays", UZS: "490 000", USD: "$39", features: ["Telegram Mini App & QR", "Quotes & invoices", "Mileage reminders", "1 location"] },
+      { name: "Starter", sub: "1–3 Bays", UZS: "490 000", USD: "$39", features: ["Customer mobile app", "Quotes & invoices", "Mileage reminders", "1 location"] },
       { name: "Pro Garage", sub: "Full Automation", UZS: "990 000", USD: "$79", features: ["Everything in Starter", "Double-entry ledger", "Mechanic tablet app", "Parts stock"] },
       { name: "Multi-Location", sub: "Chains & Dealerships", UZS: "2 490 000+", USD: "$199+", features: ["Everything in Pro", "Branch reports", "Central parts stock", "Priority onboarding"] },
     ],
@@ -91,13 +91,13 @@ const uz: LandingCopy = {
   hero: {
     badge: "Avtoservis · Deteyling · Moyka · Shinomontaj",
     title: "Avtoservisning barcha ishi bitta tizimda.",
-    subtitle: "Bron, smeta, ombor va kassa — Telegram orqali, barchasi nazoratda.",
+    subtitle: "Bron, smeta, ombor va kassa — mobil ilovada, barchasi nazoratda.",
     shopLabel: "Servis turini tanlang", sample: "Namuna", photoCredit: "Foto:",
     alt: "Oq Hyundai Sonata avtomobilining studiya fotosi", inspect: "Bosib tekshiring",
   },
-  kpiLabels: ["Qaytib keluvchi mijozlar", "Telegram orqali bron", "Bokslar bandligi", "Kassadagi yoʻqotishlar"],
+  kpiLabels: ["Qaytib keluvchi mijozlar", "Ilova orqali bron", "Bokslar bandligi", "Kassadagi yoʻqotishlar"],
   shops: [
-    { id: "repair", label: "Avtoservis", kpis: ["+24%", "15 sek", "98%", "0 soʻm"], live: "01 A 123 BC: Mijoz 680 000 soʻmlik smetani Telegramda tasdiqladi." },
+    { id: "repair", label: "Avtoservis", kpis: ["+24%", "15 sek", "98%", "0 soʻm"], live: "01 A 123 BC: Mijoz 680 000 soʻmlik smetani ilovada tasdiqladi." },
     { id: "detailing", label: "Deteyling", kpis: ["+31%", "12 sek", "92%", "0 soʻm"], live: "01 A 123 BC: Keramika qoplama — 1 200 000 soʻm tasdiqlandi." },
     { id: "wash", label: "Avtomoyka", kpis: ["+42%", "8 sek", "96%", "0 soʻm"], live: "01 A 123 BC: Mashina tayyor — 3-boksdan olib keting." },
     { id: "tire", label: "Shinomontaj", kpis: ["+36%", "10 sek", "99%", "0 soʻm"], live: "01 A 123 BC: 4 ta shina saqlashga qabul qilindi." },
@@ -108,13 +108,13 @@ const uz: LandingCopy = {
     { id: "tires", label: "Shinalar", finding: "Protektor 6 mm · Yaxshi" },
   ],
   assistant: {
-    title: "Telegram & AI Yordamchi", subtitle: "Mijoz va ustaxona oʻrtasidagi jonli aloqa",
+    title: "Mobil ilova & AI Yordamchi", subtitle: "Mijoz va ustaxona oʻrtasidagi jonli aloqa",
     tiles: [["Onlayn Bron", "Qoʻngʻiroqlarsiz"], ["Smeta Tasdiqlash", "1 bosishda"], ["Avto Diagnostika", "Foto va tarix"], ["Toʻlov Qabul Qilish", "Payme · Click · Naqd"]],
-    live: "Jonli · Telegram", send: "Sinab koʻrish",
+    live: "Jonli · Ilova", send: "Sinab koʻrish",
   },
   roles: {
     heading: "4 ta ekran. Har bir xodim oʻz joyida.", label: "Rolni tanlang",
-    tabs: ["Mijoz (Telegram)", "Qabulxona (Master)", "Usta (Planshet)", "Rahbar (Moliya)"],
+    tabs: ["Mijoz (Ilova)", "Qabulxona (Master)", "Usta (Planshet)", "Rahbar (Moliya)"],
     modeLabel: "Koʻrinish", real: "Haqiqiy ekran", interactive: "Jonli namuna", realCaption: "Haqiqiy GarageOS ekrani · demo maʼlumotlar",
     realAlt: ["", "GarageOS kalendari: bokslarning haftalik jadvali", "GarageOS avtomobil pasporti", "GarageOS boshqaruv paneli"],
   },
@@ -137,7 +137,7 @@ const uz: LandingCopy = {
   flow: {
     heading: "Bitta ish. Toʻrt bosish.", label: "Ish holati",
     steps: [
-      { state: "Bron", title: "Mini App orqali", caption: "QR bilan qabul" },
+      { state: "Bron", title: "Ilova orqali", caption: "Qabulxona tasdiqlaydi" },
       { state: "Tekshiruv", title: "Foto + smeta", caption: "450 000 soʻm mijozga" },
       { state: "Tasdiq va toʻlov", title: "Mijoz tasdiqlaydi", caption: "Payme · Click · Naqd" },
       { state: "Qaytish", title: "Avto eslatma", caption: "6 oydan keyin qaytadi" },
@@ -147,13 +147,13 @@ const uz: LandingCopy = {
     kicker: "RAQAMLI AVTO-PASSPORT // DIAGNOSTIKA",
     title: "Mashina tarixi ustaning xotirasida emas, bazada qoladi.",
     gauge1: "Texnik holat", gauge2: "Keyingi moy almashtirish", km: "1 800 km",
-    qrLabel: "Kamerani yoʻnaltiring — Telegramda namuna pasportni oching", diagram: "Sedan sxemasi va servis belgilari",
+    appLabel: "Mijozlar barcha servis yozuvlarini GarageOS mobil ilovasida koʻradi", diagram: "Sedan sxemasi va servis belgilari",
   },
   pricing: {
     heading: "Oyiga 2 ta qaytgan mashina obunani toʻliq qoplaydi.", currencyLabel: "Narx valyutasi",
     currencies: { UZS: "UZS (Soʻm)", USD: "USD ($)" }, popular: "Eng ommabop", perMonth: "/ oy", cta: "Bepul boshlash",
     plans: [
-      { name: "Start", sub: "1–3 boks uchun", UZS: "490 000", USD: "$39", features: ["Telegram Mini App va QR", "Smeta va hisoblar", "Probeg eslatmalari", "1 filial"] },
+      { name: "Start", sub: "1–3 boks uchun", UZS: "490 000", USD: "$39", features: ["Mijozlar uchun mobil ilova", "Smeta va hisoblar", "Probeg eslatmalari", "1 filial"] },
       { name: "Pro Servis", sub: "Toʻliq avtomat", UZS: "990 000", USD: "$79", features: ["Startdagi hammasi", "Kassa va qarzdorlik", "Usta planshet ilovasi", "Ehtiyot qismlar ombori"] },
       { name: "Tarmoq", sub: "Koʻp filialli servislar", UZS: "2 490 000+", USD: "$199+", features: ["Prodagi hammasi", "Filiallar hisoboti", "Markaziy ombor", "Ustuvor ulash"] },
     ],
@@ -171,13 +171,13 @@ const ru: LandingCopy = {
   hero: {
     badge: "Автосервис · Детейлинг · Мойка · Шиномонтаж",
     title: "Весь автосервис в одной системе.",
-    subtitle: "Запись в Telegram, сметы, склад и касса без утечек.",
+    subtitle: "Запись в приложении, сметы, склад и касса без утечек.",
     shopLabel: "Выберите тип сервиса", sample: "Пример", photoCredit: "Фото:",
     alt: "Студийная фотография белого Hyundai Sonata", inspect: "Нажмите для осмотра",
   },
-  kpiLabels: ["Возврат клиентов по пробегу", "Запись через Telegram", "Загрузка постов", "Утечек мимо кассы"],
+  kpiLabels: ["Возврат клиентов по пробегу", "Запись через приложение", "Загрузка постов", "Утечек мимо кассы"],
   shops: [
-    { id: "repair", label: "Автосервис", kpis: ["+24%", "15 сек", "98%", "0 сум"], live: "01 A 123 BC: Клиент одобрил смету на 680 000 сум в Telegram." },
+    { id: "repair", label: "Автосервис", kpis: ["+24%", "15 сек", "98%", "0 сум"], live: "01 A 123 BC: Клиент одобрил смету на 680 000 сум в приложении." },
     { id: "detailing", label: "Детейлинг", kpis: ["+31%", "12 сек", "92%", "0 сум"], live: "01 A 123 BC: Клиент одобрил керамику на 1 200 000 сум." },
     { id: "wash", label: "Автомойка", kpis: ["+42%", "8 сек", "96%", "0 сум"], live: "01 A 123 BC: Машина готова — заберите с поста 3." },
     { id: "tire", label: "Шиномонтаж", kpis: ["+36%", "10 сек", "99%", "0 сум"], live: "01 A 123 BC: 4 шины приняты на хранение." },
@@ -188,13 +188,13 @@ const ru: LandingCopy = {
     { id: "tires", label: "Шины", finding: "Протектор 6 мм · Норма" },
   ],
   assistant: {
-    title: "Telegram и AI Ассистент", subtitle: "Прямая связь сервиса с клиентом",
+    title: "Мобильное приложение и AI Ассистент", subtitle: "Прямая связь сервиса с клиентом",
     tiles: [["Онлайн-запись", "Без звонков"], ["Согласование", "Смета в 1 клик"], ["Осмотр авто", "Фото и дефекты"], ["Оплата счёта", "Payme · Click · Нал"]],
-    live: "Онлайн · Telegram", send: "Демо вживую",
+    live: "Онлайн · Приложение", send: "Демо вживую",
   },
   roles: {
     heading: "4 экрана. Каждый на своём месте.", label: "Выберите роль",
-    tabs: ["Клиент (Telegram)", "Приёмщик", "Механик (Планшет)", "Владелец (Финансы)"],
+    tabs: ["Клиент (Приложение)", "Приёмщик", "Механик (Планшет)", "Владелец (Финансы)"],
     modeLabel: "Режим просмотра", real: "Реальный экран", interactive: "Интерактив", realCaption: "Настоящий экран GarageOS · демо-данные",
     realAlt: ["", "Календарь GarageOS: недельное расписание постов", "Паспорт автомобиля в GarageOS", "Панель руководителя GarageOS"],
   },
@@ -217,7 +217,7 @@ const ru: LandingCopy = {
   flow: {
     heading: "Один заказ. Четыре касания.", label: "Статус заказа",
     steps: [
-      { state: "Запись", title: "Через Mini App", caption: "QR-приёмка на въезде" },
+      { state: "Запись", title: "Через приложение", caption: "Подтверждает приёмщик" },
       { state: "Осмотр", title: "Фото + смета", caption: "450 000 сум клиенту" },
       { state: "Согласовано и оплачено", title: "Клиент согласует", caption: "Payme · Click · Нал" },
       { state: "Возврат", title: "Авто-напоминание", caption: "Снова через 6 месяцев" },
@@ -227,13 +227,13 @@ const ru: LandingCopy = {
     kicker: "ЦИФРОВОЙ ПАСПОРТ АВТО // ТЕЛЕМЕТРИЯ",
     title: "История машины остаётся в базе сервиса, а не в голове механика.",
     gauge1: "Состояние узлов", gauge2: "До замены масла", km: "1 800 км",
-    qrLabel: "Наведите камеру — откройте пример паспорта в Telegram", diagram: "Схема седана с отметками сервиса",
+    appLabel: "Клиенты видят всю историю обслуживания в мобильном приложении GarageOS", diagram: "Схема седана с отметками сервиса",
   },
   pricing: {
     heading: "Два вернувшихся клиента в месяц полностью окупают подписку.", currencyLabel: "Валюта цены",
     currencies: { UZS: "UZS (Сум)", USD: "USD ($)" }, popular: "Выбор СТО", perMonth: "/ мес", cta: "Начать бесплатно",
     plans: [
-      { name: "Старт", sub: "1–3 поста", UZS: "490 000", USD: "$39", features: ["Telegram Mini App и QR", "Сметы и счета", "Напоминания по пробегу", "1 филиал"] },
+      { name: "Старт", sub: "1–3 поста", UZS: "490 000", USD: "$39", features: ["Мобильное приложение для клиентов", "Сметы и счета", "Напоминания по пробегу", "1 филиал"] },
       { name: "Про Сервис", sub: "Полный автомат", UZS: "990 000", USD: "$79", features: ["Всё из Старта", "Касса и долги", "Планшет механика", "Склад запчастей"] },
       { name: "Сеть СТО", sub: "Несколько филиалов", UZS: "2 490 000+", USD: "$199+", features: ["Всё из Про", "Отчёты по филиалам", "Центральный склад", "Приоритетный запуск"] },
     ],

@@ -12,8 +12,6 @@ export const MARKETING_LINKS = {
   demo: "mailto:hello@garageos.app?subject=GarageOS%20demo%20request",
   signIn: "/login",
   liveDemo: "/demo",
-  // The landing QR opens the GarageOS bot, whose menu button launches the Mini App.
-  telegramPassport: "https://t.me/garageos1_bot",
 } as const;
 
 export function trialRequestHref(locale: MarketingLocale, detail?: string) {
