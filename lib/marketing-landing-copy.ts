@@ -10,8 +10,8 @@ const en = {
     badge: "Auto Repair · Detailing · Car Wash · Tire Shops",
     title: "Run Your Entire Garage From One System.",
     subtitle: "App bookings, 1-tap approvals, stock and a zero-leak ledger.",
-    shopLabel: "Choose your shop", sample: "Sample data", photoCredit: "Photo:",
-    alt: "Studio photograph of a white Hyundai Sonata", inspect: "Tap to inspect",
+    shopLabel: "Choose your shop", sample: "Sample data",
+    alt: "Studio photograph of a white Chevrolet sedan", inspect: "Tap to inspect",
   },
   kpiLabels: ["Repeat cars via reminders", "App self-booking", "Workshop bay utilization", "Unrecorded cash leaks"],
   shops: [
@@ -92,8 +92,8 @@ const uz: LandingCopy = {
     badge: "Avtoservis · Deteyling · Moyka · Shinomontaj",
     title: "Avtoservisning barcha ishi bitta tizimda.",
     subtitle: "Bron, smeta, ombor va kassa — mobil ilovada, barchasi nazoratda.",
-    shopLabel: "Servis turini tanlang", sample: "Namuna", photoCredit: "Foto:",
-    alt: "Oq Hyundai Sonata avtomobilining studiya fotosi", inspect: "Bosib tekshiring",
+    shopLabel: "Servis turini tanlang", sample: "Namuna",
+    alt: "Oq Chevrolet sedan avtomobilining studiya fotosi", inspect: "Bosib tekshiring",
   },
   kpiLabels: ["Qaytib keluvchi mijozlar", "Ilova orqali bron", "Bokslar bandligi", "Kassadagi yoʻqotishlar"],
   shops: [
@@ -172,8 +172,8 @@ const ru: LandingCopy = {
     badge: "Автосервис · Детейлинг · Мойка · Шиномонтаж",
     title: "Весь автосервис в одной системе.",
     subtitle: "Запись в приложении, сметы, склад и касса без утечек.",
-    shopLabel: "Выберите тип сервиса", sample: "Пример", photoCredit: "Фото:",
-    alt: "Студийная фотография белого Hyundai Sonata", inspect: "Нажмите для осмотра",
+    shopLabel: "Выберите тип сервиса", sample: "Пример",
+    alt: "Студийная фотография белого седана Chevrolet", inspect: "Нажмите для осмотра",
   },
   kpiLabels: ["Возврат клиентов по пробегу", "Запись через приложение", "Загрузка постов", "Утечек мимо кассы"],
   shops: [

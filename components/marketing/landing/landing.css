@@ -151,12 +151,9 @@
 .lp-stage { position: relative; margin: 0; padding: 14px 14px 10px; border: 1px solid var(--lp-border); border-radius: var(--lp-r-card); background: radial-gradient(120% 90% at 60% 110%, #fff 0, var(--lp-surface) 60%); box-shadow: var(--lp-shadow); }
 .lp-stage__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .lp-stage__photo { position: relative; margin-top: 6px; aspect-ratio: 1500 / 640; }
-.lp-stage__car { display: block; width: 100%; height: 100%; object-fit: contain; mix-blend-mode: multiply;  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 22%); mask-image: linear-gradient(90deg, transparent 0, #000 22%); }
-.lp-stage__finding { position: absolute; left: 18px; bottom: 34px; display: grid; gap: 2px; margin: 0; padding: 10px 14px; border: 1px solid var(--lp-border); border-radius: 14px; background: var(--lp-glass); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: var(--lp-shadow-float); font-size: 12px; color: var(--lp-ink-2); animation: lp-rise 320ms var(--lp-ease); }
+.lp-stage__car { display: block; width: 100%; height: 100%; object-fit: contain; mix-blend-mode: multiply;  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 4%, #000 96%, transparent 100%); mask-image: linear-gradient(90deg, transparent 0, #000 4%, #000 96%, transparent 100%); }
+.lp-stage__finding { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin: 6px 0 4px; padding: 10px 14px; border: 1px solid var(--lp-border); border-radius: 14px; background: var(--lp-glass); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: var(--lp-shadow-float); font-size: 12px; color: var(--lp-ink-2); animation: lp-rise 320ms var(--lp-ease); }
 .lp-stage__finding strong { color: var(--lp-ink); font-size: 14px; }
-@media (max-width: 767px) { .lp-stage__finding { position: static; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin-top: 6px; } }
-.lp-credit { margin-top: 6px; text-align: right; color: var(--lp-ink-2); font-size: 10px; }
-.lp-credit a { text-decoration: underline; text-underline-offset: 2px; }
 
 .lp-hotspot { position: absolute; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: transparent; transform: translate(-50%, -50%); cursor: pointer; }
 .lp-hotspot > span { width: 16px; height: 16px; border: 3px solid #fff; border-radius: 50%; background: var(--lp-emerald); box-shadow: 0 0 0 0 rgba(16, 152, 104, 0.55), 0 4px 10px rgba(17, 19, 21, 0.3); animation: lp-ring 2s ease-out infinite; transition: transform 160ms var(--lp-ease), background 160ms ease; }

@@ -12,11 +12,11 @@ import { MARKETING_LINKS } from "@/lib/marketing-i18n";
 
 const SHOP_ICONS = { repair: Wrench, detailing: Sparkles, wash: Droplets, tire: CircleDot } as const;
 const TILE_ICONS = [CalendarClock, FileCheck2, Camera, CreditCard];
-// Pin positions are percentages of the cropped stage photo (sonata-stage.jpg).
+// Pin positions are percentages of the cropped stage photo (car-stage.jpg).
 const HOTSPOT_POSITIONS: Record<string, { left: string; top: string }> = {
-  brakes: { left: "56%", top: "71%" },
-  engine: { left: "77%", top: "33%" },
-  tires: { left: "29%", top: "60%" },
+  brakes: { left: "52%", top: "78%" },
+  engine: { left: "71%", top: "39%" },
+  tires: { left: "13.5%", top: "67%" },
 };
 
 export function HeroShowroom() {
@@ -66,7 +66,7 @@ function VehicleStage() {
         <span className="lp-pill lp-pill--soft">{t.hero.inspect}</span>
       </div>
       <div className="lp-stage__photo">
-        <Image src="/marketing/sonata-stage.jpg" alt={t.hero.alt} width={1500} height={640}
+        <Image src="/marketing/car-stage.jpg" alt={t.hero.alt} width={1500} height={640}
           className="lp-stage__car" data-testid="hero-vehicle-photo" priority unoptimized />
         {t.hotspots.map(({ id, label }) => (
           <button key={id} type="button" className="lp-hotspot" style={HOTSPOT_POSITIONS[id]}
@@ -80,12 +80,6 @@ function VehicleStage() {
           <strong>{finding.label}</strong>{finding.finding}
         </p>
       )}
-      <figcaption className="lp-credit">
-        {t.hero.photoCredit}{" "}
-        <a href="https://unsplash.com/photos/a-white-car-on-a-white-background-oa68pmfG-qk" target="_blank" rel="noopener noreferrer">
-          Hyundai Motor Group / Unsplash
-        </a>
-      </figcaption>
     </figure>
   );
 }

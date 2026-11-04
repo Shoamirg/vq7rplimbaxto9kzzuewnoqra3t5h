@@ -20,4 +20,4 @@ The site opens at http://localhost:3000. Use `npm run build` and `npm start` for
 - `app/(marketing)/` holds the pages.
 - `components/marketing/` holds the sections and styles.
 - `lib/marketing-*.ts` holds the translated copy.
-- `public/marketing/` holds images, with photo credits in `PHOTO-CREDITS.md`.
+- `public/marketing/` holds images.
