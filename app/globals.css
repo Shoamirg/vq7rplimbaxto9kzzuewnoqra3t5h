@@ -1,0 +1,35 @@
+/* Base layer the marketing styles expect; the dashboard's Tailwind theme is not needed here. */
+:root {
+  --font-sans: var(--font-jakarta), var(--font-inter), system-ui, sans-serif;
+  --shadow-bento: 0 8px 24px -4px rgb(17 19 21 / .04), 0 2px 6px -1px rgb(17 19 21 / .02);
+}
+
+*, ::after, ::before { box-sizing: border-box; border: 0 solid currentcolor; }
+html { line-height: 1.5; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: #E4E6E9;
+  color: #111315;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, h4, h5, h6 { margin: 0; font-size: inherit; font-weight: inherit; }
+p, ol, ul, menu, dl, dd, figure, blockquote, pre { margin: 0; }
+ol, ul, menu { padding: 0; list-style: none; }
+a { color: inherit; text-decoration: inherit; }
+b, strong { font-weight: bolder; }
+img, svg, video, canvas { display: block; vertical-align: middle; }
+img, video { max-width: 100%; height: auto; }
+button, input, select, textarea {
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  background: transparent;
+  border-radius: 0;
+}
+button { cursor: pointer; }
+
+h1, h2, h3 { font-family: var(--font-brand), var(--font-sans), system-ui, sans-serif; }
+main { transition: opacity 150ms ease-out; }
