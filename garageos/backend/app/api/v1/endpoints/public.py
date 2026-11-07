@@ -16,9 +16,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.models.inspection import VehicleInspection
 from app.models.invoice import Invoice
 from app.models.vehicle import Vehicle
 from app.repositories.unit_of_work import UnitOfWork
+from app.schemas.inspection import CustomerInspectionDecisionRequest
+from app.services.inspection_service import InspectionService
 from app.services.invoice_service import InvoiceService
 from app.services.vehicle_health_service import VehicleHealthService
 
@@ -63,3 +66,37 @@ async def public_invoice(
 
     async with UnitOfWork(service_center_id=service_center_id) as uow:
         return await InvoiceService(uow).get_public_document(invoice_id)
+
+
+@router.get("/inspections/{token}", summary="Vehicle inspection report (public, no auth — shareable)")
+async def public_inspection(
+    token: str,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    inspection = await InspectionService.get_public_inspection(db, token)
+    if not inspection:
+        raise HTTPException(status_code=404, detail="Ko'rik hisoboti topilmadi")
+    return InspectionService.serialize_public_dvi(inspection)
+
+
+@router.post("/inspections/{token}/decide", summary="Customer approve/decline inspection items")
+async def public_inspection_decide(
+    token: str,
+    payload: CustomerInspectionDecisionRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    result = await db.execute(
+        select(VehicleInspection.service_center_id).where(
+            VehicleInspection.public_token == token,
+            VehicleInspection.is_active == True,
+        )
+    )
+    service_center_id = result.scalar_one_or_none()
+    if service_center_id is None:
+        raise HTTPException(status_code=404, detail="Ko'rik havolasi yaroqsiz yoki topilmadi")
+
+    async with UnitOfWork(service_center_id=service_center_id) as uow:
+        service = InspectionService(uow)
+        updated = await service.submit_customer_decisions(token, payload.decisions)
+        return service.serialize_public_dvi(updated)
+

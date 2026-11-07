@@ -9,6 +9,7 @@ import '../domain/portal.dart';
 import '../l10n/l10n.dart';
 import 'billing.dart';
 import 'customers.dart' show requiredText;
+import 'inspection_screen.dart';
 
 class WorkScreen extends StatefulWidget {
   const WorkScreen({super.key, required this.repository, required this.work});
@@ -267,6 +268,20 @@ class _WorkScreenState extends State<WorkScreen> {
                       : null,
                 ),
               ],
+            ),
+            SizedBox(height: Space.grid),
+            PillButton(
+              label: "Raqamli texnik ko'rik (DVI)",
+              icon: Icons.fact_check_outlined,
+              kind: PillKind.primary,
+              expand: true,
+              onPressed: () async {
+                await openPage(
+                  context,
+                  InspectionScreen(repository: widget.repository, work: work),
+                );
+                if (mounted) await reload();
+              },
             ),
             SectionTitle(context.l10n.customerConcern),
             BentoCard(

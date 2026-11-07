@@ -100,6 +100,13 @@ abstract class GarageRepository {
   }) async => throw const AppFailure.unavailable();
   Future<LogoutOutcome> logout() async => LogoutOutcome.none;
   void close() {}
+
+  // Digital Vehicle Inspection (DVI)
+  Future<InspectionModel?> inspectionForWork(String appointmentId) async => null;
+  Future<InspectionModel> createInspection(String vehicleId, {String? appointmentId, String? customerId}) async => throw const AppFailure.unavailable();
+  Future<InspectionModel> getInspection(String id) async => throw const AppFailure.unavailable();
+  Future<void> updateInspectionItem(String inspectionId, String itemId, {String? rating, String? notes, Money? partsPrice, Money? laborPrice}) async {}
+  Future<Map<String, dynamic>> sendInspection(String id) async => throw const AppFailure.unavailable();
 }
 
 class LiveRepository extends GarageRepository
@@ -375,6 +382,59 @@ class LiveRepository extends GarageRepository
       if (e.status == 404) return null;
       rethrow;
     }
+  }
+
+  @override
+  Future<InspectionModel?> inspectionForWork(String appointmentId) async {
+    try {
+      final data = await api.request('GET', '/inspections', query: {'appointment_id': appointmentId});
+      final items = (data['items'] as List? ?? []);
+      if (items.isEmpty) return null;
+      return InspectionModel.fromJson(items.first);
+    } on AppFailure catch (e) {
+      if (e.status == 404) return null;
+      rethrow;
+    }
+  }
+
+  @override
+  Future<InspectionModel> createInspection(String vehicleId, {String? appointmentId, String? customerId}) async {
+    final data = await api.request('POST', '/inspections', body: {
+      'vehicle_id': vehicleId,
+      'appointment_id': ?appointmentId,
+      'customer_id': ?customerId,
+      'title': "Kompleks texnik ko'rik (DVI)",
+    });
+    return InspectionModel.fromJson(data);
+  }
+
+  @override
+  Future<InspectionModel> getInspection(String id) async {
+    final data = await api.request('GET', '/inspections/$id');
+    return InspectionModel.fromJson(data);
+  }
+
+  @override
+  Future<void> updateInspectionItem(
+    String inspectionId,
+    String itemId, {
+    String? rating,
+    String? notes,
+    Money? partsPrice,
+    Money? laborPrice,
+  }) async {
+    await api.request('PATCH', '/inspections/$inspectionId/items/$itemId', body: {
+      'rating': ?rating,
+      'notes': ?notes,
+      'estimated_parts_price': ?partsPrice?.apiValue,
+      'estimated_labor_price': ?laborPrice?.apiValue,
+    });
+  }
+
+  @override
+  Future<Map<String, dynamic>> sendInspection(String id) async {
+    final data = await api.request('POST', '/inspections/$id/send');
+    return Map<String, dynamic>.from(data);
   }
 
   /// Saving keeps a real draft; sending issues it and notifies the customer.

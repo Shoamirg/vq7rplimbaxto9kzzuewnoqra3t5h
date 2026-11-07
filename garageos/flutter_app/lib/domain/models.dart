@@ -414,3 +414,104 @@ class Bill {
     );
   }
 }
+
+class InspectionItemModel {
+  const InspectionItemModel({
+    required this.id,
+    required this.inspectionId,
+    required this.category,
+    required this.title,
+    required this.rating,
+    this.notes,
+    this.photos = const [],
+    required this.estimatedLaborPrice,
+    required this.estimatedPartsPrice,
+    required this.customerDecision,
+    this.customerComment,
+    required this.sortOrder,
+  });
+
+  factory InspectionItemModel.fromJson(Json j) => InspectionItemModel(
+    id: j['id'] ?? '',
+    inspectionId: j['inspection_id'] ?? '',
+    category: j['category'] ?? 'engine_fluids',
+    title: j['title'] ?? '',
+    rating: j['rating'] ?? 'green',
+    notes: j['notes'],
+    photos: (j['photos'] as List? ?? []).map((e) => e.toString()).toList(),
+    estimatedLaborPrice: Money.fromApi(j['estimated_labor_price']),
+    estimatedPartsPrice: Money.fromApi(j['estimated_parts_price']),
+    customerDecision: j['customer_decision'] ?? 'pending',
+    customerComment: j['customer_comment'],
+    sortOrder: j['sort_order'] ?? 0,
+  );
+
+  final String id;
+  final String inspectionId;
+  final String category;
+  final String title;
+  final String rating;
+  final String? notes;
+  final List<String> photos;
+  final Money estimatedLaborPrice;
+  final Money estimatedPartsPrice;
+  final String customerDecision;
+  final String? customerComment;
+  final int sortOrder;
+
+  Money get totalEstimate => Money(estimatedLaborPrice.cents + estimatedPartsPrice.cents);
+}
+
+class InspectionModel {
+  const InspectionModel({
+    required this.id,
+    required this.vehicleId,
+    this.customerId,
+    this.appointmentId,
+    this.inspectorId,
+    required this.status,
+    required this.title,
+    this.summaryNotes,
+    this.mileageAtInspection,
+    required this.overallScore,
+    required this.publicToken,
+    this.publicUrl,
+    this.items = const [],
+  });
+
+  factory InspectionModel.fromJson(Json j) => InspectionModel(
+    id: j['id'] ?? '',
+    vehicleId: j['vehicle_id'] ?? '',
+    customerId: j['customer_id'],
+    appointmentId: j['appointment_id'],
+    inspectorId: j['inspector_id'],
+    status: j['status'] ?? 'draft',
+    title: j['title'] ?? "Kompleks texnik ko'rik",
+    summaryNotes: j['summary_notes'],
+    mileageAtInspection: j['mileage_at_inspection'],
+    overallScore: j['overall_score'] ?? 100,
+    publicToken: j['public_token'] ?? '',
+    publicUrl: j['public_url'],
+    items: (j['items'] as List? ?? [])
+        .map((it) => InspectionItemModel.fromJson(it))
+        .toList(),
+  );
+
+  final String id;
+  final String vehicleId;
+  final String? customerId;
+  final String? appointmentId;
+  final String? inspectorId;
+  final String status;
+  final String title;
+  final String? summaryNotes;
+  final int? mileageAtInspection;
+  final int overallScore;
+  final String publicToken;
+  final String? publicUrl;
+  final List<InspectionItemModel> items;
+
+  int get redCount => items.where((it) => it.rating == 'red').length;
+  int get yellowCount => items.where((it) => it.rating == 'yellow').length;
+  int get greenCount => items.where((it) => it.rating == 'green').length;
+}

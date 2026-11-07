@@ -103,3 +103,18 @@ async def get_mechanic_uow(
     async with UnitOfWork(service_center_id=current_user.service_center_id) as uow:
         uow.actor_user_id = current_user.id
         yield uow
+
+
+async def get_inspection_uow(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    permissions: list[str] = Depends(get_staff_permissions),
+) -> AsyncIterator[UnitOfWork]:
+    can_read = "staff.read" in permissions or "work.read.assigned" in permissions
+    can_write = "staff.write" in permissions or "work.write.assigned" in permissions
+    required = can_read if request.method in {"GET", "HEAD", "OPTIONS"} else can_write
+    if not required:
+        raise UnauthorizedAction()
+    async with UnitOfWork(service_center_id=current_user.service_center_id) as uow:
+        uow.actor_user_id = current_user.id
+        yield uow

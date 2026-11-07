@@ -133,8 +133,7 @@ android {
 
     buildTypes {
         debug {
-            applicationIdSuffix = ".dev"
-            manifestPlaceholders["appLabel"] = "GarageOS Dev"
+            manifestPlaceholders["appLabel"] = "GarageOS"
         }
         release {
             manifestPlaceholders["appLabel"] = "GarageOS"

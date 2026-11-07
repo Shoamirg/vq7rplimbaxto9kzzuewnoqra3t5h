@@ -110,3 +110,14 @@ export async function getPublicInvoice(id: string): Promise<InvoiceDoc | null> {
   if (!res.ok) throw new ApiError(`invoice responded ${res.status}`, res.status);
   return (await res.json()) as InvoiceDoc;
 }
+
+export async function getPublicInspection(token: string): Promise<any | null> {
+  const res = await fetch(`${apiBaseUrl()}/public/inspections/${token}`, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+    signal: AbortSignal.timeout(8_000),
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new ApiError(`inspection responded ${res.status}`, res.status);
+  return await res.json();
+}

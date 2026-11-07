@@ -30,6 +30,14 @@ from app.models.invoice import (
     InvoiceLineItem,
     Payment,
 )
+from app.models.inspection import (
+    VehicleInspection,
+    InspectionItem,
+    InspectionStatus,
+    InspectionRating,
+    InspectionDecision,
+    InspectionCategory,
+)
 from app.models.ledger import LedgerEntry
 from app.models.audit_log import AuditLog
 from app.models.message_intent import MessageIntent
@@ -66,6 +74,12 @@ __all__ = [
     "Invoice",
     "InvoiceLineItem",
     "Payment",
+    "VehicleInspection",
+    "InspectionItem",
+    "InspectionStatus",
+    "InspectionRating",
+    "InspectionDecision",
+    "InspectionCategory",
     "LedgerEntry",
     "AuditLog",
     "MessageIntent",
