@@ -176,7 +176,7 @@ export function InspectionView({
       case "yellow":
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-            <AlertTriangle className="size-3.5" /> E'tibor talab
+            <AlertTriangle className="size-3.5" /> E&apos;tibor talab
           </span>
         );
       default:
@@ -202,7 +202,7 @@ export function InspectionView({
                 {inspection.service_center?.name || "GarageOS Avtoservis"}
               </h1>
               <p className="text-xs text-slate-500 dark:text-zinc-400 flex items-center gap-1 mt-0.5">
-                <FileCheck className="size-3 text-emerald-500" /> Raqamli texnik ko'rik (DVI)
+                <FileCheck className="size-3 text-emerald-500" /> Raqamli texnik ko&apos;rik (DVI)
               </p>
             </div>
           </div>
@@ -212,7 +212,7 @@ export function InspectionView({
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition"
             >
               <Phone className="size-3.5" />
-              <span>Bog'lanish</span>
+              <span>Bog&apos;lanish</span>
             </a>
           )}
         </div>
@@ -275,8 +275,8 @@ export function InspectionView({
                   {inspection.overall_score >= 85
                     ? "A'lo holatda"
                     : inspection.overall_score >= 60
-                    ? "E'tibor talab"
-                    : "Ta'mirlash zarur"}
+                    ? "E&apos;tibor talab"
+                    : "Ta&apos;mirlash zarur"}
                 </p>
               </div>
             </div>
@@ -284,7 +284,7 @@ export function InspectionView({
 
           {inspection.summary_notes && (
             <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800 text-xs text-slate-600 dark:text-zinc-400 italic">
-              " {inspection.summary_notes} "
+              &ldquo; {inspection.summary_notes} &rdquo;
             </div>
           )}
         </section>
@@ -293,7 +293,7 @@ export function InspectionView({
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
-              Ko'rik bandlari ({inspection.summary.total_items})
+              Ko&apos;rik bandlari ({inspection.summary.total_items})
             </h3>
             <span className="text-xs text-slate-500 dark:text-zinc-400">
               Taxminiy qiymat:{" "}
@@ -337,7 +337,7 @@ export function InspectionView({
               }`}
             >
               <div className="text-lg font-bold leading-tight">{inspection.summary.yellow_count}</div>
-              <div className="text-[11px] opacity-80 mt-0.5">🟡 E'tibor talab</div>
+              <div className="text-[11px] opacity-80 mt-0.5">🟡 E&apos;tibor talab</div>
             </button>
 
             <button
@@ -404,9 +404,10 @@ export function InspectionView({
                           onClick={() => setSelectedPhoto(photoUrl)}
                           className="relative size-20 rounded-xl overflow-hidden border border-slate-200 dark:border-zinc-700 group focus:outline-hidden"
                         >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={photoUrl}
-                            alt="Ko'rik fotosi"
+                            alt="Korik fotosi"
                             className="w-full h-full object-cover group-hover:scale-105 transition"
                           />
                           <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition">
@@ -432,7 +433,7 @@ export function InspectionView({
                       )}
                       {item.estimated_labor_price > 0 && (
                         <span>
-                          Ta'mirlash xizmati:{" "}
+                          Ta&apos;mirlash xizmati:{" "}
                           <strong className="text-slate-800 dark:text-zinc-200">
                             {item.estimated_labor_price.toLocaleString()} UZS
                           </strong>
@@ -533,6 +534,7 @@ export function InspectionView({
             >
               <X className="size-6" />
             </button>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={selectedPhoto}
               alt="Kattalashtirilgan foto"

@@ -46,10 +46,10 @@ export default async function InspectionPage({
             <FileWarning className="size-7" />
           </div>
           <h1 className="text-lg font-semibold text-slate-900 dark:text-white">
-            Texnik ko'rik topilmadi
+            Texnik ko&apos;rik topilmadi
           </h1>
           <p className="text-sm text-slate-500 dark:text-zinc-400">
-            Havola eskirgan, o'chirilgan yoki yaroqsiz bo'lishi mumkin. Iltimos, servis markazi bilan bog'laning.
+            Havola eskirgan, o&apos;chirilgan yoki yaroqsiz bo&apos;lishi mumkin. Iltimos, servis markazi bilan bog&apos;laning.
           </p>
         </div>
       </div>
