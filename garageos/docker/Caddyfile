@@ -65,7 +65,7 @@ http://{$DOMAIN}, http://www.{$DOMAIN} {
 	import native_api
 
 	# Pages and assets that belong to the website itself.
-	@site path / /docs /docs/* /pricing /pricing/* /privacy /privacy/* /security /security/* /terms /terms/* /login /demo /_next/* /marketing/* /icon.svg /apple-icon.png /favicon.ico /robots.txt /sitemap.xml
+	@site path / /ru /ru/* /en /en/* /uz /uz/* /docs /docs/* /pricing /pricing/* /privacy /privacy/* /security /security/* /terms /terms/* /login /demo /_next/* /marketing/* /icon.svg /apple-icon.png /favicon.ico /robots.txt /sitemap.xml
 	handle @site {
 		reverse_proxy website:3000
 	}

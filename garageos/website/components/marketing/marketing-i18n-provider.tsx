@@ -1,53 +1,71 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { ArrowRight, Menu, X } from "lucide-react";
+import { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from "react";
 
 import { Logo } from "@/components/brand/logo";
+import { useMobileMenu } from "@/components/marketing/use-mobile-menu";
+import { MARKETING_LINKS, marketingMessages, type MarketingMessages } from "@/lib/marketing-i18n";
 import {
-  isMarketingLocale, MARKETING_LINKS, MARKETING_LOCALE_STORAGE_KEY, marketingMessages,
-  type MarketingLocale, type MarketingMessages,
-} from "@/lib/marketing-i18n";
+  DEFAULT_MARKETING_LOCALE, isMarketingLocale, localizedPath, MARKETING_LOCALE_COOKIE,
+  MARKETING_LOCALE_STORAGE_KEY, type MarketingLocale,
+} from "@/lib/marketing-locale";
 
 type MarketingI18nContextValue = {
   locale: MarketingLocale;
   setLocale: (locale: MarketingLocale) => void;
   messages: MarketingMessages;
+  /** Site-relative marketing link in the current language ("/pricing" -> "/ru/pricing"). */
+  href: (path: string) => string;
 };
 
 const MarketingI18nContext = createContext<MarketingI18nContextValue | null>(null);
+const ONE_YEAR = 60 * 60 * 24 * 365;
 
-export function MarketingI18nProvider({ children }: { children: ReactNode }) {
-  // Match the server's initial render; read browser storage after hydration.
-  const [locale, updateLocale] = useState<MarketingLocale>("uz");
+function rememberLocale(locale: MarketingLocale) {
+  document.cookie = `${MARKETING_LOCALE_COOKIE}=${locale}; Path=/; Max-Age=${ONE_YEAR}; SameSite=Lax`;
+  try {
+    window.localStorage.removeItem(MARKETING_LOCALE_STORAGE_KEY);
+  } catch {
+    // Storage may be blocked (private mode); the cookie is the source of truth.
+  }
+}
 
-  useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem(MARKETING_LOCALE_STORAGE_KEY);
-      if (isMarketingLocale(saved)) updateLocale(saved);
-    } catch {
-      // Translation remains usable when private browsing blocks persistence.
-    }
-    const synchronizeLocale = (event: StorageEvent) => {
-      if (event.key === MARKETING_LOCALE_STORAGE_KEY && isMarketingLocale(event.newValue)) {
-        updateLocale(event.newValue);
-      }
-    };
-    window.addEventListener("storage", synchronizeLocale);
-    return () => window.removeEventListener("storage", synchronizeLocale);
-  }, []);
+/**
+ * The locale comes from the URL (resolved on the server by middleware), so the
+ * first paint is already in the right language. Choosing a language remembers it
+ * and loads that language's URL, which also updates <html lang> and metadata.
+ */
+export function MarketingI18nProvider({ initialLocale, children }: { initialLocale: MarketingLocale; children: ReactNode }) {
+  const locale = initialLocale;
 
   const setLocale = useCallback((nextLocale: MarketingLocale) => {
-    updateLocale(nextLocale);
-    try {
-      window.localStorage.setItem(MARKETING_LOCALE_STORAGE_KEY, nextLocale);
-    } catch {
-      // Keep the selected language for this visit even without storage.
-    }
-  }, []);
+    rememberLocale(nextLocale);
+    if (nextLocale === locale) return;
+    const { pathname, search, hash } = window.location;
+    window.location.assign(`${localizedPath(nextLocale, pathname)}${search}${hash}`);
+  }, [locale]);
 
-  const value = useMemo(() => ({ locale, setLocale, messages: marketingMessages[locale] }), [locale, setLocale]);
+  useEffect(() => {
+    // One-time migration of the old client-only preference: honour it once,
+    // after which the cookie (read by middleware) takes over.
+    let legacy: string | null = null;
+    try {
+      legacy = window.localStorage.getItem(MARKETING_LOCALE_STORAGE_KEY);
+      window.localStorage.removeItem(MARKETING_LOCALE_STORAGE_KEY);
+    } catch {
+      return;
+    }
+    const hasCookie = document.cookie.split("; ").some((entry) => entry.startsWith(`${MARKETING_LOCALE_COOKIE}=`));
+    // Only redirect from the default-language URL; an explicit /ru or /en link wins.
+    if (isMarketingLocale(legacy) && !hasCookie && locale === DEFAULT_MARKETING_LOCALE && legacy !== locale) {
+      setLocale(legacy);
+    }
+  }, [locale, setLocale]);
+
+  const href = useCallback((path: string) => localizedPath(locale, path), [locale]);
+  const value = useMemo(() => ({ locale, setLocale, messages: marketingMessages[locale], href }), [locale, setLocale, href]);
   return (
     <MarketingI18nContext.Provider value={value}>
       <div className="mkt" lang={locale}>{children}</div>
@@ -63,17 +81,19 @@ export function useMarketingI18n() {
 
 /** Navigation for the dark content pages (pricing, security, docs, legal). */
 export function ContentNav() {
-  const { locale, setLocale, messages: { nav } } = useMarketingI18n();
+  const { locale, setLocale, href, messages: { nav } } = useMarketingI18n();
+  const menu = useMobileMenu("(min-width: 900px)");
   const links = [
-    { href: "/#showroom", label: nav.product },
-    { href: "/#flow", label: nav.workflow },
-    { href: "/#passport", label: nav.vehicleRecord },
-    { href: "/#pricing", label: nav.pricing },
+    { href: href("/#showroom"), label: nav.product },
+    { href: href("/#flow"), label: nav.workflow },
+    { href: href("/#passport"), label: nav.vehicleRecord },
+    { href: href("/pricing"), label: nav.pricing },
+    { href: href("/#faq"), label: nav.faq },
   ];
   return (
     <header className="mkt-nav">
       <div className="mkt-shell mkt-nav__row">
-        <Link href="/" aria-label={nav.home} className="mkt-nav__brand"><Logo theme="dark" size={24} className="mkt-nav__logo" /></Link>
+        <Link href={href("/")} aria-label={nav.home} className="mkt-nav__brand"><Logo theme="dark" size={24} className="mkt-nav__logo" /></Link>
         <nav className="mkt-nav__links" aria-label={nav.primary}>
           {links.map((link) => <a key={link.href} href={link.href}>{link.label}</a>)}
         </nav>
@@ -89,7 +109,17 @@ export function ContentNav() {
             <span className="mkt-nav__cta-label">{nav.bookDemo}</span>
             <span className="mkt-nav__cta-label--compact" aria-hidden="true">{nav.demo}</span>
           </a>
+          <button type="button" className="mkt-nav__menu" ref={menu.buttonRef} onClick={menu.toggle}
+            aria-expanded={menu.open} aria-controls="mkt-menu" aria-label={menu.open ? nav.closeMenu : nav.menu}>
+            {menu.open ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}
+          </button>
         </div>
+      </div>
+      <div id="mkt-menu" className="mkt-menu" ref={menu.panelRef} hidden={!menu.open}>
+        <nav aria-label={nav.primary}>
+          {links.map((link) => <a key={link.href} href={link.href} onClick={menu.close}>{link.label}</a>)}
+        </nav>
+        <a href={MARKETING_LINKS.signIn} className="mkt-menu__signin" onClick={menu.close}>{nav.signIn}</a>
       </div>
     </header>
   );
@@ -114,7 +144,7 @@ export function MarketingCta({ title, body }: { title?: string; body?: string })
 }
 
 export function MarketingFooter() {
-  const { messages: { footer } } = useMarketingI18n();
+  const { href, messages: { footer } } = useMarketingI18n();
   return (
     <footer className="mkt-footer">
       <div className="mkt-shell">
@@ -127,10 +157,10 @@ export function MarketingFooter() {
             <div>
               <h4>{footer.product}</h4>
               <ul>
-                <li><Link href="/#showroom">{footer.features}</Link></li>
-                <li><a href="/pricing">{footer.pricing}</a></li>
-                <li><a href="/security">{footer.security}</a></li>
-                <li><a href="/docs">{footer.documentation}</a></li>
+                <li><Link href={href("/#showroom")}>{footer.features}</Link></li>
+                <li><a href={href("/pricing")}>{footer.pricing}</a></li>
+                <li><a href={href("/security")}>{footer.security}</a></li>
+                <li><a href={href("/docs")}>{footer.documentation}</a></li>
                 <li><a href={MARKETING_LINKS.liveDemo}>{footer.liveDemo}</a></li>
               </ul>
             </div>
@@ -145,8 +175,8 @@ export function MarketingFooter() {
             <div>
               <h4>{footer.legal}</h4>
               <ul>
-                <li><a href="/privacy">{footer.privacy}</a></li>
-                <li><a href="/terms">{footer.terms}</a></li>
+                <li><a href={href("/privacy")}>{footer.privacy}</a></li>
+                <li><a href={href("/terms")}>{footer.terms}</a></li>
               </ul>
             </div>
           </div>

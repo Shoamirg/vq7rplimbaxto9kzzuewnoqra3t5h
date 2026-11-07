@@ -5,12 +5,13 @@ const en = {
     home: "GarageOS home", sections: "Page sections", language: "Website language",
     showroom: "Product", roles: "Roles", passport: "Vehicle Passport", pricing: "Pricing",
     login: "Log in", ctaTrial: "14-Day Free Trial", ctaStart: "Start Free",
+    faq: "FAQ", menu: "Open menu", closeMenu: "Close menu",
   },
   hero: {
     badge: "Auto Repair · Detailing · Car Wash · Tire Shops",
     title: "Run Your Entire Garage From One System.",
     subtitle: "App bookings, 1-tap approvals, stock and a zero-leak ledger.",
-    shopLabel: "Choose your shop", sample: "Sample data",
+    shopLabel: "Choose your shop", sample: "Sample data", kpiNote: "Sample figures from the demo shop",
     alt: "Studio photograph of a white Chevrolet sedan", inspect: "Tap to inspect",
   },
   kpiLabels: ["Repeat cars via reminders", "App self-booking", "Workshop bay utilization", "Unrecorded cash leaks"],
@@ -78,6 +79,25 @@ const en = {
     uzsUnit: "UZS",
   },
   sticky: { label: "14-day free trial · No card", button: "Start Free →" },
+  trust: {
+    kicker: "Why it’s safe to start",
+    heading: "Try it without risk. Your data stays yours.",
+    items: [
+      ["14 days free", "No card details asked."],
+      ["No setup fee", "Nothing to pay upfront to get started."],
+      ["You own your data", "Export customers, vehicles and finances any time."],
+      ["Nightly backups", "Restore-tested on a schedule, not just stored."],
+      ["Isolated by design", "No other shop can ever see your data."],
+      ["Encrypted connection", "HTTPS everywhere; every login is audit-logged."],
+    ],
+    more: "How we protect your data",
+  },
+  faq: { heading: "Questions before you start" },
+  closing: {
+    title: "Ready to run your shop from one screen?",
+    body: "Start the 14-day trial, or click through the live demo first — no signup needed.",
+    demo: "Explore the live demo",
+  },
 };
 
 export type LandingCopy = typeof en;
@@ -87,12 +107,13 @@ const uz: LandingCopy = {
     home: "GarageOS bosh sahifa", sections: "Sahifa boʻlimlari", language: "Sayt tili",
     showroom: "Imkoniyatlar", roles: "Kim uchun", passport: "Avto-Pasport", pricing: "Narxlar",
     login: "Kirish", ctaTrial: "14 kun bepul", ctaStart: "Bepul boshlash",
+    faq: "Savollar", menu: "Menyuni ochish", closeMenu: "Menyuni yopish",
   },
   hero: {
     badge: "Avtoservis · Deteyling · Moyka · Shinomontaj",
     title: "Avtoservisning barcha ishi bitta tizimda.",
     subtitle: "Bron, smeta, ombor va kassa — mobil ilovada, barchasi nazoratda.",
-    shopLabel: "Servis turini tanlang", sample: "Namuna",
+    shopLabel: "Servis turini tanlang", sample: "Namuna", kpiNote: "Demo servisdan namunaviy koʻrsatkichlar",
     alt: "Oq Chevrolet sedan avtomobilining studiya fotosi", inspect: "Bosib tekshiring",
   },
   kpiLabels: ["Qaytib keluvchi mijozlar", "Ilova orqali bron", "Bokslar bandligi", "Kassadagi yoʻqotishlar"],
@@ -160,6 +181,25 @@ const uz: LandingCopy = {
     uzsUnit: "soʻm",
   },
   sticky: { label: "14 kun bepul · Kartasiz", button: "Ulash →" },
+  trust: {
+    kicker: "Nega xavfsiz",
+    heading: "Tavakkalsiz sinab koʻring. Maʼlumotlar doim sizniki.",
+    items: [
+      ["14 kun bepul", "Karta maʼlumotlari soʻralmaydi."],
+      ["Ulanish toʻlovisiz", "Boshlash uchun oldindan hech narsa toʻlamaysiz."],
+      ["Maʼlumotlar sizniki", "Mijozlar, avtomobillar va moliyani istalgan vaqtda eksport qiling."],
+      ["Har kecha zaxira", "Zaxiralar muntazam tiklash testidan oʻtkaziladi."],
+      ["Servislar ajratilgan", "Maʼlumotlaringizni boshqa servis hech qachon koʻrmaydi."],
+      ["Shifrlangan ulanish", "Hamma joyda HTTPS; har bir kirish audit jurnalida."],
+    ],
+    more: "Maʼlumotlaringizni qanday himoya qilamiz",
+  },
+  faq: { heading: "Boshlashdan oldingi savollar" },
+  closing: {
+    title: "Servisni bitta ekrandan boshqarishga tayyormisiz?",
+    body: "14 kunlik sinovni boshlang yoki avval jonli demoni koʻring — roʻyxatdan oʻtish shart emas.",
+    demo: "Jonli demoni koʻrish",
+  },
 };
 
 const ru: LandingCopy = {
@@ -167,12 +207,13 @@ const ru: LandingCopy = {
     home: "Главная GarageOS", sections: "Разделы страницы", language: "Язык сайта",
     showroom: "Возможности", roles: "Роли", passport: "Авто-Паспорт", pricing: "Тарифы",
     login: "Войти", ctaTrial: "14 дней бесплатно", ctaStart: "Начать бесплатно",
+    faq: "Вопросы", menu: "Открыть меню", closeMenu: "Закрыть меню",
   },
   hero: {
     badge: "Автосервис · Детейлинг · Мойка · Шиномонтаж",
     title: "Весь автосервис в одной системе.",
     subtitle: "Запись в приложении, сметы, склад и касса без утечек.",
-    shopLabel: "Выберите тип сервиса", sample: "Пример",
+    shopLabel: "Выберите тип сервиса", sample: "Пример", kpiNote: "Примерные показатели демо-сервиса",
     alt: "Студийная фотография белого седана Chevrolet", inspect: "Нажмите для осмотра",
   },
   kpiLabels: ["Возврат клиентов по пробегу", "Запись через приложение", "Загрузка постов", "Утечек мимо кассы"],
@@ -240,6 +281,25 @@ const ru: LandingCopy = {
     uzsUnit: "сум",
   },
   sticky: { label: "14 дней бесплатно · Без карты", button: "Подключить →" },
+  trust: {
+    kicker: "Почему это безопасно",
+    heading: "Попробуйте без риска. Данные всегда ваши.",
+    items: [
+      ["14 дней бесплатно", "Данные карты не нужны."],
+      ["Без платы за подключение", "Ничего не нужно платить заранее."],
+      ["Данные принадлежат вам", "Выгружайте клиентов, авто и финансы в любой момент."],
+      ["Ночные бэкапы", "Регулярно проверяются тестовым восстановлением."],
+      ["Изоляция сервисов", "Ваши данные никогда не увидит другой сервис."],
+      ["Шифрованное соединение", "HTTPS везде; каждый вход — в журнале аудита."],
+    ],
+    more: "Как мы защищаем данные",
+  },
+  faq: { heading: "Вопросы перед стартом" },
+  closing: {
+    title: "Готовы вести сервис с одного экрана?",
+    body: "Начните 14-дневный пробный период или сначала посмотрите живое демо — без регистрации.",
+    demo: "Открыть живое демо",
+  },
 };
 
 export const landingMessages = { uz, ru, en };

@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 
+import { marketingMetadata } from "@/lib/marketing-meta";
 import { SecurityContent } from "@/components/marketing/pages/security-content";
 
-export const metadata: Metadata = {
-  title: "Xavfsizlik va ishonch — GarageOS",
-  description: "GarageOS servisingiz ma’lumotlarini qanday himoya qiladi: servislar ajratilgani, shifrlangan ulanish, audit jurnali, kunlik zaxira nusxalar va ma’lumotlarga toʻliq egalik.",
-};
+export function generateMetadata(): Promise<Metadata> {
+  return marketingMetadata("/security");
+}
 
 export default function SecurityPage() {
   return <SecurityContent />;

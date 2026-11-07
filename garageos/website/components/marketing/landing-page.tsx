@@ -4,6 +4,7 @@ import { HeroShowroom } from "@/components/marketing/landing/hero-showroom";
 import { JobFlow } from "@/components/marketing/landing/job-flow";
 import { PassportStrip } from "@/components/marketing/landing/passport-strip";
 import { PricingBento } from "@/components/marketing/landing/pricing-bento";
+import { ClosingCta, LandingFaq, TrustSection } from "@/components/marketing/landing/reassurance";
 import { RoleSwitcher } from "@/components/marketing/landing/role-switcher";
 import { useLanding } from "@/components/marketing/landing/use-landing";
 import { trialRequestHref } from "@/lib/marketing-i18n";
@@ -16,7 +17,10 @@ export function LandingPage() {
       <RoleSwitcher />
       <JobFlow />
       <PassportStrip />
+      <TrustSection />
       <PricingBento />
+      <LandingFaq />
+      <ClosingCta />
       <aside className="lp-sticky" data-testid="marketing-mobile-cta">
         <span>{t.sticky.label}</span>
         <a className="lp-btn lp-btn--emerald" href={trialRequestHref(locale)}>{t.sticky.button}</a>
