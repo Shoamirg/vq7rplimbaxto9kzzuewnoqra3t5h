@@ -260,8 +260,16 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
                         runSpacing: Space.sm,
                         children: [
                           for (final slot in _slots!)
+                            // Website time slot: white, hairline edge;
+                            // selected = emerald tint with emerald ink.
                             ChoiceChip(
-                              label: Text(slot, style: context.numeral(16)),
+                              label: Text(
+                                slot,
+                                style: context.numeral(
+                                  16,
+                                  color: slot == _time ? p.accentInk : p.text,
+                                ),
+                              ),
                               selected: slot == _time,
                               showCheckmark: false,
                               materialTapTargetSize:
@@ -270,9 +278,10 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
                                 horizontal: 12,
                                 vertical: 10,
                               ),
-                              selectedColor: p.brand,
-                              labelStyle: TextStyle(
-                                color: slot == _time ? p.onBrand : p.text,
+                              backgroundColor: p.elevated,
+                              selectedColor: p.accentSoft,
+                              side: BorderSide(
+                                color: slot == _time ? p.accent : p.hairline,
                               ),
                               onSelected: _saving
                                   ? null
@@ -377,10 +386,10 @@ class _DayCard extends StatelessWidget {
       label: context.date(day),
       excludeSemantics: true,
       child: Material(
-        color: selected ? p.brand : p.surface,
+        color: selected ? p.brand : p.elevated,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(Radii.tile),
-          side: BorderSide(color: selected ? p.brand : p.border),
+          side: BorderSide(color: selected ? p.brand : p.hairline),
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(

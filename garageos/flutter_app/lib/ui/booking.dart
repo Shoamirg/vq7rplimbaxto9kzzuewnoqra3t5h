@@ -511,10 +511,10 @@ class _DayPill extends StatelessWidget {
       label: context.date(day),
       excludeSemantics: true,
       child: Material(
-        color: selected ? p.brand : p.surface,
+        color: selected ? p.brand : p.elevated,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(Radii.tile),
-          side: BorderSide(color: selected ? p.brand : p.border),
+          side: BorderSide(color: selected ? p.brand : p.hairline),
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(

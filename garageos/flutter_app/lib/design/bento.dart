@@ -1,10 +1,12 @@
 import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 
 import 'theme.dart';
 
-/// Outer surface: 28px radius, 24px padding, 1px soft border, flat.
+/// Outer surface, as on the website: white card, 28px radius, hairline white
+/// edge and a barely-there shadow. [elevated] lifts it to the floating shadow.
 class BentoCard extends StatelessWidget {
   const BentoCard({
     super.key,
@@ -21,7 +23,7 @@ class BentoCard extends StatelessWidget {
   final EdgeInsetsGeometry padding;
   final Color? color, borderColor;
 
-  /// White card with the one subtle shadow the system allows.
+  /// Floating card (stronger shadow) for the one thing a screen is about.
   final bool elevated;
   final String? semanticLabel;
 
@@ -30,10 +32,10 @@ class BentoCard extends StatelessWidget {
     final p = context.colors;
     final shape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(Radii.card),
-      side: BorderSide(color: borderColor ?? p.border),
+      side: BorderSide(color: borderColor ?? p.hairline),
     );
     Widget card = Material(
-      color: color ?? (elevated ? p.elevated : p.surface),
+      color: color ?? p.elevated,
       shape: shape,
       clipBehavior: Clip.antiAlias,
       child: onTap == null
@@ -43,21 +45,17 @@ class BentoCard extends StatelessWidget {
               child: Padding(padding: padding, child: child),
             ),
     );
-    if (elevated) {
-      card = DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(Radii.card),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x14111315),
-              blurRadius: 24,
-              offset: Offset(0, 8),
-            ),
-          ],
-        ),
-        child: card,
-      );
-    }
+    card = DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(Radii.card),
+        boxShadow: context.isDark
+            ? Shadows.none
+            : elevated
+            ? Shadows.float
+            : Shadows.card,
+      ),
+      child: _InsideCard(child: card),
+    );
     return semanticLabel == null
         ? card
         : Semantics(
@@ -69,7 +67,18 @@ class BentoCard extends StatelessWidget {
   }
 }
 
-/// Nested 18px tile: top icon, muted label, bold value.
+/// Marks descendants of a [BentoCard] so tiles know they are nested.
+class _InsideCard extends InheritedWidget {
+  const _InsideCard({required super.child});
+  static bool of(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<_InsideCard>() != null;
+  @override
+  bool updateShouldNotify(_InsideCard oldWidget) => false;
+}
+
+/// 18px tile: top icon, muted label, bold value. Inside a card it is a grey
+/// inset tile; standing on the canvas it becomes a white floating card, like
+/// the website's KPI tiles.
 class BentoTile extends StatelessWidget {
   const BentoTile({
     super.key,
@@ -125,13 +134,27 @@ class BentoTile extends StatelessWidget {
         ],
       ),
     );
-    return Material(
-      color: color ?? p.muted,
-      borderRadius: BorderRadius.circular(Radii.tile),
+    final nested = _InsideCard.of(context);
+    final tile = Material(
+      color: color ?? (nested ? p.muted : p.elevated),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Radii.tile),
+        side: nested || color != null
+            ? BorderSide.none
+            : BorderSide(color: p.hairline),
+      ),
       clipBehavior: Clip.antiAlias,
       child: onTap == null
           ? content
           : InkWell(onTap: onTap, child: content),
+    );
+    if (nested || color != null || context.isDark) return tile;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(Radii.tile),
+        boxShadow: Shadows.card,
+      ),
+      child: tile,
     );
   }
 }
@@ -187,11 +210,12 @@ class BentoGrid extends StatelessWidget {
     'warning' => (p.warning, p.warningSoft),
     'danger' => (p.danger, p.dangerSoft),
     'strong' => (p.onBrand, p.brand),
+    'accent' => (p.accentInk, p.accentSoft),
     _ => (p.text, context.isDark ? p.brandSoft : p.elevated),
   };
 }
 
-/// 14px-radius icon container.
+/// 14px-radius icon container. Untoned icons use the website's emerald tint.
 class IconSquare extends StatelessWidget {
   const IconSquare(this.icon, {super.key, this.tone, this.size = 44});
   final IconData icon;
@@ -199,7 +223,7 @@ class IconSquare extends StatelessWidget {
   final double size;
   @override
   Widget build(BuildContext context) {
-    final (fg, bg) = toneColors(context, tone);
+    final (fg, bg) = toneColors(context, tone ?? 'accent');
     return ExcludeSemantics(
       child: Container(
         width: size,
@@ -464,6 +488,7 @@ class PillSegments<T> extends StatelessWidget {
     final style = Theme.of(
       context,
     ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600);
+
     final scaler = MediaQuery.textScalerOf(context);
     Widget segment(T value) => _Segment(
       label: label(value),
@@ -474,12 +499,15 @@ class PillSegments<T> extends StatelessWidget {
     return Semantics(
       label: semanticLabel,
       container: true,
+      // Frosted island with an obsidian selected pill — the website's
+      // section switcher.
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: p.muted,
+          color: p.glass,
           borderRadius: BorderRadius.circular(Radii.control),
-          border: Border.all(color: p.border),
+          border: Border.all(color: p.hairline),
+          boxShadow: context.isDark ? Shadows.none : Shadows.card,
         ),
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -601,12 +629,20 @@ class CountPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.colors;
     final (fg, bg) = selected ? (p.onBrand, p.brand) : toneColors(context, tone);
+    // White floating chip like the website's filter chips; selected = obsidian.
     return Semantics(
       button: onTap != null,
       selected: selected,
-      child: Material(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(Radii.control),
+          boxShadow: context.isDark || selected ? Shadows.none : Shadows.card,
+        ),
+        child: Material(
         color: bg,
-        shape: StadiumBorder(side: BorderSide(color: selected ? p.brand : p.border)),
+        shape: StadiumBorder(
+          side: BorderSide(color: selected ? p.brand : p.hairline),
+        ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
@@ -638,6 +674,7 @@ class CountPill extends StatelessWidget {
           ),
         ),
       ),
+      ),
     );
   }
 }
@@ -650,7 +687,9 @@ class DockItem {
   final Key? key;
 }
 
-/// Floating 24px squircle tab bar shared by every role.
+/// Floating frosted tab bar shared by every role — the website's glass nav
+/// island: translucent canvas, hairline edge, floating shadow, and an
+/// obsidian pill behind the selected tab.
 class FloatingDock extends StatelessWidget {
   const FloatingDock({
     super.key,
@@ -680,19 +719,21 @@ class FloatingDock extends StatelessWidget {
         heightFactor: 1,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 560),
-          child: Container(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(Radii.dock),
+              boxShadow: Shadows.float,
+            ),
+            child: ClipRRect(
+            borderRadius: BorderRadius.circular(Radii.dock),
+            child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: Container(
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: p.dock,
+              color: p.glass,
               borderRadius: BorderRadius.circular(Radii.dock),
-              border: context.isDark ? Border.all(color: p.border) : null,
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x29111315),
-                  blurRadius: 24,
-                  offset: Offset(0, 10),
-                ),
-              ],
+              border: Border.all(color: p.hairline),
             ),
             child: Row(
               children: [
@@ -708,6 +749,9 @@ class FloatingDock extends StatelessWidget {
                   ),
               ],
             ),
+          ),
+          ),
+          ),
           ),
         ),
       ),
@@ -730,8 +774,7 @@ class _DockButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.colors;
-    const active = Color(0xFFF5F6F8), onActive = Color(0xFF111315);
-    final fg = selected ? onActive : p.onDock;
+    final fg = selected ? p.onBrand : p.secondary;
     Widget icon = Icon(item.icon, color: fg, size: large ? 28 : 24);
     if (item.badge > 0) {
       icon = Badge(
@@ -747,8 +790,8 @@ class _DockButton extends StatelessWidget {
       label: item.badge > 0 ? '${item.label}, ${item.badge}' : item.label,
       excludeSemantics: true,
       child: Material(
-        color: selected ? active : Colors.transparent,
-        borderRadius: BorderRadius.circular(Radii.tile),
+        color: selected ? p.brand : Colors.transparent,
+        borderRadius: BorderRadius.circular(22),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
@@ -813,14 +856,8 @@ class StickyActionBar extends StatelessWidget {
             decoration: BoxDecoration(
               color: p.elevated,
               borderRadius: BorderRadius.circular(Radii.control),
-              border: Border.all(color: p.border),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x1A111315),
-                  blurRadius: 20,
-                  offset: Offset(0, 6),
-                ),
-              ],
+              border: Border.all(color: p.hairline),
+              boxShadow: Shadows.float,
             ),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(24, 6, 6, 6),
@@ -971,10 +1008,18 @@ class PaymentVault extends StatelessWidget {
     final small = Theme.of(context).textTheme.bodySmall?.copyWith(color: muted);
     return Container(
       padding: const EdgeInsets.all(Space.card),
+      // Obsidian with the emerald glow of the website's closing card.
       decoration: BoxDecoration(
         color: p.vault,
+        gradient: RadialGradient(
+          center: const Alignment(0, -1.3),
+          radius: 1.5,
+          colors: [const Color(0xFF1F4A3A), p.vault],
+          stops: const [0, .62],
+        ),
         borderRadius: BorderRadius.circular(Radii.card),
         border: context.isDark ? Border.all(color: p.border) : null,
+        boxShadow: context.isDark ? Shadows.none : Shadows.float,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1037,6 +1082,51 @@ class PaymentVault extends StatelessWidget {
   }
 }
 
+/// The website's status pill: white, floating, with a pulsing-style emerald
+/// dot in a soft halo. Used for context lines ("Avtoservis · Deteyling …").
+class StatusPill extends StatelessWidget {
+  const StatusPill(this.text, {super.key});
+  final String text;
+  @override
+  Widget build(BuildContext context) {
+    final p = context.colors;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: p.elevated,
+        borderRadius: BorderRadius.circular(Radii.control),
+        border: Border.all(color: p.hairline),
+        boxShadow: context.isDark ? Shadows.none : Shadows.card,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: p.accent,
+              shape: BoxShape.circle,
+              boxShadow: [BoxShadow(color: p.accentSoft, spreadRadius: 4)],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Text(
+              text,
+              maxLines: 2,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: p.secondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Section heading with an optional trailing action.
 class SectionTitle extends StatelessWidget {
   const SectionTitle(this.text, {super.key, this.trailing});
@@ -1050,7 +1140,12 @@ class SectionTitle extends StatelessWidget {
         Expanded(
           child: Semantics(
             header: true,
-            child: Text(text, style: Theme.of(context).textTheme.titleMedium),
+            child: Text(
+              text,
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontSize: 20, height: 1.2),
+            ),
           ),
         ),
         ?trailing,

@@ -36,6 +36,8 @@ flutter:
     - assets/fonts/plusjakartasans-OFL.txt
     - assets/fonts/archivo-OFL.txt
     - assets/fonts/ibmplexmono-OFL.txt
+    - assets/fonts/inter-OFL.txt
+    - assets/fonts/intertight-OFL.txt
   fonts:
     - family: Golos Text
       fonts:
@@ -66,6 +68,26 @@ flutter:
           weight: 600
         - asset: assets/fonts/Archivo-700.ttf
           weight: 700
+        - asset: assets/fonts/Archivo-800.ttf
+          weight: 800
+    # Inter / Inter Tight: Cyrillic and the Uzbek ʻ (U+02BB) that Plus Jakarta
+    # Sans and Archivo lack. Same pairing the website uses for Russian.
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-400.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-500.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-600.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-700.ttf
+          weight: 700
+    - family: Inter Tight
+      fonts:
+        - asset: assets/fonts/InterTight-700.ttf
+          weight: 700
+        - asset: assets/fonts/InterTight-800.ttf
+          weight: 800
     - family: IBM Plex Mono
       fonts:
         - asset: assets/fonts/IBMPlexMono-400.ttf

@@ -265,9 +265,12 @@ class LineTiles extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: Space.sm),
           child: Container(
             padding: const EdgeInsets.all(Space.tile),
+            // White floating tile on the canvas (website KPI-tile style).
             decoration: BoxDecoration(
-              color: context.colors.muted,
+              color: context.colors.elevated,
               borderRadius: BorderRadius.circular(Radii.tile),
+              border: Border.all(color: context.colors.hairline),
+              boxShadow: context.isDark ? Shadows.none : Shadows.card,
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,

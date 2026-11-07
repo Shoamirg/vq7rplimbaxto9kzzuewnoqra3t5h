@@ -33,11 +33,13 @@ class Initials extends StatelessWidget {
       height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: context.colors.muted,
+        color: context.colors.accentSoft,
         borderRadius: BorderRadius.circular(Radii.icon),
-        border: Border.all(color: context.colors.border),
       ),
-      child: Text(initials(name), style: context.numeral(size * .34)),
+      child: Text(
+        initials(name),
+        style: context.numeral(size * .34, color: context.colors.accentInk),
+      ),
     ),
   );
 }
@@ -391,8 +393,9 @@ class _ChatScreenState extends State<ChatScreen> with ForegroundPolling {
               child: Container(
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
                 decoration: BoxDecoration(
-                  color: p.surface,
-                  border: Border(top: BorderSide(color: p.border)),
+                  color: p.elevated,
+                  border: Border(top: BorderSide(color: p.hairline)),
+                  boxShadow: context.isDark ? Shadows.none : Shadows.float,
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -538,8 +541,11 @@ class _Bubble extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: mine ? p.brand : p.surface,
-                  border: mine ? null : Border.all(color: p.border),
+                  color: mine ? p.brand : p.elevated,
+                  border: mine ? null : Border.all(color: p.hairline),
+                  boxShadow: mine || context.isDark
+                      ? Shadows.none
+                      : Shadows.card,
                   borderRadius: BorderRadius.only(
                     topLeft: const Radius.circular(Radii.tile),
                     topRight: const Radius.circular(Radii.tile),
