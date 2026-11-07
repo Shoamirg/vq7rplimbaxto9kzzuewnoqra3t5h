@@ -3,11 +3,23 @@ import type { NextRequest } from "next/server";
 
 import { AUTH_COOKIE } from "@/lib/api/constants";
 
-// /passport/* is a shareable, public document — no auth required.
+// /passport/* and /inspection/* are shareable, public documents — no auth required.
 // /mini/* is the customer Mini App: a separate principal with its own customer
 // token cookie, so it must bypass the staff auth gate entirely.
 // The public marketing site + demo entry. "/" is handled as an exact match below.
-const PUBLIC_PATHS = ["/login", "/passport", "/invoice", "/mini", "/demo", "/pricing", "/security", "/docs", "/privacy", "/terms"];
+const PUBLIC_PATHS = [
+  "/login",
+  "/passport",
+  "/inspection",
+  "/invoice",
+  "/mini",
+  "/demo",
+  "/pricing",
+  "/security",
+  "/docs",
+  "/privacy",
+  "/terms",
+];
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
