@@ -393,29 +393,44 @@ class InspectionService:
     def serialize_public_dvi(inspection: VehicleInspection) -> dict:
         """Format an inspection for customer-facing public display."""
         vehicle = getattr(inspection, "vehicle", None)
-        vm = getattr(vehicle, "vehicle_model", None) if vehicle else None
-        sc = getattr(inspection, "service_center", None)
-
         make_name = ""
         model_name = ""
-        if vm:
-            model_name = getattr(vm, "name", "")
-            brand = getattr(vm, "brand", None)
-            if brand:
-                make_name = getattr(brand, "name", "")
+        try:
+            if vehicle is not None and hasattr(vehicle, "vehicle_model"):
+                vm = vehicle.vehicle_model
+                if vm is not None:
+                    model_name = getattr(vm, "name", "")
+                    brand = getattr(vm, "brand", None)
+                    if brand is not None:
+                        make_name = getattr(brand, "name", "")
+        except Exception:
+            pass
 
+        sc = getattr(inspection, "service_center", None)
+        sc_name = "GarageOS Servis Markazi"
+        sc_phone = None
+        sc_address = None
+        try:
+            if sc is not None:
+                sc_name = getattr(sc, "name", sc_name) or sc_name
+                sc_phone = getattr(sc, "phone", None)
+                sc_address = getattr(sc, "address", None)
+        except Exception:
+            pass
+
+        items_list = list(inspection.items or [])
         summary = {
-            "total_items": len(inspection.items),
-            "green_count": sum(1 for it in inspection.items if it.rating == InspectionRating.GREEN),
-            "yellow_count": sum(1 for it in inspection.items if it.rating == InspectionRating.YELLOW),
-            "red_count": sum(1 for it in inspection.items if it.rating == InspectionRating.RED),
+            "total_items": len(items_list),
+            "green_count": sum(1 for it in items_list if it.rating == InspectionRating.GREEN),
+            "yellow_count": sum(1 for it in items_list if it.rating == InspectionRating.YELLOW),
+            "red_count": sum(1 for it in items_list if it.rating == InspectionRating.RED),
             "total_estimated_amount": float(
-                sum(it.estimated_labor_price + it.estimated_parts_price for it in inspection.items)
+                sum((it.estimated_labor_price or 0) + (it.estimated_parts_price or 0) for it in items_list)
             ),
             "approved_amount": float(
                 sum(
-                    it.estimated_labor_price + it.estimated_parts_price
-                    for it in inspection.items
+                    (it.estimated_labor_price or 0) + (it.estimated_parts_price or 0)
+                    for it in items_list
                     if it.customer_decision == InspectionDecision.APPROVED
                 )
             ),
@@ -439,10 +454,10 @@ class InspectionService:
                 "vin": getattr(vehicle, "vin", None),
             } if vehicle else None,
             "service_center": {
-                "name": getattr(sc, "name", "GarageOS Service Center"),
-                "phone": getattr(sc, "phone", None),
-                "address": getattr(sc, "address", None),
-            } if sc else None,
+                "name": sc_name,
+                "phone": sc_phone,
+                "address": sc_address,
+            },
             "summary": summary,
             "items": [
                 {
@@ -452,13 +467,13 @@ class InspectionService:
                     "rating": it.rating,
                     "notes": it.notes,
                     "photos": it.photos or [],
-                    "estimated_labor_price": float(it.estimated_labor_price),
-                    "estimated_parts_price": float(it.estimated_parts_price),
-                    "total_price": float(it.estimated_labor_price + it.estimated_parts_price),
+                    "estimated_labor_price": float(it.estimated_labor_price or 0),
+                    "estimated_parts_price": float(it.estimated_parts_price or 0),
+                    "total_price": float((it.estimated_labor_price or 0) + (it.estimated_parts_price or 0)),
                     "customer_decision": it.customer_decision,
                     "customer_comment": it.customer_comment,
                     "sort_order": it.sort_order,
                 }
-                for it in sorted(inspection.items, key=lambda x: x.sort_order)
+                for it in sorted(items_list, key=lambda x: x.sort_order)
             ],
         }

@@ -12,6 +12,8 @@ from app.models.inspection import (
     InspectionRating,
     InspectionDecision,
 )
+from app.models.brand import Brand
+from app.models.vehicle_model import VehicleModel
 from app.models.vehicle import Vehicle
 from app.models.customer import Customer
 from app.models.appointment import Appointment
@@ -31,10 +33,13 @@ class InspectionRepository(TenantScopedRepository[VehicleInspection]):
             )
         ).options(
             selectinload(VehicleInspection.items),
-            selectinload(VehicleInspection.vehicle),
+            selectinload(VehicleInspection.vehicle)
+            .selectinload(Vehicle.vehicle_model)
+            .selectinload(VehicleModel.brand),
             selectinload(VehicleInspection.customer),
             selectinload(VehicleInspection.appointment),
             selectinload(VehicleInspection.inspector),
+            selectinload(VehicleInspection.service_center),
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
@@ -86,7 +91,9 @@ class InspectionRepository(TenantScopedRepository[VehicleInspection]):
             VehicleInspection.is_active == True,
         ).options(
             selectinload(VehicleInspection.items),
-            selectinload(VehicleInspection.vehicle),
+            selectinload(VehicleInspection.vehicle)
+            .selectinload(Vehicle.vehicle_model)
+            .selectinload(VehicleModel.brand),
             selectinload(VehicleInspection.customer),
             selectinload(VehicleInspection.service_center),
         )
