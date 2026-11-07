@@ -1,14 +1,21 @@
-# GarageOS reverse proxy — automatic HTTPS via Let's Encrypt.
-# Native clients reach the versioned API through this proxy. The dashboard BFF
-# also reaches the backend over Docker; backend ports are never published.
+# GarageOS reverse proxy, behind a Cloudflare Tunnel.
 #
-# Requires DOMAIN and ACME_EMAIL in the environment (see .env.prod).
+# Cloudflare terminates TLS and forwards every public hostname to this host on
+# http://localhost:80, keeping the original Host header. Caddy routes by host:
+#
+#   {$DOMAIN}      garageos.uz       landing website (+ /api/v1 for mobile apps)
+#   {$APP_DOMAIN}  app.garageos.uz   dashboard, BFF and /api/v1 backend
+#   localhost / bare :80             same as the app (on-host ops and health checks)
+#
+# Backend ports are never published; the dashboard BFF reaches it over Docker.
+# Requires DOMAIN and APP_DOMAIN in the environment (see .env.prod).
 
 {
-	email {$ACME_EMAIL}
+	admin off
+	auto_https off
 }
 
-{$DOMAIN} {
+(common) {
 	encode zstd gzip
 
 	# Long-lived, hashed static assets can be cached hard.
@@ -23,7 +30,9 @@
 		Referrer-Policy "strict-origin-when-cross-origin"
 		-Server
 	}
+}
 
+(native_api) {
 	# Keep the /api/v1 prefix: FastAPI registers its routes with that prefix.
 	@native_api path /api/v1 /api/v1/*
 	handle @native_api {
@@ -33,11 +42,37 @@
 			header_up X-Real-IP {remote_host}
 		}
 	}
+}
+
+# ── App: dashboard + API ───────────────────────────────────────────────────
+http://{$APP_DOMAIN}, http://localhost, :80 {
+	import common
+	import native_api
 
 	# Next pages and its /api/auth/* and /api/proxy/* BFF stay on the dashboard.
 	handle {
 		reverse_proxy dashboard:3000 {
 			header_up X-Real-IP {remote_host}
 		}
+	}
+}
+
+# ── Landing website ────────────────────────────────────────────────────────
+http://{$DOMAIN}, http://www.{$DOMAIN} {
+	import common
+
+	# Mobile apps already in the field call https://garageos.uz/api/v1.
+	import native_api
+
+	# Pages and assets that belong to the website itself.
+	@site path / /docs /docs/* /pricing /pricing/* /privacy /privacy/* /security /security/* /terms /terms/* /login /demo /_next/* /marketing/* /icon.svg /apple-icon.png /favicon.ico /robots.txt /sitemap.xml
+	handle @site {
+		reverse_proxy website:3000
+	}
+
+	# Everything else (old /passport, /invoice, /mini, /dashboard ... links)
+	# moved to the app hostname. Keep path and query.
+	handle {
+		redir https://{$APP_DOMAIN}{uri} 308
 	}
 }

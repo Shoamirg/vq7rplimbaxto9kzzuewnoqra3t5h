@@ -38,6 +38,7 @@ class ProductionPreflightTest(unittest.TestCase):
                 'REDIS_URL': 'redis://redis:6379/0'}},
             'dashboard': {'environment': {'NODE_ENV': 'production',
                 'NEXT_PUBLIC_API_URL': 'http://backend:8000/api/v1', 'GARAGEOS_TRUST_CADDY_IP': 'true'}},
+            'website': {},
             'caddy': {'environment': {'DOMAIN': 'garageos.uz', 'ACME_EMAIL': 'ops@garageos.uz'},
                 'ports': [{'target': 80, 'published': '80'}, {'target': 443, 'published': '443'}]},
             'telegram-bot': {'profiles': ['telegram'], 'environment': dict(self.values)}}}

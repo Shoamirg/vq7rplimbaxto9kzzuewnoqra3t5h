@@ -4,7 +4,10 @@
 #   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 # Optional Telegram bot: add --profile telegram; requires its real token.
 #
-# Exposes only ports 80/443 (Caddy). Everything else is internal.
+# Exposes only Caddy. Everything else is internal. TLS is terminated by the
+# Cloudflare Tunnel in front of this host, so Caddy serves plain HTTP:
+#   DOMAIN      (garageos.uz)      -> website, plus /api/v1 for mobile apps
+#   APP_DOMAIN  (app.garageos.uz)  -> dashboard + /api/v1 backend
 services:
   postgres:
     image: postgres:16-alpine
@@ -77,6 +80,15 @@ services:
     depends_on:
       backend: { condition: service_started }
 
+  # Public landing website (garageos.uz). Stateless; no secrets.
+  website:
+    build:
+      context: ./website
+      dockerfile: ../docker/Dockerfile.website.prod
+      args:
+        APP_URL: https://${APP_DOMAIN}
+    restart: unless-stopped
+
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
@@ -85,6 +97,7 @@ services:
       - "443:443"
     environment:
       DOMAIN: ${DOMAIN}
+      APP_DOMAIN: ${APP_DOMAIN}
       ACME_EMAIL: ${ACME_EMAIL}
     volumes:
       - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
@@ -92,6 +105,7 @@ services:
       - caddy_config:/config
     depends_on:
       - dashboard
+      - website
 
 volumes:
   postgres_data:

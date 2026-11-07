@@ -15,7 +15,12 @@ import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
+
+
+class _NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, *args, **kwargs):
+        return None
 
 
 def serve_fixture(name, port):
@@ -55,7 +60,7 @@ class PublicRoutingTest(unittest.TestCase):
         docker("network", "create", cls.prefix)
         script = Path(__file__).resolve()
         config = script.parents[1] / "docker" / "Caddyfile"
-        for name, port in (("backend", 8000), ("dashboard", 3000)):
+        for name, port in (("backend", 8000), ("dashboard", 3000), ("website", 3000)):
             container = cls.prefix + "-" + name
             cls.containers.append(container)
             docker("run", "-d", "--name", container, "--network", cls.prefix,
@@ -65,7 +70,7 @@ class PublicRoutingTest(unittest.TestCase):
         cls.proxy = cls.prefix + "-caddy"
         cls.containers.append(cls.proxy)
         docker("run", "-d", "--name", cls.proxy, "--network", cls.prefix,
-               "-p", "127.0.0.1::80", "-e", "DOMAIN=http://localhost",
+               "-p", "127.0.0.1::80", "-e", "DOMAIN=site.localhost", "-e", "APP_DOMAIN=localhost",
                "-e", "ACME_EMAIL=test@example.com", "--mount",
                f"type=bind,src={config},dst=/etc/caddy/Caddyfile,readonly",
                "caddy:2-alpine")
@@ -93,9 +98,9 @@ class PublicRoutingTest(unittest.TestCase):
                        capture_output=True, timeout=30)
 
     @classmethod
-    def request(cls, path, *, data=None, headers=None):
+    def request(cls, path, *, data=None, headers=None, host="localhost"):
         request = Request(cls.url + path, data=data,
-                          headers={"Host": "localhost", **(headers or {})})
+                          headers={"Host": host, **(headers or {})})
         try:
             response = urlopen(request, timeout=3)
         except HTTPError as error:
@@ -179,8 +184,33 @@ class PublicRoutingTest(unittest.TestCase):
                     self.assertEqual(headers.get("x-real-ip"), headers["x-forwarded-for"])
                 self.assertEqual(len(set(observed)), 1)
 
+    def test_landing_host_serves_website_pages(self):
+        for path in ("/", "/pricing", "/docs", "/terms", "/_next/static/chunk.js", "/marketing/hero.jpg"):
+            with self.subTest(path=path):
+                status, _, result = self.request(path, host="site.localhost")
+                self.assertEqual(status, 200)
+                self.assertEqual(result["upstream"], "website")
+                self.assertEqual(result["path"], path)
+
+    def test_landing_host_keeps_native_api_for_installed_apps(self):
+        status, _, result = self.request("/api/v1/customer/auth/login", host="site.localhost")
+        self.assertEqual(status, 200)
+        self.assertEqual(result["upstream"], "backend")
+
+    def test_landing_host_redirects_app_paths_to_app_host(self):
+        for path in ("/passport/abc?x=1", "/invoice/42", "/mini", "/dashboard", "/api/auth/login"):
+            with self.subTest(path=path):
+                request = Request(self.url + path, headers={"Host": "site.localhost"})
+                opener = build_opener(_NoRedirect)
+                try:
+                    opener.open(request, timeout=3)
+                    self.fail("expected a redirect")
+                except HTTPError as error:
+                    self.assertEqual(error.code, 308)
+                    self.assertEqual(error.headers["Location"], "https://localhost" + path)
+
     def test_production_https_configuration_validates(self):
-        docker("exec", "-e", "DOMAIN=app.garageos.example", self.proxy,
+        docker("exec", "-e", "DOMAIN=garageos.example", "-e", "APP_DOMAIN=app.garageos.example", self.proxy,
                "caddy", "validate", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile")
 
 

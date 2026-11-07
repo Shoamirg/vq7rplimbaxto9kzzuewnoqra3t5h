@@ -16,7 +16,7 @@ from urllib.parse import urlsplit
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_COMPOSE = ROOT / 'docker-compose.prod.yml'
 MAX_ENV_BYTES = 65536
-CORE_SERVICES = {'postgres', 'redis', 'backend', 'dashboard', 'caddy'}
+CORE_SERVICES = {'postgres', 'redis', 'backend', 'dashboard', 'website', 'caddy'}
 REQUEST_FLAGS = ('TRUST_PROXY_HEADERS', 'RATE_LIMIT_ENABLED')
 REQUEST_LIMITS = ('RATE_LIMIT_AUTH_MAX', 'RATE_LIMIT_AUTH_WINDOW_SECONDS',
                   'RATE_LIMIT_WRITE_MAX', 'RATE_LIMIT_WRITE_WINDOW_SECONDS')
