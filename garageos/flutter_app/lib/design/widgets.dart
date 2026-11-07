@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -182,26 +183,29 @@ class _Notice extends StatelessWidget {
   const _Notice(this.text, this.icon);
   final String text;
   final IconData icon;
+  // The website's status pill: white, floating, icon in emerald.
   @override
   Widget build(BuildContext context) => Container(
     width: double.infinity,
     margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
     decoration: BoxDecoration(
-      color: context.colors.infoSoft,
+      color: context.colors.elevated,
       borderRadius: BorderRadius.circular(Radii.control),
-      border: Border.all(color: context.colors.border),
+      border: Border.all(color: context.colors.hairline),
+      boxShadow: context.isDark ? Shadows.none : Shadows.card,
     ),
     child: Row(
       children: [
-        Icon(icon, size: 16, color: context.colors.info),
+        Icon(icon, size: 16, color: context.colors.accentInk),
         const SizedBox(width: Space.sm),
         Expanded(
           child: Text(
             text,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: context.colors.info),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: context.colors.secondary,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ],
@@ -239,12 +243,72 @@ class Plate extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final display = formatPlate(value);
-    return MonoBadge(
-      display.isEmpty ? context.l10n.noPlate : display,
-      inverse: inverse,
-      size: size,
-      semanticLabel: context.l10n.plateSemantics(
-        display.isEmpty ? context.l10n.absent : display,
+    final semantics = context.l10n.plateSemantics(
+      display.isEmpty ? context.l10n.absent : display,
+    );
+    final parts = RegExp(r'^(\d{2}) (.+)$').firstMatch(display);
+    if (parts == null) {
+      return MonoBadge(
+        display.isEmpty ? context.l10n.noPlate : display,
+        inverse: inverse,
+        size: size,
+        semanticLabel: semantics,
+      );
+    }
+    // Uzbek plate, drawn like the website's: region | number | UZ strip.
+    // Always white with obsidian ink — it is a physical plate, not a chip.
+    const ink = Color(0xFF111315);
+    final text = context
+        .mono(size: size, color: ink)
+        .copyWith(
+          fontWeight: FontWeight.w600,
+          height: 1.1,
+          letterSpacing: size * .04,
+        );
+    const rule = BorderSide(color: ink, width: 2);
+    return Semantics(
+      label: semantics,
+      excludeSemantics: true,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.fromBorderSide(rule),
+          borderRadius: BorderRadius.circular(7),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: IntrinsicHeight(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                alignment: Alignment.center,
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+                decoration: const BoxDecoration(border: Border(right: rule)),
+                child: Text(parts[1]!, style: text),
+              ),
+              Container(
+                alignment: Alignment.center,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                child: Text(parts[2]!, style: text, maxLines: 1),
+              ),
+              Container(
+                alignment: Alignment.center,
+                padding: const EdgeInsets.symmetric(horizontal: 5),
+                color: Palette.plateBlue,
+                child: Text(
+                  'UZ',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: math.max(8, size * .6),
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: .5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -270,18 +334,21 @@ class StatusBadge extends StatelessWidget {
       'warning' => (p.warning, p.warningSoft),
       'danger' => (p.danger, p.dangerSoft),
       'strong' => (p.onBrand, p.brand),
-      'neutral' => (p.text, p.muted),
+      'neutral' => (p.text, p.elevated),
       _ => (p.info, p.infoSoft),
     };
+    final neutral = tone == 'neutral';
     return Container(
       padding: EdgeInsets.symmetric(
         horizontal: large ? 14 : 10,
         vertical: large ? 8 : 4,
       ),
+      // Neutral = the website's white status pill; tones = soft tints.
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(Radii.control),
-        border: tone == 'neutral' ? Border.all(color: p.border) : null,
+        border: neutral ? Border.all(color: p.hairline) : null,
+        boxShadow: neutral && !context.isDark ? Shadows.card : Shadows.none,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

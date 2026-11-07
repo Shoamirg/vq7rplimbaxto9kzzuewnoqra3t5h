@@ -18,7 +18,21 @@ Future<void> loadGarageFonts() async {
       'assets/fonts/PlusJakartaSans-SemiBold.ttf',
       'assets/fonts/PlusJakartaSans-700.ttf',
     ]),
-    ('Archivo', ['assets/fonts/Archivo-600.ttf', 'assets/fonts/Archivo-700.ttf']),
+    ('Archivo', [
+      'assets/fonts/Archivo-600.ttf',
+      'assets/fonts/Archivo-700.ttf',
+      'assets/fonts/Archivo-800.ttf',
+    ]),
+    ('Inter', [
+      'assets/fonts/Inter-400.ttf',
+      'assets/fonts/Inter-500.ttf',
+      'assets/fonts/Inter-600.ttf',
+      'assets/fonts/Inter-700.ttf',
+    ]),
+    ('Inter Tight', [
+      'assets/fonts/InterTight-700.ttf',
+      'assets/fonts/InterTight-800.ttf',
+    ]),
     ('IBM Plex Mono', ['assets/fonts/IBMPlexMono-400.ttf']),
     ('MaterialIcons', ['fonts/MaterialIcons-Regular.otf']),
   ]) {

@@ -77,6 +77,18 @@
 .mkt-nav__cta .mkt-btn { white-space: nowrap; flex: 0 0 auto; }
 .mkt-nav__cta-label--compact { display: none; }
 @media (min-width: 900px) { .mkt-nav__links { display: flex; } }
+/* Phone/tablet menu for the content pages. */
+.mkt-nav__menu { display: grid; place-items: center; width: 44px; height: 44px; flex: none; border: 1px solid #58636b; border-radius: 12px; background: #242a2f; color: #fff; cursor: pointer; }
+.mkt-nav__menu[aria-expanded="true"] { background: var(--mkt-ink); color: var(--mkt-bg); }
+.mkt-nav__menu:focus-visible, .mkt-menu a:focus-visible { outline: 3px solid var(--mkt-blue-soft); outline-offset: 2px; }
+.mkt-menu { display: grid; gap: 4px; padding: 8px 16px 16px; border-top: 1px solid var(--mkt-line); background: var(--mkt-bg); }
+.mkt-menu[hidden] { display: none; }
+.mkt-menu nav { display: grid; }
+.mkt-menu a { display: flex; align-items: center; min-height: 48px; padding: 0 12px; border-radius: 12px; color: var(--mkt-ink); font-size: 16px; font-weight: 600; }
+.mkt-menu__signin { margin-top: 4px; border: 1px solid var(--mkt-line-strong); justify-content: center; }
+@media (hover: hover) { .mkt-menu a:hover { background: var(--mkt-panel); } }
+@media (max-width: 899px) { .mkt-nav__signin { display: none; } }
+@media (min-width: 900px) { .mkt-nav__menu, .mkt-menu { display: none !important; } }
 @media (max-width: 600px) {
   .mkt-shell { padding-inline: 16px; }
   .mkt-nav__row { height: 64px; gap: 8px; }

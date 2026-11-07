@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 
+import { marketingMetadata } from "@/lib/marketing-meta";
 import { LegalContent } from "@/components/marketing/pages/legal-content";
 
-export const metadata: Metadata = {
-  title: "Foydalanish shartlari — GarageOS",
-  description: "GarageOS platformasidan foydalanish shartlari.",
-};
+export function generateMetadata(): Promise<Metadata> {
+  return marketingMetadata("/terms");
+}
 
 export default function TermsPage() {
   return <LegalContent document="terms" />;

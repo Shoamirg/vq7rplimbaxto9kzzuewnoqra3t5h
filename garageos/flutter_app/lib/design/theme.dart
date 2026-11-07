@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 
+// GarageOS visual language, shared with the public website (garageos.uz):
+// alabaster canvas, white floating cards with a hairline white edge and a soft
+// shadow, heavy tight Archivo display type, obsidian primary pills, emerald
+// accents, and frosted "glass" islands for navigation.
+
 abstract final class Space {
   static const xs = 4.0,
       sm = 8.0,
@@ -23,10 +28,38 @@ abstract final class Touch {
 abstract final class Radii {
   static const card = 28.0,
       tile = 18.0,
-      dock = 24.0,
+      dock = 28.0,
       icon = 14.0,
       control = 9999.0,
       plate = 9999.0;
+}
+
+/// The website's two shadows: a barely-there lift for cards and a deeper one
+/// for floating islands (dock, sticky bars, menus).
+abstract final class Shadows {
+  static const card = [
+    BoxShadow(
+      color: Color(0x0A111315),
+      blurRadius: 24,
+      spreadRadius: -4,
+      offset: Offset(0, 8),
+    ),
+    BoxShadow(
+      color: Color(0x05111315),
+      blurRadius: 6,
+      spreadRadius: -1,
+      offset: Offset(0, 2),
+    ),
+  ];
+  static const float = [
+    BoxShadow(
+      color: Color(0x24111315),
+      blurRadius: 36,
+      spreadRadius: -8,
+      offset: Offset(0, 16),
+    ),
+  ];
+  static const none = <BoxShadow>[];
 }
 
 @immutable
@@ -53,6 +86,11 @@ class Palette extends ThemeExtension<Palette> {
     required this.dock,
     required this.onDock,
     required this.vault,
+    required this.hairline,
+    required this.glass,
+    required this.accent,
+    required this.accentInk,
+    required this.accentSoft,
   });
   final Color background,
       surface,
@@ -75,11 +113,25 @@ class Palette extends ThemeExtension<Palette> {
       dock,
       onDock,
       vault;
+
+  /// Card edge: a soft white line on light, a quiet border on dark.
+  final Color hairline;
+
+  /// Frosted navigation islands (dock, segment tracks).
+  final Color glass;
+
+  /// Emerald accent (dots, gauges, focus rings), its text-safe ink and a tint.
+  final Color accent, accentInk, accentSoft;
+
   static const action = Color(0xFF111315), onAction = Color(0xFFFFFFFF);
 
   /// White-text emerald for money and send actions (AA on white text).
   static const emerald = Color(0xFF0B7E55);
   static const sos = Color(0xFFBE312B);
+
+  /// Uzbek plate flag strip (same blue as the website plate).
+  static const plateBlue = Color(0xFF0B6FB3);
+
   static const light = Palette(
     background: Color(0xFFE4E6E9),
     surface: Color(0xFFF5F6F8),
@@ -102,6 +154,11 @@ class Palette extends ThemeExtension<Palette> {
     dock: Color(0xFF111315),
     onDock: Color(0xFFB1BCCD),
     vault: Color(0xFF181B20),
+    hairline: Color(0xB3FFFFFF),
+    glass: Color(0xD1F5F7F9),
+    accent: Color(0xFF109868),
+    accentInk: Color(0xFF096645),
+    accentSoft: Color(0x24109868),
   );
   static const dark = Palette(
     background: Color(0xFF111315),
@@ -125,6 +182,11 @@ class Palette extends ThemeExtension<Palette> {
     dock: Color(0xFF262A30),
     onDock: Color(0xFFB1BCCD),
     vault: Color(0xFF0B0D0F),
+    hairline: Color(0xFF30353C),
+    glass: Color(0xD920242A),
+    accent: Color(0xFF75D5A3),
+    accentInk: Color(0xFF75D5A3),
+    accentSoft: Color(0x2975D5A3),
   );
   @override
   Palette copyWith() => this;
@@ -133,17 +195,35 @@ class Palette extends ThemeExtension<Palette> {
       t < .5 ? this : other ?? this;
 }
 
+/// Font families for a locale. Archivo and Plus Jakarta Sans have no Cyrillic,
+/// so Russian switches the whole family to Inter Tight / Inter — exactly as the
+/// website does — instead of mixing fonts glyph by glyph.
+class TypeFamilies {
+  const TypeFamilies._(this.display, this.body);
+  final String display, body;
+  static const latin = TypeFamilies._('Archivo', 'Plus Jakarta Sans');
+  static const cyrillic = TypeFamilies._('Inter Tight', 'Inter');
+  static TypeFamilies of(Locale? locale) =>
+      locale?.languageCode == 'ru' ? cyrillic : latin;
+
+  /// Per-glyph fallback: Inter carries the Uzbek ʻ (U+02BB) and Cyrillic.
+  static const displayFallback = ['Inter Tight', 'Inter'];
+  static const bodyFallback = ['Inter'];
+}
+
 extension DesignContext on BuildContext {
   Palette get colors => Theme.of(this).extension<Palette>()!;
   bool get isDark => Theme.of(this).brightness == Brightness.dark;
 
-  /// Archivo numerals for totals, dates and scores.
+  /// Heavy, tightly tracked display numerals for totals, dates and scores.
   TextStyle numeral(double size, {Color? color}) => TextStyle(
-    fontFamily: 'Archivo',
-    fontFamilyFallback: const ['Golos Text'],
+    fontFamily:
+        Theme.of(this).textTheme.displaySmall?.fontFamily ?? 'Archivo',
+    fontFamilyFallback: TypeFamilies.displayFallback,
     fontSize: size,
-    height: 1.1,
-    fontWeight: FontWeight.w700,
+    height: 1.05,
+    fontWeight: FontWeight.w800,
+    letterSpacing: -size * .03,
     color: color ?? colors.text,
     fontFeatures: const [FontFeature.tabularFigures()],
   );
@@ -151,47 +231,52 @@ extension DesignContext on BuildContext {
   /// IBM Plex Mono for plates, VINs and document codes.
   TextStyle mono({double size = 14, Color? color}) => TextStyle(
     fontFamily: 'IBM Plex Mono',
-    fontFamilyFallback: const ['Golos Text'],
+    fontFamilyFallback: TypeFamilies.bodyFallback,
     fontSize: size,
     height: 1.4,
     color: color ?? colors.text,
   );
+
+  /// Small uppercase emerald label above a heading (the website "kicker").
+  TextStyle kicker() => mono(size: 11, color: colors.accentInk).copyWith(
+    fontWeight: FontWeight.w600,
+    letterSpacing: .9,
+  );
 }
 
-ThemeData garageTheme(Brightness brightness) {
+ThemeData garageTheme(Brightness brightness, {Locale? locale}) {
   final p = brightness == Brightness.dark ? Palette.dark : Palette.light;
-  TextStyle style(double size, double height, FontWeight weight) => TextStyle(
-    fontFamily: 'Plus Jakarta Sans',
-    fontFamilyFallback: const ['Golos Text'],
+  final families = TypeFamilies.of(locale);
+  TextStyle body(double size, double height, FontWeight weight) => TextStyle(
+    fontFamily: families.body,
+    fontFamilyFallback: TypeFamilies.bodyFallback,
     fontSize: size,
     height: height / size,
     fontWeight: weight,
     color: p.text,
     fontFeatures: const [FontFeature.tabularFigures()],
   );
+  // Website display type: weight 800, line-height ~1.05, tracking −0.035em.
+  TextStyle display(double size, double height) => TextStyle(
+    fontFamily: families.display,
+    fontFamilyFallback: TypeFamilies.displayFallback,
+    fontSize: size,
+    height: height / size,
+    fontWeight: FontWeight.w800,
+    letterSpacing: -size * .035,
+    color: p.text,
+  );
   final texts = TextTheme(
-    displaySmall: style(
-      30,
-      36,
-      FontWeight.w600,
-    ).copyWith(fontFamily: 'Archivo'),
-    headlineSmall: style(
-      24,
-      30,
-      FontWeight.w600,
-    ).copyWith(fontFamily: 'Archivo'),
-    titleLarge: style(22, 28, FontWeight.w600).copyWith(fontFamily: 'Archivo'),
-    titleMedium: style(
-      18,
-      24,
-      FontWeight.w600,
-    ).copyWith(fontFamily: 'Plus Jakarta Sans'),
-    bodyLarge: style(16, 24, FontWeight.w400),
-    bodyMedium: style(14, 20, FontWeight.w400),
-    bodySmall: style(12, 16, FontWeight.w500),
-    labelLarge: style(16, 24, FontWeight.w600),
-    labelMedium: style(14, 20, FontWeight.w500),
-    labelSmall: style(12, 16, FontWeight.w500),
+    displaySmall: display(34, 36),
+    headlineSmall: display(28, 30),
+    titleLarge: display(22, 26),
+    titleMedium: body(18, 24, FontWeight.w700).copyWith(letterSpacing: -.2),
+    bodyLarge: body(16, 24, FontWeight.w400),
+    bodyMedium: body(14, 20, FontWeight.w400),
+    bodySmall: body(12, 16, FontWeight.w500),
+    labelLarge: body(16, 24, FontWeight.w600),
+    labelMedium: body(14, 20, FontWeight.w500),
+    labelSmall: body(12, 16, FontWeight.w500),
   );
   final scheme =
       ColorScheme.fromSeed(seedColor: p.brand, brightness: brightness).copyWith(
@@ -221,38 +306,38 @@ ThemeData garageTheme(Brightness brightness) {
     shape: WidgetStatePropertyAll(shape),
     textStyle: WidgetStatePropertyAll(texts.labelLarge),
   );
+  final field = OutlineInputBorder(
+    borderRadius: BorderRadius.circular(Radii.control),
+    borderSide: BorderSide(color: p.border),
+  );
   return ThemeData(
     useMaterial3: true,
     colorScheme: scheme,
     extensions: [p],
-    fontFamily: 'Plus Jakarta Sans',
-    fontFamilyFallback: const ['Golos Text'],
+    fontFamily: families.body,
+    fontFamilyFallback: TypeFamilies.bodyFallback,
     textTheme: texts,
     scaffoldBackgroundColor: p.background,
     visualDensity: VisualDensity.standard,
     materialTapTargetSize: MaterialTapTargetSize.padded,
     appBarTheme: AppBarTheme(
-      backgroundColor: p.surface,
+      backgroundColor: p.background,
       surfaceTintColor: Colors.transparent,
-      titleTextStyle: texts.titleMedium,
+      scrolledUnderElevation: 0,
+      titleTextStyle: display(20, 24),
       centerTitle: false,
       toolbarHeight: 64,
       elevation: 0,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          bottom: Radius.circular(Radii.dock),
-        ),
-      ),
     ),
     cardTheme: CardThemeData(
-      color: p.surface,
+      color: p.elevated,
       elevation: 0,
       shadowColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Radii.card),
-        side: BorderSide(color: p.border),
+        side: BorderSide(color: p.hairline),
       ),
     ),
     filledButtonTheme: FilledButtonThemeData(style: button),
@@ -275,72 +360,128 @@ ThemeData garageTheme(Brightness brightness) {
     iconButtonTheme: const IconButtonThemeData(
       style: ButtonStyle(minimumSize: WidgetStatePropertyAll(Size(48, 48))),
     ),
+    // Fields sit on the canvas as white pills; focus is the emerald ring the
+    // website uses for keyboard focus.
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: p.muted,
+      fillColor: p.elevated,
       contentPadding: const EdgeInsets.all(16),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(Radii.control),
-        borderSide: BorderSide(color: p.border),
+      border: field,
+      enabledBorder: field.copyWith(borderSide: BorderSide(color: p.hairline)),
+      focusedBorder: field.copyWith(
+        borderSide: BorderSide(color: p.accent, width: 2),
       ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(Radii.control),
-        borderSide: BorderSide(color: p.brand, width: 2),
+      errorBorder: field.copyWith(borderSide: BorderSide(color: p.danger)),
+      focusedErrorBorder: field.copyWith(
+        borderSide: BorderSide(color: p.danger, width: 2),
       ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(Radii.control),
-        borderSide: BorderSide(color: p.border),
+    ),
+    progressIndicatorTheme: ProgressIndicatorThemeData(
+      color: p.accent,
+      linearTrackColor: p.muted,
+      circularTrackColor: Colors.transparent,
+    ),
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected)
+            ? Colors.white
+            : p.secondary,
+      ),
+      trackColor: WidgetStateProperty.resolveWith(
+        (states) =>
+            states.contains(WidgetState.selected) ? Palette.emerald : p.muted,
+      ),
+      trackOutlineColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected)
+            ? Colors.transparent
+            : p.border,
+      ),
+    ),
+    checkboxTheme: CheckboxThemeData(
+      fillColor: WidgetStateProperty.resolveWith(
+        (states) =>
+            states.contains(WidgetState.selected) ? Palette.emerald : null,
+      ),
+    ),
+    radioTheme: RadioThemeData(
+      fillColor: WidgetStateProperty.resolveWith(
+        (states) =>
+            states.contains(WidgetState.selected) ? Palette.emerald : null,
       ),
     ),
     navigationRailTheme: NavigationRailThemeData(
       backgroundColor: p.surface,
-      indicatorColor: p.brandSoft,
-      selectedIconTheme: IconThemeData(color: p.brand),
-      selectedLabelTextStyle: texts.bodySmall?.copyWith(color: p.brand),
+      indicatorColor: p.brand,
+      selectedIconTheme: IconThemeData(color: p.onBrand),
+      selectedLabelTextStyle: texts.bodySmall?.copyWith(
+        color: p.text,
+        fontWeight: FontWeight.w700,
+      ),
       unselectedIconTheme: IconThemeData(color: p.secondary),
       unselectedLabelTextStyle: texts.bodySmall?.copyWith(color: p.secondary),
     ),
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: p.surface,
-      indicatorColor: p.brandSoft,
+      indicatorColor: p.brand,
       labelTextStyle: WidgetStateProperty.resolveWith(
         (states) => texts.bodySmall?.copyWith(
-          color: states.contains(WidgetState.selected) ? p.brand : p.secondary,
+          color: states.contains(WidgetState.selected) ? p.text : p.secondary,
         ),
       ),
       iconTheme: WidgetStateProperty.resolveWith(
         (states) => IconThemeData(
-          color: states.contains(WidgetState.selected) ? p.brand : p.secondary,
+          color: states.contains(WidgetState.selected)
+              ? p.onBrand
+              : p.secondary,
         ),
       ),
     ),
+    // Choices follow the website's slot picker: white with a hairline edge;
+    // selected = emerald tint, emerald edge and emerald ink.
     chipTheme: ChipThemeData(
-      backgroundColor: p.surface,
-      selectedColor: p.brandSoft,
-      side: BorderSide(color: p.border),
+      backgroundColor: p.elevated,
+      selectedColor: p.accentSoft,
+      checkmarkColor: p.accentInk,
+      side: WidgetStateBorderSide.resolveWith(
+        (states) => BorderSide(
+          color: states.contains(WidgetState.selected) ? p.accent : p.hairline,
+        ),
+      ),
       labelStyle: texts.bodyMedium,
+      secondaryLabelStyle: texts.bodyMedium?.copyWith(
+        color: p.accentInk,
+        fontWeight: FontWeight.w600,
+      ),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Radii.control),
       ),
     ),
     dialogTheme: DialogThemeData(
-      backgroundColor: p.surface,
+      backgroundColor: p.elevated,
+      surfaceTintColor: Colors.transparent,
+      titleTextStyle: display(22, 26),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Radii.card),
       ),
     ),
-    popupMenuTheme: PopupMenuThemeData(color: p.surface),
+    popupMenuTheme: PopupMenuThemeData(
+      color: p.elevated,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Radii.tile),
+      ),
+    ),
     dividerTheme: DividerThemeData(color: p.border, space: Space.group),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
       backgroundColor: p.text,
-      contentTextStyle: texts.bodyMedium?.copyWith(color: p.surface),
+      contentTextStyle: texts.bodyMedium?.copyWith(color: p.background),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Radii.control),
       ),
     ),
     bottomSheetTheme: BottomSheetThemeData(
-      backgroundColor: p.surface,
+      backgroundColor: p.elevated,
       surfaceTintColor: Colors.transparent,
       showDragHandle: true,
       dragHandleColor: p.border,

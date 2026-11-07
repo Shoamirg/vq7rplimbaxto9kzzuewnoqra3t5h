@@ -72,5 +72,11 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>GarageOS uses the camera to attach photos of your car to service chats.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>GarageOS lets you attach photos from your library to service chats.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>GarageOS uses your location to send roadside help to where you are.</string>
 </dict>
 </plist>

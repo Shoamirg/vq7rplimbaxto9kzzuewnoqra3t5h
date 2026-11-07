@@ -1,5 +1,6 @@
 /* Base layer the marketing styles expect; the dashboard's Tailwind theme is not needed here. */
 :root {
+  --font-brand: var(--font-brand-latin);
   --font-sans: var(--font-jakarta), var(--font-inter), system-ui, sans-serif;
   --shadow-bento: 0 8px 24px -4px rgb(17 19 21 / .04), 0 2px 6px -1px rgb(17 19 21 / .02);
 }
@@ -32,4 +33,13 @@ button, input, select, textarea {
 button { cursor: pointer; }
 
 h1, h2, h3 { font-family: var(--font-brand), var(--font-sans), system-ui, sans-serif; }
+
+/* Russian: Archivo and Plus Jakarta Sans ship no Cyrillic, and their metric
+   fallbacks (local Arial) would win before any later font in the stack. Swap the
+   whole family so headlines and body stay in one designed typeface. */
+:root:lang(ru), [lang="ru"] {
+  --font-brand: var(--font-brand-cyrillic);
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+}
+[lang="ru"] { font-family: var(--font-sans); }
 main { transition: opacity 150ms ease-out; }

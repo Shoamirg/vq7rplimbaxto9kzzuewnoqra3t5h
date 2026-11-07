@@ -1,11 +1,8 @@
 import { landingMessages } from "./marketing-landing-copy";
 
-export type MarketingLocale = "uz" | "ru" | "en";
-export const MARKETING_LOCALE_STORAGE_KEY = "garageos-marketing-locale";
+import type { MarketingLocale } from "./marketing-locale";
 
-export function isMarketingLocale(value: unknown): value is MarketingLocale {
-  return value === "uz" || value === "ru" || value === "en";
-}
+export { isMarketingLocale, MARKETING_LOCALE_STORAGE_KEY, type MarketingLocale } from "./marketing-locale";
 
 // Shared by server-rendered content and the client navigation.
 export const MARKETING_LINKS = {
@@ -26,6 +23,7 @@ export const marketingMessages = {
       home: "GarageOS bosh sahifa", primary: "Asosiy navigatsiya", language: "Sayt tili",
       product: "Imkoniyatlar", workflow: "Ish jarayoni", vehicleRecord: "Avto tarixi",
       pricing: "Narxlar", signIn: "Kirish", bookDemo: "Demo soʻrash", demo: "Demo",
+      faq: "Savollar", menu: "Menyuni ochish", closeMenu: "Menyuni yopish",
     },
     footer: {
       description: "Mijozlar, buyurtmalar va hisoblar — bir joyda.",
@@ -46,6 +44,7 @@ export const marketingMessages = {
       home: "Главная GarageOS", primary: "Основная навигация", language: "Язык сайта",
       product: "Возможности", workflow: "Рабочий процесс", vehicleRecord: "История авто",
       pricing: "Цены", signIn: "Войти", bookDemo: "Заказать демо", demo: "Демо",
+      faq: "Вопросы", menu: "Открыть меню", closeMenu: "Закрыть меню",
     },
     footer: {
       description: "Клиенты, заказ-наряды и счета — вместе.",
@@ -66,6 +65,7 @@ export const marketingMessages = {
       home: "GarageOS home", primary: "Primary navigation", language: "Website language",
       product: "Product", workflow: "Workflow", vehicleRecord: "Vehicle record",
       pricing: "Pricing", signIn: "Sign in", bookDemo: "Book a demo", demo: "Demo",
+      faq: "FAQ", menu: "Open menu", closeMenu: "Close menu",
     },
     footer: {
       description: "Customers, work orders and billing together.",

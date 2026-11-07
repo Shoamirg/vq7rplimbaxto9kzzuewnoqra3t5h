@@ -38,32 +38,27 @@ class WelcomeScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: Space.group),
+                  const SizedBox(height: Space.section),
                   if (state.sessionNotice != null)
                     ErrorNotice(state.sessionNotice!),
-                  BentoCard(
-                    padding: const EdgeInsets.fromLTRB(
-                      Space.card,
-                      Space.card,
-                      Space.card,
-                      Space.tile,
+                  // Website hero: status pill, heavy headline on the canvas,
+                  // then the vehicle stage on its own floating card.
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: StatusPill(context.l10n.welcomeBadge),
+                  ),
+                  const SizedBox(height: Space.md),
+                  Semantics(
+                    header: true,
+                    child: Text(
+                      context.l10n.welcomePromise,
+                      style: Theme.of(context).textTheme.displaySmall,
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const LogoTile(size: 56),
-                        const SizedBox(height: Space.group),
-                        Semantics(
-                          header: true,
-                          child: Text(
-                            context.l10n.welcomePromise,
-                            style: Theme.of(context).textTheme.displaySmall,
-                          ),
-                        ),
-                        const SizedBox(height: Space.md),
-                        const VehicleStage(blueprint: true),
-                      ],
-                    ),
+                  ),
+                  const SizedBox(height: Space.group),
+                  const BentoCard(
+                    padding: EdgeInsets.all(Space.tile),
+                    child: VehicleStage(blueprint: true),
                   ),
                   const SizedBox(height: Space.grid),
                   LanguagePills(state: state),
@@ -89,23 +84,33 @@ class WelcomeScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: Space.group),
-                  Material(
-                    color: p.muted,
-                    shape: StadiumBorder(side: BorderSide(color: p.border)),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(Radii.card),
+                      boxShadow: context.isDark ? Shadows.none : Shadows.card,
+                    ),
+                    child: Material(
+                    color: p.elevated,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(Radii.card),
+                      side: BorderSide(color: p.hairline),
+                    ),
                     clipBehavior: Clip.antiAlias,
                     child: SwitchListTile(
                       value: state.demoMode,
                       onChanged: state.setDemoMode,
-                      secondary: Icon(
+                      secondary: const IconSquare(
                         Icons.science_outlined,
-                        color: p.secondary,
+                        size: 40,
                       ),
                       title: Text(context.l10n.demoMode),
                       subtitle: Text(context.l10n.demoModeHint),
                       contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 20,
+                        horizontal: 16,
+                        vertical: 4,
                       ),
                     ),
+                  ),
                   ),
                 ],
               ),

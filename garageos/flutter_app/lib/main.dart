@@ -75,8 +75,8 @@ class _GarageAppState extends State<GarageApp> {
             feed: state.notificationsAllowed == true && source is NotificationFeed
               ? source : null, child: child!));
         },
-        theme: garageTheme(Brightness.light),
-        darkTheme: garageTheme(Brightness.dark),
+        theme: garageTheme(Brightness.light, locale: state.locale),
+        darkTheme: garageTheme(Brightness.dark, locale: state.locale),
         themeMode: state.themeMode,
         themeAnimationDuration:
             (MediaQuery.maybeDisableAnimationsOf(context) ??

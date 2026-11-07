@@ -4,13 +4,13 @@ import { useEffect, useState } from "react";
 
 import { useMarketingI18n } from "@/components/marketing/marketing-i18n-provider";
 
-export const LANDING_SECTIONS = ["showroom", "roles", "passport", "pricing"] as const;
+export const LANDING_SECTIONS = ["showroom", "roles", "passport", "pricing", "faq"] as const;
 export type LandingSection = (typeof LANDING_SECTIONS)[number];
 
 /** Landing copy for the active locale. */
 export function useLanding() {
-  const { locale, setLocale, messages } = useMarketingI18n();
-  return { locale, setLocale, t: messages.landing };
+  const { locale, setLocale, messages, href } = useMarketingI18n();
+  return { locale, setLocale, href, t: messages.landing };
 }
 
 /** The section currently crossing the upper third of the viewport (drives the nav highlight). */

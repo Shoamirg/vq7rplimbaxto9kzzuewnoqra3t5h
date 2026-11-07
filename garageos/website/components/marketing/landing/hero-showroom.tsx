@@ -49,6 +49,7 @@ export function HeroShowroom() {
             </div>
           ))}
         </dl>
+        <p className="lp-kpis__note">{t.hero.kpiNote}</p>
       </div>
       <AssistantCard live={shop.live} liveKey={shop.id} />
     </section>

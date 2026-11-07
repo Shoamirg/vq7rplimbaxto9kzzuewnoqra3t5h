@@ -227,15 +227,33 @@ class _WorkListState extends State<WorkList> {
                         style: TextStyle(color: context.colors.secondary),
                       ),
                     ),
-                    if (filtered || filter != JobFilter.all)
+                    // Hidden when the loaded list is empty: the empty state
+                    // already offers the same action, so it never shows twice.
+                    if ((filtered || filter != JobFilter.all) &&
+                        !(data != null &&
+                            (status == null
+                                    ? data.total
+                                    : data.items
+                                          .where((w) => w.status == status)
+                                          .length) ==
+                                0))
+                      // One-line white chip, like the website's filters.
                       Flexible(
-                        child: TextButton.icon(
+                        child: OutlinedButton.icon(
                           onPressed: resetFilters,
-                          icon: const Icon(Icons.filter_alt_off_outlined),
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: context.colors.elevated,
+                            side: BorderSide(color: context.colors.hairline),
+                            minimumSize: const Size(48, Touch.standard),
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            textStyle: Theme.of(context).textTheme.labelMedium
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                          icon: const Icon(Icons.filter_alt_off_outlined, size: 18),
                           label: Text(
                             context.l10n.clearFilters,
-                            maxLines: 2,
-                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ),

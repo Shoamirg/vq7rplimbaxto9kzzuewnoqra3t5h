@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 
+import { marketingMetadata } from "@/lib/marketing-meta";
 import { DocsContent } from "@/components/marketing/pages/docs-content";
 
-export const metadata: Metadata = {
-  title: "Qoʻllanma — GarageOS",
-  description: "GarageOS’da servisni qanday yuritish: bronlar, mijozlar, avtomobillar, pasportlar, hisob-kitob, hisobotlar va mobil ilova.",
-};
+export function generateMetadata(): Promise<Metadata> {
+  return marketingMetadata("/docs");
+}
 
 export default function DocsPage() {
   return <DocsContent />;

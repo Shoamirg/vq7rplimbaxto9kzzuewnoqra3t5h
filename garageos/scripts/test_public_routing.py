@@ -185,7 +185,7 @@ class PublicRoutingTest(unittest.TestCase):
                 self.assertEqual(len(set(observed)), 1)
 
     def test_landing_host_serves_website_pages(self):
-        for path in ("/", "/pricing", "/docs", "/terms", "/_next/static/chunk.js", "/marketing/hero.jpg"):
+        for path in ("/", "/ru", "/en/pricing", "/pricing", "/docs", "/terms", "/_next/static/chunk.js", "/marketing/hero.jpg"):
             with self.subTest(path=path):
                 status, _, result = self.request(path, host="site.localhost")
                 self.assertEqual(status, 200)
