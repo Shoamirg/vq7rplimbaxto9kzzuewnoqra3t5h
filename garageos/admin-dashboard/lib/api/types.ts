@@ -802,3 +802,64 @@ export interface VehicleIntelligence {
   timeline: { type: string; title: string; date: string; detail?: string | null; cost?: number | null; km?: number | null; severity?: string }[];
   owner_context: { id: string | null; name: string | null; vehicle_count: number; spend_tier: string | null } | null;
 }
+
+export interface PartItem {
+  id: string;
+  service_center_id: string;
+  name: string;
+  sku: string;
+  oem_number?: string | null;
+  barcode?: string | null;
+  category: string;
+  unit: string;
+  cost_price: number;
+  retail_price: number;
+  quantity_in_stock: number;
+  min_stock_level: number;
+  location?: string | null;
+  supplier_name?: string | null;
+  supplier_phone?: string | null;
+  notes?: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  is_low_stock: boolean;
+  profit_margin: number;
+  profit_margin_percent: number;
+}
+
+export interface InventoryCategorySummary {
+  category: string;
+  count: number;
+  total_value: number;
+}
+
+export interface InventorySummary {
+  total_parts: number;
+  total_stock_count: number;
+  total_cost_value: number;
+  total_retail_value: number;
+  low_stock_count: number;
+  categories: InventoryCategorySummary[];
+}
+
+export interface InventoryMovement {
+  id: string;
+  service_center_id: string;
+  part_id: string;
+  movement_type: "purchase" | "sale" | "return" | "adjustment" | "loss";
+  quantity: number;
+  unit_cost: number;
+  reference_invoice_id?: string | null;
+  reference_appointment_id?: string | null;
+  created_by_user_id?: string | null;
+  notes?: string | null;
+  created_at: string;
+}
+
+export interface PartsListResponse {
+  items: PartItem[];
+  total: number;
+  offset: number;
+  limit: number;
+}

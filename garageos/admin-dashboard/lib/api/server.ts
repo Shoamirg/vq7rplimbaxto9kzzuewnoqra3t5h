@@ -19,6 +19,8 @@ import type {
   VehicleIntelligence,
   VehicleList,
   VehicleTimeline,
+  InventorySummary,
+  PartsListResponse,
 } from "./types";
 
 export { AUTH_COOKIE };
@@ -120,4 +122,30 @@ export async function getPublicInspection(token: string): Promise<any | null> {
   if (res.status === 404) return null;
   if (!res.ok) throw new ApiError(`inspection responded ${res.status}`, res.status);
   return await res.json();
+}
+
+export async function getInventorySummary(): Promise<InventorySummary | null> {
+  try {
+    return await apiFetch<InventorySummary>("/inventory/summary");
+  } catch {
+    return null;
+  }
+}
+
+export async function getPartsList(params?: {
+  search?: string;
+  category?: string;
+  low_stock_only?: boolean;
+  offset?: number;
+  limit?: number;
+}): Promise<PartsListResponse> {
+  const q = new URLSearchParams();
+  if (params?.search) q.set("search", params.search);
+  if (params?.category) q.set("category", params.category);
+  if (params?.low_stock_only) q.set("low_stock_only", "true");
+  if (params?.offset !== undefined) q.set("offset", String(params.offset));
+  if (params?.limit !== undefined) q.set("limit", String(params.limit));
+
+  const queryStr = q.toString() ? `?${q.toString()}` : "";
+  return await apiFetch<PartsListResponse>(`/inventory/parts${queryStr}`);
 }

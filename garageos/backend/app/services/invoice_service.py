@@ -427,6 +427,7 @@ class InvoiceService:
             line_total=line_total,
             taxable=data.get("taxable", data.get("kind") != LineKind.DISCOUNT),
             sort_order=data.get("sort_order", order),
+            part_id=data.get("part_id"),
         )
 
     # ── estimate lifecycle ────────────────────────────────────
@@ -586,6 +587,16 @@ class InvoiceService:
         if inv.balance <= Decimal("0") and inv.total > Decimal("0"):
             inv.status = InvoiceStatus.PAID
             inv.paid_at = datetime.now(timezone.utc)
+            # Automatically deduct stock for line items connected to inventory parts
+            try:
+                from app.services.inventory_service import InventoryService
+                await InventoryService(self.uow).deduct_for_invoice_items(
+                    invoice_id=inv.id,
+                    line_items=inv.line_items,
+                    created_by_user_id=self.uow.actor_user_id,
+                )
+            except Exception as e:
+                logger.warning("Failed to auto-deduct inventory for invoice %s: %s", inv.id, e)
         elif inv.amount_paid > Decimal("0"):
             inv.status = InvoiceStatus.PARTIAL
             inv.paid_at = None

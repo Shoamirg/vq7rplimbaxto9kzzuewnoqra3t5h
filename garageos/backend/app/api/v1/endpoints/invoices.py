@@ -25,6 +25,7 @@ class LineItemIn(BaseModel):
     unit_price: FiniteFloat = Field(default=0, ge=0, le=99999999.99)
     line_total: FiniteFloat | None = Field(default=None, ge=0, le=99999999.99)
     taxable: bool = True
+    part_id: uuid.UUID | None = None
 
 
 class InvoiceCreate(BaseModel):

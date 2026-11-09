@@ -161,8 +161,11 @@ class InvoiceLineItem(BaseModelMixin, ServiceCenterMixin, Base):
     line_total: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=Decimal("0"))
     taxable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    part_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("parts.id", ondelete="SET NULL"), nullable=True, index=True)
 
     invoice: Mapped["Invoice"] = relationship(back_populates="line_items")
+    part: Mapped["PartItem | None"] = relationship(lazy="selectin")
 
 
 class Payment(BaseModelMixin, ServiceCenterMixin, Base):

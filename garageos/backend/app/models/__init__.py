@@ -38,6 +38,12 @@ from app.models.inspection import (
     InspectionDecision,
     InspectionCategory,
 )
+from app.models.part import (
+    PartItem,
+    InventoryMovement,
+    PartCategory,
+    MovementType,
+)
 from app.models.ledger import LedgerEntry
 from app.models.audit_log import AuditLog
 from app.models.message_intent import MessageIntent
@@ -80,6 +86,10 @@ __all__ = [
     "InspectionRating",
     "InspectionDecision",
     "InspectionCategory",
+    "PartItem",
+    "InventoryMovement",
+    "PartCategory",
+    "MovementType",
     "LedgerEntry",
     "AuditLog",
     "MessageIntent",
